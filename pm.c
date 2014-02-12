@@ -376,14 +376,14 @@ void compute_force_mesh(const int axes)
   for(int Jl=0; Jl<Local_ny_td; Jl++) {
     int J= Jl + Local_y_start_td;
 
-    int J0= J <= (Ngrid/2+1) ? J : J - Ngrid;
+    int J0= J <= (Ngrid/2) ? J : J - Ngrid;
     //di[1]= (complex float) J0;
 
     float di[3];
     di[1]= (float) J0;
 
     for(int iI=0; iI<Ngrid; iI++) {
-      int I0= iI <= (Ngrid/2+1) ? iI : iI - Ngrid;
+      int I0= iI <= (Ngrid/2) ? iI : iI - Ngrid;
       //di[0]= (complex float) I0;
       di[0]= (float) I0;
 

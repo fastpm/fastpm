@@ -137,7 +137,10 @@ int main(int argc, char* argv[])
     timer_set_category(COLA);
 
 #ifndef LOGTIMESTEP
-    particles->a_v= 0.5*da;
+    //particles->a_v= 0.5*da;
+    //  I thought 0.5*da is the natural initial time for leap frog integration,
+    //  but da gives much better matter power. I don't know why. (Feb 12, 2014)
+    particles->a_v= da;
     msg_printf(info, "timestep linear in a\n");
 #else
     const double loga_init= log(a_init);
