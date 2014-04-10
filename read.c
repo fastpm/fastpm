@@ -66,7 +66,7 @@ int read_snapshot(const char filename[], Snapshot* snapshot, void* buf, size_t s
   msg_printf(verbose, "%d files per snapshot.\n", numfiles);
 
   GadgetHeader header;
-
+  float vfac_back; // Gadget convention back to km/s
       
   for(int num = 0; num<numfiles; num++) {
     int np_snapshot= 0;
@@ -89,7 +89,8 @@ int read_snapshot(const char filename[], Snapshot* snapshot, void* buf, size_t s
       fread(&header, sizeof(GadgetHeader), 1, fp);
       check_separator(fp, 256);
       
-      np_snapshot = header.np[1]; // This code only reads type 1 dark matter
+      np_snapshot = header.np[1];   // This code only reads type 1 dark matter
+      vfac_back= sqrt(header.time);
 
       msg_printf(verbose, "%d particles read from %s.\n", 
 		 np_snapshot, filename_i);
@@ -123,11 +124,11 @@ int read_snapshot(const char filename[], Snapshot* snapshot, void* buf, size_t s
     }
     
     MPI_Bcast(&np_snapshot, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&vfac_back, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     MPI_Bcast(x, np_snapshot * 6, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     const float x_left= comm_xleft(0);
     const float x_right= comm_xright(0);
-    const float vfac_back= sqrt(header.time); // Gadget convention back to km/s
 
 
     float* v= x + 3*np_snapshot;
