@@ -246,6 +246,11 @@ int read_parameter_file(const char filename[], Parameters* const param)
     msg_printf(verbose, "write_longid= %d\n", param->write_longid);
   }
 
+    /* true to run QPM instead of COLA. */
+  param->qpm = read_bool(L, "qpm");
+    /* 0 to turn off smoothing; in cells */
+  param->smoothing = read_double(L, "smoothing");
+  param->diff_order = read_int(L, "diff_order");
 
 
   lua_close(L);

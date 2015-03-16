@@ -43,7 +43,9 @@ typedef struct {
   int cgrid_nc;
 
   int write_longid; 
-
+  int qpm;
+  double smoothing;
+  int diff_order;
 } Parameters;
 
 //int read_parameters(const char filename[], Parameters* const param);
