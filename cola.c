@@ -71,19 +71,16 @@ float Qfactor(const float a);
 // ** Total momentum adjustment dropped
 
 void cola_kick(Particles* const particles, const float Omega_m,
-	       const float avel1)
+        const float ai, const float af, const float ac)
+/* a_v     avel1     a_x*/
 {
                                                           timer_start(evolve);  
-  const float AI=  particles->a_v;  // t - 0.5*dt
-  const float A=   particles->a_x;  // t
-  const float AF=  avel1;           // t + 0.5*dt
-
-  msg_printf(normal, "Kick %g -> %g\n", AI, avel1);
+  msg_printf(normal, "Kick %g -> %g\n", ai, af);
 
   Om= Omega_m;
-  const float Om143= pow(Om/(Om + (1 - Om)*A*A*A), 1.0/143.0);
-  const float dda= Sphi(AI, AF, A);
-  const float growth1=growthD(A);
+  const float Om143= pow(Om/(Om + (1 - Om)*ac*ac*ac), 1.0/143.0);
+  const float dda= Sphi(ai, af, ac);
+  const float growth1=growthD(ac);
 
   msg_printf(normal, "growth factor %g\n", growth1);
 
@@ -95,8 +92,8 @@ void cola_kick(Particles* const particles, const float Omega_m,
   const int np= particles->np_local;
   float3* const f= particles->force;
   
-  // Kick using acceleration at a= A
-  // Assume forces at a=A is in particles->force
+  // Kick using acceleration at a= ac
+  // Assume forces at a=ac is in particles->force
 
 #ifdef _OPENMP
   #pragma omp parallel for default(shared)
@@ -112,28 +109,25 @@ void cola_kick(Particles* const particles, const float Omega_m,
   }
 
   //velocity is now at a= avel1
-  particles->a_v= avel1;
+  particles->a_v= af;
                                                            timer_stop(evolve);  
 }
 
 void cola_drift(Particles* const particles, const float Omega_m,
-	       const float apos1)
+        const float ai, const float af, const float ac)
+    /*a_x, apos1, a_v */
 {
                                                           timer_start(evolve);
-  const float A=  particles->a_x; // t
-  const float AC= particles->a_v; // t + 0.5*dt
-  const float AF= apos1;          // t + dt
-
   Particle* const P= particles->p;
   const int np= particles->np_local;
 
   
-  const float dyyy=Sq(A, AF, AC);
+  const float dyyy=Sq(ai, af, ac);
 
-  const float da1= growthD(AF) - growthD(A);    // change in D_{1lpt}
-  const float da2= growthD2(AF) - growthD2(A);  // change in D_{2lpt}
+  const float da1= growthD(af) - growthD(ai);    // change in D_{1lpt}
+  const float da2= growthD2(af) - growthD2(ai);  // change in D_{2lpt}
 
-  msg_printf(normal, "Drift %g -> %g\n", A, AF);
+  msg_printf(normal, "Drift %g -> %g\n", ai, af);
     
   // Drift
 #ifdef _OPENMP
@@ -148,7 +142,7 @@ void cola_drift(Particles* const particles, const float Omega_m,
                  subtractLPT*(P[i].dx1[2]*da1 + P[i].dx2[2]*da2);
   }
     
-  particles->a_x= AF;
+  particles->a_x= af;
                                                             timer_stop(evolve);
 }
 

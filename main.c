@@ -188,7 +188,7 @@ int main(int argc, char* argv[])
               if(iout >= nout) break;
 
               // Leap-frog "kick" -- velocities updated
-              cola_kick(particles, OmegaM, avel1);
+              cola_kick(particles, OmegaM, particles->a_v, avel1, particles->a_x);
 
               while(iout < nout && apos0 < aout[iout] && aout[iout] <= avel1) {
                   // Time to write output
@@ -198,7 +198,7 @@ int main(int argc, char* argv[])
               if(iout >= nout) break;
 
               // Leap-frog "drift" -- positions updated
-              cola_drift(particles, OmegaM, apos1);
+              cola_drift(particles, OmegaM, particles->a_x, apos1, particles->a_v);
           }
       }
       timer_print();

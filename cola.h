@@ -2,9 +2,9 @@
 #define COLA_H 1
 
 void cola_kick(Particles* const particles, const float Omega_m,
-	       const float avel1);
+        const float ai, const float af, const float ac);
 void cola_drift(Particles* const particles, const float Omega_m,
-		const float apos1);
+        const float ai, const float af, const float ac);
 
 void set_noncola_initial(Particles const * const particles, Snapshot* const snapshot);
 
