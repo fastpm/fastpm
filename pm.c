@@ -30,6 +30,7 @@
 // Nothing COLA-specific.
 
 #include <stdlib.h>
+#include <alloca.h>
 #include <math.h>
 #include <assert.h>
 #include <fftw3-mpi.h>
@@ -55,6 +56,8 @@ static float BoxSize;
 static fftwf_complex* fftdata;
 static fftwf_plan p0, p11;
 static fftwf_complex* density_k;
+
+static double * PowerSpectrumVariable;
 
 //static fftwf_complex *P3D;
 //static float *density;
@@ -102,6 +105,7 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
   // Assume FFTW3 is initialized in lpt.c
 
   Ngrid= nc_pm; NgridL= nc_pm;
+  PowerSpectrumVariable = malloc(sizeof(double) * Ngrid / 2);
   BoxSize= boxsize;
   PM_factor= nc_pm_factor;
 
@@ -349,7 +353,43 @@ void compute_density_k(void)
     }
   }
 }
+double * pm_compute_power_spectrum(size_t * nk) {
+    double * power = PowerSpectrumVariable;
+    nk[0] = Ngrid / 2;
+    double * count = (double*) alloca(sizeof(double) * (Ngrid / 2));
+    for(int i = 0; i < Ngrid / 2; i ++) {
+        count[i] = 0;
+        power[i] = 0;
+    }
+    for(int Jl=0; Jl<Local_ny_td; Jl++) {
+        int J = Jl + Local_y_start_td;
 
+        int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
+        for(int iI=0; iI<Ngrid; iI++) {
+            int I0 = iI <= (Ngrid/2) ? iI : iI - Ngrid;
+            for(int K=0; K<Ngrid/2; K++){
+                int K0 = K;
+                int i = sqrt(1.0 * I0 * I0 + 1.0 * J0 * J0 + 1.0 * K0 * K0);
+                if (i >= Ngrid / 2) continue;
+
+                size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
+                double a = density_k[index][0];
+                double b = density_k[index][1];
+                double p = a * a + b * b;
+                power[i] += p;                
+                count[i] += 1;
+            }
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, power, Ngrid / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, count, Ngrid / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    double mean = power[0];
+    for(int i = 0; i < Ngrid / 2; i ++) {
+        power[i] /= (count[i] * mean);
+    }
+    power[0] = 0;
+    return power;
+}
 // Calculate one component of force mesh from precalculated density(k)
 void compute_force_mesh(const int axes)
 {

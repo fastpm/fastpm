@@ -29,6 +29,7 @@ typedef struct {
   char init_filename[64];
   */
   char* power_spectrum_filename; int strlen_power_spectrum_filename;
+  char* measure_power_spectrum_filename; int strlen_measure_power_spectrum_filename;
   char* fof_filename;        int strlen_fof_filename;
   char* snapshot_filename;   int strlen_snapshot_filename;
   char* subsample_filename;  int strlen_subsample_filename;

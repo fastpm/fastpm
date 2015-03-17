@@ -40,6 +40,8 @@ int read_parameters(const int argc, char * argv[],
 
   bcast_string(&param->power_spectrum_filename, 
 	       &param->strlen_power_spectrum_filename);
+  bcast_string(&param->measure_power_spectrum_filename, 
+	       &param->strlen_measure_power_spectrum_filename);
   bcast_string(&param->fof_filename,        &param->strlen_fof_filename);
   bcast_string(&param->snapshot_filename,   &param->strlen_snapshot_filename);
   bcast_string(&param->subsample_filename,  &param->strlen_subsample_filename);
@@ -199,6 +201,10 @@ int read_parameter_file(const char filename[], Parameters* const param)
   param->power_spectrum_filename=
     read_string2(L, "powerspectrum", &param->strlen_power_spectrum_filename, 
 		 true);
+
+  param->measure_power_spectrum_filename=
+    read_string2(L, "measure_power", 
+        &param->strlen_measure_power_spectrum_filename, false);
 
   param->fof_filename= 
     read_string2(L, "fof", &param->strlen_fof_filename, false);

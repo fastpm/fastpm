@@ -155,16 +155,6 @@ int main(int argc, char* argv[])
           msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                   a_init, a_final, nsteps);
           for (int istep=1; istep<=nsteps; istep++) {
-              msg_printf(normal, "Timestep %d/%d\n", istep, nsteps);
-
-              timer_start(comm);
-              // move particles to other nodes
-              move_particles2(particles, param.boxsize, mem.mem1, mem.size1 );
-
-              timer_stop(comm);
-
-              pm_calculate_forces(particles); 
-
               double avel0, apos0, avel1, apos1;
               if(param.loga_step) {
                   const double dloga= (log(a_final) - log(a_init))/nsteps;
@@ -181,6 +171,32 @@ int main(int argc, char* argv[])
                   avel1= (istep+0.5)*da;
                   apos1= (istep+1.0)*da;
               } 
+              msg_printf(normal, "Timestep %d/%d\n", istep, nsteps);
+
+              timer_start(comm);
+              // move particles to other nodes
+              move_particles2(particles, param.boxsize, mem.mem1, mem.size1 );
+
+              timer_stop(comm);
+
+              pm_calculate_forces(particles); 
+
+              if(param.measure_power_spectrum_filename) {
+                  msg_printf(normal, "Measure Power\n");
+                  size_t nk = 0;
+                  double * powerspectrum = pm_compute_power_spectrum(&nk);
+                  char fname[9999];
+                  sprintf(fname, "%s-%0.4f.txt", param.measure_power_spectrum_filename, particles->a_x);
+                  int myrank;
+                  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+                  if(myrank == 0) {
+                      FILE * fp = fopen(fname, "w");
+                      for(int i = 0; i < nk; i ++) {
+                          fprintf(fp, "%d %g\n", i, powerspectrum[i]);
+                      }
+                      fclose(fp);
+                  }
+              }
 
               while(iout < nout && avel0 <= aout[iout] && aout[iout] <= apos0) {
                   // Time to write output
