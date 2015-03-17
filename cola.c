@@ -287,11 +287,10 @@ double Sphi(double ai, double af, double aRef) {
 
 
 // Interpolate position and velocity for snapshot at a=aout
-void set_noncola_initial(Particles const * const particles, Snapshot* const snapshot)
+void set_noncola_initial(const float aout, Particles const * const particles, Snapshot* const snapshot)
 {
                                                            timer_start(interp);
   
-  const float aout= particles->a_x;
   const int np= particles->np_local;
   Particle const * const p= particles->p;
 

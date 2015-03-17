@@ -126,21 +126,23 @@ int main(int argc, char* argv[])
           // Writes initial condition to file for e.g. Gadget N-body simulation
           char filename[256]; // TODO: use variable length for filename
           sprintf(filename, "%s_%05d", param.init_filename, seed);
-          set_noncola_initial(particles, snapshot);
+          set_noncola_initial(particles->a_x, particles, snapshot);
           write_snapshot(filename, snapshot, param.write_longid);
       }
 
       timer_set_category(COLA);
 
       if(param.loga_step) {
-          const double dloga= (log(a_final) - log(a_init))/nsteps;
-          particles->a_v= exp(log(a_init) - 0.5*dloga);
+          particles->a_v= exp(log(a_init));
           msg_printf(info, "timestep linear in loga\n");
       } else {
           const double da = a_final / nsteps;
           //  particles->a_v= 0.5*da;
           //  I thought 0.5*da is the natural initial time for leap frog integration,
           //  but da gives much better matter power. I don't know why. (Feb 12, 2014)
+          //
+          //  This is likely because the first kick is a half step kick. (Mar 17, 2015)
+          //  also applies to the loga stepping.
           particles->a_v= da;
           msg_printf(info, "timestep linear in a\n");
       }
