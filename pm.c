@@ -640,9 +640,9 @@ int send_buffer_positions(Particles* const particles, BufferVec3* buf)
       nsend++;
     }
 
-    if(nsend >= nbuf)
+    if(nsend > nbuf)
       msg_abort(6100, "Error: Not enough space for rendrecv_buffer: "
-		      "%d buffer particles\n", nsend);
+		      "%d buffer particles nbuf=%d\n", nsend, nbuf);
   }
   buf->nsend= nsend;
 
