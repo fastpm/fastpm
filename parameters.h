@@ -46,6 +46,7 @@ typedef struct {
   int qpm;
   double smoothing;
   int diff_order;
+  int loga_step;
 } Parameters;
 
 //int read_parameters(const char filename[], Parameters* const param);
