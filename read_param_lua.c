@@ -251,7 +251,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     /* 0 to turn off smoothing; in cells */
   param->smoothing = read_double(L, "smoothing");
   param->diff_order = read_int(L, "diff_order");
-  param->loga_step= read_double(L, "loga_step");
+  param->loga_step= read_bool(L, "loga_step");
 
 
   lua_close(L);

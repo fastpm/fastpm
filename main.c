@@ -23,8 +23,6 @@
 #include "subsample.h"
 #include "coarse_grid.h"
 
-//#define LOGTIMESTEP 1
-
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
 void snapshot_time(const float aout, const int iout, 
@@ -65,16 +63,14 @@ int main(int argc, char* argv[])
   const int nsteps= param.ntimestep;
   const double a_final= param.a_final;
 
-#ifndef LOGTIMESTEP
-  const double da= a_final/nsteps;
-  const double a_init= da;
-#else
-  const double a_init= 0.1;
-#endif
+  double a_init;
+  if(param.loga_step) {
+    a_init = 0.1;
+  } else {
+    double da = a_final / nsteps;
+    a_init = da;
+  }
 
-
-  
-  //power_init("camb0_matterpower.dat", a_init, sigma8, OmegaM, OmegaLambda);
   power_init(param.power_spectrum_filename, a_init, 
 	     sigma8, OmegaM, OmegaLambda);
 
@@ -113,97 +109,99 @@ int main(int argc, char* argv[])
   // Many realizations with different initial conditions
   //
   for(int irealization=0; irealization<param.nrealization; irealization++) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    msg_printf(verbose, "\n%d/%d realization.\n", 
-	       irealization+1, param.nrealization);
-    int seed= param.random_seed + irealization;
+      MPI_Barrier(MPI_COMM_WORLD);
+      msg_printf(verbose, "\n%d/%d realization.\n", 
+              irealization+1, param.nrealization);
+      int seed= param.random_seed + irealization;
 
-    int iout= 0;
+      int iout= 0;
 
-    // Sets initial grid and 2LPT desplacement
-    timer_set_category(LPT);
-    lpt_set_displacement(a_init, OmegaM, seed,
-			 param.boxsize, particles);
-    snapshot->seed= seed;
+      // Sets initial grid and 2LPT desplacement
+      timer_set_category(LPT);
+      lpt_set_displacement(a_init, OmegaM, seed,
+              param.boxsize, particles);
+      snapshot->seed= seed;
 
-    if(param.init_filename) {
-      // Writes initial condition to file for e.g. Gadget N-body simulation
-      char filename[256]; // TODO: use variable length for filename
-      sprintf(filename, "%s_%05d", param.init_filename, seed);
-      set_noncola_initial(particles, snapshot);
-      write_snapshot(filename, snapshot, param.write_longid);
-    }
-
-    timer_set_category(COLA);
-
-#ifndef LOGTIMESTEP
-    //particles->a_v= 0.5*da;
-    //  I thought 0.5*da is the natural initial time for leap frog integration,
-    //  but da gives much better matter power. I don't know why. (Feb 12, 2014)
-    particles->a_v= da;
-    msg_printf(info, "timestep linear in a\n");
-#else
-    const double loga_init= log(a_init);
-    const double dloga= (log(a_final) - log(a_init))/nsteps;
-    particles->a_v= exp(log(a_init) - 0.5*dloga);
-    msg_printf(info, "timestep linear in loga\n");
-#endif
-
-
-    //
-    // Time evolution loop
-    //
-    //   TODO: allow nstep=1?
-    if(nout > 0 && nsteps > 1 && a_final > a_init) {
-      msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
-		 a_init, a_final, nsteps);
-      for (int istep=1; istep<=nsteps; istep++) {
-	msg_printf(normal, "Timestep %d/%d\n", istep, nsteps);
-      
-                                                            timer_start(comm);
-        // move particles to other nodes
-        move_particles2(particles, param.boxsize, mem.mem1, mem.size1 );
-
-                                                            timer_stop(comm);
-
-        pm_calculate_forces(particles); 
-
-#ifndef LOGTIMESTEP
-	double avel0= (istep-0.5)*da;
-	double apos0=  istep*da;
-	
-	double avel1= (istep+0.5)*da;
-	double apos1= (istep+1.0)*da;
-#else
-	float avel0= exp(loga_init + (istep-0.5)*dloga);
-	float apos0= exp(loga_init + istep*dloga);
-	
-	float avel1= exp(loga_init + (istep+0.5)*dloga);
-	float apos1= exp(loga_init + (istep+1)*dloga);
-#endif
-      
-	while(iout < nout && avel0 <= aout[iout] && aout[iout] <= apos0) {
-	  // Time to write output
-	  snapshot_time(aout[iout], iout, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
-	  iout++;
-	}
-	if(iout >= nout) break;
-
-	// Leap-frog "kick" -- velocities updated
-	cola_kick(particles, OmegaM, avel1);
-
-	while(iout < nout && apos0 < aout[iout] && aout[iout] <= avel1) {
-	  // Time to write output
-	  snapshot_time(aout[iout], iout,  particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
-	  iout++;
-	}
-	if(iout >= nout) break;
-
-	// Leap-frog "drift" -- positions updated
-	cola_drift(particles, OmegaM, apos1);
+      if(param.init_filename) {
+          // Writes initial condition to file for e.g. Gadget N-body simulation
+          char filename[256]; // TODO: use variable length for filename
+          sprintf(filename, "%s_%05d", param.init_filename, seed);
+          set_noncola_initial(particles, snapshot);
+          write_snapshot(filename, snapshot, param.write_longid);
       }
-    }
-    timer_print();
+
+      timer_set_category(COLA);
+
+      if(param.loga_step) {
+          const double dloga= (log(a_final) - log(a_init))/nsteps;
+          particles->a_v= exp(log(a_init) - 0.5*dloga);
+          msg_printf(info, "timestep linear in loga\n");
+      } else {
+          const double da = a_final / nsteps;
+          //  particles->a_v= 0.5*da;
+          //  I thought 0.5*da is the natural initial time for leap frog integration,
+          //  but da gives much better matter power. I don't know why. (Feb 12, 2014)
+          particles->a_v= da;
+          msg_printf(info, "timestep linear in a\n");
+      }
+
+      //
+      // Time evolution loop
+      //
+      //   TODO: allow nstep=1?
+      if(nout > 0 && nsteps > 1 && a_final > a_init) {
+          msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
+                  a_init, a_final, nsteps);
+          for (int istep=1; istep<=nsteps; istep++) {
+              msg_printf(normal, "Timestep %d/%d\n", istep, nsteps);
+
+              timer_start(comm);
+              // move particles to other nodes
+              move_particles2(particles, param.boxsize, mem.mem1, mem.size1 );
+
+              timer_stop(comm);
+
+              pm_calculate_forces(particles); 
+
+              double avel0, apos0, avel1, apos1;
+              if(param.loga_step) {
+                  const double dloga= (log(a_final) - log(a_init))/nsteps;
+                  avel0= exp(log(a_init) + (istep-0.5)*dloga);
+                  apos0= exp(log(a_init) + istep*dloga);
+
+                  avel1= exp(log(a_init) + (istep+0.5)*dloga);
+                  apos1= exp(log(a_init) + (istep+1)*dloga);
+              } else {
+                  const double da = a_final / nsteps;
+                  avel0= (istep-0.5)*da;
+                  apos0=  istep*da;
+
+                  avel1= (istep+0.5)*da;
+                  apos1= (istep+1.0)*da;
+              } 
+
+              while(iout < nout && avel0 <= aout[iout] && aout[iout] <= apos0) {
+                  // Time to write output
+                  snapshot_time(aout[iout], iout, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
+                  iout++;
+              }
+              if(iout >= nout) break;
+
+              // Leap-frog "kick" -- velocities updated
+              cola_kick(particles, OmegaM, avel1);
+
+              while(iout < nout && apos0 < aout[iout] && aout[iout] <= avel1) {
+                  // Time to write output
+                  snapshot_time(aout[iout], iout,  particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
+                  iout++;
+              }
+              if(iout >= nout) break;
+
+              // Leap-frog "drift" -- positions updated
+              cola_drift(particles, OmegaM, apos1);
+          }
+      }
+      timer_print();
   }
 
   //move_particles(particles);
