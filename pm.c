@@ -356,6 +356,11 @@ void compute_density_k(void)
 double * pm_compute_power_spectrum(size_t * nk) {
     double * power = PowerSpectrumVariable;
     nk[0] = Ngrid / 2;
+    return power;
+}
+void compute_power_spectrum() {
+    msg_printf(verbose, "Calculating power spectrum...\n");
+    double * power = PowerSpectrumVariable;
     double * count = (double*) alloca(sizeof(double) * (Ngrid / 2));
     for(int i = 0; i < Ngrid / 2; i ++) {
         count[i] = 0;
@@ -383,12 +388,9 @@ double * pm_compute_power_spectrum(size_t * nk) {
     }
     MPI_Allreduce(MPI_IN_PLACE, power, Ngrid / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, count, Ngrid / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    double mean = power[0];
     for(int i = 0; i < Ngrid / 2; i ++) {
-        power[i] /= (count[i] * mean);
+        power[i] /= (count[i]);
     }
-    power[0] = 0;
-    return power;
 }
 // Calculate one component of force mesh from precalculated density(k)
 void compute_force_mesh(const int axes)
@@ -835,6 +837,8 @@ void pm_calculate_forces(Particles* particles)
   compute_density_k();
   //fftwf_mpi_execute_dft_r2c(p0, density, P3D);
                                                             timer_stop(fft);
+
+  compute_power_spectrum();
 
   for(int axes=0; axes<3; axes++) {
     // density(k) -> f(x_i) [fftdata]

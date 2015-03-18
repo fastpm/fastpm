@@ -104,7 +104,11 @@ int main(int argc, char* argv[])
 	       i, param.zout[i], aout[i]);
   }
 
-
+  if (param.qpm) {
+      cola_set_subtract_lpt(0);
+  } else {
+      cola_set_subtract_lpt(0);
+  }
   //
   // Many realizations with different initial conditions
   //
@@ -182,7 +186,6 @@ int main(int argc, char* argv[])
               pm_calculate_forces(particles); 
 
               if(param.measure_power_spectrum_filename) {
-                  msg_printf(normal, "Measure Power\n");
                   size_t nk = 0;
                   double * powerspectrum = pm_compute_power_spectrum(&nk);
                   char fname[9999];
