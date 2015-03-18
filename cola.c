@@ -58,7 +58,7 @@
 static float Om= -1.0f;
 static float subtractLPT= 1.0f;
 static const float nLPT= -2.5f;
-static const int fullT= 1; // velocity growth model
+static int stdDA = 0; // velocity growth model
 
 //
 float growthD(const float a);
@@ -70,7 +70,10 @@ float Qfactor(const float a);
 // Leap frog time integration
 // ** Total momentum adjustment dropped
 void cola_set_subtract_lpt(int flag) {
-    subtractLPT = flag;
+    subtractLPT = flag?1.0:0.0;
+}
+void cola_set_std_da(int flag) {
+    stdDA = flag;
 }
 void cola_kick(Particles* const particles, const float Omega_m,
         const float ai, const float af, const float ac)
@@ -240,16 +243,15 @@ double gpQ(double a) {
 
 double fun (double a, void * params) {
   double f;
-  if (fullT==1) f = gpQ(a)/Qfactor(a); 
+  if (stdDA==0) f = gpQ(a)/Qfactor(a); 
   else f = 1.0/Qfactor(a);
   
   return f;
 }
 
 /*     
-      When StdDA=0, one needs to set fullT and nLPT.
-         fullT=0 assumes time dependence for velocity = A + B a^nLPT, with A>>B a^nLPT. (A and B are irrelevant)
-         fullT=1 assumes time dep. for velocity = B a^nLPT
+      When StdDA=0, one needs to set nLPT.
+         assumes time dep. for velocity = B a^nLPT
          nLPT is a real number. Sane values lie in the range (-4,3.5). Cannot be 0, but of course can be -> 0 (say 0.001).
          See Section A.3 of TZE.
 */
@@ -270,7 +272,7 @@ double Sq(double ai, double af, double aRef) {
   
   gsl_integration_workspace_free (w);
      
-  if (fullT==1)
+  if (stdDA==0)
     return result/gpQ(aRef);
   return result;
 }

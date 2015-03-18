@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
   
 
   pm_init(nc_factor*param.nc, nc_factor, param.boxsize,
-	  mem.mem1, mem.size1, mem.mem2, mem.size2);
+	  mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
   fof_init(particles->np_allocated, param.nc, mem.mem1, mem.size1);
   subsample_init(param.subsample_factor, param.random_seed);
 
@@ -107,7 +107,12 @@ int main(int argc, char* argv[])
   if (param.qpm) {
       cola_set_subtract_lpt(0);
   } else {
-      cola_set_subtract_lpt(0);
+      cola_set_subtract_lpt(1);
+  }
+  if (param.stdda) {
+      cola_set_std_da(1);
+  } else {
+      cola_set_std_da(0);
   }
   //
   // Many realizations with different initial conditions
@@ -194,6 +199,9 @@ int main(int argc, char* argv[])
                   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
                   if(myrank == 0) {
                       FILE * fp = fopen(fname, "w");
+                      if (fp == NULL) {
+                        msg_abort(0020, "Unable to write to %s\n", fname);
+                      }
                       for(int i = 0; i < nk; i ++) {
                           fprintf(fp, "%d %g\n", i, powerspectrum[i]);
                       }

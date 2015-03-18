@@ -100,7 +100,7 @@ static inline float REd(float const * const d, const int i, const int j, const i
 
 void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
 	     void* const mem1, const size_t size1,
-	     void* const mem2, const size_t size2)
+	     void* const mem2, const size_t size2, int many)
 {
   // Assume FFTW3 is initialized in lpt.c
 
@@ -167,15 +167,15 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
   //FN11= P3D;
   //N11= (float*) FN11;
 
-  msg_printf(verbose, "Setting up FFTW3 plans (FFTW_MEASURE)\n");
+  msg_printf(verbose, "Setting up FFTW3 plans\n");
 
   p0=  fftwf_mpi_plan_dft_r2c_3d(Ngrid, Ngrid, Ngrid, 
 				 (float*) fftdata, fftdata,
-		    MPI_COMM_WORLD, FFTW_MEASURE | FFTW_MPI_TRANSPOSED_OUT);
+		    MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_OUT);
   
   // inverse FFT
   p11= fftwf_mpi_plan_dft_c2r_3d(Ngrid, Ngrid, Ngrid, fftdata, (float*)fftdata,
-		     MPI_COMM_WORLD, FFTW_MEASURE | FFTW_MPI_TRANSPOSED_IN);
+		     MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_IN);
 
   // FFTW_MEASURE is probably better for multiple realization **
 

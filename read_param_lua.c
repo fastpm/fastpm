@@ -258,6 +258,8 @@ int read_parameter_file(const char filename[], Parameters* const param)
   param->smoothing = read_double(L, "smoothing");
   param->diff_order = read_int(L, "diff_order");
   param->loga_step= read_bool(L, "loga_step");
+    /* standard 1/a 1/a**2 drift/kick facters? or COLA improved factors?*/
+  param->stdda = read_bool(L, "stdda");
 
 
   lua_close(L);
