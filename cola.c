@@ -56,7 +56,7 @@
 #include "timer.h"
 
 static float Om= -1.0f;
-static const float subtractLPT= 1.0f;
+static float subtractLPT= 1.0f;
 static const float nLPT= -2.5f;
 static const int fullT= 1; // velocity growth model
 
@@ -69,7 +69,9 @@ float Qfactor(const float a);
 
 // Leap frog time integration
 // ** Total momentum adjustment dropped
-
+void cola_set_subtract_lpt(int flag) {
+    subtractLPT = flag;
+}
 void cola_kick(Particles* const particles, const float Omega_m,
         const float ai, const float af, const float ac)
 /* a_v     avel1     a_x*/
