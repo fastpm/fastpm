@@ -229,7 +229,7 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
   msg_printf(info, "%d Mbytes allocated for particle buffer\n",
 	     sizeof(Particle)*NParticleBuffer/(1024*1024));
   */
-  const int nbuf= ncp*ncp;
+  const int nbuf= ncp*ncp * 2;
 
   BufPos.nbuf= nbuf;
   BufPos.vec  = malloc(sizeof(float)*3*nbuf);
