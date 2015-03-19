@@ -45,6 +45,7 @@ typedef struct {
 
   int write_longid; 
   int qpm;
+  int nopm;
   int stdda;
   double smoothing;
   int diff_order;

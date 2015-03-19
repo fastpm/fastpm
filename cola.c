@@ -59,8 +59,8 @@ static float Om= -1.0f;
 static float subtractLPT= 1.0f;
 static const float nLPT= -2.5f;
 static int stdDA = 0; // velocity growth model
+static int noPM;
 
-//
 float growthD(const float a);
 float growthD2(const float a);
 double Sphi(double ai, double af, double aRef);
@@ -75,6 +75,10 @@ void cola_set_subtract_lpt(int flag) {
 void cola_set_std_da(int flag) {
     stdDA = flag;
 }
+void cola_set_no_pm(int flag) {
+    noPM = flag;
+}
+
 void cola_kick(Particles* const particles, const float Omega_m,
         const float ai, const float af, const float ac)
 /* a_v     avel1     a_x*/
@@ -87,7 +91,7 @@ void cola_kick(Particles* const particles, const float Omega_m,
   const float dda= Sphi(ai, af, ac);
   const float growth1=growthD(ac);
 
-  msg_printf(normal, "growth factor %g\n", growth1);
+  msg_printf(normal, "growth factor %g dda=%g \n", growth1, dda);
 
   const float q2=1.5*Om*growth1*growth1*(1.0 + 7.0/3.0*Om143);
   const float q1=1.5*Om*growth1;
@@ -108,9 +112,15 @@ void cola_kick(Particles* const particles, const float Omega_m,
     float ay= -1.5*Om*f[i][1] - subtractLPT*(P[i].dx1[1]*q1 + P[i].dx2[1]*q2);
     float az= -1.5*Om*f[i][2] - subtractLPT*(P[i].dx1[2]*q1 + P[i].dx2[2]*q2);
 
-    P[i].v[0] += ax*dda;
-    P[i].v[1] += ay*dda;
-    P[i].v[2] += az*dda;
+    if(!noPM) {
+        P[i].v[0] += ax * dda;
+        P[i].v[1] += ay * dda;
+        P[i].v[2] += az * dda;
+    } else {
+        P[i].v[0] = 0;
+        P[i].v[1] = 0;
+        P[i].v[2] = 0;
+    }
   }
 
   //velocity is now at a= avel1
@@ -133,6 +143,7 @@ void cola_drift(Particles* const particles, const float Omega_m,
   const float da2= growthD2(af) - growthD2(ai);  // change in D_{2lpt}
 
   msg_printf(normal, "Drift %g -> %g\n", ai, af);
+  msg_printf(normal, "dyyy = %g \n", dyyy);
     
   // Drift
 #ifdef _OPENMP

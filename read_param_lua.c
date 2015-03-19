@@ -260,6 +260,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
   param->loga_step= read_bool(L, "loga_step");
     /* standard 1/a 1/a**2 drift/kick facters? or COLA improved factors?*/
   param->stdda = read_bool(L, "stdda");
+  param->nopm = read_bool(L, "nopm");
 
 
   lua_close(L);

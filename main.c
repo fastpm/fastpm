@@ -114,6 +114,11 @@ int main(int argc, char* argv[])
   } else {
       cola_set_std_da(0);
   }
+  if (param.nopm) {
+      cola_set_no_pm(1);
+  } else {
+      cola_set_no_pm(0);
+  }
   //
   // Many realizations with different initial conditions
   //
