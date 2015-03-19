@@ -153,14 +153,13 @@ int main(int argc, char* argv[])
           particles->a_v= exp(log(a_init));
           msg_printf(info, "timestep linear in loga\n");
       } else {
-          const double da = a_final / nsteps;
-          //  particles->a_v= 0.5*da;
+          //  particles->a_v= 0.5*ainit;
           //  I thought 0.5*da is the natural initial time for leap frog integration,
           //  but da gives much better matter power. I don't know why. (Feb 12, 2014)
           //
           //  This is likely because the first kick is a half step kick. (Mar 17, 2015)
           //  also applies to the loga stepping.
-          particles->a_v= da;
+          particles->a_v= a_init;
           msg_printf(info, "timestep linear in a\n");
       }
 
@@ -171,19 +170,18 @@ int main(int argc, char* argv[])
       if(nout > 0 && nsteps > 1 && a_final > a_init) {
           msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                   a_init, a_final, nsteps);
-          for (int istep=1; istep<=nsteps; istep++) {
+          for (int istep=0; istep<=nsteps; istep++) {
               double avel0, apos0, avel1, apos1;
+              avel0= particles->a_v;
+              apos0= particles->a_x;
               if(param.loga_step) {
                   const double dloga= (log(a_final) - log(a_init))/nsteps;
-                  avel0= exp(log(a_init) + (istep-0.5)*dloga);
-                  apos0= exp(log(a_init) + istep*dloga);
+                  msg_printf(normal, "dloga = %g\n", dloga);
 
                   avel1= exp(log(a_init) + (istep+0.5)*dloga);
                   apos1= exp(log(a_init) + (istep+1)*dloga);
               } else {
                   const double da = a_final / nsteps;
-                  avel0= (istep-0.5)*da;
-                  apos0=  istep*da;
 
                   avel1= (istep+0.5)*da;
                   apos1= (istep+1.0)*da;
