@@ -323,6 +323,15 @@ void set_noncola_initial(const float aout, Particles const * const particles, Sn
   #pragma omp parallel for default(shared)  
 #endif
   for(int i=0; i<np; i++) {
+    if(subtractLPT) {
+        p[i].v[0] = 0;
+        p[i].v[1] = 0;
+        p[i].v[2] = 0;
+    } else {
+        p[i].v[0] = (p[i].dx1[0]*Dv + p[i].dx2[0]*Dv2);
+        p[i].v[1] = (p[i].dx1[1]*Dv + p[i].dx2[1]*Dv2);
+        p[i].v[2] = (p[i].dx1[2]*Dv + p[i].dx2[2]*Dv2);
+    }
     po[i].v[0] = vfac*(p[i].dx1[0]*Dv + p[i].dx2[0]*Dv2);
     po[i].v[1] = vfac*(p[i].dx1[1]*Dv + p[i].dx2[1]*Dv2);
     po[i].v[2] = vfac*(p[i].dx1[2]*Dv + p[i].dx2[2]*Dv2);
