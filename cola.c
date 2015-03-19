@@ -249,6 +249,14 @@ double fun (double a, void * params) {
   return f;
 }
 
+double fun2 (double a, void * params) {
+  double f;
+  if (stdDA==0) abort();
+  else f = a/Qfactor(a);
+  
+  return f;
+}
+
 /*     
       When StdDA=0, one needs to set nLPT.
          assumes time dep. for velocity = B a^nLPT
@@ -283,20 +291,38 @@ double DERgpQ(double a) { // This must return d(gpQ)/da
      
 double Sphi(double ai, double af, double aRef) {
   double result;
-  result=(gpQ(af)-gpQ(ai))*aRef/Qfactor(aRef)/DERgpQ(aRef);
+  if (stdDA==0) {
+      result=(gpQ(af)-gpQ(ai))*aRef/Qfactor(aRef)/DERgpQ(aRef);
+      return result;
+  } else {
+      gsl_integration_workspace * w 
+        = gsl_integration_workspace_alloc (5000);
+      
+      double result, error;
+      double alpha=0;
+      
+      gsl_function F;
+      F.function = &fun2;
+      F.params = &alpha;
+      
+      gsl_integration_qag (&F, ai, af, 0, 1e-5, 5000,6,
+                   w, &result, &error); 
+      
+      gsl_integration_workspace_free (w);
+      return result; 
+  }
   
   return result;
 }
 
 
-
 // Interpolate position and velocity for snapshot at a=aout
-void set_noncola_initial(const float aout, Particles const * const particles, Snapshot* const snapshot)
+void set_noncola_initial(const float aout, const Particles * const particles, Snapshot* const snapshot)
 {
                                                            timer_start(interp);
   
   const int np= particles->np_local;
-  Particle const * const p= particles->p;
+  Particle * p= particles->p;
 
   ParticleMinimum* const po= snapshot->p;
   Om= snapshot->omega_m; assert(Om >= 0.0f);
