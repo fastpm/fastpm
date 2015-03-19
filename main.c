@@ -131,11 +131,14 @@ int main(int argc, char* argv[])
               param.boxsize, particles);
       snapshot->seed= seed;
 
+      // always do this because it intializes the initial velocity
+      // correctly.
+      set_noncola_initial(particles->a_x, particles, snapshot);
+
       if(param.init_filename) {
           // Writes initial condition to file for e.g. Gadget N-body simulation
           char filename[256]; // TODO: use variable length for filename
           sprintf(filename, "%s_%05d", param.init_filename, seed);
-          set_noncola_initial(particles->a_x, particles, snapshot);
           write_snapshot(filename, snapshot, param.write_longid);
       }
 
