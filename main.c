@@ -65,11 +65,33 @@ int main(int argc, char* argv[])
   const double a_final= param.a_final;
 
   double a_init;
+
+  /* one extra item in the end; to avoid an if conditioni in main loop */
+  double * A_X = (double*) calloc(nsteps + 2, sizeof(double));
+  double * A_V = (double*) calloc(nsteps + 2, sizeof(double));
+
   if(param.loga_step) {
-    a_init = 0.1;
+      a_init = 0.1;
+      msg_printf(info, "timestep linear in loga\n");
+      double dloga = (log(a_final) - log(a_init)) / nsteps;
+      for(int i = 0; i < nsteps + 2; i ++) {
+           A_X[i] = exp(log(a_init) + i * dloga);
+           A_V[i] = exp(log(a_init) + i * dloga - 0.5 * dloga);
+      }
+      /* fix up the IC time */
+      A_X[0] = a_init;
+      A_V[0] = a_init;
   } else {
-    double da = a_final / nsteps;
-    a_init = da;
+      msg_printf(info, "timestep linear in a\n");
+      double da = a_final / nsteps;
+      a_init = da;
+      for(int i = 0; i < nsteps + 2; i ++) {
+           A_X[i] = a_init + (i * da);
+           A_V[i] = a_init + (i * da - 0.5 * da);
+      }
+      /* fix up the IC time */
+      A_X[0] = a_init;
+      A_V[0] = a_init;
   }
 
   power_init(param.power_spectrum_filename, a_init, 
@@ -150,20 +172,6 @@ int main(int argc, char* argv[])
 
       timer_set_category(COLA);
 
-      double a_v = a_init;
-      double a_x = a_init;
-      if(param.loga_step) {
-          msg_printf(info, "timestep linear in loga\n");
-      } else {
-          //  particles->a_v= 0.5*ainit;
-          //  I thought 0.5*da is the natural initial time for leap frog integration,
-          //  but da gives much better matter power. I don't know why. (Feb 12, 2014)
-          //
-          //  This is likely because the first kick is a half step kick. (Mar 17, 2015)
-          //  also applies to the loga stepping.
-          msg_printf(info, "timestep linear in a\n");
-      }
-
       //
       // Time evolution loop
       //
@@ -171,22 +179,16 @@ int main(int argc, char* argv[])
       if(nout > 0 && nsteps > 1 && a_final > a_init) {
           msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                   a_init, a_final, nsteps);
-          for (int istep=0; istep<=nsteps; istep++) {
-              double avel0, apos0, avel1, apos1;
-              avel0= a_v;
-              apos0= a_x;
-              if(param.loga_step) {
-                  const double dloga= (log(a_final) - log(a_init))/nsteps;
 
-                  avel1= exp(log(a_init) + (istep+0.5)*dloga);
-                  apos1= exp(log(a_init) + (istep+1)*dloga);
-              } else {
-                  const double da = a_final / nsteps;
+          for (int istep=0; istep< nsteps; istep++) {
+              double a_v, a_x, a_v1, a_x1;
 
-                  avel1= (istep+0.5)*da;
-                  apos1= (istep+1.0)*da;
-              } 
-              msg_printf(normal, "Timestep %d/%d\n", istep, nsteps);
+              a_v = A_V[istep];
+              a_x = A_X[istep];
+              a_v1= A_V[istep + 1];
+              a_x1= A_X[istep + 1];
+
+              msg_printf(normal, "Timestep %d/%d\n", istep + 1, nsteps);
 
               timer_start(comm);
               // move particles to other nodes
@@ -215,7 +217,7 @@ int main(int argc, char* argv[])
                   }
               }
 
-              while(iout < nout && avel0 <= aout[iout] && aout[iout] <= apos0) {
+              while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
                   // Time to write output
                   snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
                   iout++;
@@ -223,11 +225,9 @@ int main(int argc, char* argv[])
               if(iout >= nout) break;
 
               // Leap-frog "kick" -- velocities updated
-              cola_kick(particles, OmegaM, a_v, avel1, a_x);
+              cola_kick(particles, OmegaM, a_v, a_v1, a_x);
 
-              a_v = avel1;
-
-              while(iout < nout && apos0 < aout[iout] && aout[iout] <= avel1) {
+              while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                   // Time to write output
                   snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
                   iout++;
@@ -235,8 +235,7 @@ int main(int argc, char* argv[])
               if(iout >= nout) break;
 
               // Leap-frog "drift" -- positions updated
-              cola_drift(particles, OmegaM, a_x, apos1, a_v);
-              a_x= apos1;
+              cola_drift(particles, OmegaM, a_x, a_x1, a_v1);
           }
       }
       timer_print();
