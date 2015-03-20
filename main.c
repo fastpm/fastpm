@@ -138,6 +138,7 @@ int main(int argc, char* argv[])
 
       // always do this because it intializes the initial velocity
       // correctly.
+      particles->a_x = a_init;
       set_noncola_initial(particles->a_x, particles, snapshot);
 
       if(param.init_filename) {
@@ -176,7 +177,6 @@ int main(int argc, char* argv[])
               apos0= particles->a_x;
               if(param.loga_step) {
                   const double dloga= (log(a_final) - log(a_init))/nsteps;
-                  msg_printf(normal, "dloga = %g\n", dloga);
 
                   avel1= exp(log(a_init) + (istep+0.5)*dloga);
                   apos1= exp(log(a_init) + (istep+1)*dloga);
