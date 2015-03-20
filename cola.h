@@ -11,6 +11,6 @@ void cola_set_std_da(int flag);
 void cola_set_no_pm(int flag);
 void set_noncola_initial(const float aout, Particles const * const particles, Snapshot* const snapshot);
 
-void cola_set_snapshot(const double aout, Particles const * const particles, Snapshot* const snapshot);
+void cola_set_snapshot(const double aout, double a_x, double a_v, Particles const * const particles, Snapshot* const snapshot);
 
 #endif

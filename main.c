@@ -26,6 +26,7 @@
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
 void snapshot_time(const float aout, const int iout, 
+           double a_x, double a_v,
 		   Particles const * const particles, 
 		   Snapshot * const snapshot, 
 		   const char fof_filename[], 
@@ -138,8 +139,7 @@ int main(int argc, char* argv[])
 
       // always do this because it intializes the initial velocity
       // correctly.
-      particles->a_x = a_init;
-      set_noncola_initial(particles->a_x, particles, snapshot);
+      set_noncola_initial(a_init, particles, snapshot);
 
       if(param.init_filename) {
           // Writes initial condition to file for e.g. Gadget N-body simulation
@@ -150,8 +150,9 @@ int main(int argc, char* argv[])
 
       timer_set_category(COLA);
 
+      double a_v = a_init;
+      double a_x = a_init;
       if(param.loga_step) {
-          particles->a_v= exp(log(a_init));
           msg_printf(info, "timestep linear in loga\n");
       } else {
           //  particles->a_v= 0.5*ainit;
@@ -160,7 +161,6 @@ int main(int argc, char* argv[])
           //
           //  This is likely because the first kick is a half step kick. (Mar 17, 2015)
           //  also applies to the loga stepping.
-          particles->a_v= a_init;
           msg_printf(info, "timestep linear in a\n");
       }
 
@@ -173,8 +173,8 @@ int main(int argc, char* argv[])
                   a_init, a_final, nsteps);
           for (int istep=0; istep<=nsteps; istep++) {
               double avel0, apos0, avel1, apos1;
-              avel0= particles->a_v;
-              apos0= particles->a_x;
+              avel0= a_v;
+              apos0= a_x;
               if(param.loga_step) {
                   const double dloga= (log(a_final) - log(a_init))/nsteps;
 
@@ -200,7 +200,7 @@ int main(int argc, char* argv[])
                   size_t nk = 0;
                   double * powerspectrum = pm_compute_power_spectrum(&nk);
                   char fname[9999];
-                  sprintf(fname, "%s-%0.4f.txt", param.measure_power_spectrum_filename, particles->a_x);
+                  sprintf(fname, "%s-%0.4f.txt", param.measure_power_spectrum_filename, a_x);
                   int myrank;
                   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
                   if(myrank == 0) {
@@ -217,23 +217,26 @@ int main(int argc, char* argv[])
 
               while(iout < nout && avel0 <= aout[iout] && aout[iout] <= apos0) {
                   // Time to write output
-                  snapshot_time(aout[iout], iout, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
+                  snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
                   iout++;
               }
               if(iout >= nout) break;
 
               // Leap-frog "kick" -- velocities updated
-              cola_kick(particles, OmegaM, particles->a_v, avel1, particles->a_x);
+              cola_kick(particles, OmegaM, a_v, avel1, a_x);
+
+              a_v = avel1;
 
               while(iout < nout && apos0 < aout[iout] && aout[iout] <= avel1) {
                   // Time to write output
-                  snapshot_time(aout[iout], iout,  particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
+                  snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
                   iout++;
               }
               if(iout >= nout) break;
 
               // Leap-frog "drift" -- positions updated
-              cola_drift(particles, OmegaM, particles->a_x, apos1, particles->a_v);
+              cola_drift(particles, OmegaM, a_x, apos1, a_v);
+              a_x= apos1;
           }
       }
       timer_print();
@@ -353,6 +356,7 @@ void write_snapshot_slice(const char filebase[], Snapshot const * const snapshot
 }
     
 void snapshot_time(const float aout, const int iout, 
+           double a_x, double a_v,
 		   Particles const * const particles, 
 		   Snapshot * const snapshot,
 		   const char fof_filename[], 
@@ -368,7 +372,7 @@ void snapshot_time(const float aout, const int iout,
   const int isnp= iout+1;
   char suffix= 'a' + iout; // TODO: not suited for large nout -- change to #
                                                        timer_set_category(Snp);
-  cola_set_snapshot(aout, particles, snapshot);
+  cola_set_snapshot(aout, a_x, a_v, particles, snapshot);
 
   const int nc= snapshot->nc; assert(nc > 0);
   const float boxsize= snapshot->boxsize; assert(boxsize > 0.0f);

@@ -14,7 +14,6 @@ typedef struct {
 typedef struct {
   Particle* p;
   float3* force;
-  float a_x, a_v;
 
   int np_local, np_allocated;
   long long np_total;

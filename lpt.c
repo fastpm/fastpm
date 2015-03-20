@@ -633,8 +633,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
 	     max_disp_glob, max_disp_glob / dx);
 
   particles->np_local= Local_nx*Nmesh*Nmesh;
-  particles->a_x= InitTime;
-  particles->a_v= 0.0;
 
   return 0;
 }

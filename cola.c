@@ -124,7 +124,6 @@ void cola_kick(Particles* const particles, const float Omega_m,
   }
 
   //velocity is now at a= avel1
-  particles->a_v= af;
                                                            timer_stop(evolve);  
 }
 
@@ -158,7 +157,6 @@ void cola_drift(Particles* const particles, const float Omega_m,
                  subtractLPT*(P[i].dx1[2]*da1 + P[i].dx2[2]*da2);
   }
     
-  particles->a_x= af;
                                                             timer_stop(evolve);
 }
 
@@ -338,7 +336,7 @@ void set_noncola_initial(const float aout, const Particles * const particles, Sn
   ParticleMinimum* const po= snapshot->p;
   Om= snapshot->omega_m; assert(Om >= 0.0f);
 
-  msg_printf(verbose, "Setting up inital snapshot at a= %4.2f (z=%4.2f) <- %4.2f %4.2f.\n", aout, 1.0f/aout-1, particles->a_x, particles->a_v);
+  msg_printf(verbose, "Setting up inital snapshot at a= %4.2f (z=%4.2f).\n", aout, 1.0f/aout-1);
 
   //const float vfac=A/Qfactor(A); // RSD /h Mpc unit
   const float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
@@ -388,7 +386,7 @@ void set_noncola_initial(const float aout, const Particles * const particles, Sn
 }
 
 // Interpolate position and velocity for snapshot at a=aout
-void cola_set_snapshot(const double aout, Particles const * const particles, Snapshot* const snapshot)
+void cola_set_snapshot(const double aout, double a_x, double a_v, Particles const * const particles, Snapshot* const snapshot)
 {
                                                            timer_start(interp);
   const int np= particles->np_local;
@@ -398,13 +396,13 @@ void cola_set_snapshot(const double aout, Particles const * const particles, Sna
   ParticleMinimum* const po= snapshot->p;
   Om= snapshot->omega_m; assert(Om >= 0.0f);
 
-  msg_printf(verbose, "Setting up snapshot at a= %4.2f (z=%4.2f) <- %4.2f %4.2f.\n", aout, 1.0f/aout-1, particles->a_x, particles->a_v);
+  msg_printf(verbose, "Setting up snapshot at a= %4.2f (z=%4.2f) <- %4.2f %4.2f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
   //const float vfac=A/Qfactor(A); // RSD /h Mpc unit
   const float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
 
-  const float AI=  particles->a_v;
-  const float A=   particles->a_x;
+  const float AI=  a_v;
+  const float A=   a_x;
   const float AF=  aout;
 
   const float Om143= pow(Om/(Om + (1 - Om)*A*A*A), 1.0/143.0);
@@ -422,7 +420,7 @@ void cola_set_snapshot(const double aout, Particles const * const particles, Sna
   const float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
 
 
-  const float AC= particles->a_v;
+  const float AC= a_v;
   const float dyyy=Sq(A, AF, AC);
 
 
