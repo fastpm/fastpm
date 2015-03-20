@@ -49,9 +49,13 @@ typedef struct {
   int stdda;
   double smoothing;
   int diff_order;
-  int loga_step;
+  int time_step;
 } Parameters;
 
+#define TIME_STEP_LOGA 0
+#define TIME_STEP_A 1
+#define TIME_STEP_GROWTH 2
+//
 //int read_parameters(const char filename[], Parameters* const param);
 int read_parameters(const int argc, char * argv[], 
 		    Parameters* const param);

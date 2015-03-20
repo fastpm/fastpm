@@ -38,7 +38,14 @@ void snapshot_time(const float aout, const int iout,
 
 void write_slice(const char filebase[], Particle* p, const int np, const float dz, const float boxsize);
 void write_snapshot_slice(const char filebase[], Snapshot const * const snapshot, const float boxsize);
-
+static double polval(const double * pol, const int degrees, const double x) {
+    double rt = 0;
+    int i;
+    for(i = 0; i < degrees; i ++) {
+        rt += pow(x, degrees - i - 1) * pol[i];
+    }
+    return rt;
+}
 int main(int argc, char* argv[])
 {
   const int multi_thread= mpi_init(&argc, &argv);
@@ -64,35 +71,55 @@ int main(int argc, char* argv[])
   const int nsteps= param.ntimestep;
   const double a_final= param.a_final;
 
-  double a_init;
+  double a_init = 0.1;
 
   /* one extra item in the end; to avoid an if conditioni in main loop */
   double * A_X = (double*) calloc(nsteps + 2, sizeof(double));
   double * A_V = (double*) calloc(nsteps + 2, sizeof(double));
 
-  if(param.loga_step) {
-      a_init = 0.1;
-      msg_printf(info, "timestep linear in loga\n");
-      double dloga = (log(a_final) - log(a_init)) / nsteps;
-      for(int i = 0; i < nsteps + 2; i ++) {
-           A_X[i] = exp(log(a_init) + i * dloga);
-           A_V[i] = exp(log(a_init) + i * dloga - 0.5 * dloga);
-      }
-      /* fix up the IC time */
-      A_X[0] = a_init;
-      A_V[0] = a_init;
-  } else {
-      msg_printf(info, "timestep linear in a\n");
-      double da = a_final / nsteps;
-      a_init = da;
-      for(int i = 0; i < nsteps + 2; i ++) {
-           A_X[i] = a_init + (i * da);
-           A_V[i] = a_init + (i * da - 0.5 * da);
-      }
-      /* fix up the IC time */
-      A_X[0] = a_init;
-      A_V[0] = a_init;
+  switch(param.time_step) {
+      case TIME_STEP_LOGA:
+          msg_printf(info, "timestep linear in loga\n");
+          for(int i = 0; i < nsteps + 2; i ++) {
+              double dloga = (log(a_final) - log(a_init)) / nsteps;
+              A_X[i] = exp(log(a_init) + i * dloga);
+              A_V[i] = exp(log(a_init) + i * dloga - 0.5 * dloga);
+          }
+      break;
+      case TIME_STEP_A:
+          msg_printf(info, "timestep linear in a\n");
+          for(int i = 0; i < nsteps + 2; i ++) {
+              double da = (a_final - a_init) / nsteps;
+              A_X[i] = a_init + (i * da);
+              A_V[i] = a_init + (i * da - 0.5 * da);
+          }
+      break;
+      case TIME_STEP_GROWTH:
+          msg_printf(info, "timestep linear in growth factor\n");
+          for(int i = 0; i < nsteps + 2; i ++) {
+              /* best fit coefficients for unnormalized wmap7 cosmology dplus
+               * shoudn't matter as long as we are close */
+              const double a2d[] = {0.35630564,-1.58170455, 0.34493492, 3.65626615, 0};
+              const double d2a[] = {0.00657966,-0.01088151, 0.00861105, 0.27018028, 0};
+              double dfinal = polval(a2d, 5, a_final);
+              double dinit = polval(a2d, 5, a_init);
+              double dd = (dfinal - dinit) / nsteps;
+              A_X[i] = polval(d2a, 5, dinit + i * dd);
+              A_V[i] = polval(d2a, 5, dinit + i * dd - 0.5 * dd);
+          }
+      break;
+      default:
+          abort();
+    
   }
+  /* fix up the IC time */
+  A_V[0] = A_X[0] = a_init;
+  A_X[nsteps] = a_final;
+  printf("Drift points: \n");
+  for(int i = 0; i < nsteps + 2; i ++) {
+      printf("%g, ", A_X[i]);
+  }
+  printf("\n");
 
   power_init(param.power_spectrum_filename, a_init, 
 	     sigma8, OmegaM, OmegaLambda);

@@ -254,14 +254,25 @@ int read_parameter_file(const char filename[], Parameters* const param)
 
     /* true to run QPM instead of COLA. */
   param->qpm = read_bool(L, "qpm");
+  param->nopm = read_bool(L, "nopm");
     /* 0 to turn off smoothing; in cells */
   param->smoothing = read_double(L, "smoothing");
   param->diff_order = read_int(L, "diff_order");
-  param->loga_step= read_bool(L, "loga_step");
-    /* standard 1/a 1/a**2 drift/kick facters? or COLA improved factors?*/
   param->stdda = read_bool(L, "stdda");
-  param->nopm = read_bool(L, "nopm");
 
+  int junk;
+  char * time_step = read_string2(L, "time_step", &junk, true);
+  if(!strcmp(time_step, "a")) {
+    param->time_step = TIME_STEP_A;
+  }  else
+  if(!strcmp(time_step, "loga")) {
+    param->time_step = TIME_STEP_LOGA;
+  }  else
+  if(!strcmp(time_step, "growth")) {
+    param->time_step = TIME_STEP_GROWTH;
+  }  else {
+    msg_abort(1002, "unknown time_step method: use a, loga, or growth");
+  }
 
   lua_close(L);
 
