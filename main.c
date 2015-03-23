@@ -207,7 +207,7 @@ int main(int argc, char* argv[])
           msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                   a_init, a_final, nsteps);
 
-          for (int istep=0; istep< nsteps; istep++) {
+          for (int istep=0; istep<= nsteps; istep++) {
               double a_v, a_x, a_v1, a_x1;
 
               a_v = A_V[istep];
