@@ -6,6 +6,7 @@
 enum Direction {ToRight=0, ToLeft=1};
 
 void comm_init(const int nc_pm, const int nc_part, const float boxsize);
+void comm_finalize(void);
 
 int comm_this_node(void);
 int comm_nnode(void);

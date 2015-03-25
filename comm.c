@@ -120,6 +120,13 @@ void comm_init(const int nc_pm, const int nc_p, const float boxsize)
   free(local_x_table);
 }
 
+void comm_finalize(void){
+
+  free(Slices);
+
+}
+
+
 float comm_xmin(void)
 {
   return BoxSize*Local_x_start/Ngrid;

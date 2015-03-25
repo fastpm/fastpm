@@ -248,7 +248,7 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
 
 void pm_finalize(void)
 {
-  fftwf_free(fftdata);
+  //fftwf_free(fftdata);
   //fftwf_destroy_plan(plan);
   //fftwf_free(P3D);
   //fftwf_free(FN11);

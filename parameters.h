@@ -3,7 +3,9 @@
 
 typedef struct {
   int nc;
-  int pm_nc_factor;
+  int pm_nc_factor1;
+  int pm_nc_factor2;
+  float change_pm;
 
   double np_alloc_factor;
 

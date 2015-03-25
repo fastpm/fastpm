@@ -7,7 +7,7 @@
 
 CC      = mpicc -std=c99 
 WOPT    ?= -Wall
-CFLAGS  := -O3 $(WOPT) $(OPENMP) -Wall
+CFLAGS  := -O0 -g $(WOPT) $(OPENMP) -Wall
 LIBS    := -lm
 
 

@@ -57,7 +57,8 @@ int main(int argc, char* argv[])
   //						      
   Parameters param;
   read_parameters(argc, argv, &param);
-  const int nc_factor= param.pm_nc_factor;
+  int nc_factor = -1;
+  const float change_pm= param.change_pm;
   const double OmegaM= param.omega_m;
   const double OmegaLambda= 1.0 - OmegaM;
   const double Hubble= param.h;
@@ -66,8 +67,6 @@ int main(int argc, char* argv[])
   msg_set_loglevel(param.loglevel);
 
   fft_init(multi_thread);
-  comm_init(param.pm_nc_factor*param.nc, param.nc, param.boxsize);
-
   const int nsteps= param.ntimestep;
   const double a_final= param.a_final;
 
@@ -126,7 +125,7 @@ int main(int argc, char* argv[])
 
 
   Memory mem; 
-  allocate_shared_memory(param.nc, nc_factor, param.np_alloc_factor, &mem); 
+  allocate_shared_memory(param.nc, param.pm_nc_factor2, param.np_alloc_factor, &mem); 
   lpt_init(param.nc, mem.mem1, mem.size1);
   const int local_nx= lpt_get_local_nx();
 
@@ -140,9 +139,11 @@ int main(int argc, char* argv[])
   //strncpy(snapshot->filename, param.snapshot_filename, 64);
   snapshot->filename= param.snapshot_filename;
   
-
+  nc_factor = param.pm_nc_factor1;
   pm_init(nc_factor*param.nc, nc_factor, param.boxsize,
 	  mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
+  comm_init(nc_factor*param.nc, param.nc, param.boxsize);
+
   fof_init(particles->np_allocated, param.nc, mem.mem1, mem.size1);
   subsample_init(param.subsample_factor, param.random_seed);
 
@@ -207,8 +208,21 @@ int main(int argc, char* argv[])
           msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                   a_init, a_final, nsteps);
 
+	  int chk_change = 0;
           for (int istep=0; istep<= nsteps; istep++) {
               double a_v, a_x, a_v1, a_x1;
+
+
+              if(1.0*istep>=nsteps*change_pm && chk_change != 1){
+		  nc_factor = param.pm_nc_factor2;
+		  pm_finalize();
+		  comm_finalize();
+	      
+	          comm_init(nc_factor*param.nc, param.nc, param.boxsize);//what are these?
+	          pm_init(nc_factor*param.nc, nc_factor, param.boxsize, mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
+		  chk_change = 1;
+	      }
+
 
               a_v = A_V[istep];
               a_x = A_X[istep];
@@ -238,7 +252,9 @@ int main(int argc, char* argv[])
                         msg_abort(0020, "Unable to write to %s\n", fname);
                       }
                       for(int i = 0; i < nk; i ++) {
-                          fprintf(fp, "%d %g\n", i, powerspectrum[i]);
+                          fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * i, 
+				powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
+				);
                       }
                       fclose(fp);
                   }

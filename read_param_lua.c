@@ -193,7 +193,9 @@ int read_parameter_file(const char filename[], Parameters* const param)
   param->h= read_double(L, "h");
   param->sigma8= read_double(L, "sigma8");
 
-  param->pm_nc_factor= read_int(L, "pm_nc_factor");
+  param->pm_nc_factor1= read_int(L, "pm_nc_factor1");
+  param->pm_nc_factor2= read_int(L, "pm_nc_factor2");
+  param->change_pm= read_double(L, "change_pm");
   param->np_alloc_factor= read_double(L, "np_alloc_factor");
   param->loglevel= read_int(L, "loglevel");
 
