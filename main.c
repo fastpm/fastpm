@@ -114,11 +114,11 @@ int main(int argc, char* argv[])
   /* fix up the IC time */
   A_V[0] = A_X[0] = a_init;
   A_X[nsteps] = a_final;
-  printf("Drift points: \n");
+  msg_printf(normal, "Drift points: \n");
   for(int i = 0; i < nsteps + 2; i ++) {
-      printf("%g, ", A_X[i]);
+      msg_printf(normal, "%g, ", A_X[i]);
   }
-  printf("\n");
+  msg_printf(normal, "\n");
 
   power_init(param.power_spectrum_filename, a_init, 
 	     sigma8, OmegaM, OmegaLambda);
