@@ -208,26 +208,30 @@ int main(int argc, char* argv[])
           msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                   a_init, a_final, nsteps);
 
-	  int chk_change = 0;
+          int chk_change = 0;
           for (int istep=0; istep<= nsteps; istep++) {
               double a_v, a_x, a_v1, a_x1;
-
-
-              if(1.0*istep>=nsteps*change_pm && chk_change != 1){
-		  nc_factor = param.pm_nc_factor2;
-		  pm_finalize();
-		  comm_finalize();
-	      
-	          comm_init(nc_factor*param.nc, param.nc, param.boxsize);//what are these?
-	          pm_init(nc_factor*param.nc, nc_factor, param.boxsize, mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
-		  chk_change = 1;
-	      }
 
 
               a_v = A_V[istep];
               a_x = A_X[istep];
               a_v1= A_V[istep + 1];
               a_x1= A_X[istep + 1];
+
+              if(a_x1 >= change_pm && chk_change != 1 && param.pm_nc_factor2 != param.pm_nc_factor1){
+
+                  msg_printf(normal, "Switching to new pm factor: %g->%g\n",
+                        param.pm_nc_factor1,
+                        param.pm_nc_factor2);
+
+                  nc_factor = param.pm_nc_factor2;
+                  pm_finalize();
+                  comm_finalize();
+
+                  comm_init(nc_factor*param.nc, param.nc, param.boxsize);//what are these?
+                  pm_init(nc_factor*param.nc, nc_factor, param.boxsize, mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
+                  chk_change = 1;
+              }
 
               msg_printf(normal, "Timestep %d/%d\n", istep + 1, nsteps);
 
