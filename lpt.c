@@ -19,6 +19,8 @@
 #include "power.h"
 #include "particle.h"
 
+#include "parameters.h"
+
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
 #endif
@@ -41,6 +43,16 @@ float         *(digrad[6]);
 
 double F_Omega(const double a);
 double F2_Omega(const double a);
+
+//A flag for changing whether an external random is used
+int ext=0;
+Parameters param;
+//function prototype for the random number assignment
+void rand_assign(double kvec[3], double fac, double Box);
+
+//function prototype for the external random number assignment
+void ext_rand(double kvec[3], double fac, double Box);
+
 
 // Setup variables for 2LPT initial condition
 void lpt_init(const int nc, const void* mem, const size_t size)
@@ -226,140 +238,15 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
 	  cdisp[axes][(i * Nmesh + j) * (Nmesh / 2 + 1) + k][1] = 0.0f;
 	}
 
-  double kvec[3];
-  for(int i = 0; i < Nmesh; i++) {
-    int ii = Nmesh - i;
-    if(ii == Nmesh)
-      ii = 0;
-    if((i >= Local_x_start && i < (Local_x_start + Local_nx)) ||
-       (ii >= Local_x_start && ii < (Local_x_start + Local_nx))) {
-      for(int j = 0; j < Nmesh; j++) {
-	gsl_rng_set(random_generator, seedtable[i * Nmesh + j]);
-	
-	for(int k = 0; k < Nmesh / 2; k++) {
-	  double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
-	  double ampl;
-	  do
-	    ampl = gsl_rng_uniform(random_generator);
-	  while(ampl == 0.0);
-	  
-	  if(i == Nmesh / 2 || j == Nmesh / 2 || k == Nmesh / 2)
-	    continue;
-	  if(i == 0 && j == 0 && k == 0)
-	    continue;
-	  
-	  if(i < Nmesh / 2)
-	    kvec[0] = i * 2 * M_PI / Box;
-	  else
-	    kvec[0] = -(Nmesh - i) * 2 * M_PI / Box;
-	  
-	  if(j < Nmesh / 2)
-	    kvec[1] = j * 2 * M_PI / Box;
-	  else
-	    kvec[1] = -(Nmesh - j) * 2 * M_PI / Box;
-	  
-	  if(k < Nmesh / 2)
-	    kvec[2] = k * 2 * M_PI / Box;
-	  else
-	    kvec[2] = -(Nmesh - k) * 2 * M_PI / Box;
-	  
-	  double kmag2 = kvec[0]*kvec[0] + kvec[1]*kvec[1] + kvec[2]*kvec[2];
-	  double kmag = sqrt(kmag2);
-	  
-#ifdef SPHEREMODE
-	  // select a sphere in k-space
-	  if(kmag * Box / (2 * M_PI) > Nsample / 2)
-	    continue;
-#else
-	  if(fabs(kvec[0]) * Box / (2 * M_PI) > Nsample / 2)
-	    continue;
-	  if(fabs(kvec[1]) * Box / (2 * M_PI) > Nsample / 2)
-	    continue;
-	  if(fabs(kvec[2]) * Box / (2 * M_PI) > Nsample / 2)
-	    continue;
-#endif
-		      
-	  double p_of_k = PowerSpec(kmag);
-		      
-	  p_of_k *= -log(ampl);
-		      
-	  double delta = fac * sqrt(p_of_k); // / Dplus;	
-	  // Displacement is extrapolated to a=1
-		      
-	  if(k > 0) {
-	    if(i >= Local_x_start && i < (Local_x_start + Local_nx))
-	      for(int axes = 0; axes < 3; axes++) {
-	        cdisp[axes][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
-			    + k][0] =
-		                      -kvec[axes] / kmag2 * delta * sin(phase);
-		cdisp[axes][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
-			    + k][1] =
-		                       kvec[axes] / kmag2 * delta * cos(phase);
-	      }
+  double kvec[3]; //declare kvec, here and used in the functions rand, so that we can use it outside the func.
+
+	  ext=param.ext;
+	  if(ext==0){
+		rand_assign(kvec, fac, Box);
 	  }
-	  else { // k=0 plane needs special treatment
-	    if(i == 0) {
-	      if(j >= Nmesh / 2)
-		continue;
-	      else {
-		if(i >= Local_x_start && i < (Local_x_start + Local_nx)) {
-		  int jj = Nmesh - j; // note: j!=0 surely holds at this point
-		  
-		  for(int axes = 0; axes < 3; axes++) {
-		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
-				(Nmesh / 2 + 1) + k][0] =
-		                      -kvec[axes] / kmag2 * delta * sin(phase);
-		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
-				(Nmesh / 2 + 1) + k][1] =
-		                       kvec[axes] / kmag2 * delta * cos(phase);
-					  
-		    cdisp[axes][((i - Local_x_start) * Nmesh + jj) * 
-				(Nmesh / 2 + 1) + k][0] =
-			      	    -kvec[axes] / kmag2 * delta * sin(phase);
-		    cdisp[axes][((i - Local_x_start) * Nmesh + jj) * 
-				(Nmesh / 2 + 1) + k][1] =
-				    -kvec[axes] / kmag2 * delta * cos(phase);
-		  }
-		}
-	      }
-	    }
-	    else { // here comes i!=0 : conjugate can be on other processor!
-	      if(i >= Nmesh / 2)
-		continue;
-	      else {
-		ii = Nmesh - i;
-		if(ii == Nmesh)
-		  ii = 0;
-		int jj = Nmesh - j;
-		if(jj == Nmesh)
-		  jj = 0;
-		
-		if(i >= Local_x_start && i < (Local_x_start + Local_nx))
-		  for(int axes = 0; axes < 3; axes++) {
-		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
-				(Nmesh / 2 + 1) + k][0] =
-		                      -kvec[axes] / kmag2 * delta * sin(phase);
-		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
-				(Nmesh / 2 + 1) + k][1] =
-				       kvec[axes] / kmag2 * delta * cos(phase);
-		  }
-		
-		if(ii >= Local_x_start && ii < (Local_x_start + Local_nx))
-		  for(int axes = 0; axes < 3; axes++) {
-		    cdisp[axes][((ii - Local_x_start) * Nmesh + jj) * 
-				(Nmesh / 2 + 1) + k][0] = 
-		                      -kvec[axes] / kmag2 * delta * sin(phase);
-		    cdisp[axes][((ii - Local_x_start) * Nmesh + jj) * 
-				(Nmesh / 2 + 1) + k][1] = 
-		                      -kvec[axes] / kmag2 * delta * cos(phase);
-		  }
-	      }
-	    }
+	  else{
+		ext_rand(kvec, fac, Box);
 	  }
-	}
-      }
-    }
-  }
 
   
   //
@@ -672,3 +559,209 @@ int lpt_get_local_nx(void)
 {
   return Local_nx;
 }
+
+void rand_assign(double kvec[3], double fac, double Box){
+
+  gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+
+  for(int i = 0; i < Nmesh; i++) {
+    int ii = Nmesh - i;
+    if(ii == Nmesh)
+      ii = 0;
+    if((i >= Local_x_start && i < (Local_x_start + Local_nx)) ||
+       (ii >= Local_x_start && ii < (Local_x_start + Local_nx))) {
+      for(int j = 0; j < Nmesh; j++) {
+	gsl_rng_set(random_generator, seedtable[i * Nmesh + j]);
+	
+	for(int k = 0; k < Nmesh / 2; k++) {
+	  double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
+	  double ampl;
+	  do
+	    ampl = gsl_rng_uniform(random_generator);
+	  while(ampl == 0.0);
+	  
+	  if(i == Nmesh / 2 || j == Nmesh / 2 || k == Nmesh / 2)
+	    continue;
+	  if(i == 0 && j == 0 && k == 0)
+	    continue;
+	  
+	  if(i < Nmesh / 2)
+	    kvec[0] = i * 2 * M_PI / Box;
+	  else
+	    kvec[0] = -(Nmesh - i) * 2 * M_PI / Box;
+	  
+	  if(j < Nmesh / 2)
+	    kvec[1] = j * 2 * M_PI / Box;
+	  else
+	    kvec[1] = -(Nmesh - j) * 2 * M_PI / Box;
+	  
+	  if(k < Nmesh / 2)
+	    kvec[2] = k * 2 * M_PI / Box;
+	  else
+	    kvec[2] = -(Nmesh - k) * 2 * M_PI / Box;
+	  
+	  double kmag2 = kvec[0]*kvec[0] + kvec[1]*kvec[1] + kvec[2]*kvec[2];
+	  double kmag = sqrt(kmag2);
+	  
+#ifdef SPHEREMODE
+	  // select a sphere in k-space
+	  if(kmag * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+#else
+	  if(fabs(kvec[0]) * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+	  if(fabs(kvec[1]) * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+	  if(fabs(kvec[2]) * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+#endif
+
+
+
+		      
+	  double p_of_k = PowerSpec(kmag);
+		      
+	  p_of_k *= -log(ampl);
+		      
+	  double delta = fac * sqrt(p_of_k); // / Dplus;	
+	  // Displacement is extrapolated to a=1
+		      
+	  if(k > 0) {
+	    if(i >= Local_x_start && i < (Local_x_start + Local_nx))
+	      for(int axes = 0; axes < 3; axes++) {
+	        cdisp[axes][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
+			    + k][0] =
+		                      -kvec[axes] / kmag2 * delta * sin(phase);
+		cdisp[axes][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
+			    + k][1] =
+		                       kvec[axes] / kmag2 * delta * cos(phase);
+	      }
+	  }
+	  else { // k=0 plane needs special treatment
+	    if(i == 0) {
+	      if(j >= Nmesh / 2)
+		continue;
+	      else {
+		if(i >= Local_x_start && i < (Local_x_start + Local_nx)) {
+		  int jj = Nmesh - j; // note: j!=0 surely holds at this point
+		  
+		  for(int axes = 0; axes < 3; axes++) {
+		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
+				(Nmesh / 2 + 1) + k][0] =
+		                      -kvec[axes] / kmag2 * delta * sin(phase);
+		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
+				(Nmesh / 2 + 1) + k][1] =
+		                       kvec[axes] / kmag2 * delta * cos(phase);
+					  
+		    cdisp[axes][((i - Local_x_start) * Nmesh + jj) * 
+				(Nmesh / 2 + 1) + k][0] =
+			      	    -kvec[axes] / kmag2 * delta * sin(phase);
+		    cdisp[axes][((i - Local_x_start) * Nmesh + jj) * 
+				(Nmesh / 2 + 1) + k][1] =
+				    -kvec[axes] / kmag2 * delta * cos(phase);
+		  }
+		}
+	      }
+	    }
+	    else { // here comes i!=0 : conjugate can be on other processor!
+	      if(i >= Nmesh / 2)
+		continue;
+	      else {
+		ii = Nmesh - i;
+		if(ii == Nmesh)
+		  ii = 0;
+		int jj = Nmesh - j;
+		if(jj == Nmesh)
+		  jj = 0;
+		
+		if(i >= Local_x_start && i < (Local_x_start + Local_nx))
+		  for(int axes = 0; axes < 3; axes++) {
+		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
+				(Nmesh / 2 + 1) + k][0] =
+		                      -kvec[axes] / kmag2 * delta * sin(phase);
+		    cdisp[axes][((i - Local_x_start) * Nmesh + j) * 
+				(Nmesh / 2 + 1) + k][1] =
+				       kvec[axes] / kmag2 * delta * cos(phase);
+		  }
+		
+		if(ii >= Local_x_start && ii < (Local_x_start + Local_nx))
+		  for(int axes = 0; axes < 3; axes++) {
+		    cdisp[axes][((ii - Local_x_start) * Nmesh + jj) * 
+				(Nmesh / 2 + 1) + k][0] = 
+		                      -kvec[axes] / kmag2 * delta * sin(phase);
+		    cdisp[axes][((ii - Local_x_start) * Nmesh + jj) * 
+				(Nmesh / 2 + 1) + k][1] = 
+		                      -kvec[axes] / kmag2 * delta * cos(phase);
+		  }
+	      }
+	    }
+	  }
+	}
+       }
+      }
+     }
+    }
+
+
+void ext_rand(double kvec[3], double fac, double Box){
+
+
+  gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+
+  for(int i = 0; i < Nmesh; i++) {
+    int ii = Nmesh - i;
+    if(ii == Nmesh)
+      ii = 0;
+    if((i >= Local_x_start && i < (Local_x_start + Local_nx)) ||
+       (ii >= Local_x_start && ii < (Local_x_start + Local_nx))) {
+      for(int j = 0; j < Nmesh; j++) {
+	gsl_rng_set(random_generator, seedtable[i * Nmesh + j]);
+	
+	for(int k = 0; k < Nmesh / 2; k++) {
+	  double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
+	  double ampl;
+	  do
+	    ampl = gsl_rng_uniform(random_generator);
+	  while(ampl == 0.0);
+	  
+	  if(i == Nmesh / 2 || j == Nmesh / 2 || k == Nmesh / 2)
+	    continue;
+	  if(i == 0 && j == 0 && k == 0)
+	    continue;
+	  
+	  if(i < Nmesh / 2)
+	    kvec[0] = i * 2 * M_PI / Box;
+	  else
+	    kvec[0] = -(Nmesh - i) * 2 * M_PI / Box;
+	  
+	  if(j < Nmesh / 2)
+	    kvec[1] = j * 2 * M_PI / Box;
+	  else
+	    kvec[1] = -(Nmesh - j) * 2 * M_PI / Box;
+	  
+	  if(k < Nmesh / 2)
+	    kvec[2] = k * 2 * M_PI / Box;
+	  else
+	    kvec[2] = -(Nmesh - k) * 2 * M_PI / Box;
+	  
+	  double kmag2 = kvec[0]*kvec[0] + kvec[1]*kvec[1] + kvec[2]*kvec[2];
+	  double kmag = sqrt(kmag2);
+	  
+#ifdef SPHEREMODE
+	  // select a sphere in k-space
+	  if(kmag * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+#else
+	  if(fabs(kvec[0]) * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+	  if(fabs(kvec[1]) * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+	  if(fabs(kvec[2]) * Box / (2 * M_PI) > Nsample / 2)
+	    continue;
+#endif
+		printf("Under construction\n");
+	}
+       }
+      }
+     }
+    }

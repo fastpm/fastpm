@@ -12,6 +12,8 @@ typedef struct {
   int ntimestep;
   int random_seed;
   int nrealization;
+  int ext;
+
 
   int loglevel;
 

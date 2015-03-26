@@ -4,6 +4,7 @@ boxsize = 400.0
 
 random_seed= 100
 nrealization= 1
+ext=0 --If ext=0 then use internal random generator, else, it require an input of delta and phase for guassian random
 
 ntimestep= 10
 a_final= 1.0
