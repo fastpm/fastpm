@@ -1,11 +1,11 @@
 -- cola code parameter file
-nc = 512
-boxsize = 512.0
+nc = 256
+boxsize = 256.0
 
 random_seed= 100
 nrealization= 1
 
-ntimestep= 20
+ntimestep= 40
 a_final= 1.0
 output_redshifts= {0.55, 0.0}  -- redshifts of output
 
@@ -15,7 +15,7 @@ sigma8  = 0.817
 
 -- somewhat canonical qpm parameters
 qpm = true
-time_step = 'loga'
+time_step = 'a'
 stdda = true
 smoothing = 2.0
 diff_order = 0
@@ -35,18 +35,18 @@ powerspectrum= "powerspec.txt" -- Initial power spectrum: k P(k)
 --   fof, snapshot, subsample, coarse_grid
 
 -- FoF halo catalogue
-fof= "runqpm/fof"                 -- base filename
+fof= "runmanystepqpm/fof"                 -- base filename
 linking_factor= 0.2        -- FoF linking length= linking_factor*mean_separation
 
 -- Dark matter particle outputs (all particles)
-snapshot= "runqpm/snp"       -- comment out to suppress snapshot output
+snapshot= "runmanystepqpm/snp"       -- comment out to suppress snapshot output
 
 -- Dark matter particle subsample
--- subsample= "runqpm/sub"           -- base filename
+-- subsample= "runmanystepqpm/sub"           -- base filename
 -- subsample_factor= 1/100    -- fraction of particles to output
 
 -- Dark matter density grid
--- coarse_grid= "runqpm/grid"        -- base filename
+-- coarse_grid= "runmanystepqpm/grid"        -- base filename
 -- coarse_grid_nc= 16         -- number of grid per dimension
 
 -- Initial condition for other N-body simulation (at a_init= a_final/ntimestep)
@@ -56,4 +56,4 @@ snapshot= "runqpm/snp"       -- comment out to suppress snapshot output
 -- Use 8-byte long id for GADGET snapshot
 write_longid= false
 
-measure_power = "runqpm/powerspec"
+measure_power = "runmanystepqpm/powerspec"
