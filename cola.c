@@ -60,6 +60,7 @@ static float subtractLPT= 1.0f;
 static const float nLPT= -2.5f;
 static int stdDA = 0; // velocity growth model
 static int noPM;
+static int martinKick = 0;
 
 float growthD(const float a);
 float growthD2(const float a);
@@ -96,6 +97,11 @@ void cola_kick(Particles* const particles, const float Omega_m,
   const float q2=1.5*Om*growth1*growth1*(1.0 + 7.0/3.0*Om143);
   const float q1=1.5*Om*growth1;
 
+  float Om_;
+  if (martinKick)
+      Om_ = Om/ (Om + (1 - Om) *ac * ac *ac);
+  else
+      Om_ = Om;
 
   Particle* const P= particles->p;
   const int np= particles->np_local;
@@ -108,9 +114,9 @@ void cola_kick(Particles* const particles, const float Omega_m,
   #pragma omp parallel for default(shared)
 #endif
   for(int i=0; i<np; i++) {
-    float ax= -1.5*Om*f[i][0] - subtractLPT*(P[i].dx1[0]*q1 + P[i].dx2[0]*q2);
-    float ay= -1.5*Om*f[i][1] - subtractLPT*(P[i].dx1[1]*q1 + P[i].dx2[1]*q2);
-    float az= -1.5*Om*f[i][2] - subtractLPT*(P[i].dx1[2]*q1 + P[i].dx2[2]*q2);
+    float ax= -1.5*Om_*f[i][0] - subtractLPT*(P[i].dx1[0]*q1 + P[i].dx2[0]*q2);
+    float ay= -1.5*Om_*f[i][1] - subtractLPT*(P[i].dx1[1]*q1 + P[i].dx2[1]*q2);
+    float az= -1.5*Om_*f[i][2] - subtractLPT*(P[i].dx1[2]*q1 + P[i].dx2[2]*q2);
 
     if(!noPM) {
         P[i].v[0] += ax * dda;
@@ -266,6 +272,14 @@ double fun2 (double a, void * params) {
   return f;
 }
 
+double fun2martin (double a, void * params) {
+  double f;
+  if (stdDA==0) abort();
+  else f = Qfactor(a) / (a*a);
+  
+  return f;
+}
+
 /*     
       When StdDA=0, one needs to set nLPT.
          assumes time dep. for velocity = B a^nLPT
@@ -311,7 +325,11 @@ double Sphi(double ai, double af, double aRef) {
       double alpha=0;
       
       gsl_function F;
-      F.function = &fun2;
+      if (martinKick) {
+          F.function = &fun2martin;
+      } else{
+          F.function = &fun2;
+      }
       F.params = &alpha;
       
       gsl_integration_qag (&F, ai, af, 0, 1e-5, 5000,6,
