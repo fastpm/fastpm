@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 
   Memory mem; 
   allocate_shared_memory(param.nc, nc_factor, param.np_alloc_factor, &mem); 
-  //lpt_init(param.nc, mem.mem1, mem.size1);
+  //lpt_init(param.nc, mem.mem1, mem.size1, param.ext, param.dump);
   //const int local_nx= lpt_get_local_nx();
 
   const int nc= param.nc;

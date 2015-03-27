@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
 
   Memory mem; 
   allocate_shared_memory(param.nc, param.pm_nc_factor2, param.np_alloc_factor, &mem); 
-  lpt_init(param.nc, mem.mem1, mem.size1);
+  lpt_init(param.nc, mem.mem1, mem.size1, param.ext, param.dump);
   const int local_nx= lpt_get_local_nx();
 
   Particles* particles= 
@@ -185,7 +185,7 @@ int main(int argc, char* argv[])
       // Sets initial grid and 2LPT desplacement
       timer_set_category(LPT);
       lpt_set_displacement(a_init, OmegaM, seed,
-              param.boxsize, particles);
+              param.boxsize, particles,param.ext, param.dump);
       snapshot->seed= seed;
 
       // always do this because it intializes the initial velocity

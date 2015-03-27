@@ -1,0 +1,11 @@
+It is to write out the undergoing changes and idea of the code that we want to moddify
+
+In main, we have pm init, call one nc_factor, we want to change it to non-linear so that the code is good in all time step.
+
+Scheme 1: We will init a nc_factor, make the plan, then after certain time/redshift, we destroy it and initialize again.
+
+In concept, under construction.
+
+Scheme 2: just make a few plans, directly call them. This will have a worse memory allocation
+
+In concept, construct after scheme 1.

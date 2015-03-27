@@ -13,7 +13,7 @@ typedef struct {
   int random_seed;
   int nrealization;
   int ext;
-
+  int dump;
 
   int loglevel;
 
