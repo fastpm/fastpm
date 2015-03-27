@@ -140,6 +140,7 @@ int main(int argc, char* argv[])
   snapshot->filename= param.snapshot_filename;
   
   nc_factor = param.pm_nc_factor1;
+  pm_set_diff_order(param.diff_order);
   pm_init(nc_factor*param.nc, nc_factor, param.boxsize,
 	  mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
   comm_init(nc_factor*param.nc, param.nc, param.boxsize);

@@ -3,6 +3,7 @@
 
 #include "particle.h"
 
+void pm_set_diff_order(int order);
 void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
 	     void* const mem1, const size_t size1,
 	     void* const mem2, const size_t size2,

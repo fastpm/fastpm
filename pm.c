@@ -69,7 +69,6 @@ static double * PowerSpectrumVariable;
 
 static void *BufMove; //, *BufMove2;
 static int   NMoveBuffer; //, NMoveBuffer2;
-
 //static void* Buf;
 //static Particle* ParticleBuffer;
 //static int NParticleBuffer;
@@ -81,6 +80,32 @@ typedef struct {
   float *vec, *vrecv;
   int* index;
 } BufferVec3;
+
+/* the transfer functions for force in fourier space applied to potential */
+/* super lanzcos in CH6 P 122 Digital Filters by Richard W. Hamming */
+static double super_lanzcos_diff_kernel_3(double w) {
+/* order N = 3*/
+    return 1. / 594 * 
+       (126 * sin(w) + 193 * sin(2 * w) + 142 * sin (3 * w) - 86 * sin(4 * w));
+}
+static double super_lanzcos_diff_kernel_2(double w) {
+/* order N = 2*/
+    return 1 / 126. * (58 * sin(w) + 67 * sin (2 * w) - 22 * sin(3 * w));
+}
+static double super_lanzcos_diff_kernel_1(double w) {
+/* order N = 1 */
+/* 
+ * This is the same as GADGET-2 but in fourier space: 
+ * see gadget-2 paper and Hamming's book.
+ * c1 = 2 / 3, c2 = 1 / 12
+ * */
+    return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
+}
+static double super_lanzcos_diff_kernel_0(double w) {
+    return w;
+}
+
+static double (*diff_kernel)(double w);
 
 static BufferVec3 BufPos;
 
@@ -97,7 +122,18 @@ static inline float REd(float const * const d, const int i, const int j, const i
 {
   return d[k + 2*(NgridL/2 + 1)*(j + NgridL * i)];
 }
-
+void pm_set_diff_order(int order) {
+    double (*kernels[4])(double w) = {
+          super_lanzcos_diff_kernel_0,
+          super_lanzcos_diff_kernel_1,
+          super_lanzcos_diff_kernel_2,
+          super_lanzcos_diff_kernel_3};
+    if(order > 4) {
+        msg_abort(8888, "differentiation of order %d unsupported\n", order);
+    } 
+    if(order < 0) order = 0;
+    diff_kernel = kernels[order];
+}
 void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
 	     void* const mem1, const size_t size1,
 	     void* const mem2, const size_t size2, int many)
@@ -332,26 +368,50 @@ void PtoMesh(const Particle P[], const int np, float* const density)
   msg_printf(verbose, "CIC density assignment finished.\n");
 }
 
+static double sinc_unnormed(double x) {
+    if(x < 1e-5 && x > -1e-5) {
+        double x2 = x * x;
+        return 1.0 - x2 / 6. + x2  * x2 / 120.;
+    } else {
+        return sin(x) / x;
+    }
+}
 // FFT density mesh and copy it to density_k
 void compute_density_k(void)
 {
-  // FFT density(x) mesh -> density(k)
-  fftwf_mpi_execute_dft_r2c(p0, (float*) fftdata, fftdata);
+    // FFT density(x) mesh -> density(k)
+    fftwf_mpi_execute_dft_r2c(p0, (float*) fftdata, fftdata);
 
-  // copy density(k) in fftdata to density_k
+    // copy density(k) in fftdata to density_k
 
+    /* the CIC deconvolution kernel is
+     *
+     * sinc_unnormed(k_x L / 2 All.Nmesh) ** 2
+     *
+     * k_x = kpos * 2pi / L
+     *
+     * */
+
+    /* 
+     * we deconvolve CIC twice here.
+     * which means, in powerspectrum we need to convolve once.
+     * */
 #ifdef _OPENMP
-  #pragma omp parallel for default(shared)
+#pragma omp parallel for default(shared)
 #endif
-  for(int Jl=0; Jl<Local_ny_td; Jl++) {
-    for(int iI=0; iI<Ngrid; iI++) {
-      for(int K=0; K<Ngrid/2+1; K++){
-	size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
-	density_k[index][0]= fftdata[index][0];
-	density_k[index][1]= fftdata[index][1];
-      }
+    for(int Jl=0; Jl<Local_ny_td; Jl++) {
+        int J = Jl + Local_y_start_td;
+        int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
+        for(int iI=0; iI<Ngrid; iI++) {
+            int I0 = iI <= (Ngrid/2) ? iI : iI - Ngrid;
+            for(int K=0; K<Ngrid/2+1; K++){
+                int K0 = K;
+                size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
+                density_k[index][0] = fftdata[index][0];
+                density_k[index][1] = fftdata[index][1];
+            }
+        }
     }
-  }
 }
 double * pm_compute_power_spectrum(size_t * nk) {
     double * power = PowerSpectrumVariable;
@@ -368,18 +428,22 @@ void compute_power_spectrum() {
     }
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J = Jl + Local_y_start_td;
-
         int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
+        const double fy = sinc_unnormed(J0 * M_PI / Ngrid);
         for(int iI=0; iI<Ngrid; iI++) {
             int I0 = iI <= (Ngrid/2) ? iI : iI - Ngrid;
+            const double fx = sinc_unnormed(I0 * M_PI / Ngrid);
             for(int K=0; K<Ngrid/2; K++){
                 int K0 = K;
                 int i = sqrt(1.0 * I0 * I0 + 1.0 * J0 * J0 + 1.0 * K0 * K0);
                 if (i >= Ngrid / 2) continue;
-
+                const double fz = 1/sinc_unnormed(K0 * M_PI / Ngrid);
+                double fxyz = fx * fy * fz;
+                fxyz *= fxyz;
+                /* we revert one extra CIC */
                 size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
-                double a = density_k[index][0];
-                double b = density_k[index][1];
+                double a = density_k[index][0] / fxyz;
+                double b = density_k[index][1] / fxyz;
                 double p = a * a + b * b;
                 power[i] += p;                
                 count[i] += 1;
@@ -416,55 +480,64 @@ void compute_force_mesh(const int axes)
 #pragma omp parallel for default(shared)
 #endif
   for(int Jl=0; Jl<Local_ny_td; Jl++) {
-    int J= Jl + Local_y_start_td;
+      float di[3];
+      float di2_sinc[3];
 
-    int J0= J <= (Ngrid/2) ? J : J - Ngrid;
-    //di[1]= (complex float) J0;
+      int J= Jl + Local_y_start_td;
+      int J0= J <= (Ngrid/2) ? J : J - Ngrid;
+      //di[1]= (complex float) J0;
+      const double fy = sinc_unnormed(J0 * M_PI / Ngrid);
 
-    float di[3];
-    di[1]= (float) J0;
+      di[1]= diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
+      di2_sinc[1]= (J0 * fy) * (J0 * fy);
 
-    for(int iI=0; iI<Ngrid; iI++) {
-      int I0= iI <= (Ngrid/2) ? iI : iI - Ngrid;
-      //di[0]= (complex float) I0;
-      di[0]= (float) I0;
+      for(int iI=0; iI<Ngrid; iI++) {
+          int I0= iI <= (Ngrid/2) ? iI : iI - Ngrid;
+          const double fx = sinc_unnormed(I0 * M_PI / Ngrid);
+          //di[0]= (complex float) I0;
 
-      int KMIN= (iI==0 && J==0); // skip (0,0,0) because FN=0 for k=(0,0,0)
+          di[0]= diff_kernel(I0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
+          di2_sinc[0]= (I0 * fx) * (I0 * fx);
 
-      for(int K=KMIN; K<Ngrid/2+1; K++){
-	//di[2]= (complex float) K;
-	di[2]= (float) K;
+          int KMIN= (iI==0 && J==0); // skip (0,0,0) because FN=0 for k=(0,0,0)
 
-	//float RK =(float) (K*K + I0*I0 + J0*J0);
-	float f2= f1/(K*K + I0*I0 + J0*J0)*di[axes];
+          for(int K=KMIN; K<Ngrid/2+1; K++){
+              const double fz = sinc_unnormed(K * M_PI / Ngrid);
+              //di[2]= (complex float) K;
+              di[2]= diff_kernel(K * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
 
-	size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
-	FN11[index][0]= -f2*P3D[index][1];
-	FN11[index][1]=  f2*P3D[index][0];
-	//complex float dens = -P3D[K + (NgridL/2+1)*(iI + NgridL*Jl)];
-	//dens *= dens_fac/RK;
+              di2_sinc[2]= (K * fz) * (K * fz);
+              //float RK =(float) (K*K + I0*I0 + J0*J0);
+              const float di2 = di2_sinc[0] + di2_sinc[1] + di2_sinc[2];
+              float f2= f1/di2 * di[axes];
 
-	//#ifdef FILTER
-	//	int KK= RK*Scale*Scale; // what is this factor?
-	//#else
-	//int KK= 1;// ** factors around here can be cleaned/optimized
-	//#endif
-	//FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)]= dens*I*di[axes]/Scale*KK;
+              size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
+              FN11[index][0]= -f2*P3D[index][1];
+              FN11[index][1]=  f2*P3D[index][0];
+              //complex float dens = -P3D[K + (NgridL/2+1)*(iI + NgridL*Jl)];
+              //dens *= dens_fac/RK;
 
-	//FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)]= dens*I*di[axes]/scale;
-	//FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)][0]= 0.0f; //dens[0];
+              //#ifdef FILTER
+              //	int KK= RK*Scale*Scale; // what is this factor?
+              //#else
+              //int KK= 1;// ** factors around here can be cleaned/optimized
+              //#endif
+              //FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)]= dens*I*di[axes]/Scale*KK;
+
+              //FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)]= dens*I*di[axes]/scale;
+              //FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)][0]= 0.0f; //dens[0];
+          }
       }
-    }
   }
-                                                        timer_stop(force_mesh);
+  timer_stop(force_mesh);
 
 
   //msg_printf("Inverse FFT to Force, axes= %d ...", axes);
-                                                              timer_start(fft);
+  timer_start(fft);
   //fftwf_mpi_execute_dft_c2r(p11, FN11, N11);
   // Force(k) -> Force(x)
   fftwf_mpi_execute_dft_c2r(p11, fftdata, (float*) fftdata);
-                                                              timer_stop(fft);
+  timer_stop(fft);
   //msg_printf("done\n");
 }
 
