@@ -18,7 +18,7 @@ qpm = true
 time_step = 'a'
 stdda = true
 smoothing = 2.0
-diff_order = 0
+diff_order = 3
 nopm = false
 
 

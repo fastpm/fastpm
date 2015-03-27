@@ -1,6 +1,6 @@
 -- cola code parameter file
-nc = 512
-boxsize = 512.0
+nc = 256
+boxsize = 256.0
 
 random_seed= 100
 nrealization= 1
