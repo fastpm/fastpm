@@ -221,7 +221,7 @@ int main(int argc, char* argv[])
 
               if(a_x1 >= change_pm && chk_change != 1 && param.pm_nc_factor2 != param.pm_nc_factor1){
 
-                  msg_printf(normal, "Switching to new pm factor: %g->%g\n",
+                  msg_printf(normal, "Switching to new pm factor: %d->%d\n",
                         param.pm_nc_factor1,
                         param.pm_nc_factor2);
 
