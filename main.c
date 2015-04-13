@@ -13,6 +13,7 @@
 #include "msg.h"
 #include "power.h"
 #include "comm.h"
+#include "domain.h"
 #include "pm.h"
 #include "cola.h"
 #include "fof.h"
@@ -182,6 +183,7 @@ int main(int argc, char* argv[])
       int seed= param.random_seed + irealization;
 
       int iout= 0;
+      domain_init(param.nc * nc_factor, param.boxsize);
 
       timer_set_category(LPT);
       if(param.readic_filename) {
@@ -204,7 +206,7 @@ int main(int argc, char* argv[])
           }
       }
       timer_set_category(COLA);
-
+    
       //
       // Time evolution loop
       //
@@ -232,7 +234,9 @@ int main(int argc, char* argv[])
                   nc_factor = param.pm_nc_factor2;
                   pm_finalize();
                   comm_finalize();
+                  domain_finalize();
 
+                  domain_init(param.nc * nc_factor, param.boxsize);
                   comm_init(nc_factor*param.nc, param.nc, param.boxsize);//what are these?
                   pm_init(nc_factor*param.nc, nc_factor, param.boxsize, mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
                   chk_change = 1;
@@ -242,7 +246,7 @@ int main(int argc, char* argv[])
 
               timer_start(comm);
               // move particles to other nodes
-              move_particles2(particles, param.boxsize, mem.mem1, mem.size1 );
+              domain_decompose(particles, mem.mem1, mem.size1);
 
               timer_stop(comm);
 
