@@ -27,6 +27,8 @@ pm_nc_factor2= 3            -- Particle Mesh grid pm_nc_factor*nc per dimension 
 np_alloc_factor= 1.25      -- Amount of memory allocated for particle
 loglevel=0                 -- 0=verbose increase value to reduce output msgs
 
+-- use a RunPB IC file. nc and omega shall match!
+-- readic="PMIC/tpmsph_ic.bin" 
 powerspectrum= "/home/energy/cola_optim/cola_halo/camb0_matterpower.dat" -- Initial power spectrum: k P(k)
 
 -- Options

@@ -47,6 +47,7 @@ int read_parameters(const int argc, char * argv[],
   bcast_string(&param->subsample_filename,  &param->strlen_subsample_filename);
   bcast_string(&param->cgrid_filename,      &param->strlen_cgrid_filename);
   bcast_string(&param->init_filename,       &param->strlen_init_filename);
+  bcast_string(&param->readic_filename,       &param->strlen_readic_filename);
 
   bcast_array_double(&param->zout,          &param->n_zout);
 
@@ -248,6 +249,9 @@ int read_parameter_file(const char filename[], Parameters* const param)
 
   param->init_filename=
     read_string2(L, "initial", &param->strlen_init_filename, false);
+
+  param->readic_filename=
+    read_string2(L, "readic", &param->strlen_readic_filename, false);
 
   if(param->snapshot_filename || param->init_filename) {
     param->write_longid= read_bool(L, "write_longid");

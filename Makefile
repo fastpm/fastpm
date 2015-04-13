@@ -31,6 +31,7 @@ all: $(EXEC)
 OBJS := main.o
 OBJS += read_param_lua.o lpt.o msg.o power.o
 OBJS += pm.o cola.o fof.o comm.o move.o move_min.o
+OBJS += readrunpb.o
 OBJS += write.o timer.o mem.o
 OBJS += subsample.o coarse_grid.o
 

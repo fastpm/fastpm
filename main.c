@@ -182,23 +182,26 @@ int main(int argc, char* argv[])
 
       int iout= 0;
 
-      // Sets initial grid and 2LPT desplacement
       timer_set_category(LPT);
-      lpt_set_displacement(a_init, OmegaM, seed,
-              param.boxsize, particles);
-      snapshot->seed= seed;
+      if(param.readic_filename) {
+          read_runpb_ic(&param, particles, mem.mem2);
+      } else {
+          // Sets initial grid and 2LPT desplacement
+          lpt_set_displacement(a_init, OmegaM, seed,
+                  param.boxsize, particles);
+          snapshot->seed= seed;
 
-      // always do this because it intializes the initial velocity
-      // correctly.
-      set_noncola_initial(a_init, particles, snapshot);
+          // always do this because it intializes the initial velocity
+          // correctly.
+          set_noncola_initial(a_init, particles, snapshot);
 
-      if(param.init_filename) {
-          // Writes initial condition to file for e.g. Gadget N-body simulation
-          char filename[256]; // TODO: use variable length for filename
-          sprintf(filename, "%s_%05d", param.init_filename, seed);
-          write_snapshot(filename, snapshot, param.write_longid);
+          if(param.init_filename) {
+              // Writes initial condition to file for e.g. Gadget N-body simulation
+              char filename[256]; // TODO: use variable length for filename
+              sprintf(filename, "%s_%05d", param.init_filename, seed);
+              write_snapshot(filename, snapshot, param.write_longid);
+          }
       }
-
       timer_set_category(COLA);
 
       //

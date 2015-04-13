@@ -2,7 +2,7 @@
 #define PARAMETERS_H
 
 typedef struct {
-  int nc;
+  size_t nc;
   int pm_nc_factor1;
   int pm_nc_factor2;
   float change_pm;
@@ -37,6 +37,7 @@ typedef struct {
   char* subsample_filename;  int strlen_subsample_filename;
   char* cgrid_filename;      int strlen_cgrid_filename;
   char* init_filename;       int strlen_init_filename;
+  char* readic_filename;   int strlen_readic_filename;
   // 'strlen' includes the null character. It is the number of chars.
 
 
