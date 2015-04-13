@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
 
       timer_set_category(LPT);
       if(param.readic_filename) {
-          read_runpb_ic(&param, particles, mem.mem2);
+          read_runpb_ic(&param, a_init, particles, mem.mem2);
       } else {
           // Sets initial grid and 2LPT desplacement
           lpt_set_displacement(a_init, OmegaM, seed,

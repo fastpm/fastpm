@@ -201,10 +201,14 @@ int read_parameter_file(const char filename[], Parameters* const param)
   param->loglevel= read_int(L, "loglevel");
 
   // File Names and optional parameters realated
-  param->power_spectrum_filename=
-    read_string2(L, "powerspectrum", &param->strlen_power_spectrum_filename, 
-		 true);
+  param->readic_filename=
+    read_string2(L, "readic", &param->strlen_readic_filename, false);
 
+  if(param->readic_filename) {
+      param->power_spectrum_filename=
+        read_string2(L, "powerspectrum", &param->strlen_power_spectrum_filename, 
+	    	 true);
+  }
   param->measure_power_spectrum_filename=
     read_string2(L, "measure_power", 
         &param->strlen_measure_power_spectrum_filename, false);
