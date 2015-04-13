@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <mpi.h>
 #include <glob.h>
 #include <math.h>
@@ -97,8 +98,8 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
     Particle * par = particles->p;
     int offset = 0;
     for(int i = 0; i < Nfile; i ++) {
-        int mystart = start - NcumFile[i];
-        int myend = end - NcumFile[i];
+        ptrdiff_t mystart = start - NcumFile[i];
+        ptrdiff_t myend = end - NcumFile[i];
         /* not overlapping */
         if(myend <= 0) continue;
         if(mystart >= NperFile[i]) continue;
