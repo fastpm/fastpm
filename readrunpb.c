@@ -19,7 +19,7 @@ typedef struct {
 } FileHeader;
 
 int read_runpb_ic(Parameters * param, double a_init, Particles * particles, 
-        void * scratch) {
+        void * scratch, size_t scratch_bytes) {
     int ThisTask;
     int NTask;
     float * fscratch = (float*) scratch;
@@ -27,6 +27,8 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
 
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+    size_t chunksize = scratch_bytes;
 
     size_t Ntot = 0;
 
@@ -97,9 +99,12 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
     
     Particle * par = particles->p;
     int offset = 0;
+    int chunknpart = chunksize / (sizeof(float) * 3);
+
     for(int i = 0; i < Nfile; i ++) {
         ptrdiff_t mystart = start - NcumFile[i];
         ptrdiff_t myend = end - NcumFile[i];
+        size_t nread;
         /* not overlapping */
         if(myend <= 0) continue;
         if(mystart >= NperFile[i]) continue;
@@ -124,26 +129,43 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
         fread(&header, sizeof(FileHeader), 1, fp);
         /* pos */
         fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
-        fread(scratch, sizeof(float) * 3, (myend - mystart), fp);
-        for(int p = 0, q = 0; p < myend - mystart; p ++) {
-            par[offset + p].x[0] = fscratch[q++];
-            par[offset + p].x[1] = fscratch[q++];
-            par[offset + p].x[2] = fscratch[q++];
+        nread = 0;
+        while(nread != myend - mystart) {
+            size_t nbatch = chunknpart;
+            if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
+            fread(scratch, sizeof(float) * 3, nbatch, fp);
+            for(int p = 0, q = 0; p < nbatch; p ++) {
+                par[offset + nread + p].x[0] = fscratch[q++];
+                par[offset + nread + p].x[1] = fscratch[q++];
+                par[offset + nread + p].x[2] = fscratch[q++];
+            }
+            nread += nbatch;
         }
         /* vel */
         fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
-        fread(scratch, sizeof(float) * 3, (myend - mystart), fp);
-        for(int p = 0, q = 0; p < myend - mystart; p ++) {
-            par[offset + p].v[0] = fscratch[q++];
-            par[offset + p].v[1] = fscratch[q++];
-            par[offset + p].v[2] = fscratch[q++];
+        nread = 0;
+        while(nread != myend - mystart) {
+            size_t nbatch = chunknpart;
+            if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
+            fread(scratch, sizeof(float) * 3, nbatch, fp);
+            for(int p = 0, q = 0; p < nbatch; p ++) {
+                par[offset + nread + p].v[0] = fscratch[q++];
+                par[offset + nread + p].v[1] = fscratch[q++];
+                par[offset + nread + p].v[2] = fscratch[q++];
+            }
+            nread += nbatch;
         }
-
         /* ID */
         fseek(fp, mystart * sizeof(long long), SEEK_CUR);
-        fread(scratch, sizeof(long long), (myend - mystart), fp);
-        for(int p = 0, q = 0; p < myend - mystart; p ++) {
-            par[offset + p].id = lscratch[q++];
+        nread = 0;
+        while(nread != myend - mystart) {
+            size_t nbatch = chunknpart;
+            if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
+            fread(scratch, sizeof(long long), nbatch, fp);
+            for(int p = 0, q = 0; p < nbatch; p ++) {
+                par[offset + nread + p].id = lscratch[q++];
+            }
+            nread += nbatch;
         }
         fclose(fp);
         offset += myend - mystart;
