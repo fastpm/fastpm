@@ -180,6 +180,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     return -1;
   }
 
+  memset(param, 0, sizeof(*param));
   param->nc= read_int(L, "nc");
   param->boxsize= read_double(L, "boxsize");
 
