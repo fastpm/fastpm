@@ -100,7 +100,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
     Particle * par = particles->p;
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
-
+    msg_printf(verbose, "chunknpart = %d\n", chunknpart);
     for(int i = 0; i < Nfile; i ++) {
         ptrdiff_t mystart = start - NcumFile[i];
         ptrdiff_t myend = end - NcumFile[i];
@@ -109,6 +109,8 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
         if(myend <= 0) continue;
         if(mystart >= NperFile[i]) continue;
 
+        printf("Task %d reading at %d \n", ThisTask, offset);
+
         /* cut to this file */
         if(myend > NperFile[i]) {
             myend = NperFile[i];
@@ -116,7 +118,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
         if(mystart < 0) {
             mystart =0;
         }
-/* at this point, read mystart:myend from current file */
+        /* at this point, read mystart:myend from current file */
         char buf[1024];
         int eflag, hsize;
         FileHeader header;
@@ -141,6 +143,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             }
             nread += nbatch;
         }
+        fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
         /* vel */
         fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
         nread = 0;
@@ -155,6 +158,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             }
             nread += nbatch;
         }
+        fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
         /* ID */
         fseek(fp, mystart * sizeof(long long), SEEK_CUR);
         nread = 0;
@@ -167,6 +171,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             }
             nread += nbatch;
         }
+        fseek(fp, (NperFile[i] - myend) * sizeof(long long), SEEK_CUR);
         fclose(fp);
         offset += myend - mystart;
     }
@@ -195,6 +200,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
         float * dx2 = par[p].dx2;
         
         long long id = par[p].id;
+        long long id0 = par[p].id;
 
         for(int d = 0; d < 3; d ++ ) {
             double opos = (id / strides[d]) * (1.0 / param->nc) + offset0;
@@ -211,8 +217,14 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             while(x[d] >= param->boxsize) x[d] -= param->boxsize;
             dx1[d] *= param->boxsize;
             dx2[d] *= param->boxsize;
+            if(dx1[d] > 100) {
+                printf("id = %lld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g Dplus=%g, D20=%g, D2=%g, DplusIC=%g\n", 
+                    id0, dx1[d], v[d], x[d], disp, opos, f1, f2, Dplus, D20, D2, DplusIC);
+            }
+            dx2[d] *= param->boxsize;
+
             if(fabs(dx1[d]) > dx1max) dx1max = fabs(dx1[d]);
-            if(fabs(dx2[d]) > dx1max) dx2max = fabs(dx2[d]);
+            if(fabs(dx2[d]) > dx2max) dx2max = fabs(dx2[d]);
             v[d] = 0.0;
         }
         
