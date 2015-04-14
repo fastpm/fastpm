@@ -40,6 +40,7 @@ void power_init(const char filename[], const double a_init, const double sigma8,
   Omega= omega_m;
   OmegaLambda= omega_lambda;
 
+  if(filename == NULL) return;
   int myrank;
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 

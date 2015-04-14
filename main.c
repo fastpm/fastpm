@@ -120,10 +120,9 @@ int main(int argc, char* argv[])
   }
   msg_printf(normal, "\n");
 
-  if(! param.readic_filename) {
-     power_init(param.power_spectrum_filename, a_init, 
+  power_init(param.power_spectrum_filename, a_init, 
 	     sigma8, OmegaM, OmegaLambda);
-  }
+  
 
   Memory mem; 
   allocate_shared_memory(param.nc, param.pm_nc_factor2, param.np_alloc_factor, &mem); 

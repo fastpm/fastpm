@@ -216,7 +216,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             while(x[d] < 0.0) x[d] += param->boxsize;
             while(x[d] >= param->boxsize) x[d] -= param->boxsize;
             dx1[d] *= param->boxsize;
-            dx2[d] *= param->boxsize;
+
             if(dx1[d] > 100) {
                 printf("id = %lld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g Dplus=%g, D20=%g, D2=%g, DplusIC=%g\n", 
                     id0, dx1[d], v[d], x[d], disp, opos, f1, f2, Dplus, D20, D2, DplusIC);
