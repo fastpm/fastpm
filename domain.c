@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <math.h>
 #include "msg.h"
-#include "comm.h"
 #include "particle.h"
 #include <fftw3-mpi.h>
 

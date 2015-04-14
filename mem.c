@@ -5,7 +5,6 @@
 #include "fof.h"
 #include "mem.h"
 #include "msg.h"
-#include "comm.h"
 
 
 Particles* allocate_particles(const int nc, const int nx, const double np_alloc_factor)
@@ -31,9 +30,11 @@ Particles* allocate_particles(const int nc, const int nx, const double np_alloc_
   particles->np_allocated= np_alloc;
 
   particles->np_total= (long long) nc*nc*nc;
-  
-  const int nnode= comm_nnode();
-  particles->np_average= (float)(pow((double) nc, 3) / nnode);
+
+  int NTask; 
+  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+  particles->np_average= (float)(pow((double) nc, 3) / NTask);
 
   return particles;
 }

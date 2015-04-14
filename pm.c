@@ -36,7 +36,6 @@
 #include <fftw3-mpi.h>
 #include "pm.h"
 #include "msg.h"
-#include "comm.h"
 #include "timer.h"
 #include "domain.h"
 
