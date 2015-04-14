@@ -391,26 +391,31 @@ void compute_power_spectrum(fftwf_complex * density_k) {
         count[i] = 0;
         power[i] = 0;
     }
+    double * ff = (double*) alloca(sizeof(double) * (Ngrid));
+    for(int i = 0; i < Ngrid; i ++) {
+        int I0 = i <= (Ngrid/2) ? i : i - Ngrid;
+        ff[i] = sinc_unnormed(I0 * (M_PI / Ngrid));
+        ff[i] *= ff[i];
+    }
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J = Jl + Local_y_start_td;
         int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
-        const double fy = sinc_unnormed(J0 * M_PI / Ngrid);
         for(int iI=0; iI<Ngrid; iI++) {
             int I0 = iI <= (Ngrid/2) ? iI : iI - Ngrid;
-            const double fx = sinc_unnormed(I0 * M_PI / Ngrid);
             for(int K=0; K<Ngrid/2; K++){
                 int K0 = K;
                 int i = sqrt(1.0 * I0 * I0 + 1.0 * J0 * J0 + 1.0 * K0 * K0);
                 if (i >= Ngrid / 2) continue;
-                const double fz = 1/sinc_unnormed(K0 * M_PI / Ngrid);
-                double fxyz = fx * fy * fz;
-                fxyz *= fxyz;
-                /* we revert one extra CIC */
+                const double fx2 = ff[iI];
+                const double fy2 = ff[J];
+                const double fz2 = ff[K];
+                const double fxyz2 = fx2 * fy2 * fz2;
+
                 size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
-                double a = density_k[index][0] / fxyz;
-                double b = density_k[index][1] / fxyz;
+                double a = density_k[index][0];
+                double b = density_k[index][1];
                 double p = a * a + b * b;
-                power[i] += p;                
+                power[i] += p / (fxyz2*fxyz2);                
                 count[i] += 1;
             }
         }
@@ -590,7 +595,9 @@ void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
   //fftwf_mpi_execute_dft_r2c(p0, density, P3D);
                                                             timer_stop(fft);
 
+                                                       timer_start(powerspectrum);
     compute_power_spectrum(density_k);
+                                                       timer_stop(powerspectrum);
 
     for(int axes=0; axes<3; axes++) {
     // density(k) -> f(x_i) [fftdata]
