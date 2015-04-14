@@ -3,10 +3,10 @@
 #include "timer.h"
 
 #define nCategory 4
-#define nSubCategory 14
+#define nSubCategory 15
 
 static const char * CatName[]= {"Init", "2LPT", "COLA", "Snapshot"};
-static const char * SubName[]= {"", "fft", "assign", "force_mesh", "pforce", "check", "comm", "evolve", "write", "kd_build", "kd_link", "interpolate", "global", "smalldata"};
+static const char * SubName[]= {"", "fft", "assign", "powerspectrum", "force_mesh", "pforce", "check", "comm", "evolve", "write", "kd_build", "kd_link", "interpolate", "global", "smalldata"};
 
 //static const int nCategory= 4;
 //static const int nSubCategory= 4;
@@ -30,7 +30,7 @@ static double now()
 void timer_init()
 {
   for(int i=0; i<nCategory; i++) {
-    for(int j=0; j<nCategory; j++) {
+    for(int j=0; j<nSubCategory; j++) {
       Time[i][j]= 0.0;
       tBegin[i][j]= 0.0;
     }
