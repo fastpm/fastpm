@@ -11,7 +11,7 @@ Particles* allocate_particles(const int nc, const int nx, const double np_alloc_
 {
   Particles* particles= malloc(sizeof(Particles));
 
-  const int np_alloc= (int)(np_alloc_factor*nc*nc*(nx+1));
+  const int np_alloc= (int)(np_alloc_factor*nc*nc*(nx));
 
   particles->p= malloc(sizeof(Particle)*np_alloc);
 
