@@ -4,6 +4,7 @@
 typedef float float3[3];
 
 typedef struct {
+  long long id;
   float x[3];
   union {
       float dx1[3]; // ZA displacement
@@ -14,7 +15,6 @@ typedef struct {
       int OriginalIndex;
   };
   float v[3];   // velocity
-  long long id;
 } Particle;
 
 typedef struct {
@@ -27,9 +27,9 @@ typedef struct {
 } Particles;
 
 typedef struct {
+  long long id;
   float x[3];
   float v[3];
-  long long id;
 } ParticleMinimum;
 
 typedef struct {

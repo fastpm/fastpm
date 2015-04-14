@@ -7,7 +7,7 @@
 #include "parameters.h"
 #include "power.h"
 #include "particle.h"
-
+#include "msg.h"
 #define FILENAME  "%s.%02d"
 
 typedef struct {
@@ -186,6 +186,8 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
 
     /* RUN PB ic global shifting */
     const double offset0 = 0.5 * 1.0 / param->nc;
+    double dx1max = 0;
+    double dx2max = 0;
     for(int p = 0; p < offset; p ++) {
         float * x = par[p].x;
         float * v = par[p].v;
@@ -209,11 +211,16 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             while(x[d] >= param->boxsize) x[d] -= param->boxsize;
             dx1[d] *= param->boxsize;
             dx2[d] *= param->boxsize;
+            if(fabs(dx1[d]) > dx1max) dx1max = fabs(dx1[d]);
+            if(fabs(dx2[d]) > dx1max) dx2max = fabs(dx2[d]);
             v[d] = 0.0;
         }
         
-        
     }
+    double dx1maxg, dx2maxg;
+    MPI_Allreduce(&dx1max, &dx1maxg, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&dx2max, &dx2maxg, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    msg_printf(verbose, "dx1 max = %g, dx2 max = %g", dx1maxg, dx2maxg);
     free(NcumFile);
     free(NperFile);
     return 0;

@@ -576,12 +576,12 @@ void check_total_density(float const * const density)
     double tol= 1.0e-7*pow(PM_factor, 3)*NParticleTotal;
 
     if(fabs(sum_global) > tol)
-      msg_abort(6040, "Error: total CIC density error is large: %le > %le\n", 
+      msg_printf(verbose, "Error: total CIC density error is large: %le > %le\n", 
 		sum_global, tol);
-
-    msg_printf(debug, 
-	      "Total CIC density OK within machine precision: %lf (< %lf).\n",
-	       sum_global, tol);
+    else
+        msg_printf(debug, 
+              "Total CIC density OK within machine precision: %lf (< %lf).\n",
+               sum_global, tol);
 
 
   }

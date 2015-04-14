@@ -314,6 +314,19 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
 {
     char * Pc = P;
 
+    {
+    size_t total1 = np_local;
+    size_t total = 0;
+    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    msg_printf(verbose, "Total number of particles = %td\n", total);
+    total1 = 0;
+    for(int i = 0; i < np_local; i ++) {
+        total1 += (((ParticleMinimum*) &Pc[i * elsize])->id);
+    }
+    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    msg_printf(verbose, "Sum of particle ID = %td\n", total);
+    }
+
     qsort(P, np_local, elsize, cmp_par_task);
 
     int * SendCount = alloca(sizeof(int) * NTask);
@@ -373,6 +386,18 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
         if(par_node(((ParticleMinimum*) &Pc[i * elsize])->x) != ThisTask) {
             msg_abort(2314, "Some particles are not in the correct domain after exchange.");
         }
+    }
+    {
+    size_t total1 = np_local;
+    size_t total = 0;
+    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    msg_printf(verbose, "Total number of particles = %td\n", total);
+    total1 = 0;
+    for(int i = 0; i < np_local; i ++) {
+        total1 += (((ParticleMinimum*) &Pc[i * elsize])->id);
+    }
+    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
     return np_local;
 }
