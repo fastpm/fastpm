@@ -97,13 +97,14 @@ static double super_lanzcos_diff_kernel_0(double w) {
 
 static double (*diff_kernel)(double w);
 
-static inline void WRtPlus(float * const d, 
+static inline float WRtPlus(float * const d, 
 		    const int i, const int j, const int k, const float f)
 {
 #ifdef _OPENMP
   #pragma omp atomic
 #endif
   d[k + 2*(NgridL/2 + 1)*(j + NgridL*i)] += f;
+  return f;
 }
 
 static inline float REd(float const * const d, const int i, const int j, const int k)
@@ -261,8 +262,6 @@ void PtoMesh(const Particle P[], const int np, float* const density)
       for(int k = 0; k < Ngrid; k++)
 	density[(i*NgridL + j)*2*(NgridL/2 + 1) + k] = 0.0f;
 
-    int c1 = 0;
-    int c2 = 0;
 #ifdef _OPENMP
   #pragma omp parallel for default(shared)
 #endif
@@ -294,9 +293,9 @@ void PtoMesh(const Particle P[], const int np, float* const density)
     while(J >= Ngrid) J -= Ngrid;
     while(K >= Ngrid) K -= Ngrid;
             
-    int I1=iI+1; if(I1 >= Ngrid) I1=0;
-    int J1=J+1; if(J1 >= Ngrid) J1=0; // assumes y,z < BoxSize
-    int K1=K+1; if(K1 >= Ngrid) K1=0;
+    int I1=iI+1; while(I1 >= Ngrid) I1-=Ngrid;
+    int J1=J+1; while(J1 >= Ngrid) J1-=Ngrid; // assumes y,z < BoxSize
+    int K1=K+1; while(K1 >= Ngrid) K1-=Ngrid;
 
     iI -= Local_x_start;
     I1 -= Local_x_start;
@@ -306,7 +305,6 @@ void PtoMesh(const Particle P[], const int np, float* const density)
       WRtPlus(density, iI, J,  K1, D3*T1*T2W);
       WRtPlus(density, iI, J1, K,  T3*T1*D2W);
       WRtPlus(density, iI, J1, K1, D3*T1*D2W);
-      c1 += 1;
     }
 
     if(0 <= I1 && I1 < Local_nx) {
@@ -314,17 +312,8 @@ void PtoMesh(const Particle P[], const int np, float* const density)
       WRtPlus(density, I1, J,  K1, D3*D1*T2W);
       WRtPlus(density, I1, J1, K,  T3*D1*D2W);
       WRtPlus(density, I1, J1, K1, D3*D1*D2W);
-      c2 += 1;
     }
   }
-#ifdef _OPENMP
-  #pragma omp parallel for default(shared)
-#endif
-  for(int i = 0; i < Local_nx; i++)
-    for(int j = 0; j < Ngrid; j++)
-      for(int k = 0; k < Ngrid; k++)
-	density[(i*NgridL + j)*2*(NgridL/2 + 1) + k] += -1.0f;
-
 
   msg_printf(verbose, "CIC density assignment finished.\n");
 }
@@ -373,7 +362,22 @@ void compute_density_k(fftwf_complex * density_k)
             }
         }
     }
+    /* we check the consistency of CIC here. 
+     * delta_k[0] is summed in more accurately in FFTW
+     * than simple linear summing.
+     * */
+    double Norm = 0.0;
+    /* remove the mean  */
+    if(Local_x_start == 0) {
+        Norm = density_k[0][0];
+        density_k[0][0] = 0;
+        density_k[0][1] = 0;
+    }
+    MPI_Bcast(&Norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    msg_printf(verbose, "delta_k(0) = %g ; CIC err is = %g\n", 
+            Norm, pow(Ngrid, 3), Norm / pow(Ngrid, 3) - 1);
 }
+
 double * pm_compute_power_spectrum(size_t * nk) {
     double * power = PowerSpectrumVariable;
     nk[0] = Ngrid / 2;
@@ -559,35 +563,6 @@ void force_at_particle_locations(const Particle P[], const int np,
 }
 
 
-void check_total_density(float const * const density)
-{
-  double sum= 0.0;
-
-  for(int i = 0; i < Local_nx; i++)
-    for(int j = 0; j < Ngrid; j++)
-      for(int k = 0; k < Ngrid; k++)
-	sum += density[(i*NgridL + j)*2*(NgridL/2 + 1) + k];
-
-  double sum_global;
-  MPI_Reduce(&sum, &sum_global, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
- 
-  if(ThisNode == 0) {
-    double tol= 1.0e-7*pow(PM_factor, 3)*NParticleTotal;
-
-    if(fabs(sum_global) > tol)
-      msg_printf(verbose, "Error: total CIC density error is large: %le > %le\n", 
-		sum_global, tol);
-    else
-        msg_printf(debug, 
-              "Total CIC density OK within machine precision: %lf (< %lf).\n",
-               sum_global, tol);
-
-
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-}
-  
 // Calculates force on particles, particles->f, using particle mesh method
 void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
 {
@@ -608,10 +583,6 @@ void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
   // x_i -> density(x) = fftdata
     PtoMesh(particles->p, np_plus_buffer, (float*) fftdata);
                                                             timer_stop(assign);
-                                                            timer_start(check);
-    check_total_density((float*) fftdata);
-                                                            timer_stop(check);
-
 
                                                             timer_start(fft);
   // density(x) -> density(k)
