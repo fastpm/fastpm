@@ -352,11 +352,8 @@ void compute_density_k(fftwf_complex * density_k)
 #endif
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J = Jl + Local_y_start_td;
-        int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
         for(int iI=0; iI<Ngrid; iI++) {
-            int I0 = iI <= (Ngrid/2) ? iI : iI - Ngrid;
             for(int K=0; K<Ngrid/2+1; K++){
-                int K0 = K;
                 size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
                 density_k[index][0] = fftdata[index][0];
                 density_k[index][1] = fftdata[index][1];
@@ -394,19 +391,18 @@ void compute_power_spectrum(fftwf_complex * density_k) {
         power[i] = 0;
     }
     double * ff = (double*) alloca(sizeof(double) * (Ngrid));
-    for(int i = 0; i < Ngrid; i ++) {
-        int I0 = i <= (Ngrid/2) ? i : i - Ngrid;
-        ff[i] = sinc_unnormed(I0 * (M_PI / Ngrid));
-        ff[i] *= ff[i];
+    double * i2 = (double*) alloca(sizeof(double) * (Ngrid));
+    for(int J = 0; J < Ngrid; J ++) {
+        int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
+        ff[J] = sinc_unnormed(J0 * (M_PI / Ngrid));
+        ff[J] *= ff[J];
+        i2[J] = (double)J0 * J0;
     }
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J = Jl + Local_y_start_td;
-        int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
         for(int iI=0; iI<Ngrid; iI++) {
-            int I0 = iI <= (Ngrid/2) ? iI : iI - Ngrid;
             for(int K=0; K<Ngrid/2; K++){
-                int K0 = K;
-                int i = sqrt(1.0 * I0 * I0 + 1.0 * J0 * J0 + 1.0 * K0 * K0);
+                int i = sqrt(i2[J] + i2[K] + i2[iI]);
                 if (i >= Ngrid / 2) continue;
                 const double fx2 = ff[iI];
                 const double fy2 = ff[J];
@@ -444,6 +440,15 @@ void compute_force_mesh(const int axes, fftwf_complex * const P3D)
 
   const float f1= -1.0/pow(Ngrid, 3.0)/scale;
 
+  double * diff = alloca(sizeof(double) * Ngrid);
+  double * di2 = alloca(sizeof(double) * Ngrid);
+  double * ff = alloca(sizeof(double) * Ngrid);
+  for(int J = 0 ; J < Ngrid; J ++) {
+      int J0= J <= (Ngrid/2) ? J : J - Ngrid;
+      diff[J] = diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
+      ff[J] = sinc_unnormed(J0 * M_PI / Ngrid);
+      di2[J] = J0 * ff[J] * J0 * ff[J];
+  }
   //complex float di[3];
   //#shared(FN11, P3D, Local_ny_td, Local_y_start_td, Ngrid, NgridL)
 
@@ -451,36 +456,15 @@ void compute_force_mesh(const int axes, fftwf_complex * const P3D)
 #pragma omp parallel for default(shared)
 #endif
   for(int Jl=0; Jl<Local_ny_td; Jl++) {
-      float di[3];
-      float di2_sinc[3];
-
       int J= Jl + Local_y_start_td;
-      int J0= J <= (Ngrid/2) ? J : J - Ngrid;
-      //di[1]= (complex float) J0;
-      const double fy = sinc_unnormed(J0 * M_PI / Ngrid);
-
-      di[1]= diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
-      di2_sinc[1]= (J0 * fy) * (J0 * fy);
-
       for(int iI=0; iI<Ngrid; iI++) {
-          int I0= iI <= (Ngrid/2) ? iI : iI - Ngrid;
-          const double fx = sinc_unnormed(I0 * M_PI / Ngrid);
-          //di[0]= (complex float) I0;
-
-          di[0]= diff_kernel(I0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
-          di2_sinc[0]= (I0 * fx) * (I0 * fx);
-
           int KMIN= (iI==0 && J==0); // skip (0,0,0) because FN=0 for k=(0,0,0)
 
           for(int K=KMIN; K<Ngrid/2+1; K++){
-              const double fz = sinc_unnormed(K * M_PI / Ngrid);
-              //di[2]= (complex float) K;
-              di[2]= diff_kernel(K * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
-
-              di2_sinc[2]= (K * fz) * (K * fz);
               //float RK =(float) (K*K + I0*I0 + J0*J0);
-              const float di2 = di2_sinc[0] + di2_sinc[1] + di2_sinc[2];
-              float f2= f1/di2 * di[axes];
+              const float tmp = di2[J] + di2[iI] + di2[K];
+              const int ind[] = {iI, J, K};
+              float f2= f1/tmp * diff[ind[axes]];
 
               size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
               FN11[index][0]= -f2*P3D[index][1];
