@@ -215,7 +215,7 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
     }
     int maxghosts = 0;
     MPI_Allreduce(&nrecv, &maxghosts, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    msg_printf(verbose, "Max number of ghosts is %d, %g %%\n", maxghosts, 1.0 * maxghosts/ particles->np_allocated);
+    msg_printf(verbose, "Max number of ghosts is %d, %g / 1\n", maxghosts, 1.0 * maxghosts/ particles->np_allocated);
     return nrecv;
 }
 
