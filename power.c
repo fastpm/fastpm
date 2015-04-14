@@ -15,12 +15,12 @@
 #include <mpi.h>
 
 #include "msg.h"
+#include "power.h"
 
 #define WORKSIZE 100000
 
 static double Norm;
 static int NPowerTable;
-static double r_tophat;
 static double Omega, OmegaLambda;
 
 static struct pow_table
@@ -30,7 +30,6 @@ static struct pow_table
 
 void read_power_table_camb(const char filename[]);
 double normalize_power(const double a_init, const double sigma8);
-double TopHatSigma2(double R);
 //double GrowthFactor(double astart, double aend);
 
 
@@ -109,7 +108,7 @@ double normalize_power(const double a_init, const double sigma8)
   // Assume that input power spectrum already has a proper sigma8
   const double R8 = 8.0; // 8 Mpc
 
-  double res = TopHatSigma2(R8); 
+  double res = TopHatSigma2(R8, PowerSpec); 
   double sigma8_input= sqrt(res);
 
   msg_printf(info, "Input power spectrum sigma8 %f\n", sigma8_input);
@@ -172,7 +171,9 @@ double PowerSpec(const double k)
 double sigma2_int(double k, void *param)
 {
   double kr, kr3, kr2, w, x;
-
+  void ** vparam = param;
+  double (*func )(double) = vparam[0];
+  double r_tophat = *(double*) vparam[1];
   kr = r_tophat * k;
   kr2 = kr * kr;
   kr3 = kr2 * kr;
@@ -181,7 +182,7 @@ double sigma2_int(double k, void *param)
     return 0;
 
   w = 3 * (sin(kr) / kr3 - cos(kr) / kr2);
-  x = 4 * M_PI * k * k * w * w * PowerSpec(k);
+  x = 4 * M_PI * k * k * w * w * func(k);
 
   return x;
 }
@@ -218,17 +219,19 @@ double GrowthFactor(double astart, double aend)
   return growth(aend) / growth(astart);
 }
 
-double TopHatSigma2(double R)
-{
+double TopHatSigma2(double R, double (*func)(double)) {
   double result, abserr;
   gsl_integration_workspace *workspace;
   gsl_function F;
 
   workspace = gsl_integration_workspace_alloc(WORKSIZE);
+  void * data [] = {
+        (void*) PowerSpec,
+        (void*) &R,
+        };
 
   F.function = &sigma2_int;
-
-  r_tophat = R;
+  F.params = data;
 
   gsl_integration_qag(&F, 0, 500.0 * 1 / R,
           0, 1.0e-4, WORKSIZE, GSL_INTEG_GAUSS41, workspace, &result, &abserr);
