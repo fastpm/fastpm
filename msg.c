@@ -41,6 +41,7 @@ void msg_abort(const int errret, const char *fmt, ...)
   vfprintf(stderr, fmt, argp);
   va_end(argp);
 
+    abort();
   MPI_Abort(MPI_COMM_WORLD, errret);
 }  
 

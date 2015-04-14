@@ -38,6 +38,7 @@
 #include "msg.h"
 #include "comm.h"
 #include "timer.h"
+#include "domain.h"
 
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
@@ -55,7 +56,6 @@ static float BoxSize;
 
 static fftwf_complex* fftdata;
 static fftwf_plan p0, p11;
-static fftwf_complex* density_k;
 
 static double * PowerSpectrumVariable;
 
@@ -67,19 +67,10 @@ static double * PowerSpectrumVariable;
 //static fftwf_complex *FN11;
 //static float* N11;
 
-static void *BufMove; //, *BufMove2;
-static int   NMoveBuffer; //, NMoveBuffer2;
 //static void* Buf;
 //static Particle* ParticleBuffer;
 //static int NParticleBuffer;
 static long long NParticleTotal;
-
-typedef struct {
-  int nbuf;
-  int nsend, nrecv;
-  float *vec, *vrecv;
-  int* index;
-} BufferVec3;
 
 /* the transfer functions for force in fourier space applied to potential */
 /* super lanzcos in CH6 P 122 Digital Filters by Richard W. Hamming */
@@ -106,8 +97,6 @@ static double super_lanzcos_diff_kernel_0(double w) {
 }
 
 static double (*diff_kernel)(double w);
-
-static BufferVec3 BufPos;
 
 static inline void WRtPlus(float * const d, 
 		    const int i, const int j, const int k, const float f)
@@ -182,14 +171,6 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
   }
   */
 
-  if(mem2 == 0) {
-    density_k= fftwf_alloc_complex((NgridL/2+1)*NgridL*Local_ny_td);
-  }
-  else {
-    assert(size2 >= sizeof(fftwf_complex)*(NgridL/2+1)*NgridL*Local_ny_td);
-    density_k= (fftwf_complex*) mem2;
-  }
-
   if(fftdata == 0)
     msg_abort(4001, "Unable to allocate memory for particle mesh: %d Mbytes\n",
 	      (int)(2*bytes/(1024*1024)));
@@ -242,43 +223,11 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
   assert(LeftNode >= 0 && RightNode >= 0);
   
   free(local_x_table);
-
-  // workspace for move_particles
-  BufMove= mem1;
-  NMoveBuffer= size1/sizeof(Particle);
-  msg_printf(debug, "NMove buffer %d\n", NMoveBuffer);
-
-  //BufMove2= mem2;
-  //NMoveBuffer2= size2/sizeof(Particle);
-
+  //
   // buffer for particle transfer
   const int ncp= nc_pm/nc_pm_factor;
   NParticleTotal= (long long) ncp*ncp*ncp;
 
-  /*
-  NParticleBuffer= ncp*ncp*20;
-  Buf= malloc(sizeof(Particle)*NParticleBuffer);
-  if(Buf == 0)
-    msg_abort(4002, "Error: Unable to allocate memory for PM buffer");
-
-  ParticleBuffer= Buf;
-  msg_printf(info, "%d Mbytes allocated for particle buffer\n",
-	     sizeof(Particle)*NParticleBuffer/(1024*1024));
-  */
-  const int nbuf= ncp*ncp * 2;
-
-  BufPos.nbuf= nbuf;
-  BufPos.vec  = malloc(sizeof(float)*3*nbuf);
-  BufPos.vrecv= malloc(sizeof(float)*3*nbuf);
-  BufPos.index= malloc(sizeof(int)*nbuf);
-
-  if(BufPos.vec == 0 || BufPos.vrecv == 0 || BufPos.index == 0)
-    msg_abort(4002, "Error: Unable to allocate memory for PM buffer");
-
-  msg_printf(info, "%d Mbytes allocated for particle buffer\n",
-	     (sizeof(float)*6 + sizeof(int))*nbuf/(1024*1024));
-
-  //NP_Average= (float) pow((double)nc_pm/nc_pm_factor, 3.0)/NNode;
 
 }
 
@@ -311,8 +260,10 @@ void PtoMesh(const Particle P[], const int np, float* const density)
   for(int i = 0; i < Local_nx; i++)
     for(int j = 0; j < Ngrid; j++)
       for(int k = 0; k < Ngrid; k++)
-	density[(i*NgridL + j)*2*(NgridL/2 + 1) + k] = -1.0f;
+	density[(i*NgridL + j)*2*(NgridL/2 + 1) + k] = 0.0f;
 
+    int c1 = 0;
+    int c2 = 0;
 #ifdef _OPENMP
   #pragma omp parallel for default(shared)
 #endif
@@ -320,10 +271,10 @@ void PtoMesh(const Particle P[], const int np, float* const density)
     float X=P[i].x[0]*scaleBox;
     float Y=P[i].x[1]*scaleBox;
     float Z=P[i].x[2]*scaleBox;
-            
+
     int iI=(int) floorf(X); // without floor, -1 < X < 0 is mapped to iI=0
-    int J=(int) Y;          // Assumes Y,Z are positive
-    int K=(int) Z;
+    int J=(int) floorf(Y);          // Assumes Y,Z are positive
+    int K=(int) floorf(Z);
     float D1=X-((float) iI);
     float D2=Y-((float) J);
     float D3=Z-((float) K);
@@ -338,12 +289,13 @@ void PtoMesh(const Particle P[], const int np, float* const density)
     assert(Y >= 0.0f && Z >= 0.0f);
 #endif
             
-    // No periodic wrapup in x direction. 
-    // Buffer particles are copied from adjacent nodes, instead
-    if(J >= Ngrid) J=0; 
-    if(K >= Ngrid) K=0;
+    // Do periodic wrapup in all directions. 
+    // Buffer particles are copied from adjacent nodes
+    while(iI >= Ngrid) iI -= Ngrid;
+    while(J >= Ngrid) J -= Ngrid;
+    while(K >= Ngrid) K -= Ngrid;
             
-    int I1=iI+1;
+    int I1=iI+1; if(I1 >= Ngrid) I1=0;
     int J1=J+1; if(J1 >= Ngrid) J1=0; // assumes y,z < BoxSize
     int K1=K+1; if(K1 >= Ngrid) K1=0;
 
@@ -355,6 +307,7 @@ void PtoMesh(const Particle P[], const int np, float* const density)
       WRtPlus(density, iI, J,  K1, D3*T1*T2W);
       WRtPlus(density, iI, J1, K,  T3*T1*D2W);
       WRtPlus(density, iI, J1, K1, D3*T1*D2W);
+      c1 += 1;
     }
 
     if(0 <= I1 && I1 < Local_nx) {
@@ -362,8 +315,17 @@ void PtoMesh(const Particle P[], const int np, float* const density)
       WRtPlus(density, I1, J,  K1, D3*D1*T2W);
       WRtPlus(density, I1, J1, K,  T3*D1*D2W);
       WRtPlus(density, I1, J1, K1, D3*D1*D2W);
+      c2 += 1;
     }
   }
+#ifdef _OPENMP
+  #pragma omp parallel for default(shared)
+#endif
+  for(int i = 0; i < Local_nx; i++)
+    for(int j = 0; j < Ngrid; j++)
+      for(int k = 0; k < Ngrid; k++)
+	density[(i*NgridL + j)*2*(NgridL/2 + 1) + k] += -1.0f;
+
 
   msg_printf(verbose, "CIC density assignment finished.\n");
 }
@@ -377,7 +339,7 @@ static double sinc_unnormed(double x) {
     }
 }
 // FFT density mesh and copy it to density_k
-void compute_density_k(void)
+void compute_density_k(fftwf_complex * density_k)
 {
     // FFT density(x) mesh -> density(k)
     fftwf_mpi_execute_dft_r2c(p0, (float*) fftdata, fftdata);
@@ -418,7 +380,7 @@ double * pm_compute_power_spectrum(size_t * nk) {
     nk[0] = Ngrid / 2;
     return power;
 }
-void compute_power_spectrum() {
+void compute_power_spectrum(fftwf_complex * density_k) {
     msg_printf(verbose, "Calculating power spectrum...\n");
     double * power = PowerSpectrumVariable;
     double * count = (double*) alloca(sizeof(double) * (Ngrid / 2));
@@ -457,12 +419,11 @@ void compute_power_spectrum() {
     }
 }
 // Calculate one component of force mesh from precalculated density(k)
-void compute_force_mesh(const int axes)
+void compute_force_mesh(const int axes, fftwf_complex * const P3D)
 {
                                                        timer_start(force_mesh);
 
   fftwf_complex* const FN11= fftdata;
-  fftwf_complex* const P3D= density_k;
 
   //k=0 zero mode force is zero
   FN11[0][0]= 0.0f;
@@ -560,8 +521,8 @@ void force_at_particle_locations(const Particle P[], const int np,
     float Z=P[i].x[2]*scaleBox;
             
     int iI= (int) floorf(X);
-    int J=  (int) Y;
-    int K=  (int) Z;
+    int J=  (int) floorf(Y);
+    int K=  (int) floorf(Z);
     float D1= X - (float) iI;
     float D2= Y - (float) J;
     float D3= Z - (float) K;
@@ -572,7 +533,7 @@ void force_at_particle_locations(const Particle P[], const int np,
     if(J >= Ngrid) J=0;
     if(K >= Ngrid) K=0;
             
-    int I1=iI+1;
+    int I1=iI+1; if(I1 >= Ngrid) I1=0;
     int J1=J+1; if(J1 >= Ngrid) J1=0;
     int K1=K+1; if(K1 >= Ngrid) K1=0;
 
@@ -598,258 +559,6 @@ void force_at_particle_locations(const Particle P[], const int np,
   }
 }
 
-// Move particles to appropriate node
-// (Also periodic wrapup is done)
-/*
-void move_particles(Particles* const particles)
-{
-  // particles->p and particles->np_local will be modified
-  Particle* const p= particles->p;  
-  const int np_local= particles->np_local;
-  const int np_alloc= particles->np_allocated;
-
-  const float x_left= BoxSize/Ngrid*Local_x_start;
-  const float x_right= BoxSize/Ngrid*(Local_x_start+Local_nx);
-
-  //const int np_buf= NParticleBuffer/2;
-  //Particle* p_left= ParticleBuffer;
-  //Particle* p_right= ParticleBuffer + np_buf; 
-
-  const int np_buf= NMoveBuffer/2;
-  Particle* p_left= BufMove;
-  Particle* p_right= p_left + np_buf; 
-
-  assert(p_left); assert(np_buf > 0); assert(p);
-
-  int nleft= 0, nright= 0, move_to= 0;
-
-  msg_printf(verbose, "Inter-node particle transfer\n");
-
-  for(int i=0; i< np_local; i++) {
-    if(p[i].x[1] < 0.0f) p[i].x[1] += BoxSize;
-    else if(p[i].x[1] >= BoxSize) p[i].x[1] -= BoxSize;
-
-    if(p[i].x[2] < 0.0f) p[i].x[2] += BoxSize;
-    else if(p[i].x[2] >= BoxSize) p[i].x[2] -= BoxSize;
-
-    if(p[i].x[0] < x_left) {
-      if(p[i].x[0] < 0.0f) p[i].x[0] += BoxSize;
-      p_left[nleft++]= p[i];
-    }
-    else if(p[i].x[0] >= x_right) {
-      if(p[i].x[0] >= BoxSize) p[i].x[0] -= BoxSize;
-      p_right[nright++]= p[i];
-    }
-    else
-      p[move_to++]= p[i];
-
-    if(nleft >= np_buf || nright >= np_buf)
-      msg_abort(6030, "Error: Not enough space for exchange_particles: "
-		      "%d & %d particles moving\n", nleft, nright);
-  }
-
-  const int np_not_moved= move_to;
-
-  int nget, nget_sum= 0;
-  int tag= 1;
-  MPI_Status status;
-
-  // Send particles to the left node (recieving from right)
-  MPI_Sendrecv(&nleft, 1, MPI_INT, LeftNode, tag, 
-	       &nget, 1, MPI_INT, RightNode, tag, MPI_COMM_WORLD, &status); 
-  tag++;
-  if(move_to + nget > np_alloc)
-    msg_abort(6041, "Error: Not enough space for particles (np_alloc)\n");
-
-  MPI_Sendrecv(p_left, nleft*sizeof(Particle), MPI_BYTE, LeftNode, tag,
-	       p+move_to, nget*sizeof(Particle), MPI_BYTE, RightNode, tag,
-	       MPI_COMM_WORLD, &status); tag++;
-  move_to += nget; nget_sum += nget;
-
-
-  // to right
-  MPI_Sendrecv(&nright, 1, MPI_INT, RightNode, tag, 
-	       &nget, 1, MPI_INT, LeftNode, tag, MPI_COMM_WORLD, &status); 
-  tag++;
-  if(move_to + nget > np_alloc)
-    msg_abort(6041, "Error: Not enough space for particles (np_alloc)\n");
-
-  MPI_Sendrecv(p_right, nright*sizeof(Particle), MPI_BYTE, RightNode, tag,
-	       p+move_to, nget*sizeof(Particle), MPI_BYTE, LeftNode, tag,
-	       MPI_COMM_WORLD, &status); tag++;
-  move_to += nget; nget_sum += nget;
-
-
-  // Communication statistics
-  msg_printf(debug, "%d %d particles moved from node 0\n", nleft, nright);
-  int nget_sum_global;
-  MPI_Reduce(&nget_sum, &nget_sum_global, 1, MPI_INT, MPI_MAX,0,MPI_COMM_WORLD);
-  msg_printf(info, "%d particles moved between nodes in total (%.2f %%). \n",
-	     nget_sum_global, (float)nget_sum_global/NParticleTotal*100);
-
-  float imbalance= (float)move_to/NParticleTotal*NNode, imbalance_global;
-  MPI_Reduce(&imbalance, &imbalance_global, 1, MPI_FLOAT, MPI_MAX, 0, 
-	     MPI_COMM_WORLD);
-  msg_printf(info, "Particle number balance %f\n", imbalance_global);
-
-  // Sanity checks
-  // Total number of particles checked
-  long long np= move_to, np_global;
-  MPI_Reduce(&np, &np_global, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-
-  if(ThisNode == 0 && np_global != NParticleTotal)
-    msg_abort(6040, 
-         "Error: Number of particles not conserved after transfer %lld %lld\n", 
-	 np_global, NParticleTotal);
-  else
-    msg_printf(info, 
-	       "%lld particles after exchange_particles. Total number OK.\n", 
-	       np_global);
-
-  // post-condition check
-  // particles are all in the volume of this node
-  for(int i=np_not_moved; i<move_to; i++) {
-    if(!(x_left-1.0001f*BoxSize <= p[i].x[0] && 
-         p[i].x[0] < x_right+0.0001f*BoxSize))
-      msg_abort(6050, "Particle positions are not in correct range."
-		"Particles might have moved larger than one node thickness.");
-    assert(-0.0001f*BoxSize <= p[i].x[1] && p[i].x[1] < 1.0001f*BoxSize);
-    assert(-0.0001f*BoxSize <= p[i].x[2] && p[i].x[2] < 1.0001f*BoxSize);
-  }
-
-  particles->np_local= move_to;
-}
-*/
-
-
-
-// send particle positions near boundary for CIC density assignment
-int send_buffer_positions(Particles* const particles, BufferVec3* buf)
-{
-  Particle* const p= particles->p;
-  const int np_local= particles->np_local;
-  const int np_alloc= particles->np_allocated;
-
-  const float eps= BoxSize/Ngrid;
-  const float x_right= BoxSize/Ngrid*(Local_x_start+Local_nx) - eps;
-
-  const int nbuf= buf->nbuf;
-  float* pos= buf->vec;
-  int* index= buf->index;
-  float* pos_recv= buf->vrecv;
-
-  int nsend= 0;
-
-  msg_printf(verbose, "Exchanging buffer positions.\n");
-
-  float shift_r= Local_x_start + Local_nx == Ngrid ? - BoxSize : 0.0f;
-
-  // Select particles to export
-  for(int i=0; i< np_local; i++) {
-    if(p[i].x[0] > x_right) {
-      // Send this particle to the right node
-      pos[3*nsend  ]= p[i].x[0] + shift_r;
-      pos[3*nsend+1]= p[i].x[1];
-      pos[3*nsend+2]= p[i].x[2];
-      index[nsend]= i; // record index to receive force for this particle later
-      nsend++;
-    }
-
-    if(nsend > nbuf)
-      msg_abort(6100, "Error: Not enough space for rendrecv_buffer: "
-		      "%d buffer particles nbuf=%d\n", nsend, nbuf);
-  }
-  buf->nsend= nsend;
-
-
-  int copy_to= np_local;
-  MPI_Status status;
-
-  int tag= 100;
-
-  // Get number to receive
-  int nrecv;
-  MPI_Sendrecv(&nsend, 1, MPI_INT, RightNode, tag, 
-	       &nrecv, 1, MPI_INT, LeftNode, tag, 
-	       MPI_COMM_WORLD, &status); 
-  if(copy_to + nrecv > np_alloc)
-    msg_abort(6110, "Error: Not enough space for buffer particles: "
-	            "%d particles in Node %d", copy_to+nrecv, ThisNode);
-
-  // Get positions
-  tag++;
-  MPI_Sendrecv(buf->vec, 3*nsend, MPI_FLOAT, RightNode, tag,
-		 buf->vrecv,  3*nrecv, MPI_FLOAT, LeftNode, tag,
-		 MPI_COMM_WORLD, &status);
-
-  buf->nrecv= nrecv;
-
-  // Set positions to particle data
-  for(int i=0; i<nrecv; ++i) {
-    p[copy_to + i].id  = -1;         // buffer particles have positions only
-    p[copy_to + i].x[0]= pos_recv[3*i  ];
-    p[copy_to + i].x[1]= pos_recv[3*i+1];
-    p[copy_to + i].x[2]= pos_recv[3*i+2];
-
-    
-    //if(!(BoxSize/Ngrid*Local_x_start - eps <= pos_recv[3*i] &&
-    //pos_recv[3*i] < BoxSize/Ngrid*Local_x_start)) {
-    //printf("%d %d %d %e\n", ThisNode, i, nrecv, pos_recv[3*i]);
-    //}
-
-    if(!(BoxSize/Ngrid*Local_x_start - eps - 1.0e-5*BoxSize <= pos_recv[3*i]&&
-         pos_recv[3*i] < BoxSize/Ngrid*Local_x_start + 1.0e-5*BoxSize)) {
-      printf("Warning: Buffer position error? %e not in rage %e %e\n",
-	     pos_recv[3*i], 
-	     BoxSize/Ngrid*Local_x_start - eps, 
-	     BoxSize/Ngrid*Local_x_start
-	     );
-    }
-    //assert(BoxSize/Ngrid*Local_x_start - eps - 1.0e-7*BoxSize <= pos_recv[3*i]  &&
-    //pos_recv[3*i] < BoxSize/Ngrid*Local_x_start + 1.0e-7*BoxSize);
-  }
-
-  int nsend_global;
-  MPI_Reduce(&nsend, &nsend_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  msg_printf(info, "%d particle positions copied for PM assignment. "
-             "%d expected on average.\n", 
-	     nsend_global, 
-	     (Ngrid/PM_factor)*(Ngrid/PM_factor)*NNode/(PM_factor));
-
-
-  return np_local + nrecv;
-}
-
-// send force information back to the particle
-void add_buffer_forces(Particles* const particles, BufferVec3* buf)
-{
-  const int np_local= particles->np_local;
-  float3* const force= particles->force;
-
-  MPI_Status status;
-
-  int tag= 100;
-  float* const frecv= buf->vrecv;
-
-  float3* fsend= particles->force + np_local;
-
-  int nsend= buf->nrecv;
-  int nrecv= buf->nsend;
-
-  int ret= MPI_Sendrecv(fsend, 3*nsend, MPI_FLOAT, LeftNode, tag,
-			frecv,  3*nrecv, MPI_FLOAT, RightNode, tag,
-			MPI_COMM_WORLD, &status);
-  assert(ret == MPI_SUCCESS);
-
-  int* index= buf->index;
-  for(int i=0; i<nrecv; ++i) {
-    assert(0 <= index[i] && index[i] < np_local);
-    force[index[i]][0] += frecv[3*i];
-    force[index[i]][1] += frecv[3*i+1];
-    force[index[i]][2] += frecv[3*i+2];
-  }
-}
-
 
 void check_total_density(float const * const density)
 {
@@ -863,7 +572,7 @@ void check_total_density(float const * const density)
   double sum_global;
   MPI_Reduce(&sum, &sum_global, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-
+ 
   if(ThisNode == 0) {
     double tol= 1.0e-7*pow(PM_factor, 3)*NParticleTotal;
 
@@ -872,59 +581,60 @@ void check_total_density(float const * const density)
 		sum_global, tol);
 
     msg_printf(debug, 
-	      "Total CIC density OK within machine precision: %lf (< %.2lf).\n",
+	      "Total CIC density OK within machine precision: %lf (< %lf).\n",
 	       sum_global, tol);
 
 
   }
-
+  MPI_Barrier(MPI_COMM_WORLD);
 }
   
 // Calculates force on particles, particles->f, using particle mesh method
-void pm_calculate_forces(Particles* particles)
+void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
 {
-  /*
-  BufferVec3 buf;
-  const int nbuf= 
-    NParticleBuffer*sizeof(Particle)/(6*sizeof(float) + sizeof(int));
 
-  buf.nbuf= nbuf;
-  buf.vec= Buf;
-  buf.vrecv=  buf.vec + 3*nbuf;
-  buf.index= (int*)(buf.vrecv + 3*nbuf);
-  */
-  
-  int np_plus_buffer= send_buffer_positions(particles, &BufPos);
+    fftwf_complex * density_k;
+    if(mem2 == 0) {
+        density_k= fftwf_alloc_complex((NgridL/2+1)*NgridL*Local_ny_td);
+    }
+    else {
+        assert(size2 >= sizeof(fftwf_complex)*(NgridL/2+1)*NgridL*Local_ny_td);
+        density_k= (fftwf_complex*) mem2;
+    }
+
+    int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid, mem2, size2);
+    int np_plus_buffer= particles->np_local + nghosts;
 
                                                             timer_start(assign);
   // x_i -> density(x) = fftdata
-  PtoMesh(particles->p, np_plus_buffer, (float*) fftdata);
+    PtoMesh(particles->p, np_plus_buffer, (float*) fftdata);
                                                             timer_stop(assign);
                                                             timer_start(check);
-  check_total_density((float*) fftdata);
+    check_total_density((float*) fftdata);
                                                             timer_stop(check);
 
 
                                                             timer_start(fft);
   // density(x) -> density(k)
-  compute_density_k();
+    compute_density_k(density_k);
   //fftwf_mpi_execute_dft_r2c(p0, density, P3D);
                                                             timer_stop(fft);
 
-  compute_power_spectrum();
+    compute_power_spectrum(density_k);
 
-  for(int axes=0; axes<3; axes++) {
+    for(int axes=0; axes<3; axes++) {
     // density(k) -> f(x_i) [fftdata]
-    compute_force_mesh(axes);
+        compute_force_mesh(axes, density_k);
 
 							    timer_start(pforce);
-    force_at_particle_locations(particles->p, np_plus_buffer, axes,
+        force_at_particle_locations(particles->p, np_plus_buffer, axes,
 				(float*) fftdata, particles->force);
                                                             timer_stop(pforce);
-  }
+    }
 
                                                             timer_start(comm);
-  add_buffer_forces(particles, &BufPos);
+    domain_annihilate_ghosts(particles, nghosts, particles->force, mem2, size2);
+         
                                                             timer_stop(comm);
 }
 

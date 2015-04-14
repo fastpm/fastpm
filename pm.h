@@ -10,7 +10,7 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
          int many);
 //void move_particles2(Particles*);
 void pm_finalize(void);
-void pm_calculate_forces(Particles*);
+void pm_calculate_forces(Particles*, void * mem2, size_t size2);
 double * pm_compute_power_spectrum(size_t * nk);
 
 //void PtoMesh(const Particle Pz[], const int NumPart);

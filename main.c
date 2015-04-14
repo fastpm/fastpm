@@ -20,7 +20,6 @@
 #include "write.h"
 #include "timer.h"
 #include "mem.h"
-#include "move.h"
 #include "subsample.h"
 #include "coarse_grid.h"
 
@@ -246,11 +245,12 @@ int main(int argc, char* argv[])
 
               timer_start(comm);
               // move particles to other nodes
+              domain_wrap(particles);
               domain_decompose(particles, mem.mem1, mem.size1);
 
               timer_stop(comm);
 
-              pm_calculate_forces(particles); 
+              pm_calculate_forces(particles, mem.mem2, mem.size2); 
 
               if(param.measure_power_spectrum_filename) {
                   size_t nk = 0;

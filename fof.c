@@ -35,7 +35,7 @@
 #include "msg.h"
 #include "comm.h"
 #include "timer.h"
-#include "move_min.h"
+#include "domain.h"
 
 static const int nBucket= 16;
 
@@ -1053,7 +1053,8 @@ void fof_find_halos(Snapshot* snapshot, const float ll)
 
   msg_printf(verbose, "FOF halo finding...\n");
                                                          timer_start(comm);
-  move_particles2_min(snapshot, BoxSize, Buf, BufSize);
+  domain_wrap_min(snapshot, Buf, BufSize);
+  domain_decompose_min(snapshot, Buf, BufSize);
                                                          timer_stop(comm);
 
   struct kdContext kdcontext;

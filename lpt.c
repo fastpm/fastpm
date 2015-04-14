@@ -604,11 +604,18 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
 	            disp2[axes][(i * Nmesh + j) * (2 * (Nmesh / 2 + 1)) + k];
 
 	  //p->x[axes]= x[axes] + dis*Dplus - 3.0/7.0*dis2*Dplus*Dplus;
+
 	  p->x[axes]= x[axes] + dis*Dplus - 3.0/7.0*D20*dis2*D2;
 	  p->dx1[axes]= dis;                 // 1LPT extrapolated to a=1
 	  p->dx2[axes]= -3.0/7.0*D20*dis2;   // 2LPT extrapolated to a=1
 	  p->v[axes]= 0.0f;                  // velocity in comoving 2LPT
-	  
+/*	  
+	  p->x[axes]= x[axes] + 1.4;
+	  p->dx1[axes]= 10.0 ; 
+	  p->dx2[axes]= 0.0 ;
+	  p->v[axes]= 0.0f;
+*/
+	  //
 	  //2LPT velocity
 	  //P[n].Vel[axes] = dis * vel_prefac - 3.0/7.0 * dis2 * vel_prefac2;
 	  //dis & dis2 has growth factor

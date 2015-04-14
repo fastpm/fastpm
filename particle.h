@@ -5,8 +5,14 @@ typedef float float3[3];
 
 typedef struct {
   float x[3];
-  float dx1[3]; // ZA displacement
-  float dx2[3]; // 2LPT displacement
+  union {
+      float dx1[3]; // ZA displacement
+      int OriginalTask;
+  };
+  union {
+      float dx2[3]; // 2LPT displacement
+      int OriginalIndex;
+  };
   float v[3];   // velocity
   long long id;
 } Particle;
