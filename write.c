@@ -19,9 +19,14 @@
 void write_snapshot(const char filebase[], Snapshot const * const snapshot,
 		    int use_long_id)
 {
+  int ThisTask;
+  int NTask;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
   const double h= snapshot->h;
   char filename[256];
-  sprintf(filename, "%s.%d", filebase, comm_this_node());
+  sprintf(filename, "%s.%d", filebase, ThisTask);
 
 
   FILE* fp= fopen(filename, "w");
@@ -65,7 +70,7 @@ void write_snapshot(const char filebase[], Snapshot const * const snapshot,
   header.np_total[1]= (unsigned int) np_total;
   header.np_total_highword[1]= (unsigned int) (np_total >> 32);
   //header.np_total[2]= (int) (np_total >> 32);
-  header.num_files= comm_nnode();
+  header.num_files= NTask;
   header.boxsize= boxsize;
   header.omega0= omega_m;
   header.omega_lambda= 1.0 - omega_m;
@@ -125,6 +130,12 @@ void write_snapshot(const char filebase[], Snapshot const * const snapshot,
 //  *ID is int
 void write_snapshot1(const char filename[], Snapshot const * const snapshot)
 {
+  int ThisTask;
+  int NTask;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
   FILE* fp= fopen(filename, "w");
   if(fp == 0)
     msg_abort(9000, "Error: Unable to write to file: %s\n", filename);
@@ -146,7 +157,7 @@ void write_snapshot1(const char filename[], Snapshot const * const snapshot)
   header.redshift= 1.0/header.time - 1;
   header.np_total[1]= (unsigned int) np;
   header.np_total_highword[1]= 0;
-  header.num_files= comm_nnode();
+  header.num_files= NTask;
   header.boxsize= boxsize;
   header.omega0= omega_m;
   header.omega_lambda= 1.0 - omega_m;
@@ -196,8 +207,14 @@ void write_snapshot1(const char filename[], Snapshot const * const snapshot)
 
 void write_force(const char filebase[], Particles const * const particles)
 {
+  int ThisTask;
+  int NTask;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
   char filename[256];
-  int inode= comm_this_node();
+  int inode= ThisTask;
 
   sprintf(filename, "%s.%d", filebase, inode);
   FILE* fp= fopen(filename, "w");
