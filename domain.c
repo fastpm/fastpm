@@ -9,6 +9,8 @@
 #include "particle.h"
 #include <fftw3-mpi.h>
 
+#include "msort.c"
+
 double BoxSize;
 int * MeshToTask[2];
 int NTask;
@@ -90,7 +92,7 @@ static int par_node(const float x[3]) {
 
 /* this will sort my particles to the top, 
  * then the other particles near the end by order */
-static int cmp_par_task(const void * c1, const void * c2) {
+static int cmp_par_task(const void * c1, const void * c2, void * data) {
     int task1 = par_node(((ParticleMinimum*) c1)->x);
     int task2 = par_node(((ParticleMinimum*) c2)->x);
     if (task1 == ThisTask) task1 = -1;
@@ -112,7 +114,7 @@ typedef struct {
     int * RecvDispl;    
 } GhostData;
 
-static int cmp_sendbuf_target(const void * c1, const void * c2) {
+static int cmp_sendbuf_target(const void * c1, const void * c2, void* data) {
     int t1 = ((struct SendBuf*) c1)->TargetTask;
     int t2 = ((struct SendBuf*) c2)->TargetTask;
     return (t1 > t2) - (t2 > t1);
@@ -164,7 +166,7 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
             continue;
         }
     }
-    qsort(sendbuf, nsend, sizeof(sendbuf[0]), cmp_sendbuf_target);
+    qsort_r(sendbuf, nsend, sizeof(sendbuf[0]), cmp_sendbuf_target, NULL);
     for(int i = 0; i < nsend; i ++) {
         sendbuf[i].OriginalTask = ThisTask;
     }
@@ -327,7 +329,7 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
     msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
 
-    qsort(P, np_local, elsize, cmp_par_task);
+    qsort_r(P, np_local, elsize, cmp_par_task, NULL);
 
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
