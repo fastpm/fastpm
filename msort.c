@@ -394,74 +394,23 @@ msort_with_tmp (const struct msort_param *p, void *b, size_t n)
 
 
 void
-qsort_r (void *b, size_t n, size_t s, __compar_d_fn_t cmp, void *arg)
+qsort_r_with_tmp (void *b, size_t n, size_t s, __compar_d_fn_t cmp, void *arg, void * scratch, size_t scratch_size)
 {
   size_t size = n * s;
-  char *tmp = NULL;
   struct msort_param p;
 
   /* For large object sizes use indirect sorting.  */
   if (s > 32)
     size = 2 * n * sizeof (void *) + s;
 
-  if (size < 1024)
-    /* The temporary array is small, so put it on the stack.  */
-    p.t = __alloca (size);
-  else
+  if (size > scratch_size) 
     {
-      /* We should avoid allocating too much memory since this might
-	 have to be backed up by swap space.  */
-#if 0
-      static long int phys_pages = (~0ul >> 1) / 4 / 4096;
-      static int pagesize = 4096;
-
-      if (pagesize == 0)
-	{
-	  phys_pages = __sysconf (_SC_PHYS_PAGES);
-
-	  if (phys_pages == -1)
-	    /* Error while determining the memory size.  So let's
-	       assume there is enough memory.  Otherwise the
-	       implementer should provide a complete implementation of
-	       the `sysconf' function.  */
-	    phys_pages = (long int) (~0ul >> 1);
-
-	  /* The following determines that we will never use more than
-	     a quarter of the physical memory.  */
-	  phys_pages /= 4;
-
-	  /* Make sure phys_pages is written to memory.  */
-	  atomic_write_barrier ();
-
-	  pagesize = __sysconf (_SC_PAGESIZE);
-	}
-      /* Just a comment here.  We cannot compute
-	   phys_pages * pagesize
-	   and compare the needed amount of memory against this value.
-	   The problem is that some systems might have more physical
-	   memory then can be represented with a `size_t' value (when
-	   measured in bytes.  */
-
-      /* If the memory requirements are too high don't allocate memory.  */
-      if (size / pagesize > (size_t) phys_pages)
-	{
-	  _quicksort (b, n, s, cmp, arg);
-	  return;
-	}
-
-      /* It's somewhat large, so malloc it.  */
-      int save = errno;
-      tmp = malloc (size);
-      __set_errno (save);
-#endif
-      if (tmp == NULL)
-	{
 	  /* Couldn't get space, so use the slower algorithm
 	     that doesn't need a temporary array.  */
 	  _quicksort (b, n, s, cmp, arg);
 	  return;
-	}
-      p.t = tmp;
+    } else {
+      p.t = scratch;
     }
 
   p.s = s;
@@ -529,7 +478,6 @@ qsort_r (void *b, size_t n, size_t s, __compar_d_fn_t cmp, void *arg)
 	}
       msort_with_tmp (&p, b, n);
     }
-  free (tmp);
 }
 libc_hidden_def (qsort_r)
 

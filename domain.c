@@ -166,7 +166,10 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
             continue;
         }
     }
-    qsort_r(sendbuf, nsend, sizeof(sendbuf[0]), cmp_sendbuf_target, NULL);
+    void * tmp = &sendbuf[nsend];
+    size_t tmp_size = scratch_bytes - sizeof(sendbuf[0]) * nsend;
+    qsort_r_with_tmp(sendbuf, nsend, sizeof(sendbuf[0]), cmp_sendbuf_target, NULL, tmp, tmp_size);
+
     for(int i = 0; i < nsend; i ++) {
         sendbuf[i].OriginalTask = ThisTask;
     }
@@ -329,7 +332,7 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
     msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
 
-    qsort_r(P, np_local, elsize, cmp_par_task, NULL);
+    qsort_r_with_tmp(P, np_local, elsize, cmp_par_task, NULL, scratch, scratch_bytes);
 
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
