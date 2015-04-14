@@ -11,7 +11,7 @@ output_redshifts= {0.55, 0.0}  -- redshifts of output
 
 omega_m = 1-0.7168
 h       = 0.697
-sigma8  = 0.817
+sigma8  = 0.820
 
 -- canonical cola parameters
 qpm = false

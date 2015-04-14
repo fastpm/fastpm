@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <fftw3-mpi.h>
 #include "pm.h"
+#include "power.h"
 #include "msg.h"
 #include "timer.h"
 #include "domain.h"
@@ -383,6 +384,7 @@ double * pm_compute_power_spectrum(size_t * nk) {
     nk[0] = Ngrid / 2;
     return power;
 }
+
 void compute_power_spectrum(fftwf_complex * density_k) {
     msg_printf(verbose, "Calculating power spectrum...\n");
     double * power = PowerSpectrumVariable;

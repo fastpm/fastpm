@@ -46,6 +46,19 @@ static double polval(const double * pol, const int degrees, const double x) {
     }
     return rt;
 }
+
+static double measured_power(double k, Parameters * param) {
+    size_t nk;
+    double * power = pm_compute_power_spectrum(&nk);
+    double k0 = 2 * 3.1415926 / param->boxsize;
+    int ki = floor(k / k0);
+    double u = k / k0 - ki;
+
+    if(ki >= nk / 2 - 1) return 0;
+    if(ki < 0) return 0;
+    return power[ki] * (1-u) + power[ki] * u; // other corrections outsize.
+}
+
 int main(int argc, char* argv[])
 {
   const int multi_thread= mpi_init(&argc, &argv);
@@ -265,11 +278,16 @@ int main(int argc, char* argv[])
                       }
                       for(int i = 0; i < nk; i ++) {
                           fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * i, 
-				powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
-				);
+                                  powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
+                            );
                       }
                       fclose(fp);
                   }
+                  double sigma8 = TopHatSigma2(8.0, measured_power, &param);
+                  sigma8 = sigma8 / pow(param.nc * nc_factor, 6.0) * pow(param.boxsize, 3.0);
+                  sigma8 /= pow(3.1415926 * 2, 3);
+                  sigma8 = sqrt(sigma8);
+                  msg_printf(verbose, "sigma8 = %g expected = %g\n", sigma8, param.sigma8 * GrowthFactor(1.0, a_x));
               }
 
               while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
