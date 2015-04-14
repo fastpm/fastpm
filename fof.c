@@ -286,40 +286,40 @@ static inline void export_empty_halo(HaloInfo const * const h)
 
 static inline void halo_particle(HaloInfo* const h, ParticleMinimum const * const p)
 {
-  if(NHalo >= NHaloAlloc)
-    msg_abort(7050, "Not enough space for halo\n");
+    if(NHalo >= NHaloAlloc)
+        msg_abort(7050, "Not enough space for halo\n");
 
-  // for each particle belongs to halo h
-  if(p->x[0] > xright) {
-    export_particle(p);
-    h->boundary |= RIGHT;
-  }
-  else if(p->x[0] < xleft) {
-    h->boundary |= LEFT;
-  }
-
-  if(h->nfof == 0) {
-    for(int i=0; i<3; i++)
-      h->x0[i]= p->x[i];
-  }
-  else {
-    for(int i=0; i<3; i++) {
-      float dx= p->x[i] - h->x0[i];
-      if(dx > HalfBoxSize)
-	dx -= BoxSize;
-      else if(dx < -HalfBoxSize)
-	dx += BoxSize;
-
-      h->dx_sum[i] += dx;
+    // for each particle belongs to halo h
+    if(p->x[0] > xright) {
+        export_particle(p);
+        h->boundary |= RIGHT;
     }
-  }
+    else if(p->x[0] < xleft) {
+        h->boundary |= LEFT;
+    }
 
-  for(int i=0; i<3; i++)
-    h->v_sum[i] += p->v[i];
+    if(h->nfof == 0) {
+        for(int i=0; i<3; i++)
+            h->x0[i]= p->x[i];
+    }
+    else {
+        for(int i=0; i<3; i++) {
+            float dx= p->x[i] - h->x0[i];
+            if(dx > HalfBoxSize)
+                dx -= BoxSize;
+            else if(dx < -HalfBoxSize)
+                dx += BoxSize;
 
-  
+            h->dx_sum[i] += dx;
+        }
+    }
 
-  h->nfof++;
+    for(int i=0; i<3; i++)
+        h->v_sum[i] += p->v[i];
+
+
+
+    h->nfof++;
 }
   
 static inline void halo_clear(HaloInfo* const h)
@@ -504,129 +504,129 @@ void kdBuildTree(KD kd)
 
 int kdFoF(KD kd,float fEps)
 {
-  float dx,dy,dz,x,y,z,sx,sy,sz,fDist2;
-  
-  ParticleMinimum* const p = kd->p;
-  KDN* const c= kd->kdNodes;
-  const float lx = kd->fPeriod[0]*2; // No need for periodic wrapup in x
-  const float ly = kd->fPeriod[1];
-  const float lz = kd->fPeriod[2];
-  const float fEps2 = fEps*fEps;
+    float dx,dy,dz,x,y,z,sx,sy,sz,fDist2;
 
-  const int nFifo = kd->nActive;
+    ParticleMinimum* const p = kd->p;
+    KDN* const c= kd->kdNodes;
+    const float lx = kd->fPeriod[0]*2; // No need for periodic wrapup in x
+    const float ly = kd->fPeriod[1];
+    const float lz = kd->fPeriod[2];
+    const float fEps2 = fEps*fEps;
+
+    const int nFifo = kd->nActive;
 
 
-  int iHead= 0;
-  int iTail= 0;
-  int iGroup= 0;
-  
-  assert(Map);
+    int iHead= 0;
+    int iTail= 0;
+    int iGroup= 0;
 
-  NHalo= 0;
-  np_export= 0;
-  nhalo_export= 0;
+    assert(Map);
 
-  assert(igrp);
-  for (int pn=0; pn<kd->nActive; ++pn)
-    igrp[pn]= 0;
+    NHalo= 0;
+    np_export= 0;
+    nhalo_export= 0;
 
-  for (int pn=0; pn<kd->nActive; ++pn) {
-    if (igrp[pn]) continue;
+    assert(igrp);
+    for (int pn=0; pn<kd->nActive; ++pn)
+        igrp[pn]= 0;
 
-    ++iGroup; 
+    for (int pn=0; pn<kd->nActive; ++pn) {
+        if (igrp[pn]) continue;
 
-    halo_clear(&Halo[NHalo]);
+        ++iGroup; 
 
-    //
-    // Mark it and add to the do-fifo.
-    //
-    igrp[pn]= iGroup; halo_particle(&Halo[NHalo], &p[pn]);
-    Fifo[iTail++] = pn;
-    if (iTail == nFifo) iTail = 0;
+        halo_clear(&Halo[NHalo]);
 
-    while (iHead != iTail) {
-      int pi = Fifo[iHead++];
-      if (iHead == nFifo) iHead = 0;
+        //
+        // Mark it and add to the do-fifo.
+        //
+        igrp[pn]= iGroup; halo_particle(&Halo[NHalo], &p[pn]);
+        Fifo[iTail++] = pn;
+        if (iTail == nFifo) iTail = 0;
 
-      //
-      // Now do an fEps-Ball Gather!
-      //
-      x = p[pi].x[0];
-      y = p[pi].x[1];
-      z = p[pi].x[2];
-      int cp = ROOT;
-      while (1) {
-	INTERSECT(c,cp,fEps2,lx,ly,lz,x,y,z,sx,sy,sz);
-	//
-	// We have an intersection to test.
-	//
-	if (c[cp].iDim >= 0) {
-	  cp = LOWER(cp);
-	  continue;
-	}
-	else {
-	  for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
-	    if (igrp[pj]) continue;
-	    dx = sx - p[pj].x[0];
-	    dy = sy - p[pj].x[1];
-	    dz = sz - p[pj].x[2];
-	    fDist2 = dx*dx + dy*dy + dz*dz;
-	    if (fDist2 < fEps2) {
-	      //
-	      // Mark it and add to the do-fifo.
-	      //
-	      igrp[pj]= iGroup; halo_particle(&Halo[NHalo], &p[pj]);
-	      Fifo[iTail++] = pj;
-	      if (iTail == nFifo) iTail = 0;
-	    }
-	  }
-	  SETNEXT(cp);
-	  if (cp == ROOT) break;
-	  continue;
-	}
-      ContainedCell:
-	for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
-	  if (igrp[pj]) continue;
-	  //
-	  // Mark it and add to the do-fifo.
-	  //
-	  igrp[pj] = iGroup; halo_particle(&Halo[NHalo], &p[pj]);
-	  Fifo[iTail++] = pj;
-	  if (iTail == nFifo) iTail = 0;
-	}
-      GetNextCell:
-	SETNEXT(cp);
-	if (cp == ROOT) break;
-      }
+        while (iHead != iTail) {
+            int pi = Fifo[iHead++];
+            if (iHead == nFifo) iHead = 0;
+
+            //
+            // Now do an fEps-Ball Gather!
+            //
+            x = p[pi].x[0];
+            y = p[pi].x[1];
+            z = p[pi].x[2];
+            int cp = ROOT;
+            while (1) {
+                INTERSECT(c,cp,fEps2,lx,ly,lz,x,y,z,sx,sy,sz);
+                //
+                // We have an intersection to test.
+                //
+                if (c[cp].iDim >= 0) {
+                    cp = LOWER(cp);
+                    continue;
+                }
+                else {
+                    for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
+                        if (igrp[pj]) continue;
+                        dx = sx - p[pj].x[0];
+                        dy = sy - p[pj].x[1];
+                        dz = sz - p[pj].x[2];
+                        fDist2 = dx*dx + dy*dy + dz*dz;
+                        if (fDist2 < fEps2) {
+                            //
+                            // Mark it and add to the do-fifo.
+                            //
+                            igrp[pj]= iGroup; halo_particle(&Halo[NHalo], &p[pj]);
+                            Fifo[iTail++] = pj;
+                            if (iTail == nFifo) iTail = 0;
+                        }
+                    }
+                    SETNEXT(cp);
+                    if (cp == ROOT) break;
+                    continue;
+                }
+ContainedCell:
+                for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
+                    if (igrp[pj]) continue;
+                    //
+                    // Mark it and add to the do-fifo.
+                    //
+                    igrp[pj] = iGroup; halo_particle(&Halo[NHalo], &p[pj]);
+                    Fifo[iTail++] = pj;
+                    if (iTail == nFifo) iTail = 0;
+                }
+GetNextCell:
+                SETNEXT(cp);
+                if (cp == ROOT) break;
+            }
+        }
+
+        if(Halo[NHalo].boundary == 3) {
+            export_empty_halo(&Halo[NHalo]);
+            Map[iGroup]= NHalo;
+            NHalo++; 
+        }
+        else if(Halo[NHalo].boundary == RIGHT) {
+            // Halo exported to the right node
+            export_halo(&Halo[NHalo]);
+            Map[iGroup]= -2; // exported
+        }
+        else if(Halo[NHalo].nfof >= nfof_min || 
+                (Halo[NHalo].boundary == LEFT)) {
+            Map[iGroup]= NHalo;
+            NHalo++; 
+        }
+        else
+            Map[iGroup]= -1; // too small
     }
 
-    if(Halo[NHalo].boundary == 3) {
-      export_empty_halo(&Halo[NHalo]);
-      Map[iGroup]= NHalo;
-      NHalo++; 
-    }
-    else if(Halo[NHalo].boundary == RIGHT) {
-      // Halo exported to the right node
-      export_halo(&Halo[NHalo]);
-      Map[iGroup]= -2; // exported
-    }
-    else if(Halo[NHalo].nfof >= nfof_min || 
-       (Halo[NHalo].boundary == LEFT)) {
-      Map[iGroup]= NHalo;
-      NHalo++; 
-    }
-    else
-      Map[iGroup]= -1; // too small
-  }
+    // remap igrp
+    for (int pn=0; pn<kd->nActive; ++pn)
+        igrp[pn]= Map[igrp[pn]];
 
-  // remap igrp
-  for (int pn=0; pn<kd->nActive; ++pn)
-    igrp[pn]= Map[igrp[pn]];
+    kd->nGroup = NHalo; // *** +plus1 ? well not used anymore...anyway
 
-  kd->nGroup = NHalo; // *** +plus1 ? well not used anymore...anyway
-  
 
-  return NHalo;
+    return NHalo;
 }
 
 
@@ -709,57 +709,57 @@ static int fof_send_halo()
 //
 int link_buffer_particles(KD kd, float fEps, int nhalo, int np_local, int np_plus_buffer)
 {
-  float dx,dy,dz,x,y,z,sx,sy,sz,fDist2;
-  
-  ParticleMinimum* const p = kd->p;
-  KDN* const c= kd->kdNodes;
-  const float lx = kd->fPeriod[0]*2;
-  const float ly = kd->fPeriod[1];
-  const float lz = kd->fPeriod[2];
-  const float fEps2 = fEps*fEps;
+    float dx,dy,dz,x,y,z,sx,sy,sz,fDist2;
 
-  for(int i=0; i<nhalo; i++)
-    Halo[i].merge_to= i;
+    ParticleMinimum* const p = kd->p;
+    KDN* const c= kd->kdNodes;
+    const float lx = kd->fPeriod[0]*2;
+    const float ly = kd->fPeriod[1];
+    const float lz = kd->fPeriod[2];
+    const float fEps2 = fEps*fEps;
 
-  for (int pn=np_local; pn<np_plus_buffer; ++pn) {
-    // Now do an fEps-Ball Gather!
-    x = p[pn].x[0];
-    y = p[pn].x[1];
-    z = p[pn].x[2];
+    for(int i=0; i<nhalo; i++)
+        Halo[i].merge_to= i;
 
-    int cp = ROOT;
-    while(1) {
-      INTERSECT(c,cp,fEps2,lx,ly,lz,x,y,z,sx,sy,sz);
-      // We have an intersection to test.
-      if (c[cp].iDim >= 0) {
-	cp = LOWER(cp);
-	continue;
-      }
-      else {
-	for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
-	  dx = sx - p[pj].x[0];
-	  dy = sy - p[pj].x[1];
-	  dz = sz - p[pj].x[2];
-	  fDist2 = dx*dx + dy*dy + dz*dz;
-	  if (fDist2 < fEps2) {
-	    merge_halo(igrp[pn], igrp[pj]);
-	  }
-	}
-	SETNEXT(cp);
-	if (cp == ROOT) break;
-	continue;
-      }
-    ContainedCell:
-      for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
-	merge_halo(igrp[pn], igrp[pj]);
-      }
-    GetNextCell:
-      SETNEXT(cp);
-      if (cp == ROOT) break;
+    for (int pn=np_local; pn<np_plus_buffer; ++pn) {
+        // Now do an fEps-Ball Gather!
+        x = p[pn].x[0];
+        y = p[pn].x[1];
+        z = p[pn].x[2];
+
+        int cp = ROOT;
+        while(1) {
+            INTERSECT(c,cp,fEps2,lx,ly,lz,x,y,z,sx,sy,sz);
+            // We have an intersection to test.
+            if (c[cp].iDim >= 0) {
+                cp = LOWER(cp);
+                continue;
+            }
+            else {
+                for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
+                    dx = sx - p[pj].x[0];
+                    dy = sy - p[pj].x[1];
+                    dz = sz - p[pj].x[2];
+                    fDist2 = dx*dx + dy*dy + dz*dz;
+                    if (fDist2 < fEps2) {
+                        merge_halo(igrp[pn], igrp[pj]);
+                    }
+                }
+                SETNEXT(cp);
+                if (cp == ROOT) break;
+                continue;
+            }
+ContainedCell:
+            for (int pj=c[cp].pLower; pj<=c[cp].pUpper; ++pj) {
+                merge_halo(igrp[pn], igrp[pj]);
+            }
+GetNextCell:
+            SETNEXT(cp);
+            if (cp == ROOT) break;
+        }
     }
-  }
-  
-  return NHalo;
+
+    return NHalo;
 }
 
 int top_merge(int ihalo)
