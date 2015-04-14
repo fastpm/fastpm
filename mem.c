@@ -63,7 +63,7 @@ void allocate_shared_memory(const int nc, const int nc_factor, const double np_a
   // Memory for 2LPT (6*np_local words)
   ptrdiff_t local_nx, local_x_start;
   ptrdiff_t size_lpt_one=
-    fftwf_mpi_local_size_3d(nc, nc, nc, MPI_COMM_WORLD,
+    fftwf_mpi_local_size_3d(nc, nc, nc / 2 + 1, MPI_COMM_WORLD,
 			    &local_nx, &local_x_start);
   ptrdiff_t ncomplex_lpt= 12*size_lpt_one;
 
@@ -78,7 +78,7 @@ void allocate_shared_memory(const int nc, const int nc_factor, const double np_a
   const int Ngrid= nc_factor*nc;
   ptrdiff_t local_ny, local_y_start;
   ptrdiff_t size_pm_one= 
-    fftwf_mpi_local_size_3d_transposed(Ngrid, Ngrid, Ngrid, MPI_COMM_WORLD,
+    fftwf_mpi_local_size_3d_transposed(Ngrid, Ngrid, Ngrid / 2 + 1, MPI_COMM_WORLD,
 	                 &local_nx, &local_x_start, &local_ny, &local_y_start);
   ptrdiff_t ncomplex_pm= size_pm_one;
 

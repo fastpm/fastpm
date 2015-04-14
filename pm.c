@@ -135,7 +135,7 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
 
   ptrdiff_t local_nx, local_x_start, local_ny, local_y_start;
   ptrdiff_t total_size= 
-    fftwf_mpi_local_size_3d_transposed(Ngrid, Ngrid, Ngrid, MPI_COMM_WORLD,
+    fftwf_mpi_local_size_3d_transposed(Ngrid, Ngrid, Ngrid / 2 + 1, MPI_COMM_WORLD,
 	                 &local_nx, &local_x_start, &local_ny, &local_y_start);
 
   Local_nx= local_nx;
