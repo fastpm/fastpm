@@ -315,7 +315,6 @@ void PtoMesh(const Particle P[], const int np, float* const density)
       WRtPlus(density, I1, J1, K1, D3*D1*D2W);
     }
   }
-
   msg_printf(verbose, "CIC density assignment finished.\n");
 }
 
@@ -494,6 +493,20 @@ void compute_force_mesh(const int axes, fftwf_complex * const P3D)
   fftwf_mpi_execute_dft_c2r(p11, fftdata, (float*) fftdata);
   timer_stop(fft);
   //msg_printf("done\n");
+#if 0
+This will dump force into files
+  static int step = 0;
+  {
+    int ThisTask;
+    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+    char buf[1024];
+    sprintf(buf, "densitydump-%d-%d.%d", step, axes, ThisTask);
+    FILE * fp = fopen(buf, "w");
+    fwrite(fftdata, sizeof(float), Local_nx * NgridL * (NgridL /2 + 1) * 2, fp);
+    fclose(fp);
+    if (axes == 2) step ++;
+  }
+#endif
 }
 
 // Does 3-linear interpolation
@@ -524,8 +537,9 @@ void force_at_particle_locations(const Particle P[], const int np,
     float T2= 1.0f - D2;
     float T3= 1.0f - D3;
 
-    if(J >= Ngrid) J=0;
-    if(K >= Ngrid) K=0;
+    while(iI >= Ngrid) iI -= Ngrid;
+    while(J >= Ngrid) J -= Ngrid;
+    while(K >= Ngrid) K -= Ngrid;
             
     int I1=iI+1; if(I1 >= Ngrid) I1=0;
     int J1=J+1; if(J1 >= Ngrid) J1=0;

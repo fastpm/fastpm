@@ -259,23 +259,48 @@ void domain_annihilate_ghosts(Particles* const particles,
     int * indexrecv = (int*) base;
     base += sizeof(int) * nrecv;
 
-    MPI_Alltoallv(indexsend, SendCount, SendDispl, MPI_FLOAT,
-                indexrecv, RecvCount, RecvDispl, MPI_FLOAT,
+    MPI_Alltoallv(indexsend, SendCount, SendDispl, MPI_INT,
+                indexrecv, RecvCount, RecvDispl, MPI_INT,
                 MPI_COMM_WORLD);
 
     /*scratch space */
     float (*g3)[3] = (float (*)[3]) base;
 
-    MPI_Alltoallv(f3g, SendCount, SendDispl, MPI_FLOAT,
-                g3, RecvCount, RecvDispl, MPI_FLOAT,
+    MPI_Datatype MPI_F3;
+    MPI_Type_contiguous(3, MPI_FLOAT, &MPI_F3);
+    MPI_Type_commit(&MPI_F3);
+    MPI_Alltoallv(f3g, SendCount, SendDispl, MPI_F3,
+                g3, RecvCount, RecvDispl, MPI_F3,
                 MPI_COMM_WORLD);
+    MPI_Type_free(&MPI_F3);
+
+    double sum0[3] = {0};
+    for(int i = 0; i < particles->np_local + nghosts; i ++) {
+        for(int d = 0; d < 3; d ++) {
+            sum0[d] += f3[i][d];
+        }
+    }
 
     for(int i = 0; i < nrecv; i ++) {
         int index = indexrecv[i];
+        if(index >= particles->np_local) {
+            msg_abort(9934, "Bad index");
+        }
         for(int d = 0; d < 3; d ++) {
             f3[index][d] += g3[i][d];
         }
     }
+    double sum1[3] = {0};
+    for(int i = 0; i < particles->np_local; i ++) {
+        for(int d = 0; d < 3; d ++) {
+            sum1[d] += f3[i][d];
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &sum0, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &sum1, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    msg_printf(verbose, "Checking ghost forces: %g %g %g ~ %g %g %g \n", 
+            sum0[0], sum0[1], sum0[2], 
+            sum1[0], sum0[1], sum0[2]);
 }
 
 void domain_wrap(Particles * particles) {
