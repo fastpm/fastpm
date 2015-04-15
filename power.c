@@ -237,11 +237,12 @@ double TopHatSigma2(double R, double (*func)(double, void*), void * param) {
 
   F.function = &sigma2_int;
   F.params = data;
-
+  void * handler = gsl_set_error_handler_off ();
   gsl_integration_qag(&F, 0, 500.0 * 1 / R,
           0, 1.0e-4, WORKSIZE, GSL_INTEG_GAUSS41, workspace, &result, &abserr);
   // high precision caused error
   gsl_integration_workspace_free(workspace);
+  gsl_set_error_handler (handler);
 
   return result;
 
