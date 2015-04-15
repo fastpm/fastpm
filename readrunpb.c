@@ -255,7 +255,7 @@ int write_runpb_snapshot(Snapshot * snapshot,
     int np_local = snapshot->np_local;
 
     int * NperTask = alloca(sizeof(int) * NTask);
-    int * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
+    size_t * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
 
     MPI_Allgather(&np_local, 1, MPI_INT, NperTask, 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -265,16 +265,17 @@ int write_runpb_snapshot(Snapshot * snapshot,
     }
     size_t Ntot = NcumTask[NTask];
 
-    int * NperFile = NULL;
-    size_t * NcumFile = NULL;
     double aa = snapshot->a;
     int Nfile = (Ntot + (1024 * 1024 * 32 - 1)) / (1024 * 1024 * 32);
+    msg_printf(verbose, "Writing to %td paritlces to  %d files\n", Ntot, Nfile);
 
     double vfac = 100. / aa;
     double RSD = aa / snapshot->qfactor / vfac;
     msg_printf(verbose, "vfac = %g RSD = %g\n", vfac, RSD);
-    NperFile = alloca(sizeof(int) * Nfile);
-    NcumFile = alloca(sizeof(size_t) * Nfile);
+    int * NperFile = NperFile = alloca(sizeof(int) * Nfile);
+
+    size_t * NcumFile = alloca(sizeof(size_t) * Nfile);
+
     NcumFile[0] = 0;
     for(int i = 0; i < Nfile; i ++) {
         NperFile[i] = (i+1) * Ntot / Nfile -i * Ntot/ Nfile;
