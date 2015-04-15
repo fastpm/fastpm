@@ -389,13 +389,13 @@ void compute_power_spectrum(fftwf_complex * density_k) {
         count[i] = 0;
         power[i] = 0;
     }
-    double * ff = (double*) alloca(sizeof(double) * (Ngrid));
-    double * i2 = (double*) alloca(sizeof(double) * (Ngrid));
+    float * ff = (float*) alloca(sizeof(float) * (Ngrid));
+    float * i2 = (float*) alloca(sizeof(float) * (Ngrid));
     for(int J = 0; J < Ngrid; J ++) {
         int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
         ff[J] = sinc_unnormed(J0 * (M_PI / Ngrid));
         ff[J] *= ff[J];
-        i2[J] = (double)J0 * J0;
+        i2[J] = (float)J0 * J0;
     }
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J = Jl + Local_y_start_td;
@@ -403,15 +403,15 @@ void compute_power_spectrum(fftwf_complex * density_k) {
             for(int K=0; K<Ngrid/2; K++){
                 int i = sqrt(i2[J] + i2[K] + i2[iI]);
                 if (i >= Ngrid / 2) continue;
-                const double fx2 = ff[iI];
-                const double fy2 = ff[J];
-                const double fz2 = ff[K];
-                const double fxyz2 = fx2 * fy2 * fz2;
+                const float fx2 = ff[iI];
+                const float fy2 = ff[J];
+                const float fz2 = ff[K];
+                const float fxyz2 = fx2 * fy2 * fz2;
 
                 size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
-                double a = density_k[index][0];
-                double b = density_k[index][1];
-                double p = a * a + b * b;
+                float a = density_k[index][0];
+                float b = density_k[index][1];
+                float p = a * a + b * b;
                 power[i] += p / (fxyz2*fxyz2);                
                 count[i] += 1;
             }
@@ -439,9 +439,9 @@ void compute_force_mesh(const int axes, fftwf_complex * const P3D)
 
   const float f1= -1.0/pow(Ngrid, 3.0)/scale;
 
-  double * diff = alloca(sizeof(double) * Ngrid);
-  double * di2 = alloca(sizeof(double) * Ngrid);
-  double * ff = alloca(sizeof(double) * Ngrid);
+  float * diff = alloca(sizeof(float) * Ngrid);
+  float * di2 = alloca(sizeof(float) * Ngrid);
+  float * ff = alloca(sizeof(float) * Ngrid);
   for(int J = 0 ; J < Ngrid; J ++) {
       int J0= J <= (Ngrid/2) ? J : J - Ngrid;
       diff[J] = diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
