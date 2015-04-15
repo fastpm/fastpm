@@ -57,7 +57,7 @@ void lpt_init(const int nc, const void* mem, const size_t size)
 
   ptrdiff_t local_nx, local_x_start;
   ptrdiff_t total_size=
-    fftwf_mpi_local_size_3d(nc, nc, nc, MPI_COMM_WORLD,
+    fftwf_mpi_local_size_3d(nc, nc, nc / 2 + 1, MPI_COMM_WORLD,
 			    &local_nx, &local_x_start);
   
   Local_nx= local_nx;
