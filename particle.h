@@ -40,6 +40,7 @@ typedef struct {
   float np_average;
   float a; //, a_x, a_v;
   float boxsize;
+  float qfactor;
   int nc;
   float omega_m, h;
   int seed;

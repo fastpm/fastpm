@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <glob.h>
 #include <math.h>
+#include <alloca.h>
 #include "parameters.h"
 #include "power.h"
 #include "particle.h"
@@ -235,5 +236,145 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
     msg_printf(verbose, "dx1 max = %g, dx2 max = %g", dx1maxg, dx2maxg);
     free(NcumFile);
     free(NperFile);
+    return 0;
+}
+
+int write_runpb_snapshot(Snapshot * snapshot,  
+        char * filebase,
+        void * scratch, size_t scratch_bytes) {
+    int ThisTask;
+    int NTask;
+    float * fscratch = (float*) scratch;
+    long long * lscratch = (long long *) scratch;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+    size_t chunksize = scratch_bytes;
+
+    int np_local = snapshot->np_local;
+
+    int * NperTask = alloca(sizeof(int) * NTask);
+    int * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
+
+    MPI_Allgather(&np_local, 1, MPI_INT, NperTask, 1, MPI_INT, MPI_COMM_WORLD);
+
+    NcumTask[0] = 0;
+    for(int i = 1; i <= NTask; i ++) {
+        NcumTask[i] = NcumTask[i - 1] + NperTask[i - 1];
+    }
+    size_t Ntot = NcumTask[NTask];
+
+    int * NperFile = NULL;
+    size_t * NcumFile = NULL;
+    double aa = snapshot->a;
+    int Nfile = (Ntot + (1024 * 1024 * 32 - 1)) / (1024 * 1024 * 32);
+
+    double vfac = 100. / aa;
+    double RSD = aa / snapshot->qfactor / vfac;
+    msg_printf(verbose, "vfac = %g RSD = %g\n", vfac, RSD);
+    NperFile = alloca(sizeof(int) * Nfile);
+    NcumFile = alloca(sizeof(size_t) * Nfile);
+    NcumFile[0] = 0;
+    for(int i = 0; i < Nfile; i ++) {
+        NperFile[i] = (i+1) * Ntot / Nfile -i * Ntot/ Nfile;
+    }
+    for(int i = 1; i < Nfile; i ++) {
+        NcumFile[i] = NcumFile[i - 1] + NperFile[i - 1];
+    }
+
+
+    size_t start = NcumTask[ThisTask];
+    size_t end   = NcumTask[ThisTask + 1];
+
+    ParticleMinimum * par = snapshot->p;
+    int offset = 0;
+    int chunknpart = chunksize / (sizeof(float) * 3);
+
+    msg_printf(verbose, "chunknpart = %d\n", chunknpart);
+
+    for(int i = 0; i < Nfile; i ++) {
+        ptrdiff_t mystart = start - NcumFile[i];
+        ptrdiff_t myend = end - NcumFile[i];
+        size_t nread;
+        /* not overlapping */
+        if(myend <= 0) continue;
+        if(mystart >= NperFile[i]) continue;
+
+        printf("Task %d writing at %d \n", ThisTask, offset);
+
+        /* cut to this file */
+        if(myend > NperFile[i]) {
+            myend = NperFile[i];
+        }
+        if(mystart < 0) {
+            mystart =0;
+        }
+        /* at this point, write mystart:myend from current file */
+        char buf[1024];
+        int eflag = 1, hsize = sizeof(FileHeader);
+        FileHeader header;
+        header.npart = NperFile[i];
+        header.nsph = 0;
+        header.nstar = 0;
+        header.aa    = aa;
+        header.eps =  0.1 / pow(Ntot, 1./3);
+
+        sprintf(buf, FILENAME, filebase, i);
+
+        FILE * fp = fopen(buf, "w");
+        /* skip these */
+        fwrite(&eflag, sizeof(int), 1, fp);
+        fwrite(&hsize, sizeof(int), 1, fp);
+        fwrite(&header, sizeof(FileHeader), 1, fp);
+        /* pos */
+        fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
+        nread = 0;
+        while(nread != myend - mystart) {
+            size_t nbatch = chunknpart;
+            if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
+            for(int p = 0, q = 0; p < nbatch; p ++) {
+                fscratch[q++] = par[offset + nread + p].x[0] / snapshot->boxsize;
+                fscratch[q++] = par[offset + nread + p].x[1] / snapshot->boxsize;
+                fscratch[q++] = par[offset + nread + p].x[2] / snapshot->boxsize;
+            }
+            fwrite(scratch, sizeof(float) * 3, nbatch, fp);
+            nread += nbatch;
+        }
+        fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
+        /* vel */
+        fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
+        nread = 0;
+        while(nread != myend - mystart) {
+            size_t nbatch = chunknpart;
+            if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
+            for(int p = 0, q = 0; p < nbatch; p ++) {
+                fscratch[q++] = par[offset + nread + p].v[0] * RSD / snapshot->boxsize;
+                fscratch[q++] = par[offset + nread + p].v[1] * RSD / snapshot->boxsize;
+                fscratch[q++] = par[offset + nread + p].v[2] * RSD / snapshot->boxsize;
+            }
+            fwrite(scratch, sizeof(float) * 3, nbatch, fp);
+            nread += nbatch;
+        }
+        fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
+        /* ID */
+        fseek(fp, mystart * sizeof(long long), SEEK_CUR);
+        nread = 0;
+        while(nread != myend - mystart) {
+            size_t nbatch = chunknpart;
+            if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
+            for(int p = 0, q = 0; p < nbatch; p ++) {
+                lscratch[q++] = par[offset + nread + p].id;
+            }
+            fwrite(scratch, sizeof(long long), nbatch, fp);
+            nread += nbatch;
+        }
+        fseek(fp, (NperFile[i] - myend) * sizeof(long long), SEEK_CUR);
+        fclose(fp);
+        offset += myend - mystart;
+    }
+    if(offset != snapshot->np_local) {
+        msg_abort(0030, "mismatch %d != %d\n", offset, snapshot->np_local);
+    }
     return 0;
 }

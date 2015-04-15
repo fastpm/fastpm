@@ -400,6 +400,7 @@ void set_noncola_initial(const float aout, const Particles * const particles, Sn
   snapshot->np_total= particles->np_total;
   snapshot->np_average= particles->np_average;
   snapshot->a= aout;
+  snapshot->qfactor = Qfactor(aout);
                                                            timer_stop(interp);
 }
 
@@ -486,5 +487,6 @@ void cola_set_snapshot(const double aout, double a_x, double a_v, Particles cons
 
   snapshot->np_local= np;
   snapshot->a= aout;
-                                                           timer_stop(interp);
+  snapshot->qfactor = Qfactor(aout);
+                                                         timer_stop(interp);
 }

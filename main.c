@@ -23,6 +23,12 @@
 #include "subsample.h"
 #include "coarse_grid.h"
 
+extern int write_runpb_snapshot(Snapshot * snapshot,  
+        char * filebase,
+        void * scratch, size_t scratch_bytes);
+extern int read_runpb_ic(Parameters * param, double a_init, Particles * particles, 
+        void * scratch, size_t scratch_bytes);
+
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
 void snapshot_time(const float aout, const int iout, 
@@ -162,9 +168,9 @@ int main(int argc, char* argv[])
   subsample_init(param.subsample_factor, param.random_seed);
 
   const int nout= param.n_zout;
-  float* aout= malloc(sizeof(float)*nout);
+  double* aout= malloc(sizeof(double)*nout);
   for(int i=0; i<nout; i++) {
-    aout[i] = (float)(1.0/(1 + param.zout[i]));
+    aout[i] = (double)(1.0/(1 + param.zout[i]));
     msg_printf(verbose, "zout[%d]= %lf, aout= %f\n", 
 	       i, param.zout[i], aout[i]);
   }
@@ -203,18 +209,18 @@ int main(int argc, char* argv[])
           // Sets initial grid and 2LPT desplacement
           lpt_set_displacement(a_init, OmegaM, seed,
                   param.boxsize, particles);
-          snapshot->seed= seed;
+      }
+      snapshot->seed= seed;
 
-          // always do this because it intializes the initial velocity
-          // correctly.
-          set_noncola_initial(a_init, particles, snapshot);
+      // always do this because it intializes the initial velocity
+      // correctly.
+      set_noncola_initial(a_init, particles, snapshot);
 
-          if(param.init_filename) {
-              // Writes initial condition to file for e.g. Gadget N-body simulation
-              char filename[256]; // TODO: use variable length for filename
-              sprintf(filename, "%s_%05d", param.init_filename, seed);
-              write_snapshot(filename, snapshot, param.write_longid);
-          }
+      if(param.init_filename) {
+          // Writes initial condition to file for e.g. Gadget N-body simulation
+          char filename[256]; // TODO: use variable length for filename
+          sprintf(filename, "%s_%05d", param.init_filename, seed);
+          write_snapshot(filename, snapshot, param.write_longid);
       }
       timer_set_category(COLA);
     
@@ -440,9 +446,8 @@ void snapshot_time(const float aout, const int iout,
 {
   // Halo finding and snapshot outputs
 
-  char filebase[256];      // TODO: make 256 to variable number...?
+  char filebase[1024];      // TODO: make 256 to variable number...?
   const int isnp= iout+1;
-  char suffix= 'a' + iout; // TODO: not suited for large nout -- change to #
                                                        timer_set_category(Snp);
   cola_set_snapshot(aout, a_x, a_v, particles, snapshot);
 
@@ -454,14 +459,16 @@ void snapshot_time(const float aout, const int iout,
   // Gadget snapshot for all particles
   // periodic wrapup not done, what about after fof? what about doing move_particle_min here?
   if(snapshot->filename) {
-    sprintf(filebase, "%s%05d%c", snapshot->filename, snapshot->seed, suffix);
-    write_snapshot(filebase, snapshot, write_longid);
+    //sprintf(filebase, "%s%05d%c", snapshot->filename, snapshot->seed, suffix);
+    //write_snapshot(filebase, snapshot, write_longid);
+    sprintf(filebase, "%s%05d_%0.04f", snapshot->filename, snapshot->seed, snapshot->a);
+    write_runpb_snapshot(snapshot, filebase, mem1, size1);
   }
                                                        timer_stop(write);
 						       timer_start(sub);
   // particle subsample (binary)
   if(subsample_filename) {
-    sprintf(filebase, "%s%05d%c.b", subsample_filename, snapshot->seed, suffix);
+    sprintf(filebase, "%s%05d_%0.04f", subsample_filename, snapshot->seed, snapshot->a);
     //write_subsample(filebase, subsample_factor, snapshot, mem1, size1); // this is regular subsamle but not used. Random subampling is used.
     // TODO: periodic wrapup not done. What about after fof?
     write_random_sabsample(filebase, snapshot, mem1, size1);
@@ -469,7 +476,7 @@ void snapshot_time(const float aout, const int iout,
 
   // coarse mesh (binary)
   if(cgrid_filename) {
-    sprintf(filebase, "%s%05d%c.b", cgrid_filename, snapshot->seed, suffix);
+    sprintf(filebase, "%s%05d_%0.04f.b", cgrid_filename, snapshot->seed, snapshot->a);
     coarse_grid2(filebase, snapshot, cgrid_nc, mem1, size1);
   }
 
@@ -485,12 +492,12 @@ void snapshot_time(const float aout, const int iout,
   // FoF halo catalogue (text file)
   if(fof_filename) {
     // comment: move_particles done here
-    sprintf(filebase, "%s%05d%c.txt", fof_filename, snapshot->seed, suffix);
+    sprintf(filebase, "%s%05d_%0.04f.txt", fof_filename, snapshot->seed, snapshot->a);
     fof_write_halos(filebase);
   }
 
   const double z_out= 1.0/aout - 1.0;
-  msg_printf(normal, "snapshot %d (%c) written z=%4.2f a=%5.3f\n", 
-	     isnp, suffix, z_out, aout);
+  msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
+	     isnp, z_out, aout);
                                                        timer_set_category(COLA);
 }
