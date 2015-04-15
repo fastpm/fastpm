@@ -266,12 +266,13 @@ int write_runpb_snapshot(Snapshot * snapshot,
     size_t Ntot = NcumTask[NTask];
 
     double aa = snapshot->a;
-    int Nfile = (Ntot + (1024 * 1024 * 32 - 1)) / (1024 * 1024 * 32);
+    int Nfile = (Ntot + (1024 * 1024 * 128 - 1)) / (1024 * 1024 * 128);
+
     msg_printf(verbose, "Writing to %td paritlces to  %d files\n", Ntot, Nfile);
 
     double vfac = 100. / aa;
     double RSD = aa / snapshot->qfactor / vfac;
-    msg_printf(verbose, "vfac = %g RSD = %g\n", vfac, RSD);
+
     int * NperFile = NperFile = alloca(sizeof(int) * Nfile);
 
     size_t * NcumFile = alloca(sizeof(size_t) * Nfile);
@@ -292,7 +293,15 @@ int write_runpb_snapshot(Snapshot * snapshot,
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
 
-    msg_printf(verbose, "chunknpart = %d\n", chunknpart);
+    for(int i = 0; i < Nfile; i ++) {
+        char buf[1024];
+        sprintf(buf, FILENAME, filebase, i);
+        if(ThisTask == 0) {
+            FILE * fp = fopen(buf, "w");
+            fclose(fp);
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     for(int i = 0; i < Nfile; i ++) {
         ptrdiff_t mystart = start - NcumFile[i];
@@ -301,8 +310,6 @@ int write_runpb_snapshot(Snapshot * snapshot,
         /* not overlapping */
         if(myend <= 0) continue;
         if(mystart >= NperFile[i]) continue;
-
-        printf("Task %d writing at %d \n", ThisTask, offset);
 
         /* cut to this file */
         if(myend > NperFile[i]) {
@@ -323,7 +330,7 @@ int write_runpb_snapshot(Snapshot * snapshot,
 
         sprintf(buf, FILENAME, filebase, i);
 
-        FILE * fp = fopen(buf, "w");
+        FILE * fp = fopen(buf, "r+");
         /* skip these */
         fwrite(&eflag, sizeof(int), 1, fp);
         fwrite(&hsize, sizeof(int), 1, fp);
