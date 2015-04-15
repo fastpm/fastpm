@@ -97,7 +97,11 @@ static int cmp_par_task(const void * c1, const void * c2, void * data) {
     int task2 = par_node(((ParticleMinimum*) c2)->x);
     if (task1 == ThisTask) task1 = -1;
     if (task2 == ThisTask) task2 = -1;
-    return (task1 > task2) - (task2 > task1);
+    int rt = (task1 > task2) - (task2 > task1);
+    if(rt) return rt;
+    long long id1 = ((ParticleMinimum*) c1)->id;
+    long long id2 = ((ParticleMinimum*) c2)->id;
+    return (id1 > id2) - (id2 > id1);
 }
 struct SendBuf {
     float x[3];
