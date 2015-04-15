@@ -489,11 +489,16 @@ void snapshot_time(const float aout, const int iout,
   const float ll= (float)(fof_linking_factor*boxsize/nc); // FoF linking length
   fof_find_halos(snapshot, ll);
 
-  // FoF halo catalogue (text file)
+  // FoF halo catalogue (binary file)
   if(fof_filename) {
     // comment: move_particles done here
-    sprintf(filebase, "%s%05d_%0.04f.txt", fof_filename, snapshot->seed, snapshot->a);
-    fof_write_halos(filebase);
+    /* the binary format is mass, x, x, x, v, v, v*/
+    /* mass is in 1e10 Msun/h */
+    const double rho_crit = 27.7455;
+    const double M0 = snapshot->omega_m*rho_crit*pow(snapshot->boxsize / snapshot->nc, 3.0);
+  
+    sprintf(filebase, "%s%05d_%0.04f.bin", fof_filename, snapshot->seed, snapshot->a);
+    fof_write_halos(filebase, 1, M0);
   }
 
   const double z_out= 1.0/aout - 1.0;

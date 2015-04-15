@@ -1096,99 +1096,112 @@ void fof_find_halos(Snapshot* snapshot, const float ll)
                                                          timer_stop(global);
 }
 
-void fof_write_halos(char filename[])
+void fof_write_halos(char filename[], int binary, float M0)
 {
-                                                         timer_start(global);
-  // velocity is internal (no LPT correction and scaling)
-  const int this_node= comm_this_node();
-  const int nnode= comm_nnode();
+    timer_start(global);
+    // velocity is internal (no LPT correction and scaling)
+    const int this_node= comm_this_node();
+    const int nnode= comm_nnode();
 
-  int* const nhalo_recv= malloc(sizeof(int)*nnode*2);
-  int* const disp= nhalo_recv + nnode;
+    int* const nhalo_recv= malloc(sizeof(int)*nnode*2);
+    int* const disp= nhalo_recv + nnode;
 
-  int ret= 
-    MPI_Gather(&NHalo, 1, MPI_INT, nhalo_recv, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  assert(ret == MPI_SUCCESS);
+    int ret= 
+        MPI_Gather(&NHalo, 1, MPI_INT, nhalo_recv, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    assert(ret == MPI_SUCCESS);
 
-  int nhalo=0;
-  int new_allocation= 0;
+    int nhalo=0;
+    int new_allocation= 0;
 
-  HaloInfo* buf1= 0;
+    HaloInfo* buf1= 0;
 
-  if(this_node == 0) {
-    for(int i=0; i<nnode; i++) {
-      disp[i] = nhalo*sizeof(HaloInfo);
-      nhalo += nhalo_recv[i];
-      nhalo_recv[i] *= sizeof(HaloInfo);
+    if(this_node == 0) {
+        for(int i=0; i<nnode; i++) {
+            disp[i] = nhalo*sizeof(HaloInfo);
+            nhalo += nhalo_recv[i];
+            nhalo_recv[i] *= sizeof(HaloInfo);
+        }
+
+        msg_printf(info, "nhalo %d, %d Mbytes gathered to node 0\n", nhalo,
+                (int)(sizeof(HaloInfo)*nhalo/(1024*1024)));
+
+
+        if(BufSize >= sizeof(HaloInfo)*(NHalo + nhalo)) {
+            buf1= Halo + NHalo;
+        }
+        else {
+            msg_printf(info, "Newly allocating %d Mbytes for all halos\n",
+                    (int)(sizeof(HaloInfo)*nhalo/(1024*1024)));
+            buf1= malloc(sizeof(HaloInfo)*nhalo);
+            new_allocation= 1;
+        }
+
+        if(buf1 == 0) {
+            msg_abort(8100, "Error: Unable to allocate memory for halo output: %d Mbytes\n", sizeof(HaloInfo)*nhalo/(1024*1024));
+        }
     }
-    
-    msg_printf(info, "nhalo %d, %d Mbytes gathered to node 0\n", nhalo,
-	       (int)(sizeof(HaloInfo)*nhalo/(1024*1024)));
 
+    ret= MPI_Gatherv(Halo, NHalo*sizeof(HaloInfo), MPI_BYTE,
+            buf1, nhalo_recv, disp, MPI_BYTE,
+            0, MPI_COMM_WORLD);
+    assert(ret == MPI_SUCCESS);
 
-    if(BufSize >= sizeof(HaloInfo)*(NHalo + nhalo)) {
-      buf1= Halo + NHalo;
+    // "Global Linking" merge haloes extends more than 1 node
+    HaloInfo* h= (HaloInfo*) buf1;
+    global_linking(h, nhalo); //, nnode, nhalo_recv);
+    merge_halo_info(h, nhalo);
+
+    int nhalo_written= 0;
+
+    if(this_node == 0) {
+        FILE* fp= fopen(filename, "w");
+        if(fp == 0)
+            msg_abort(8110, "Error: Unable to write halo to file %s\n", filename);
+
+        for(int i=0; i<nhalo; ++i) {
+            if(h[i].nfof < nfof_min) continue;
+
+            nhalo_written++;
+
+            for(int k=0; k<3; k++) {
+                float x= h[i].x0[k] + h[i].dx_sum[k]/h[i].nfof;
+                if(x < 0.0f) x += BoxSize;
+                if(x >= BoxSize) x -= BoxSize; 
+                // not elseif because x += BoxSize could be equal to Boxsize for 
+                // x<0 very close to zero due to finite precision
+
+                // fof.txt 0 <= x < boxsize guaranteed
+                h[i].x0[k]= x;
+
+                h[i].v_sum[k]= h[i].v_sum[k]/h[i].nfof;
+            }
+
+            if(binary) {
+                struct {
+                    float mass;
+                    float x[3];
+                    float v[3];
+                } thisrow;
+
+                thisrow.mass = M0 * h[i].nfof;
+                memcpy(thisrow.x, h[i].x0, sizeof(float) * 3);
+                memcpy(thisrow.v, h[i].v_sum, sizeof(float) * 3);
+                fwrite(&thisrow, sizeof(thisrow), 1, fp);
+            } else {
+                fprintf(fp, "%d %e %e %e %e %e %e\n", 
+                       h[i].nfof, h[i].x0[0], h[i].x0[1], h[i].x0[2],
+                       h[i].v_sum[0], h[i].v_sum[1], h[i].v_sum[2]);
+            }
+        }
+        fclose(fp);
+
+        msg_printf(normal, "%d halos written to %s\n", nhalo_written, filename);
     }
-    else {
-      msg_printf(info, "Newly allocating %d Mbytes for all halos\n",
-		 (int)(sizeof(HaloInfo)*nhalo/(1024*1024)));
-      buf1= malloc(sizeof(HaloInfo)*nhalo);
-      new_allocation= 1;
-    }
-      
-    if(buf1 == 0) {
-      msg_abort(8100, "Error: Unable to allocate memory for halo output: %d Mbytes\n", sizeof(HaloInfo)*nhalo/(1024*1024));
-    }
-  }
-
-  ret= MPI_Gatherv(Halo, NHalo*sizeof(HaloInfo), MPI_BYTE,
-	      buf1, nhalo_recv, disp, MPI_BYTE,
-	      0, MPI_COMM_WORLD);
-  assert(ret == MPI_SUCCESS);
-
-  // "Global Linking" merge haloes extends more than 1 node
-  HaloInfo* h= (HaloInfo*) buf1;
-  global_linking(h, nhalo); //, nnode, nhalo_recv);
-  merge_halo_info(h, nhalo);
-
-  int nhalo_written= 0;
-
-  if(this_node == 0) {
-    FILE* fp= fopen(filename, "w");
-    if(fp == 0)
-      msg_abort(8110, "Error: Unable to write halo to file %s\n", filename);
-    
-    for(int i=0; i<nhalo; ++i) {
-      if(h[i].nfof < nfof_min) continue;
-
-      nhalo_written++;
-
-      for(int k=0; k<3; k++) {
-	float x= h[i].x0[k] + h[i].dx_sum[k]/h[i].nfof;
-	if(x < 0.0f) x += BoxSize;
-	if(x >= BoxSize) x -= BoxSize; 
-	// not elseif because x += BoxSize could be equal to Boxsize for 
-	// x<0 very close to zero due to finite precision
-
-	// fof.txt 0 <= x < boxsize guaranteed
-	h[i].x0[k]= x;
-	
-	h[i].v_sum[k]= h[i].v_sum[k]/h[i].nfof;
-      }
-      
-      fprintf(fp, "%d %e %e %e %e %e %e\n", 
-	      h[i].nfof, h[i].x0[0], h[i].x0[1], h[i].x0[2],
-	      h[i].v_sum[0], h[i].v_sum[1], h[i].v_sum[2]);
-    }
-    fclose(fp);
-
-    msg_printf(normal, "%d halos written to %s\n", nhalo_written, filename);
-  }
 
 
-  free(nhalo_recv);
-  if(new_allocation)
-    free(buf1);
-                                                             timer_stop(global);
+    free(nhalo_recv);
+    if(new_allocation)
+        free(buf1);
+    timer_stop(global);
 }
   
