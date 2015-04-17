@@ -5,7 +5,9 @@
 // University of Washington N-BODY SHOP
 // http://www-hpcc.astro.washington.edu/tools/fof.html
 //
-
+// This code is unfortunately replying on FFTW slabs, and
+// ideally shall be rewritten.
+//
 
 /*
 						FOF v1.1

@@ -1,3 +1,15 @@
+/**
+ *  2D Domain Decomposition
+ *
+ *  This code builds 2d pencel domains for PM simulations
+ *
+ *  Currently we use FFTW thus the domains are reduced to slabs.
+ * 
+ *  Particles near the edges are ghosts.
+ *
+ *  Author: Yu Feng <rainwoodman@gmail.com>
+ */
+
 #include <stdio.h>
 #include <mpi.h>
 #include <stdlib.h>

@@ -1,3 +1,9 @@
+/*******
+ * Memory management.
+ * From Jun Koda's PM utilities
+ *
+ * With a few fixes from Yu Feng <rainwoodman@gmail.com>
+ **/
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>

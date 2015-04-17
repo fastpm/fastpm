@@ -1,7 +1,9 @@
 //
 // MPI Communication
 //
-
+// Written by Jun Koda. 
+// Needed by the Friend of Friend finder; otherwise
+// replaced by domain.c
 
 // #include <stdio.h>
 #include <stdlib.h>

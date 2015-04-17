@@ -1,3 +1,8 @@
+/**
+ * IO of RunPB format
+ * 
+ * Authors: Yu Feng <rainwoodman@gmail.com>
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>

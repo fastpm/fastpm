@@ -6,6 +6,8 @@
 //
 // link with -lfftw3f_mpi -lfftw3f -lm for single precision FFTW3
 //
+// This code is unfortunately FFTW specific and needs to be rewritten
+// to take advantages of PFFT.
 
 #include <stdio.h>
 #include <stdlib.h>

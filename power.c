@@ -2,7 +2,8 @@
 // Reads CAMB matter power spectrum camb_matterpower.dat, and
 // provides power spectrum to 2LPT calculation in lpt.c
 //
-// Based on N-GenIC power.c by Volker Springel
+// Originally written by Jun Kuda, based on 
+//   N-GenIC power.c by Volker Springel
 //   http://www.mpa-garching.mpg.de/gadget/right.html#ICcode
 //
 

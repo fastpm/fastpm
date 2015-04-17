@@ -1,45 +1,19 @@
-//
-// COLA time integration using given force and 2LPT displacement
-//
-// This code is a modification to the original serial COLA code
-// by Svetlin Tassev. See below.
-//
-
-/*
-    Copyright (c) 2011-2013       Svetlin Tassev
-                           Harvard University, Princeton University
- 
-    This file is part of COLAcode.
-
-    COLAcode is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    COLAcode is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with COLAcode.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-
-
-/*
-
-    This is COLAcode: a serial particle mesh-based N-body code 
-     illustrating the COLA (COmoving Lagrangian Acceleration) method 
-     described in S. Tassev, M. Zaldarriaga, D. Eisenstein (2012).
-     Check that paper (refered to as TZE below) for the details. 
-     Before using the code make sure you read the README file as well as
-     the Warnings section below.
-    
-    This version: Dec 18, 2012
-
-
-*/
+/*********************
+ * Time intergral KDK scheme.
+ * kick and drifts.
+ * 
+ * This code was initially modified by Jun Koda, 
+ * from the original serial COLA code
+ * by Svetlin Tassev.
+ *
+ * The kick and drift still supports a COLA compat-mode.
+ * Most of the nasty factors are for COLA compat-mode
+ * (not needed in PM)
+ * We also added a 2LPT mode that does just 2LPT.
+ *
+ *  Yu Feng <rainwoodman@gmail.com> 
+ *
+ */
 
 #include <math.h>
 #include <assert.h>
@@ -52,7 +26,7 @@
 
 #include "particle.h"
 #include "msg.h"
-#include "cola.h"
+#include "stepping.h"
 #include "timer.h"
 
 static float Om= -1.0f;
@@ -70,17 +44,17 @@ float Qfactor(const float a);
 
 // Leap frog time integration
 // ** Total momentum adjustment dropped
-void cola_set_subtract_lpt(int flag) {
+void stepping_set_subtract_lpt(int flag) {
     subtractLPT = flag?1.0:0.0;
 }
-void cola_set_std_da(int flag) {
+void stepping_set_std_da(int flag) {
     stdDA = flag;
 }
-void cola_set_no_pm(int flag) {
+void stepping_set_no_pm(int flag) {
     noPM = flag;
 }
 
-void cola_kick(Particles* const particles, const float Omega_m,
+void stepping_kick(Particles* const particles, const float Omega_m,
         const float ai, const float af, const float ac)
 /* a_v     avel1     a_x*/
 {
@@ -133,7 +107,7 @@ void cola_kick(Particles* const particles, const float Omega_m,
                                                            timer_stop(evolve);  
 }
 
-void cola_drift(Particles* const particles, const float Omega_m,
+void stepping_drift(Particles* const particles, const float Omega_m,
         const float ai, const float af, const float ac)
     /*a_x, apos1, a_v */
 {
@@ -344,7 +318,7 @@ double Sphi(double ai, double af, double aRef) {
 
 
 // Interpolate position and velocity for snapshot at a=aout
-void set_noncola_initial(const float aout, const Particles * const particles, Snapshot* const snapshot)
+void set_nonstepping_initial(const float aout, const Particles * const particles, Snapshot* const snapshot)
 {
                                                            timer_start(interp);
   
@@ -405,7 +379,7 @@ void set_noncola_initial(const float aout, const Particles * const particles, Sn
 }
 
 // Interpolate position and velocity for snapshot at a=aout
-void cola_set_snapshot(const double aout, double a_x, double a_v, Particles const * const particles, Snapshot* const snapshot)
+void stepping_set_snapshot(const double aout, double a_x, double a_v, Particles const * const particles, Snapshot* const snapshot)
 {
                                                            timer_start(interp);
   const int np= particles->np_local;

@@ -1,30 +1,14 @@
-//
-// Particle Mesh gravitational force calculation
-//
-// This code is a modification to the original serial COLA code
-// by Svetlin Tassev. See below.
-//
-
-/*
-    Copyright (c) 2011-2013       Svetlin Tassev
-                           Harvard University, Princeton University
- 
-    This file is part of COLAcode.
-
-    COLAcode is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    COLAcode is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with COLAcode.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
+/**
+ * Particle Mesh gravitational force calculation
+ *
+ * This code was initially modified by Jun Koda, 
+ * from the original serial COLA code
+ * by Svetlin Tassev.
+ *
+ * The CIC kernel remains the orignal form.
+ *
+ * Yu Feng <rainwoodman@gmail.com>
+ ***/
 
 // This file contains some standard functions for a PM code. 
 // Nothing COLA-specific.

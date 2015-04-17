@@ -1,3 +1,8 @@
+/****
+ * Profiling library
+ * 
+ * from Jun Koda's PM framework utilities.
+ *****/
 #include <sys/time.h>
 #include "msg.h"
 #include "timer.h"
@@ -5,7 +10,7 @@
 #define nCategory 4
 #define nSubCategory 15
 
-static const char * CatName[]= {"Init", "2LPT", "COLA", "Snapshot"};
+static const char * CatName[]= {"Init", "2LPT", "Stepping", "Snapshot"};
 static const char * SubName[]= {"", "fft", "assign", "powerspectrum", "force_mesh", "pforce", "check", "comm", "evolve", "write", "kd_build", "kd_link", "interpolate", "global", "smalldata"};
 
 //static const int nCategory= 4;

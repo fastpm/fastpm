@@ -1,7 +1,7 @@
 #ifndef TIMER_H
 #define TIMER_H 1
 
-enum Category {Init, LPT, COLA, Snp};
+enum Category {Init, LPT, STEPPING, Snp};
 enum SubCategory {all, fft, assign, powerspectrum, force_mesh, pforce, check, comm, evolve, write, kd_build, kd_link, interp, global, sub};
 
 void timer_set_category(enum Category new_cat);

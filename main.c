@@ -1,3 +1,20 @@
+/**
+ * main file: Time stepping and firing-sequences
+ * 
+ * This code was initially modified by Jun Koda, 
+ * from the original serial COLA code
+ * by Svetlin Tassev.
+ *
+ * The time stepping code has been largely re-written
+ * to accompodate PM simulations.
+ *
+ * The firing sequences of snapshots and FOF is preserved.
+ * 
+ * Adpative PM size is added by Man-Yat Chu.
+ * 
+ * Yu Feng <rainwoodman@gmail.com>
+ *
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +32,7 @@
 #include "comm.h"
 #include "domain.h"
 #include "pm.h"
-#include "cola.h"
+#include "stepping.h"
 #include "fof.h"
 #include "write.h"
 #include "timer.h"
@@ -176,19 +193,19 @@ int main(int argc, char* argv[])
   }
 
   if (param.qpm) {
-      cola_set_subtract_lpt(0);
+      stepping_set_subtract_lpt(0);
   } else {
-      cola_set_subtract_lpt(1);
+      stepping_set_subtract_lpt(1);
   }
   if (param.stdda) {
-      cola_set_std_da(1);
+      stepping_set_std_da(1);
   } else {
-      cola_set_std_da(0);
+      stepping_set_std_da(0);
   }
   if (param.nopm) {
-      cola_set_no_pm(1);
+      stepping_set_no_pm(1);
   } else {
-      cola_set_no_pm(0);
+      stepping_set_no_pm(0);
   }
   //
   // Many realizations with different initial conditions
@@ -214,7 +231,7 @@ int main(int argc, char* argv[])
 
       // always do this because it intializes the initial velocity
       // correctly.
-      set_noncola_initial(a_init, particles, snapshot);
+      set_nonstepping_initial(a_init, particles, snapshot);
 
       if(param.init_filename) {
           // Writes initial condition to file for e.g. Gadget N-body simulation
@@ -222,7 +239,7 @@ int main(int argc, char* argv[])
           sprintf(filename, "%s_%05d", param.init_filename, seed);
           write_snapshot(filename, snapshot, param.write_longid);
       }
-      timer_set_category(COLA);
+      timer_set_category(STEPPING);
     
       //
       // Time evolution loop
@@ -304,7 +321,7 @@ int main(int argc, char* argv[])
               if(iout >= nout) break;
 
               // Leap-frog "kick" -- velocities updated
-              cola_kick(particles, OmegaM, a_v, a_v1, a_x);
+              stepping_kick(particles, OmegaM, a_v, a_v1, a_x);
 
               while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                   // Time to write output
@@ -314,7 +331,7 @@ int main(int argc, char* argv[])
               if(iout >= nout) break;
 
               // Leap-frog "drift" -- positions updated
-              cola_drift(particles, OmegaM, a_x, a_x1, a_v1);
+              stepping_drift(particles, OmegaM, a_x, a_x1, a_v1);
           }
       }
       timer_print();
@@ -449,7 +466,7 @@ void snapshot_time(const float aout, const int iout,
   char filebase[1024];      // TODO: make 256 to variable number...?
   const int isnp= iout+1;
                                                        timer_set_category(Snp);
-  cola_set_snapshot(aout, a_x, a_v, particles, snapshot);
+  stepping_set_snapshot(aout, a_x, a_v, particles, snapshot);
 
   const int nc= snapshot->nc; assert(nc > 0);
   const float boxsize= snapshot->boxsize; assert(boxsize > 0.0f);
@@ -504,5 +521,5 @@ void snapshot_time(const float aout, const int iout,
   const double z_out= 1.0/aout - 1.0;
   msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
 	     isnp, z_out, aout);
-                                                       timer_set_category(COLA);
+                                                       timer_set_category(STEPPING);
 }

@@ -1,5 +1,5 @@
 #
-# cola_halo
+# qrpm
 #   
 
 # Define OPENMP to enable MPI+OpenMP hybrid parallelization
@@ -25,12 +25,12 @@ DIR_PATH = $(FFTW3_DIR) $(GSL_DIR) $(LUA_DIR)
 CFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LIBS   += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
-EXEC = cola_halo # halo
+EXEC = qrpm # halo
 all: $(EXEC)
 
 OBJS := main.o
 OBJS += read_param_lua.o lpt.o msg.o power.o
-OBJS += pm.o cola.o fof.o comm.o #move.o move_min.o
+OBJS += pm.o stepping.o fof.o comm.o #move.o move_min.o
 OBJS += readrunpb.o
 OBJS += domain.o
 OBJS += write.o timer.o mem.o
@@ -46,13 +46,12 @@ ifdef OPENMP
   #LIBS += -lfftw3f_threads       # for thread parallelization instead of omp
 endif
 
-cola_halo: $(OBJS)
+qrpm: $(OBJS)
 	$(CC) $(OBJS) $(LIBS) -o $@
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h comm.h pm.h \
-  cola.h fof.h write.h timer.h mem.h subsample.h coarse_grid.h
-cola.o: cola.c particle.h msg.h cola.h timer.h
-cola_original.o: cola_original.c
+  stepping.h fof.h write.h timer.h mem.h subsample.h coarse_grid.h
+stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h comm.h
 fof.o: fof.c particle.h msg.h comm.h timer.h
 kd_original.o: kd_original.c kd.h
@@ -71,7 +70,7 @@ write.o: write.c msg.h comm.h write.h particle.h
 
 
 #
-# "halo" -- cola_halo without cola, only does FoF etc.
+# "halo" -- qrpm without cola, only does FoF etc.
 #
 OBJS2 := halo_main.o read.o
 OBJS2 += read_param_lua.o msg.o fof.o comm.o
@@ -88,7 +87,7 @@ clean :
 	rm -f $(EXEC) $(OBJS) $(OBJS2) move_min.?
 
 run:
-	mpirun -n 2 ./cola_halo param.lua
+	mpirun -n 2 ./qrpm param.lua
 
 dependence:
 	gcc -MM -MG *.c
