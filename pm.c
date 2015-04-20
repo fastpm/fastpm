@@ -377,8 +377,8 @@ void compute_power_spectrum(fftwf_complex * density_k) {
     float * i2 = (float*) alloca(sizeof(float) * (Ngrid));
     for(int J = 0; J < Ngrid; J ++) {
         int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
-        ff[J] = sinc_unnormed(J0 * (M_PI / Ngrid));
-        ff[J] *= ff[J];
+        double tmp = sin(M_PI * 0.5 * J0 / ( 0.5 * Ngrid));
+        ff[J] = 1 - 2. / 3 * tmp * tmp;
         i2[J] = (float)J0 * J0;
     }
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
@@ -396,7 +396,7 @@ void compute_power_spectrum(fftwf_complex * density_k) {
                 float a = density_k[index][0];
                 float b = density_k[index][1];
                 float p = a * a + b * b;
-                power[i] += p / (fxyz2*fxyz2);                
+                power[i] += p / (fxyz2);                
                 count[i] += 1;
             }
         }

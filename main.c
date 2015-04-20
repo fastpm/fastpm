@@ -300,7 +300,7 @@ int main(int argc, char* argv[])
                         msg_abort(0020, "Unable to write to %s\n", fname);
                       }
                       for(int i = 0; i < nk; i ++) {
-                          fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * (i + 0.5), 
+                          fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * i, 
                                   powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
                             );
                       }
