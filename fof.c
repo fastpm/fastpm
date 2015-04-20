@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <string.h>
 #include "particle.h"
 #include "msg.h"
 #include "comm.h"

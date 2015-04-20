@@ -144,6 +144,11 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
                 sizeof(Particle), eps, scratch, scratch_bytes);
 }
 
+int domain_create_ghosts_min(Snapshot * const particles, double eps, void * scratch, size_t scratch_bytes) {
+    return domain_create_ghosts0(particles->p, particles->np_local, particles->np_allocated, 
+                sizeof(ParticleMinimum), eps, scratch, scratch_bytes);
+}
+
 static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
 double eps, void * scratch, size_t scratch_bytes)
 {
@@ -250,6 +255,7 @@ static void domain_annihilate_ghosts0(
         int nghosts,
         float (* f3)[3], 
         void * scratch, size_t scratch_bytes);
+
 void domain_annihilate_ghosts(Particles* const particles, 
         int nghosts,
         float (* f3)[3], 
