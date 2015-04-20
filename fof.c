@@ -1054,10 +1054,6 @@ void fof_find_halos(Snapshot* snapshot, const float ll)
   HalfBoxSize= 0.5f*BoxSize;
 
   msg_printf(verbose, "FOF halo finding...\n");
-                                                         timer_start(comm);
-  domain_wrap_min(snapshot, Buf, BufSize);
-  domain_decompose_min(snapshot, Buf, BufSize);
-                                                         timer_stop(comm);
 
   struct kdContext kdcontext;
   KD kd= &kdcontext;

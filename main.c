@@ -300,7 +300,7 @@ int main(int argc, char* argv[])
                         msg_abort(0020, "Unable to write to %s\n", fname);
                       }
                       for(int i = 0; i < nk; i ++) {
-                          fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * i, 
+                          fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * (i + 0.5), 
                                   powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
                             );
                       }
@@ -465,12 +465,19 @@ void snapshot_time(const float aout, const int iout,
 
   char filebase[1024];      // TODO: make 256 to variable number...?
   const int isnp= iout+1;
+
+  msg_printf(verbose, "Taking a snapshot...\n");
+
                                                        timer_set_category(Snp);
   stepping_set_snapshot(aout, a_x, a_v, particles, snapshot);
 
   const int nc= snapshot->nc; assert(nc > 0);
   const float boxsize= snapshot->boxsize; assert(boxsize > 0.0f);
 
+                                                       timer_start(comm);
+  domain_wrap_min(snapshot);
+  domain_decompose_min(snapshot, mem1, size1);
+                                                       timer_stop(comm);
 
                                                        timer_start(write);
   // Gadget snapshot for all particles
