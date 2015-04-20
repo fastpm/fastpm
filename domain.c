@@ -136,13 +136,23 @@ static int cmp_sendbuf_target(const void * c1, const void * c2, void* data) {
     return (t1 > t2) - (t2 > t1);
 }
 
-int domain_create_ghosts(Particles* const particles, double eps, void * scratch, size_t scratch_bytes)
+static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
+double eps, void * scratch, size_t scratch_bytes);
+
+int domain_create_ghosts(Particles* const particles, double eps, void * scratch, size_t scratch_bytes) {
+    return domain_create_ghosts0(particles->p, particles->np_local, particles->np_allocated, 
+                sizeof(Particle), eps, scratch, scratch_bytes);
+}
+
+static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
+double eps, void * scratch, size_t scratch_bytes)
 {
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
     int * SendDispl = alloca(sizeof(int) * NTask);
     int * RecvDispl = alloca(sizeof(int) * NTask);
 
+    char * pc = (char*) p;
     struct SendBuf * sendbuf = scratch;
 
     for(int i = 0; i < NTask; i ++) {
@@ -154,8 +164,8 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
 
     /* build the send buf */
     int nsend = 0;
-    for(int i = 0; i < particles->np_local; i ++) {
-        float * x = particles->p[i].x;
+    for(int i = 0; i < np_local; i ++) {
+        float * x = ((ParticleMinimum*)(pc + i * elsize))->x;
         float tmp[3];
         memcpy(tmp, x, 3 * sizeof(float));
         /* check all neighbours to see if the particle
@@ -199,9 +209,9 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
         RecvDispl[i] = RecvDispl[i - 1] + RecvCount[i - 1];
     }
     int nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
-    if( particles->np_local + nrecv  > particles->np_allocated) {
+    if( np_local + nrecv  > np_allocated) {
         msg_abort(2415, "Not enough particle space ghosts, nrecv=%d, left=%td",
-            nrecv, particles->np_allocated - particles->np_local
+            nrecv, np_allocated - np_local
             );
     }
     if( (nrecv + nsend) * sizeof(sendbuf[0]) > scratch_bytes) {
@@ -220,22 +230,37 @@ int domain_create_ghosts(Particles* const particles, double eps, void * scratch,
 
     MPI_Type_free(&MPI_SENDBUF);
     
-    Particle * ghosts = &particles->p[particles->np_local];
     /* add ghosts to particles */
     for(int i = 0; i < nrecv; i ++) {
-        memset(&ghosts[i], 0, sizeof(ghosts[i]));
-        memcpy(ghosts[i].x, recvbuf[i].x, sizeof(float) * 3);
-        ghosts[i].OriginalTask = recvbuf[i].OriginalTask;
-        ghosts[i].OriginalIndex = recvbuf[i].index;
-        ghosts[i].id = -1;
+        ParticleMinimum * ghost = (ParticleMinimum*) (pc + (np_local + i) * elsize);
+        memset(ghost, 0, elsize);
+        memcpy(ghost->x, recvbuf[i].x, sizeof(float) * 3);
+        ghost->OriginalTask = recvbuf[i].OriginalTask;
+        ghost->OriginalIndex = recvbuf[i].index;
+        ghost->id = -1;
     }
     int maxghosts = 0;
     MPI_Allreduce(&nrecv, &maxghosts, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    msg_printf(verbose, "Max number of ghosts is %d, %g / 1\n", maxghosts, 1.0 * maxghosts/ particles->np_allocated);
+    msg_printf(verbose, "Max number of ghosts is %d, %g / 1\n", maxghosts, 1.0 * maxghosts/ np_allocated);
     return nrecv;
 }
 
+static void domain_annihilate_ghosts0(
+        void * p, int np_local, size_t elsize, 
+        int nghosts,
+        float (* f3)[3], 
+        void * scratch, size_t scratch_bytes);
 void domain_annihilate_ghosts(Particles* const particles, 
+        int nghosts,
+        float (* f3)[3], 
+        void * scratch, size_t scratch_bytes)
+{
+    domain_annihilate_ghosts0(particles->p, particles->np_local,
+        sizeof(Particle), nghosts, f3, scratch, scratch_bytes);
+}
+
+static void domain_annihilate_ghosts0(
+        void * p, int np_local, size_t elsize, 
         int nghosts,
         float (* f3)[3], 
         void * scratch, size_t scratch_bytes)
@@ -252,17 +277,17 @@ void domain_annihilate_ghosts(Particles* const particles,
         RecvDispl[i] = 0;
     }
     char * base = scratch;
-
+    char * pc = (char*) p;
     /* count the number of ghosts to be returned */
-    Particle * ghosts = &particles->p[particles->np_local];
-    float (*f3g)[3] = f3 + particles->np_local;
+    float (*f3g)[3] = f3 + np_local;
 
     int * indexsend = (int*) base;
     base += sizeof(int) * nghosts;
 
     for(int i = 0; i < nghosts; i ++) {
-        SendCount[ghosts[i].OriginalTask] ++;
-        indexsend[i] = ghosts[i].OriginalIndex;
+        ParticleMinimum * ghost = (ParticleMinimum *) (pc + (np_local + i) * elsize);
+        SendCount[ghost->OriginalTask] ++;
+        indexsend[i] = ghost->OriginalIndex;
     }
 
     MPI_Alltoall(SendCount, 1, MPI_INT, RecvCount, 1, MPI_INT, MPI_COMM_WORLD);
@@ -291,7 +316,7 @@ void domain_annihilate_ghosts(Particles* const particles,
     MPI_Type_free(&MPI_F3);
 
     double sum0[3] = {0};
-    for(int i = 0; i < particles->np_local + nghosts; i ++) {
+    for(int i = 0; i < np_local + nghosts; i ++) {
         for(int d = 0; d < 3; d ++) {
             sum0[d] += f3[i][d];
         }
@@ -299,7 +324,7 @@ void domain_annihilate_ghosts(Particles* const particles,
 
     for(int i = 0; i < nrecv; i ++) {
         int index = indexrecv[i];
-        if(index >= particles->np_local) {
+        if(index >= np_local) {
             msg_abort(9934, "Bad index");
         }
         for(int d = 0; d < 3; d ++) {
@@ -307,7 +332,7 @@ void domain_annihilate_ghosts(Particles* const particles,
         }
     }
     double sum1[3] = {0};
-    for(int i = 0; i < particles->np_local; i ++) {
+    for(int i = 0; i < np_local; i ++) {
         for(int d = 0; d < 3; d ++) {
             sum1[d] += f3[i][d];
         }

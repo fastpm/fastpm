@@ -6,15 +6,9 @@ typedef float float3[3];
 typedef struct {
   long long id;
   float x[3];
-  union {
-      float dx1[3]; // ZA displacement
-      int OriginalTask;
-  };
-  union {
-      float dx2[3]; // 2LPT displacement
-      int OriginalIndex;
-  };
   float v[3];   // velocity
+  float dx1[3]; // ZA displacement
+  float dx2[3]; // 2LPT displacement
 } Particle;
 
 typedef struct {
@@ -30,6 +24,9 @@ typedef struct {
   long long id;
   float x[3];
   float v[3];
+  int iGroup;
+  int OriginalTask;
+  long long OriginalIndex;
 } ParticleMinimum;
 
 typedef struct {
