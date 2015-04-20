@@ -209,11 +209,12 @@ int kdFoF(KD,float);
 //
 
 typedef struct {
-  int nfof;
-  int boundary;
-  float x0[3], dx_sum[3];
-  float v_sum[3];
-  int merge_to;
+    int nfof;
+    int boundary;
+    float x0[3], dx_sum[3];
+    float v_sum[3];
+    int merge_to;
+    long long minid;
 } HaloInfo;
 
 static float BoxSize, HalfBoxSize;
@@ -224,7 +225,7 @@ static int  NKdNodeAlloc;
 static int *igrp, *Fifo, *Map;
 static HaloInfo* Halo;
 static int NHalo, NHaloAlloc, NHaloBuf;
-static const int nfof_min= 32;
+static const int nfof_min= 1;
 
 // Particles exported to next Node
 static float *dx_buf, *dx_recv_buf;
@@ -304,6 +305,7 @@ static inline void halo_particle(HaloInfo* const h, ParticleMinimum const * cons
     if(h->nfof == 0) {
         for(int i=0; i<3; i++)
             h->x0[i]= p->x[i];
+        h->minid = p->id;
     }
     else {
         for(int i=0; i<3; i++) {
@@ -315,11 +317,13 @@ static inline void halo_particle(HaloInfo* const h, ParticleMinimum const * cons
 
             h->dx_sum[i] += dx;
         }
+        if(h->minid > p->id) {
+            h->minid = p->id;
+        }
     }
 
     for(int i=0; i<3; i++)
         h->v_sum[i] += p->v[i];
-
 
 
     h->nfof++;
@@ -330,6 +334,7 @@ static inline void halo_clear(HaloInfo* const h)
   h->nfof= 0;
   h->boundary= 0;
   h->merge_to= 0;
+  h->minid = 0;
   for(int i=0; i<3; i++) {
     h->x0[i]= 0.0f;
     h->dx_sum[i]= 0.0f;
@@ -788,6 +793,9 @@ void merge_halo_info(HaloInfo* const h, const int nhalo)
 
       h[top].dx_sum[k] += h[i].dx_sum[k] + dx0*h[i].nfof;
       h[top].v_sum[k]  += h[i].v_sum[k];
+      if(h[top].minid > h[i].minid) {
+        h[top].minid = h[i].minid;
+      }
     }
 
     h[top].nfof += h[i].nfof;
@@ -1010,7 +1018,8 @@ void fof_init(const int np_alloc, const int nc, void* mem, size_t mem_size)
   Buf= mem;
   BufSize= mem_size;
 
-  NHaloAlloc= 0.2*np_alloc; // depends on collapsed fraction (set to 0.2)
+//  NHaloAlloc= 0.2*np_alloc; // depends on collapsed fraction (set to 0.2)
+  NHaloAlloc= np_alloc; // depends on collapsed fraction (set to 0.2)
   Halo= (HaloInfo*) mem; mem= Halo + NHaloAlloc;
   bytes += sizeof(HaloInfo)*NHaloAlloc;
 
