@@ -1,30 +1,30 @@
 -- cola code parameter file
 nc = 256
-boxsize = 256.0
+boxsize = 1024.0
 
 random_seed= 100
 nrealization= 1
 
 ntimestep= 10
 a_final= 1.0
-output_redshifts= {0.55, 0.0}  -- redshifts of output
+output_redshifts= {9.0, 0.55, 0.0}  -- redshifts of output
 
 omega_m = 1-0.7168
 h       = 0.697
 sigma8  = 0.820
 
 -- canonical cola parameters
-qpm = false
+qpm = true
 time_step = 'a'
-stdda = false
+stdda = true
 smoothing = 2.0
 diff_order = 0
 nopm = false
 
 
-pm_nc_factor1= 3            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
+pm_nc_factor1= 1            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm = 0.0            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
-pm_nc_factor2= 3            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
+pm_nc_factor2= 1            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
 np_alloc_factor= 1.25      -- Amount of memory allocated for particle
 loglevel=0                 -- 0=verbose increase value to reduce output msgs
 
