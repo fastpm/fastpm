@@ -484,7 +484,7 @@ void snapshot_time(const float aout, const int iout,
   if(snapshot->filename) {
     //sprintf(filebase, "%s%05d%c", snapshot->filename, snapshot->seed, suffix);
     //write_snapshot(filebase, snapshot, write_longid);
-    sprintf(filebase, "%s%05d_%0.04f", snapshot->filename, snapshot->seed, snapshot->a);
+    sprintf(filebase, "%s%05d_%0.04f.bin", snapshot->filename, snapshot->seed, snapshot->a);
     write_runpb_snapshot(snapshot, filebase, mem1, size1);
   }
                                                        timer_stop(write);
