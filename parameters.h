@@ -24,7 +24,6 @@ typedef struct {
 
   /*
   char power_spectrum_file[64];
-  char fof_filename[64];
   char snapshot_filename[64];
   char subsample_filename[64];
   char cgrid_filename[64];
@@ -32,7 +31,6 @@ typedef struct {
   */
   char* power_spectrum_filename; int strlen_power_spectrum_filename;
   char* measure_power_spectrum_filename; int strlen_measure_power_spectrum_filename;
-  char* fof_filename;        int strlen_fof_filename;
   char* snapshot_filename;   int strlen_snapshot_filename;
   char* subsample_filename;  int strlen_subsample_filename;
   char* cgrid_filename;      int strlen_cgrid_filename;
@@ -42,7 +40,6 @@ typedef struct {
 
 
   //int subsample_factor;
-  double fof_linking_factor;
   double subsample_factor;
   int cgrid_nc;
 

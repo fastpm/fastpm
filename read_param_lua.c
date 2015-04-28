@@ -42,7 +42,6 @@ int read_parameters(const int argc, char * argv[],
 	       &param->strlen_power_spectrum_filename);
   bcast_string(&param->measure_power_spectrum_filename, 
 	       &param->strlen_measure_power_spectrum_filename);
-  bcast_string(&param->fof_filename,        &param->strlen_fof_filename);
   bcast_string(&param->snapshot_filename,   &param->strlen_snapshot_filename);
   bcast_string(&param->subsample_filename,  &param->strlen_subsample_filename);
   bcast_string(&param->cgrid_filename,      &param->strlen_cgrid_filename);
@@ -213,20 +212,6 @@ int read_parameter_file(const char filename[], Parameters* const param)
   param->measure_power_spectrum_filename=
     read_string2(L, "measure_power", 
         &param->strlen_measure_power_spectrum_filename, false);
-
-  param->fof_filename= 
-    read_string2(L, "fof", &param->strlen_fof_filename, false);
-
-  if(param->fof_filename) {
-    param->fof_linking_factor= read_double(L, "linking_factor");
-    // TODO: loglevel is not set yet, so, don't write too much now
-    // echo parameter data later...
-    msg_printf(verbose, "fof linking_factor read: %f\n", 
-	       param->fof_linking_factor);
-  }
-  else
-    param->fof_linking_factor= 0.0;
-
 
   param->snapshot_filename=
     read_string2(L, "snapshot", &param->strlen_snapshot_filename, false);

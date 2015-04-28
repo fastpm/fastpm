@@ -8,7 +8,6 @@
 #include <math.h>
 #include <assert.h>
 #include <fftw3-mpi.h>
-#include "fof.h"
 #include "mem.h"
 #include "msg.h"
 
@@ -95,20 +94,6 @@ void allocate_shared_memory(const int nc, const int nc_factor, const double np_a
 
   ptrdiff_t ncomplex1= ncomplex_lpt > ncomplex_pm ? ncomplex_lpt : ncomplex_pm;
   size_t size1= sizeof(fftwf_complex)*ncomplex1;
-
-  // Memory for FoF halo finder
-  size_t size_fof= fof_calc_memory(np_alloc, nc);
-
-  msg_printf(verbose, "%d Mbytes requested for FoF\n",
-	     (int)(size_fof/(1024*1024)));
-
-
-  //msg_printf(verbose, "debug %d %d\n", size_fof, size1);
-  if(size_fof > size1) {
-    ncomplex1= size_fof/sizeof(fftwf_complex) + 1;
-    size1= size_fof;
-  }
-
 
   mem->mem1= fftwf_alloc_complex(ncomplex1);
   mem->size1= sizeof(fftwf_complex)*ncomplex1;

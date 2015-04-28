@@ -33,7 +33,6 @@
 #include "domain.h"
 #include "pm.h"
 #include "stepping.h"
-#include "fof.h"
 #include "write.h"
 #include "timer.h"
 #include "mem.h"
@@ -52,12 +51,10 @@ void snapshot_time(const float aout, const int iout,
            double a_x, double a_v,
 		   Particles const * const particles, 
 		   Snapshot * const snapshot, 
-		   const char fof_filename[], 
 		   const char subsample_filename[], 
 		   const char cgrid_filename[], const int cgrid_nc,
 		   void* const mem1, const size_t size1,
-		   const int write_longid,
-		   const double fof_linking_factor);
+		   const int write_longid);
 
 void write_slice(const char filebase[], Particle* p, const int np, const float dz, const float boxsize);
 void write_snapshot_slice(const char filebase[], Snapshot const * const snapshot, const float boxsize);
@@ -181,7 +178,6 @@ int main(int argc, char* argv[])
 	  mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
   comm_init(nc_factor*param.nc, param.nc, param.boxsize);
 
-  fof_init(particles->np_allocated, param.nc, mem.mem1, mem.size1);
   subsample_init(param.subsample_factor, param.random_seed);
 
   const int nout= param.n_zout;
@@ -315,7 +311,9 @@ int main(int argc, char* argv[])
 
               while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
                   // Time to write output
-                  snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
+                  snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
+                                param.subsample_filename, param.cgrid_filename, 
+                                param.cgrid_nc, mem.mem1, mem.size1, param.write_longid);
                   iout++;
               }
               if(iout >= nout) break;
@@ -325,7 +323,9 @@ int main(int argc, char* argv[])
 
               while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                   // Time to write output
-                  snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, param.fof_filename, param.subsample_filename, param.cgrid_filename, param.cgrid_nc, mem.mem1, mem.size1, param.write_longid, param.fof_linking_factor);
+                  snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
+                                param.subsample_filename, param.cgrid_filename, 
+                                param.cgrid_nc, mem.mem1, mem.size1, param.write_longid);
                   iout++;
               }
               if(iout >= nout) break;
@@ -454,12 +454,11 @@ void snapshot_time(const float aout, const int iout,
            double a_x, double a_v,
 		   Particles const * const particles, 
 		   Snapshot * const snapshot,
-		   const char fof_filename[], 
 		   const char subsample_filename[], 
 		   const char cgrid_filename[], const int cgrid_nc,
 		   void* const mem1, const size_t size1,
-		   const int write_longid,
-		   const double fof_linking_factor)
+		   const int write_longid
+		   )
 {
   // Halo finding and snapshot outputs
 
@@ -509,21 +508,9 @@ void snapshot_time(const float aout, const int iout,
   //sprintf(filebase, "slice%02d", isnp); temp
   //write_snapshot_slice(filebase, snapshot, boxsize); temp
 
-
-  const float ll= (float)(fof_linking_factor*boxsize/nc); // FoF linking length
-  fof_find_halos(snapshot, ll);
-
-  // FoF halo catalogue (binary file)
-  if(fof_filename) {
-    // comment: move_particles done here
-    /* the binary format is mass, x, x, x, v, v, v*/
-    /* mass is in 1e10 Msun/h */
-    const double rho_crit = 27.7455;
-    const double M0 = snapshot->omega_m*rho_crit*pow(snapshot->boxsize / snapshot->nc, 3.0);
-  
-    sprintf(filebase, "%s%05d_%0.04f.bin", fof_filename, snapshot->seed, snapshot->a);
-    fof_write_halos(filebase, 1, M0);
-  }
+  const double rho_crit = 27.7455;
+  const double M0 = snapshot->omega_m*rho_crit*pow(snapshot->boxsize / snapshot->nc, 3.0);
+  msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
 
   const double z_out= 1.0/aout - 1.0;
   msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
