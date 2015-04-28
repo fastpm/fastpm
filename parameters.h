@@ -34,7 +34,6 @@ typedef struct {
   char* snapshot_filename;   int strlen_snapshot_filename;
   char* subsample_filename;  int strlen_subsample_filename;
   char* cgrid_filename;      int strlen_cgrid_filename;
-  char* init_filename;       int strlen_init_filename;
   char* readic_filename;   int strlen_readic_filename;
   // 'strlen' includes the null character. It is the number of chars.
 
@@ -43,7 +42,6 @@ typedef struct {
   double subsample_factor;
   int cgrid_nc;
 
-  int write_longid; 
   int qpm;
   int nopm;
   int stdda;

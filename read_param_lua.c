@@ -45,7 +45,6 @@ int read_parameters(const int argc, char * argv[],
   bcast_string(&param->snapshot_filename,   &param->strlen_snapshot_filename);
   bcast_string(&param->subsample_filename,  &param->strlen_subsample_filename);
   bcast_string(&param->cgrid_filename,      &param->strlen_cgrid_filename);
-  bcast_string(&param->init_filename,       &param->strlen_init_filename);
   bcast_string(&param->readic_filename,       &param->strlen_readic_filename);
 
   bcast_array_double(&param->zout,          &param->n_zout);
@@ -237,16 +236,8 @@ int read_parameter_file(const char filename[], Parameters* const param)
   else
     param->cgrid_nc= 0;
 
-  param->init_filename=
-    read_string2(L, "initial", &param->strlen_init_filename, false);
-
   param->readic_filename=
     read_string2(L, "readic", &param->strlen_readic_filename, false);
-
-  if(param->snapshot_filename || param->init_filename) {
-    param->write_longid= read_bool(L, "write_longid");
-    msg_printf(verbose, "write_longid= %d\n", param->write_longid);
-  }
 
     /* true to run QPM instead of COLA. */
   param->qpm = read_bool(L, "qpm");

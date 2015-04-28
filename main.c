@@ -29,11 +29,9 @@
 #include "lpt.h"
 #include "msg.h"
 #include "power.h"
-#include "comm.h"
 #include "domain.h"
 #include "pm.h"
 #include "stepping.h"
-#include "write.h"
 #include "timer.h"
 #include "mem.h"
 #include "subsample.h"
@@ -53,8 +51,8 @@ void snapshot_time(const float aout, const int iout,
 		   Snapshot * const snapshot, 
 		   const char subsample_filename[], 
 		   const char cgrid_filename[], const int cgrid_nc,
-		   void* const mem1, const size_t size1,
-		   const int write_longid);
+		   void* const mem1, const size_t size1
+		   );
 
 void write_slice(const char filebase[], Particle* p, const int np, const float dz, const float boxsize);
 void write_snapshot_slice(const char filebase[], Snapshot const * const snapshot, const float boxsize);
@@ -176,7 +174,6 @@ int main(int argc, char* argv[])
   pm_set_diff_order(param.diff_order);
   pm_init(nc_factor*param.nc, nc_factor, param.boxsize,
 	  mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
-  comm_init(nc_factor*param.nc, param.nc, param.boxsize);
 
   subsample_init(param.subsample_factor, param.random_seed);
 
@@ -229,12 +226,6 @@ int main(int argc, char* argv[])
       // correctly.
       set_nonstepping_initial(a_init, particles, snapshot);
 
-      if(param.init_filename) {
-          // Writes initial condition to file for e.g. Gadget N-body simulation
-          char filename[256]; // TODO: use variable length for filename
-          sprintf(filename, "%s_%05d", param.init_filename, seed);
-          write_snapshot(filename, snapshot, param.write_longid);
-      }
       timer_set_category(STEPPING);
     
       //
@@ -263,11 +254,9 @@ int main(int argc, char* argv[])
 
                   nc_factor = param.pm_nc_factor2;
                   pm_finalize();
-                  comm_finalize();
                   domain_finalize();
 
                   domain_init(param.nc * nc_factor, param.boxsize);
-                  comm_init(nc_factor*param.nc, param.nc, param.boxsize);//what are these?
                   pm_init(nc_factor*param.nc, nc_factor, param.boxsize, mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
                   chk_change = 1;
               }
@@ -313,7 +302,7 @@ int main(int argc, char* argv[])
                   // Time to write output
                   snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
                                 param.subsample_filename, param.cgrid_filename, 
-                                param.cgrid_nc, mem.mem1, mem.size1, param.write_longid);
+                                param.cgrid_nc, mem.mem1, mem.size1);
                   iout++;
               }
               if(iout >= nout) break;
@@ -325,7 +314,7 @@ int main(int argc, char* argv[])
                   // Time to write output
                   snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
                                 param.subsample_filename, param.cgrid_filename, 
-                                param.cgrid_nc, mem.mem1, mem.size1, param.write_longid);
+                                param.cgrid_nc, mem.mem1, mem.size1);
                   iout++;
               }
               if(iout >= nout) break;
@@ -456,8 +445,7 @@ void snapshot_time(const float aout, const int iout,
 		   Snapshot * const snapshot,
 		   const char subsample_filename[], 
 		   const char cgrid_filename[], const int cgrid_nc,
-		   void* const mem1, const size_t size1,
-		   const int write_longid
+		   void* const mem1, const size_t size1
 		   )
 {
   // Halo finding and snapshot outputs
@@ -482,8 +470,6 @@ void snapshot_time(const float aout, const int iout,
   // Gadget snapshot for all particles
   // periodic wrapup not done, what about after fof? what about doing move_particle_min here?
   if(snapshot->filename) {
-    //sprintf(filebase, "%s%05d%c", snapshot->filename, snapshot->seed, suffix);
-    //write_snapshot(filebase, snapshot, write_longid);
     sprintf(filebase, "%s%05d_%0.04f.bin", snapshot->filename, snapshot->seed, snapshot->a);
     write_runpb_snapshot(snapshot, filebase, mem1, size1);
   }

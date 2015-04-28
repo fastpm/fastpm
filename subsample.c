@@ -105,7 +105,7 @@ void write_random_sabsample(const char filename[], Snapshot const * const snapsh
     subsample.h= snapshot->h;
     subsample.seed= snapshot->seed;
 
-    write_particles_binary(filename, &subsample);
+    //write_particles_binary(filename, &subsample);
     //write_snapshot1(filename, &subsample); // Gadget Format
   }
   free(nsub_recv);
