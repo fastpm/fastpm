@@ -491,7 +491,7 @@ void snapshot_time(const float aout, const int iout,
 						       timer_start(sub);
   // particle subsample (binary)
   if(subsample_filename) {
-    sprintf(filebase, "%s%05d_%0.04f", subsample_filename, snapshot->seed, snapshot->a);
+    sprintf(filebase, "%s%05d_%0.04f.subsample", subsample_filename, snapshot->seed, snapshot->a);
     //write_subsample(filebase, subsample_factor, snapshot, mem1, size1); // this is regular subsamle but not used. Random subampling is used.
     // TODO: periodic wrapup not done. What about after fof?
     write_random_sabsample(filebase, snapshot, mem1, size1);
@@ -499,7 +499,7 @@ void snapshot_time(const float aout, const int iout,
 
   // coarse mesh (binary)
   if(cgrid_filename) {
-    sprintf(filebase, "%s%05d_%0.04f.b", cgrid_filename, snapshot->seed, snapshot->a);
+    sprintf(filebase, "%s%05d_%0.04f.coarse", cgrid_filename, snapshot->seed, snapshot->a);
     coarse_grid2(filebase, snapshot, cgrid_nc, mem1, size1);
   }
 
