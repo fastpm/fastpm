@@ -54,6 +54,10 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
             }
             fclose(fp);
         }
+        if (Nfile == 0) {
+            msg_abort(0030, "No snapshot files were found.\n");
+        }
+        printf("Total number of files is %d", Nfile);
 
         MPI_Bcast(&Nfile, 1, MPI_INT, 0, MPI_COMM_WORLD);
         NperFile = malloc(sizeof(int) * Nfile);
