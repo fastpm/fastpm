@@ -20,13 +20,13 @@
 #include "msg.h"
 #include "power.h"
 #include "particle.h"
+#include "heap.h"
 
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
 #endif
 
-static fftwf_plan Inverse_plan[6], Forward_plan;
-static fftwf_plan Disp_plan[3], Disp2_plan[3];
+static fftwf_plan Inverse_plan, Forward_plan;
 
 static int Nmesh, Nsample;
 static int Local_nx, Local_x_start;
@@ -34,18 +34,13 @@ static int Local_nx, Local_x_start;
 static double Omega, OmegaLambda;
 
 static unsigned int *seedtable;
-
-fftwf_complex *(cdisp[3]), *(cdisp2[3]); // ZA and 2nd order displacements
-float         *(disp[3]), *(disp2[3]);
-fftwf_complex *(cdigrad[6]);
-float         *(digrad[6]);
-
+static size_t total_size;
 
 double F_Omega(const double a);
 double F2_Omega(const double a);
 
 // Setup variables for 2LPT initial condition
-void lpt_init(const int nc, const void* mem, const size_t size)
+void lpt_init(const int nc)
 {
     // nc: number of mesh per dimension
     /*
@@ -58,90 +53,24 @@ void lpt_init(const int nc, const void* mem, const size_t size)
        */
 
     ptrdiff_t local_nx, local_x_start;
-    ptrdiff_t total_size=
+    total_size=
         fftwf_mpi_local_size_3d(nc, nc, nc / 2 + 1, MPI_COMM_WORLD,
                 &local_nx, &local_x_start);
 
     Local_nx= local_nx;
     Local_x_start= local_x_start;
 
-    //
-    // Allocate memory
-    //
-
-    if(mem == 0) {
-        // allocate memory here
-        size_t bytes= sizeof(fftwf_complex)*total_size;
-        int allocation_failed= 0;
-
-        // 1&2 displacement
-        for(int axes=0; axes < 3; axes++) {
-            cdisp[axes]= fftwf_alloc_complex(total_size);
-            disp[axes] = (float*) cdisp[axes];
-
-            cdisp2[axes]= fftwf_alloc_complex(total_size);
-            disp2[axes] = (float*) cdisp2[axes];
-            bytes += 2*sizeof(fftwf_complex)*total_size;
-
-            allocation_failed = allocation_failed ||
-                (cdisp[axes] == 0) || (cdisp2[axes] == 0);
-        } 
-
-        // 2LPT
-        for(int i=0; i<6; i++) {
-            cdigrad[i] = (fftwf_complex *) fftwf_alloc_complex(total_size);
-            digrad[i] = (float*) cdigrad[i];
-
-            bytes += sizeof(fftwf_complex)*total_size;
-            allocation_failed = allocation_failed || (digrad[i] == 0);
-        } 
-
-        if(allocation_failed)
-            msg_abort(2003, "Error: Failed to allocate memory for 2LPT."
-                    "Tried to allocate %d Mbytes\n", (int)(bytes/(1024*1024)));
-
-        msg_printf(info, "%d Mbytes allocated for LPT\n", (int)(bytes/(1024*1024)));
-    }
-    else {
-        size_t bytes= 0;
-        fftwf_complex* p= (fftwf_complex*) mem;
-
-        for(int axes=0; axes<3; axes++) {
-            cdisp[axes]= p;
-            disp[axes]= (float*) p;
-            bytes += sizeof(fftwf_complex)*total_size*2;
-
-            p += total_size;
-        }
-        for(int i=0; i<6; i++) {
-            cdigrad[i]= p;
-            digrad[i]= (float*) p;
-            bytes += sizeof(fftwf_complex)*total_size;
-            p += total_size;
-        }
-        assert(bytes <= size);
-    }
-
+    fftwf_complex * fftdata = heap_allocate(total_size);
     //
     // FFTW3 plans
     //
-    for(int i=0; i<6; ++i)
-        Inverse_plan[i]=
-            fftwf_mpi_plan_dft_c2r_3d(nc, nc, nc, cdigrad[i], digrad[i],
+    Inverse_plan = fftwf_mpi_plan_dft_c2r_3d(nc, nc, nc, fftdata, (float*) fftdata,
                     MPI_COMM_WORLD, FFTW_ESTIMATE);
 
-    Forward_plan=
-        fftwf_mpi_plan_dft_r2c_3d(nc, nc, nc, digrad[3], cdigrad[3],
+    Forward_plan= fftwf_mpi_plan_dft_r2c_3d(nc, nc, nc, 
+            (float*) fftdata, fftdata,
                 MPI_COMM_WORLD, FFTW_ESTIMATE);
-
-    for(int i=0; i<3; ++i) {
-        Disp_plan[i]=
-            fftwf_mpi_plan_dft_c2r_3d(nc, nc, nc, cdisp[i], disp[i],
-                    MPI_COMM_WORLD, FFTW_ESTIMATE);
-        Disp2_plan[i]=
-            fftwf_mpi_plan_dft_c2r_3d(nc, nc, nc, cdisp2[i], disp2[i],
-                    MPI_COMM_WORLD, FFTW_ESTIMATE);
-    }
+    heap_return(fftdata);
 
     // FFTW_MPI_TRANSPOSED_IN/FFTW_MPI_TRANSPOSED_OUT would be faster
     // FFTW_MEASURE is probably better for multiple realization  
@@ -163,8 +92,30 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     Omega= omega_m;
     OmegaLambda= 1.0 - omega_m;
 
+    fftwf_complex *(cdisp[3]), *(cdisp2[3]); // ZA and 2nd order displacements
+    float         *(disp[3]), *(disp2[3]);
+    fftwf_complex *(cdigrad[6]);
+    float         *(digrad[6]);
 
+    fftwf_complex * fftdata = heap_allocate(sizeof(fftwf_complex) * total_size * 12);
+    fftwf_complex * ptr = fftdata;
 
+    for(int axes=0; axes < 3; axes++) {
+        cdisp[axes]= ptr;
+        disp[axes] = (float*) ptr;
+        ptr += total_size;
+
+        cdisp2[axes]= ptr;
+        disp2[axes] = (float*) ptr;
+        ptr += total_size;
+    } 
+
+    // 2LPT
+    for(int i=0; i<6; i++) {
+        cdigrad[i] = ptr;
+        digrad[i] = (float*) ptr;
+        ptr += total_size;
+    } 
 
     static const double Hubble= 3.085678e24/1.0e5*3.2407789e-18; 
     // Hubble = 100 [km/s(/Mpc/h)]
@@ -413,7 +364,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     msg_printf(verbose, "Fourier transforming displacement gradient...");
 
     for(int i = 0; i < 6; i++)
-        fftwf_mpi_execute_dft_c2r(Inverse_plan[i], cdigrad[i], digrad[i]);
+        fftwf_mpi_execute_dft_c2r(Inverse_plan, cdigrad[i], digrad[i]);
 
     msg_printf(verbose, "Done.\n");
 
@@ -511,57 +462,8 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     for(int axes = 0; axes < 3; axes++) {  
         msg_printf(verbose, "Fourier transforming displacements, axis %d.\n",axes);
 
-        fftwf_mpi_execute_dft_c2r(Disp_plan[axes], cdisp[axes], disp[axes]);
-        fftwf_mpi_execute_dft_c2r(Disp2_plan[axes], cdisp2[axes], disp2[axes]);
-        //fftw_execute(Disp_plan[axes]);     // cdisp[axes]  -> disp[axes]
-        //fftw_execute(Disp2_plan[axes]);    // cdisp2[axes] -> disp2[axes]
-
-
-        /*
-        // now get the plane on the right side from neighbour on the right, 
-        // and send the left plane
-
-        int recvTask = ThisTask;
-        do {
-        recvTask--;
-        if(recvTask < 0)
-        recvTask = NTask - 1;
-        } while(Local_nx_table[recvTask] == 0);
-
-        sendTask = ThisTask;
-        do {
-        sendTask++;
-        if(sendTask >= NTask)
-        sendTask = 0;
-        } while(Local_nx_table[sendTask] == 0);
-
-        // use non-blocking send
-
-        if(Local_nx > 0) {
-        // send ZA disp
-        MPI_Isend(&(disp[axes][0]),
-        sizeof(fftw_real) * Nmesh * (2 * (Nmesh / 2 + 1)),
-        MPI_BYTE, recvTask, 10, MPI_COMM_WORLD, &request);
-
-        MPI_Recv(&(disp[axes][(Local_nx * Nmesh) * (2 * (Nmesh / 2 + 1))]),
-        sizeof(fftw_real) * Nmesh * (2 * (Nmesh / 2 + 1)),
-        MPI_BYTE, sendTask, 10, MPI_COMM_WORLD, &status);
-
-        MPI_Wait(&request, &status);
-
-
-        // send 2nd order disp
-        MPI_Isend(&(disp2[axes][0]),
-        sizeof(fftw_real) * Nmesh * (2 * (Nmesh / 2 + 1)),
-        MPI_BYTE, recvTask, 10, MPI_COMM_WORLD, &request);
-
-        MPI_Recv(&(disp2[axes][(Local_nx * Nmesh) * (2 * (Nmesh / 2 + 1))]),
-        sizeof(fftw_real) * Nmesh * (2 * (Nmesh / 2 + 1)),
-        MPI_BYTE, sendTask, 10, MPI_COMM_WORLD, &status);
-
-        MPI_Wait(&request, &status);
-        }
-        */
+        fftwf_mpi_execute_dft_c2r(Inverse_plan, cdisp[axes], disp[axes]);
+        fftwf_mpi_execute_dft_c2r(Inverse_plan, cdisp2[axes], disp2[axes]);
     }
 
     msg_printf(verbose, "Setting particle grid and displacements\n");
@@ -643,20 +545,9 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
 
     particles->np_local= Local_nx*Nmesh*Nmesh;
 
+    heap_return(fftdata);
+
     return 0;
-}
-
-
-void lpt_finalize(void)
-{
-    for(int i=0; i<3; i++) {
-        fftwf_free(cdisp[i]);
-        fftwf_free(cdisp2[i]);
-    }
-    for(int i=0; i<6; i++)
-        fftwf_free(cdigrad[i]);
-
-    fftwf_mpi_cleanup();
 }
 
 

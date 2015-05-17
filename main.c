@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     heap_init(0);
     Memory mem; 
     allocate_shared_memory(param.nc, param.pm_nc_factor2, param.np_alloc_factor, &mem); 
-    lpt_init(param.nc, mem.mem1, mem.size1);
+    lpt_init(param.nc);
     const int local_nx= lpt_get_local_nx();
 
     Particles* particles= 
