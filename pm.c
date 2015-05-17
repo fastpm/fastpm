@@ -565,7 +565,7 @@ void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
         density_k= (fftwf_complex*) mem2;
     }
 
-    int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid, mem2, size2);
+    int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid);
     int np_plus_buffer= particles->np_local + nghosts;
 
                                                             timer_start(assign);
@@ -594,7 +594,7 @@ void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
     }
 
                                                             timer_start(comm);
-    domain_annihilate_ghosts(particles, nghosts, particles->force, mem2, size2);
+    domain_annihilate_ghosts(particles, nghosts, particles->force);
          
                                                             timer_stop(comm);
 }

@@ -262,7 +262,7 @@ int main(int argc, char* argv[])
                 timer_start(comm);
                 // move particles to other nodes
                 domain_wrap(particles);
-                domain_decompose(particles, mem.mem1, mem.size1);
+                domain_decompose(particles);
 
                 timer_stop(comm);
 
@@ -456,7 +456,7 @@ void snapshot_time(const float aout, const int iout,
 
     timer_start(comm);
     domain_wrap_min(snapshot);
-    domain_decompose_min(snapshot, mem1, size1);
+    domain_decompose_min(snapshot);
     timer_stop(comm);
 
     timer_start(write);
