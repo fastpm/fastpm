@@ -34,7 +34,7 @@ OBJS += pm.o stepping.o
 OBJS += readrunpb.o
 OBJS += domain.o
 OBJS += timer.o mem.o
-OBJS += subsample.o coarse_grid.o
+OBJS += heap.o
 
 LIBS += -llua -ldl 
 LIBS += -lgsl -lgslcblas
@@ -53,6 +53,7 @@ main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
   stepping.h write.h timer.h mem.h subsample.h coarse_grid.h
 stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h
+heap.o: heap.c heap.h msg.h
 kd_original.o: kd_original.c kd.h
 lpt.o: lpt.c msg.h power.h particle.h
 lpt_original.o: lpt_original.c

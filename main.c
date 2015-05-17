@@ -171,8 +171,6 @@ int main(int argc, char* argv[])
     pm_init(nc_factor*param.nc, nc_factor, param.boxsize,
             mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
 
-    subsample_init(param.subsample_factor, param.random_seed);
-
     const int nout= param.n_zout;
     double* aout= malloc(sizeof(double)*nout);
     for(int i=0; i<nout; i++) {
