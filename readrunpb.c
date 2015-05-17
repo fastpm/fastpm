@@ -14,6 +14,8 @@
 #include "power.h"
 #include "particle.h"
 #include "msg.h"
+#include "heap.h"
+
 #define FILENAME  "%s.%02d"
 
 typedef struct {
@@ -24,10 +26,11 @@ typedef struct {
   float eps;            /* Gravitational softening    */
 } FileHeader;
 
-int read_runpb_ic(Parameters * param, double a_init, Particles * particles, 
-        void * scratch, size_t scratch_bytes) {
+int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
     int ThisTask;
     int NTask;
+    size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc;
+    void * scratch = heap_allocate(scratch_bytes);
     float * fscratch = (float*) scratch;
     long long * lscratch = (long long *) scratch;
 
@@ -245,14 +248,17 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles,
     msg_printf(verbose, "dx1 max = %g, dx2 max = %g", dx1maxg, dx2maxg);
     free(NcumFile);
     free(NperFile);
+    heap_return(scratch);
     return 0;
 }
 
 int write_runpb_snapshot(Snapshot * snapshot,  
-        char * filebase,
-        void * scratch, size_t scratch_bytes) {
+        char * filebase){
     int ThisTask;
     int NTask;
+    size_t scratch_bytes = snapshot->np_total * 8;
+    void * scratch = heap_allocate(scratch_bytes);
+
     float * fscratch = (float*) scratch;
     long long * lscratch = (long long *) scratch;
 
@@ -393,5 +399,6 @@ int write_runpb_snapshot(Snapshot * snapshot,
     if(offset != snapshot->np_local) {
         msg_abort(0030, "mismatch %d != %d\n", offset, snapshot->np_local);
     }
+    heap_return(scratch);
     return 0;
 }

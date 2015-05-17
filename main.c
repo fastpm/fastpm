@@ -37,10 +37,8 @@
 #include "heap.h"
 
 extern int write_runpb_snapshot(Snapshot * snapshot,  
-        char * filebase,
-        void * scratch, size_t scratch_bytes);
-extern int read_runpb_ic(Parameters * param, double a_init, Particles * particles, 
-        void * scratch, size_t scratch_bytes);
+        char * filebase);
+extern int read_runpb_ic(Parameters * param, double a_init, Particles * particles);
 
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
@@ -209,7 +207,7 @@ int main(int argc, char* argv[])
 
         timer_set_category(LPT);
         if(param.readic_filename) {
-            read_runpb_ic(&param, a_init, particles, mem.mem2, mem.size2);
+            read_runpb_ic(&param, a_init, particles);
         } else {
             // Sets initial grid and 2LPT desplacement
             lpt_set_displacement(a_init, OmegaM, seed,
@@ -463,7 +461,7 @@ void snapshot_time(const float aout, const int iout,
     // periodic wrapup not done, what about after fof? what about doing move_particle_min here?
     if(snapshot->filename) {
         sprintf(filebase, "%s%05d_%0.04f.bin", snapshot->filename, snapshot->seed, snapshot->a);
-        write_runpb_snapshot(snapshot, filebase, mem1, size1);
+        write_runpb_snapshot(snapshot, filebase);
     }
     timer_stop(write);
     // text file of a slice
