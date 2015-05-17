@@ -33,20 +33,21 @@
 #include "pm.h"
 #include "stepping.h"
 #include "timer.h"
-#include "mem.h"
 #include "heap.h"
 
 extern int write_runpb_snapshot(Snapshot * snapshot,  
         char * filebase);
 extern int read_runpb_ic(Parameters * param, double a_init, Particles * particles);
 
+Snapshot* allocate_snapshot(const int nc, const int np_alloc);
+Particles* allocate_particles(const int nc, const int nx, const double np_alloc_factor);
+
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
 void snapshot_time(const float aout, const int iout, 
         double a_x, double a_v,
         Particles const * const particles, 
-        Snapshot * const snapshot, 
-        void* const mem1, const size_t size1
+        Snapshot * const snapshot
         );
 
 void write_slice(const char filebase[], Particle* p, const int np, const float dz, const float boxsize);
@@ -151,15 +152,12 @@ int main(int argc, char* argv[])
 
 
     heap_init(0);
-    Memory mem; 
-    allocate_shared_memory(param.nc, param.pm_nc_factor2, param.np_alloc_factor, &mem); 
     lpt_init(param.nc);
     const int local_nx= lpt_get_local_nx();
 
-    Particles* particles= 
-        allocate_particles(param.nc, local_nx, param.np_alloc_factor);
-    Snapshot* snapshot= allocate_snapshot(param.nc, local_nx, 
-            particles->np_allocated, mem.mem2, mem.size2);
+    Particles* particles= allocate_particles(param.nc, local_nx, param.np_alloc_factor);
+    Snapshot* snapshot= allocate_snapshot(param.nc, particles->np_allocated);
+
     snapshot->boxsize= param.boxsize;
     snapshot->omega_m= OmegaM;
     snapshot->h= Hubble;
@@ -217,7 +215,7 @@ int main(int argc, char* argv[])
 
         // always do this because it intializes the initial velocity
         // correctly.
-        set_nonstepping_initial(a_init, particles, snapshot);
+        stepping_set_initial(a_init, OmegaM, particles);
 
         timer_set_category(STEPPING);
 
@@ -284,7 +282,7 @@ int main(int argc, char* argv[])
                         }
                         fclose(fp);
                     }
-                    double sigma8 = TopHatSigma2(8.0, measured_power, &param);
+                    double sigma8 = TopHatSigma2(8.0, (void*) measured_power, &param);
                     sigma8 = sigma8 / pow(param.nc * nc_factor, 6.0) * pow(param.boxsize, 3.0);
                     sigma8 /= pow(3.1415926 * 2, 3);
                     sigma8 = sqrt(sigma8);
@@ -293,8 +291,7 @@ int main(int argc, char* argv[])
 
                 while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
                     // Time to write output
-                    snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
-                            mem.mem1, mem.size1);
+                    snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot);
                     iout++;
                 }
                 if(iout >= nout) break;
@@ -304,8 +301,7 @@ int main(int argc, char* argv[])
 
                 while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                     // Time to write output
-                    snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
-                            mem.mem1, mem.size1);
+                    snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot);
                     iout++;
                 }
                 if(iout >= nout) break;
@@ -434,9 +430,7 @@ void write_snapshot_slice(const char filebase[], Snapshot const * const snapshot
 void snapshot_time(const float aout, const int iout, 
         double a_x, double a_v,
         Particles const * const particles, 
-        Snapshot * const snapshot,
-        void* const mem1, const size_t size1
-        )
+        Snapshot * const snapshot)
 {
     // Halo finding and snapshot outputs
 
@@ -445,6 +439,7 @@ void snapshot_time(const float aout, const int iout,
 
     msg_printf(verbose, "Taking a snapshot...\n");
 
+    snapshot->p = heap_allocate(sizeof(ParticleMinimum) * particles->np_allocated);
     timer_set_category(Snp);
     stepping_set_snapshot(aout, a_x, a_v, particles, snapshot);
 
@@ -473,7 +468,55 @@ void snapshot_time(const float aout, const int iout,
     msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
 
     const double z_out= 1.0/aout - 1.0;
+    heap_return(snapshot->p);
+
     msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
             isnp, z_out, aout);
     timer_set_category(STEPPING);
+}
+
+Particles* allocate_particles(const int nc, const int nx, const double np_alloc_factor)
+{
+  Particles* particles= malloc(sizeof(Particles));
+
+  const int np_alloc= (int)(np_alloc_factor*nc*nc*(nx));
+
+  particles->p= heap_allocate(sizeof(Particle)*np_alloc);
+
+  if(particles->p == 0)
+    msg_abort(0010, "Error: Failed to allocate memory for particles\n");
+
+  particles->force= heap_allocate(sizeof(float)*3*np_alloc);
+  if(particles->force == 0)
+    msg_abort(0010, "Error: Failed to allocate memory for particle forces\n");
+
+  msg_printf(info, "%d Mbytes allocated for %d particles (alloc_factor= %.2lf)\n",
+	     (sizeof(Particle)+3*sizeof(float))*np_alloc/(1024*1024),
+	     np_alloc, np_alloc_factor);
+
+
+  particles->np_allocated= np_alloc;
+
+  particles->np_total= (long long) nc*nc*nc;
+
+  int NTask; 
+  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+  particles->np_average= (float)(pow((double) nc, 3) / NTask);
+
+  return particles;
+}
+
+Snapshot* allocate_snapshot(const int nc, const int np_alloc)
+{
+  Snapshot* snapshot= malloc(sizeof(Snapshot));
+
+  snapshot->np_allocated= np_alloc;
+  long long nc_long= nc;
+  snapshot->np_total= nc_long*nc_long*nc_long;
+  snapshot->p= NULL;
+  snapshot->nc= nc;
+  snapshot->a= 0.0f; //snapshot->a_v= 0.0f; snapshot->a_x= 0.0f;
+
+  return snapshot;
 }

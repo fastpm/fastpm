@@ -33,7 +33,7 @@ OBJS += read_param_lua.o lpt.o msg.o power.o
 OBJS += pm.o stepping.o 
 OBJS += readrunpb.o
 OBJS += domain.o
-OBJS += timer.o mem.o
+OBJS += timer.o 
 OBJS += heap.o
 
 LIBS += -llua -ldl 
@@ -50,14 +50,13 @@ qrpm: $(OBJS)
 	$(CC) $(OBJS) $(LIBS) -o $@
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
-  stepping.h write.h timer.h mem.h 
+  stepping.h write.h timer.h 
 stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h
 heap.o: heap.c heap.h msg.h
 kd_original.o: kd_original.c kd.h
 lpt.o: lpt.c msg.h power.h particle.h
 lpt_original.o: lpt_original.c
-mem.o: mem.c particle.h mem.h msg.h
 msg.o: msg.c msg.h
 pm.o: pm.c pm.h particle.h msg.h timer.h
 pm_debug.o: pm_debug.c pm.h particle.h msg.h timer.h

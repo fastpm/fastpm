@@ -12,52 +12,6 @@
 #include "msg.h"
 
 
-Particles* allocate_particles(const int nc, const int nx, const double np_alloc_factor)
-{
-  Particles* particles= malloc(sizeof(Particles));
-
-  const int np_alloc= (int)(np_alloc_factor*nc*nc*(nx));
-
-  particles->p= malloc(sizeof(Particle)*np_alloc);
-
-  if(particles->p == 0)
-    msg_abort(0010, "Error: Failed to allocate memory for particles\n");
-
-  particles->force= malloc(sizeof(float)*3*np_alloc);
-  if(particles->force == 0)
-    msg_abort(0010, "Error: Failed to allocate memory for particle forces\n");
-
-  msg_printf(info, "%d Mbytes allocated for %d particles (alloc_factor= %.2lf)\n",
-	     (sizeof(Particle)+3*sizeof(float))*np_alloc/(1024*1024),
-	     np_alloc, np_alloc_factor);
-
-
-  particles->np_allocated= np_alloc;
-
-  particles->np_total= (long long) nc*nc*nc;
-
-  int NTask; 
-  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
-
-  particles->np_average= (float)(pow((double) nc, 3) / NTask);
-
-  return particles;
-}
-
-Snapshot* allocate_snapshot(const int nc, const int nx, const int np_alloc, void* const mem, const size_t mem_size)
-{
-  Snapshot* snapshot= malloc(sizeof(Snapshot));
-
-  snapshot->np_allocated= np_alloc;
-  long long nc_long= nc;
-  snapshot->np_total= nc_long*nc_long*nc_long;
-  snapshot->p= mem; assert(mem_size >= sizeof(ParticleMinimum)*np_alloc);
-  snapshot->nc= nc;
-  snapshot->a= 0.0f; //snapshot->a_v= 0.0f; snapshot->a_x= 0.0f;
-
-  return snapshot;
-}
-
 void allocate_shared_memory(const int nc, const int nc_factor, const double np_alloc_factor, Memory* const mem)
 {
   // Allocate shared memory
