@@ -34,6 +34,7 @@
 #include "stepping.h"
 #include "timer.h"
 #include "mem.h"
+#include "heap.h"
 
 extern int write_runpb_snapshot(Snapshot * snapshot,  
         char * filebase,
@@ -151,6 +152,7 @@ int main(int argc, char* argv[])
             sigma8, OmegaM, OmegaLambda);
 
 
+    heap_init(0);
     Memory mem; 
     allocate_shared_memory(param.nc, param.pm_nc_factor2, param.np_alloc_factor, &mem); 
     lpt_init(param.nc, mem.mem1, mem.size1);
@@ -313,6 +315,7 @@ int main(int argc, char* argv[])
 
                 // Leap-frog "drift" -- positions updated
                 stepping_drift(particles, OmegaM, a_x, a_x1, a_v1);
+                msg_printf(verbose, "Max memory = %td bytes\n", heap_get_max_usage());
             }
         }
         timer_print();

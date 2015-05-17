@@ -50,7 +50,7 @@ qrpm: $(OBJS)
 	$(CC) $(OBJS) $(LIBS) -o $@
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
-  stepping.h write.h timer.h mem.h subsample.h coarse_grid.h
+  stepping.h write.h timer.h mem.h 
 stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h
 heap.o: heap.c heap.h msg.h

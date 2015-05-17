@@ -21,6 +21,7 @@
 #include "particle.h"
 #include <fftw3-mpi.h>
 
+#include "heap.h"
 #include "msort.c"
 
 double BoxSize;
@@ -137,28 +138,27 @@ static int cmp_sendbuf_target(const void * c1, const void * c2, void* data) {
 }
 
 static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
-double eps, void * scratch, size_t scratch_bytes);
+double eps);
 
-int domain_create_ghosts(Particles* const particles, double eps, void * scratch, size_t scratch_bytes) {
+int domain_create_ghosts(Particles* const particles, double eps) {
     return domain_create_ghosts0(particles->p, particles->np_local, particles->np_allocated, 
-                sizeof(Particle), eps, scratch, scratch_bytes);
+                sizeof(Particle), eps);
 }
 
-int domain_create_ghosts_min(Snapshot * const particles, double eps, void * scratch, size_t scratch_bytes) {
+int domain_create_ghosts_min(Snapshot * const particles, double eps) {
     return domain_create_ghosts0(particles->p, particles->np_local, particles->np_allocated, 
-                sizeof(ParticleMinimum), eps, scratch, scratch_bytes);
+                sizeof(ParticleMinimum), eps);
 }
 
 static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
-double eps, void * scratch, size_t scratch_bytes)
+double eps) 
 {
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
     int * SendDispl = alloca(sizeof(int) * NTask);
     int * RecvDispl = alloca(sizeof(int) * NTask);
 
-    char * pc = (char*) p;
-    struct SendBuf * sendbuf = scratch;
+    struct SendBuf * sendbuf = heap_allocate(sizeof(struct SendBuf) * np_local);
 
     for(int i = 0; i < NTask; i ++) {
         SendCount[i] = 0;
@@ -170,7 +170,7 @@ double eps, void * scratch, size_t scratch_bytes)
     /* build the send buf */
     int nsend = 0;
     for(int i = 0; i < np_local; i ++) {
-        float * x = ((ParticleMinimum*)(pc + i * elsize))->x;
+        float * x = ((ParticleMinimum*)((char*) p + i * elsize))->x;
         float tmp[3];
         memcpy(tmp, x, 3 * sizeof(float));
         /* check all neighbours to see if the particle
@@ -197,10 +197,10 @@ double eps, void * scratch, size_t scratch_bytes)
             continue;
         }
     }
-    void * tmp = &sendbuf[nsend];
-    size_t tmp_size = scratch_bytes - sizeof(sendbuf[0]) * nsend;
+    size_t tmp_size = 2 * nsend * sizeof(void*) + sizeof(sendbuf[0]);
+    void * tmp = heap_allocate(tmp_size);
     qsort_r_with_tmp(sendbuf, nsend, sizeof(sendbuf[0]), cmp_sendbuf_target, NULL, tmp, tmp_size);
-
+    heap_return(tmp);
     for(int i = 0; i < nsend; i ++) {
         sendbuf[i].OriginalTask = ThisTask;
     }
@@ -219,11 +219,6 @@ double eps, void * scratch, size_t scratch_bytes)
             nrecv, np_allocated - np_local
             );
     }
-    if( (nrecv + nsend) * sizeof(sendbuf[0]) > scratch_bytes) {
-        msg_abort(2415, "Not enough scratch space for building ghosts, nrecv=%d, nsend=%d, scratch=%d",
-            nrecv, nsend, scratch_bytes / sizeof(sendbuf[0])
-            );
-    }
 
     MPI_Datatype MPI_SENDBUF;
     MPI_Type_contiguous(sizeof(sendbuf[0]), MPI_BYTE, &MPI_SENDBUF);
@@ -237,7 +232,7 @@ double eps, void * scratch, size_t scratch_bytes)
     
     /* add ghosts to particles */
     for(int i = 0; i < nrecv; i ++) {
-        ParticleMinimum * ghost = (ParticleMinimum*) (pc + (np_local + i) * elsize);
+        ParticleMinimum * ghost = (ParticleMinimum*) ((char*) p + (np_local + i) * elsize);
         memset(ghost, 0, elsize);
         memcpy(ghost->x, recvbuf[i].x, sizeof(float) * 3);
         ghost->OriginalTask = recvbuf[i].OriginalTask;
@@ -247,29 +242,28 @@ double eps, void * scratch, size_t scratch_bytes)
     int maxghosts = 0;
     MPI_Allreduce(&nrecv, &maxghosts, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     msg_printf(verbose, "Max number of ghosts is %d, %g / 1\n", maxghosts, 1.0 * maxghosts/ np_allocated);
+
+    heap_return(sendbuf);
     return nrecv;
 }
 
 static void domain_annihilate_ghosts0(
         void * p, int np_local, size_t elsize, 
         int nghosts,
-        float (* f3)[3], 
-        void * scratch, size_t scratch_bytes);
+        float (* f3)[3]);
 
 void domain_annihilate_ghosts(Particles* const particles, 
         int nghosts,
-        float (* f3)[3], 
-        void * scratch, size_t scratch_bytes)
+        float (* f3)[3])
 {
     domain_annihilate_ghosts0(particles->p, particles->np_local,
-        sizeof(Particle), nghosts, f3, scratch, scratch_bytes);
+        sizeof(Particle), nghosts, f3);
 }
 
 static void domain_annihilate_ghosts0(
         void * p, int np_local, size_t elsize, 
         int nghosts,
-        float (* f3)[3], 
-        void * scratch, size_t scratch_bytes)
+        float (* f3)[3])
 {
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
@@ -282,16 +276,13 @@ static void domain_annihilate_ghosts0(
         SendDispl[i] = 0;
         RecvDispl[i] = 0;
     }
-    char * base = scratch;
-    char * pc = (char*) p;
-    /* count the number of ghosts to be returned */
+
     float (*f3g)[3] = f3 + np_local;
 
-    int * indexsend = (int*) base;
-    base += sizeof(int) * nghosts;
+    int * indexsend = heap_allocate(sizeof(int*) * nghosts);
 
     for(int i = 0; i < nghosts; i ++) {
-        ParticleMinimum * ghost = (ParticleMinimum *) (pc + (np_local + i) * elsize);
+        ParticleMinimum * ghost = (ParticleMinimum *) ((char*)p + (np_local + i) * elsize);
         SendCount[ghost->OriginalTask] ++;
         indexsend[i] = ghost->OriginalIndex;
     }
@@ -303,15 +294,14 @@ static void domain_annihilate_ghosts0(
     }
     int nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
 
-    int * indexrecv = (int*) base;
-    base += sizeof(int) * nrecv;
+    int * indexrecv = heap_allocate(sizeof(int*) * nrecv);
 
     MPI_Alltoallv(indexsend, SendCount, SendDispl, MPI_INT,
                 indexrecv, RecvCount, RecvDispl, MPI_INT,
                 MPI_COMM_WORLD);
 
     /*scratch space */
-    float (*g3)[3] = (float (*)[3]) base;
+    float (*g3)[3] = heap_allocate(sizeof(float) * 3 * nrecv);
 
     MPI_Datatype MPI_F3;
     MPI_Type_contiguous(3, MPI_FLOAT, &MPI_F3);
@@ -348,6 +338,9 @@ static void domain_annihilate_ghosts0(
     msg_printf(verbose, "Checking ghost forces: %g %g %g ~ %g %g %g \n", 
             sum0[0], sum0[1], sum0[2], 
             sum1[0], sum0[1], sum0[2]);
+    heap_return(g3);
+    heap_return(indexrecv);
+    heap_return(indexsend);
 }
 
 void domain_wrap(Particles * particles) {
@@ -369,25 +362,23 @@ void domain_wrap_min(Snapshot * particles) {
     }
 }
 
-static int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated, 
-        void * scratch, size_t scratch_bytes);
+static int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated);
 
-void domain_decompose(Particles* particles, void * scratch, size_t scratch_bytes) {
+void domain_decompose(Particles* particles) {
     void * P = particles->p;
     size_t elsize = sizeof(Particle);
     particles->np_local = 
-        domain_decompose0(P, elsize, particles->np_local, particles->np_allocated, scratch, scratch_bytes);
+        domain_decompose0(P, elsize, particles->np_local, particles->np_allocated);
 }
 
-void domain_decompose_min(Snapshot * particles, void * scratch, size_t scratch_bytes) {
+void domain_decompose_min(Snapshot * particles) {
     void * P = particles->p;
     size_t elsize = sizeof(ParticleMinimum);
     particles->np_local = 
-        domain_decompose0(P, elsize, particles->np_local, particles->np_allocated, scratch, scratch_bytes);
+        domain_decompose0(P, elsize, particles->np_local, particles->np_allocated);
 }
 
-int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated, 
-        void * scratch, size_t scratch_bytes)
+int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated)
 {
     char * Pc = P;
 
@@ -404,7 +395,10 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
     msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
 
-    qsort_r_with_tmp(P, np_local, elsize, cmp_par_task, NULL, scratch, scratch_bytes);
+    size_t tmp_size = 2 * np_local * sizeof(void*) + elsize;
+    void * tmp = heap_allocate(tmp_size);
+    qsort_r_with_tmp(P, np_local, elsize, cmp_par_task, NULL, tmp, tmp_size);
+    heap_return(tmp);
 
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
@@ -421,7 +415,6 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
         SendCount[task] ++;
     }
     char * sendbuf = (char*) &Pc[SendCount[ThisTask] *elsize];
-    char * recvbuf = scratch;
 
     MPI_Datatype MPI_PAR;
     MPI_Type_contiguous(elsize, MPI_BYTE, &MPI_PAR);
@@ -439,12 +432,9 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
     }
     /* prepare the recv buf from scratch */
     size_t recv_total = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
-    if(recv_total * elsize > scratch_bytes) {
-        msg_abort(2314, "Not enough memory in scratch for this exchange."
-                "Need %td bytes. Provided %td bytes\n",
-                recv_total, scratch_bytes);
-    }
-    
+
+    void * recvbuf = heap_allocate(elsize * recv_total);
+
     MPI_Alltoallv(sendbuf, SendCount, SendDispl, MPI_PAR, 
             recvbuf, RecvCount, RecvDispl, MPI_PAR, MPI_COMM_WORLD);
     
@@ -456,6 +446,7 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated,
     }
     /* concatenate received particles with the local particles */
     memcpy(sendbuf, recvbuf, elsize * recv_total);
+    heap_return(recvbuf);
     np_local += recv_total;
 
     MPI_Type_free(&MPI_PAR);
