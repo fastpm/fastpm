@@ -34,8 +34,6 @@
 #include "stepping.h"
 #include "timer.h"
 #include "mem.h"
-#include "subsample.h"
-#include "coarse_grid.h"
 
 extern int write_runpb_snapshot(Snapshot * snapshot,  
         char * filebase,
@@ -49,8 +47,6 @@ void snapshot_time(const float aout, const int iout,
         double a_x, double a_v,
         Particles const * const particles, 
         Snapshot * const snapshot, 
-        const char subsample_filename[], 
-        const char cgrid_filename[], const int cgrid_nc,
         void* const mem1, const size_t size1
         );
 
@@ -301,8 +297,7 @@ int main(int argc, char* argv[])
                 while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
                     // Time to write output
                     snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
-                            param.subsample_filename, param.cgrid_filename, 
-                            param.cgrid_nc, mem.mem1, mem.size1);
+                            mem.mem1, mem.size1);
                     iout++;
                 }
                 if(iout >= nout) break;
@@ -313,8 +308,7 @@ int main(int argc, char* argv[])
                 while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                     // Time to write output
                     snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot, 
-                            param.subsample_filename, param.cgrid_filename, 
-                            param.cgrid_nc, mem.mem1, mem.size1);
+                            mem.mem1, mem.size1);
                     iout++;
                 }
                 if(iout >= nout) break;
@@ -443,8 +437,6 @@ void snapshot_time(const float aout, const int iout,
         double a_x, double a_v,
         Particles const * const particles, 
         Snapshot * const snapshot,
-        const char subsample_filename[], 
-        const char cgrid_filename[], const int cgrid_nc,
         void* const mem1, const size_t size1
         )
 {
@@ -474,22 +466,6 @@ void snapshot_time(const float aout, const int iout,
         write_runpb_snapshot(snapshot, filebase, mem1, size1);
     }
     timer_stop(write);
-    timer_start(sub);
-    // particle subsample (binary)
-    if(subsample_filename) {
-        sprintf(filebase, "%s%05d_%0.04f.subsample", subsample_filename, snapshot->seed, snapshot->a);
-        //write_subsample(filebase, subsample_factor, snapshot, mem1, size1); // this is regular subsamle but not used. Random subampling is used.
-        // TODO: periodic wrapup not done. What about after fof?
-        write_random_sabsample(filebase, snapshot, mem1, size1);
-    }
-
-    // coarse mesh (binary)
-    if(cgrid_filename) {
-        sprintf(filebase, "%s%05d_%0.04f.coarse", cgrid_filename, snapshot->seed, snapshot->a);
-        coarse_grid2(filebase, snapshot, cgrid_nc, mem1, size1);
-    }
-
-    timer_stop(sub);
     // text file of a slice
     //sprintf(filebase, "slice%02d", isnp); temp
     //write_snapshot_slice(filebase, snapshot, boxsize); temp
