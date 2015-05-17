@@ -170,8 +170,7 @@ int main(int argc, char* argv[])
 
     nc_factor = param.pm_nc_factor1;
     pm_set_diff_order(param.diff_order);
-    pm_init(nc_factor*param.nc, nc_factor, param.boxsize,
-            mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
+    pm_init(nc_factor*param.nc, nc_factor, param.boxsize, param.nrealization>1);
 
     const int nout= param.n_zout;
     double* aout= malloc(sizeof(double)*nout);
@@ -253,7 +252,7 @@ int main(int argc, char* argv[])
                     domain_finalize();
 
                     domain_init(param.nc * nc_factor, param.boxsize);
-                    pm_init(nc_factor*param.nc, nc_factor, param.boxsize, mem.mem1, mem.size1, mem.mem2, mem.size2, param.nrealization>1);
+                    pm_init(nc_factor*param.nc, nc_factor, param.boxsize, param.nrealization>1);
                     chk_change = 1;
                 }
 
@@ -266,7 +265,7 @@ int main(int argc, char* argv[])
 
                 timer_stop(comm);
 
-                pm_calculate_forces(particles, mem.mem2, mem.size2); 
+                pm_calculate_forces(particles); 
 
                 if(param.measure_power_spectrum_filename) {
                     size_t nk = 0;

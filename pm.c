@@ -23,6 +23,7 @@
 #include "msg.h"
 #include "timer.h"
 #include "domain.h"
+#include "heap.h"
 
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
@@ -35,25 +36,13 @@ static size_t NgridL; // for index to avoid 4byte integer overflow
 static int PM_factor;
 static int Local_nx, Local_x_start;
 static int Local_ny_td, Local_y_start_td;  // transposed
+static size_t total_size;
 static float BoxSize;
-//static float NP_Average;
 
-static fftwf_complex* fftdata;
 static fftwf_plan p0, p11;
 
 static double * PowerSpectrumVariable;
 
-//static fftwf_complex *P3D;
-//static float *density;
-//static fftwf_plan p0;
-//static fftwf_plan p11; //,p12,p13;
-
-//static fftwf_complex *FN11;
-//static float* N11;
-
-//static void* Buf;
-//static Particle* ParticleBuffer;
-//static int NParticleBuffer;
 static long long NParticleTotal;
 
 /* the transfer functions for force in fourier space applied to potential */
@@ -108,9 +97,7 @@ void pm_set_diff_order(int order) {
     if(order < 0) order = 0;
     diff_kernel = kernels[order];
 }
-void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
-        void* const mem1, const size_t size1,
-        void* const mem2, const size_t size2, int many)
+void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int many)
 {
     // Assume FFTW3 is initialized in lpt.c
 
@@ -120,7 +107,7 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
     PM_factor= nc_pm_factor;
 
     ptrdiff_t local_nx, local_x_start, local_ny, local_y_start;
-    ptrdiff_t total_size= 
+    total_size= 
         fftwf_mpi_local_size_3d_transposed(Ngrid, Ngrid, Ngrid / 2 + 1, MPI_COMM_WORLD,
                 &local_nx, &local_x_start, &local_ny, &local_y_start);
 
@@ -129,45 +116,8 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
     Local_ny_td= local_ny;
     Local_y_start_td= local_y_start;
 
-    size_t bytes= sizeof(fftwf_complex)*total_size;
 
-    if(mem1 == 0) {
-        fftdata=  fftwf_alloc_complex(total_size);
-        msg_printf(info, 
-                "%d Mbytes allocated for particle mesh (density)\n", 
-                (int)(bytes/(1024*1024)));
-    }
-    else {
-        assert(size1 >= total_size*sizeof(fftwf_complex));
-        fftdata= (fftwf_complex*) mem1;
-    }
-    //density= (float*) P3D;
-
-    /*
-       if(mem2 == 0) {
-       FN11= fftwf_alloc_complex(total_size);
-       msg_printf(info, 
-       "%d Mbytes allocated for particle mesh (force)\n", 
-       (int)(bytes/(1024*1024)));
-       }
-       else {
-       assert(size2 >= total_size*sizeof(fftwf_complex));
-       FN11= (fftwf_complex*) mem2;
-       }
-       */
-
-    if(fftdata == 0)
-        msg_abort(4001, "Unable to allocate memory for particle mesh: %d Mbytes\n",
-                (int)(2*bytes/(1024*1024)));
-
-    double pm_index_max= (double) Ngrid*Ngrid*(Ngrid/2+1);
-    if(pm_index_max > pow(2.0, 31))
-        msg_printf(info, 
-                "Local number of PM Mesh exceeds 4-byte integer limit %ld\n", 
-                2*NgridL*NgridL*(NgridL/2+1));
-
-    //FN11= P3D;
-    //N11= (float*) FN11;
+    fftwf_complex * fftdata = heap_allocate(sizeof(fftwf_complex) * total_size);
 
     msg_printf(verbose, "Setting up FFTW3 plans\n");
 
@@ -212,17 +162,11 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
     // buffer for particle transfer
     const int ncp= nc_pm/nc_pm_factor;
     NParticleTotal= (long long) ncp*ncp*ncp;
-
-
+    heap_return(fftdata);
 }
 
 void pm_finalize(void)
 {
-    //fftwf_free(fftdata);
-    //fftwf_destroy_plan(plan);
-    //fftwf_free(P3D);
-    //fftwf_free(FN11);
-
     fftwf_destroy_plan(p0);
     fftwf_destroy_plan(p11);
 }
@@ -232,7 +176,6 @@ void PtoMesh(const Particle P[], const int np, float* const density)
 {
     // ** precondition
     //   particles are assumed to be periodiclly wraped up in y,z direction
-    //float* const density= (float*) fftdata;
 
     msg_printf(verbose, "Calculating PtoMesh\n");
 
@@ -311,8 +254,9 @@ static double sinc_unnormed(double x) {
     }
 }
 // FFT density mesh and copy it to density_k
-void compute_density_k(fftwf_complex * density_k)
+void compute_density_k(float * density, fftwf_complex * density_k)
 {
+    fftwf_complex * fftdata = (fftwf_complex*) density;
     // FFT density(x) mesh -> density(k)
     fftwf_mpi_execute_dft_r2c(p0, (float*) fftdata, fftdata);
 
@@ -408,12 +352,11 @@ void compute_power_spectrum(fftwf_complex * density_k) {
     }
 }
 // Calculate one component of force mesh from precalculated density(k)
-void compute_force_mesh(const int axes, fftwf_complex * const P3D)
+void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex * P3D)
 {
     timer_start(force_mesh);
 
-    fftwf_complex* const FN11= fftdata;
-
+    fftwf_complex * FN11 = fftdata;
     //k=0 zero mode force is zero
     FN11[0][0]= 0.0f;
     FN11[0][1]= 0.0f;
@@ -553,17 +496,11 @@ void force_at_particle_locations(const Particle P[], const int np,
 
 
 // Calculates force on particles, particles->f, using particle mesh method
-void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
+void pm_calculate_forces(Particles* particles)
 {
 
-    fftwf_complex * density_k;
-    if(mem2 == 0) {
-        density_k= fftwf_alloc_complex((NgridL/2+1)*NgridL*Local_ny_td);
-    }
-    else {
-        assert(size2 >= sizeof(fftwf_complex)*(NgridL/2+1)*NgridL*Local_ny_td);
-        density_k= (fftwf_complex*) mem2;
-    }
+    fftwf_complex * density_k = heap_allocate(total_size * sizeof(fftw_complex));
+    fftwf_complex * fftdata = heap_allocate(total_size * sizeof(fftw_complex));
 
     int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid);
     int np_plus_buffer= particles->np_local + nghosts;
@@ -575,8 +512,8 @@ void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
 
     timer_start(fft);
     // density(x) -> density(k)
-    compute_density_k(density_k);
-    //fftwf_mpi_execute_dft_r2c(p0, density, P3D);
+    compute_density_k((float *) fftdata, density_k);
+
     timer_stop(fft);
 
     timer_start(powerspectrum);
@@ -585,7 +522,7 @@ void pm_calculate_forces(Particles* particles, void * mem2, size_t size2)
 
     for(int axes=0; axes<3; axes++) {
         // density(k) -> f(x_i) [fftdata]
-        compute_force_mesh(axes, density_k);
+        compute_force_mesh(axes, fftdata, density_k);
 
         timer_start(pforce);
         force_at_particle_locations(particles->p, np_plus_buffer, axes,
