@@ -470,8 +470,8 @@ void pm_calculate_forces(Particles* particles)
     int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid);
     int np_plus_buffer= particles->np_local + nghosts;
 
-    fftwf_complex * density_k = heap_allocate(total_size * sizeof(fftw_complex));
-    fftwf_complex * fftdata = heap_allocate(total_size * sizeof(fftw_complex));
+    fftwf_complex * density_k = heap_allocate(total_size * sizeof(fftwf_complex));
+    fftwf_complex * fftdata = heap_allocate(total_size * sizeof(fftwf_complex));
 
     timer_start(assign);
     // x_i -> density(x) = fftdata

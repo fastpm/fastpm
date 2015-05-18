@@ -457,7 +457,7 @@ static size_t calculate_heap_size(Parameters * param) {
     
     size_t np_alloc = param->np_alloc_factor * param->nc * param->nc * param->nc / NTask;
     size_t psize = np_alloc * (sizeof(float) * 3 * 5 + 8);
-    size_t fftsize = nm * nm * (nm + 1) * sizeof(float) * 2 * 2 / NTask; 
+    size_t fftsize = nm * nm * (nm + 1) * sizeof(float) * 2 / NTask; 
 
 
     size_t total = psize + fftsize + 4096 * 1024; 
