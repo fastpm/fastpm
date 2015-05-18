@@ -2,53 +2,43 @@
 #define PARAMETERS_H
 
 typedef struct {
-  size_t nc;
-  int pm_nc_factor1;
-  int pm_nc_factor2;
-  float change_pm;
+    size_t nc;
+    int pm_nc_factor1;
+    int pm_nc_factor2;
+    float change_pm;
 
-  double np_alloc_factor;
+    double np_alloc_factor;
 
-  int ntimestep;
-  int random_seed;
-  int nrealization;
+    int ntimestep;
+    int random_seed;
+    int nrealization;
 
-  int loglevel;
+    int loglevel;
 
-  double a_final;
-  double boxsize;
+    double a_final;
+    double boxsize;
 
-  double omega_m, sigma8, h;
+    double omega_m, sigma8, h;
 
-  double* zout; int n_zout;
+    double* zout; int n_zout;
 
-  /*
-  char power_spectrum_file[64];
-  char snapshot_filename[64];
-  char subsample_filename[64];
-  char cgrid_filename[64];
-  char init_filename[64];
-  */
-  char* power_spectrum_filename; int strlen_power_spectrum_filename;
-  char* measure_power_spectrum_filename; int strlen_measure_power_spectrum_filename;
-  char* snapshot_filename;   int strlen_snapshot_filename;
-  char* subsample_filename;  int strlen_subsample_filename;
-  char* cgrid_filename;      int strlen_cgrid_filename;
-  char* readic_filename;   int strlen_readic_filename;
-  // 'strlen' includes the null character. It is the number of chars.
+    char* power_spectrum_filename; int strlen_power_spectrum_filename;
+    char* measure_power_spectrum_filename; int strlen_measure_power_spectrum_filename;
+    char* snapshot_filename;   int strlen_snapshot_filename;
+    char* readic_filename;   int strlen_readic_filename;
+    // 'strlen' includes the null character. It is the number of chars.
 
-
-  //int subsample_factor;
-  double subsample_factor;
-  int cgrid_nc;
-
-  int qpm;
-  int nopm;
-  int stdda;
-  double smoothing;
-  int diff_order;
-  int time_step;
+    int force_mode;
+    int stdda;
+    double smoothing;
+    int diff_order;
+    int time_step;
 } Parameters;
+
+#define FORCE_MODE_ZA 0
+#define FORCE_MODE_2LPT 1
+#define FORCE_MODE_PM 2
+#define FORCE_MODE_COLA 3
 
 #define TIME_STEP_LOGA 0
 #define TIME_STEP_A 1
@@ -56,7 +46,7 @@ typedef struct {
 //
 //int read_parameters(const char filename[], Parameters* const param);
 int read_parameters(const int argc, char * argv[], 
-		    Parameters* const param);
+        Parameters* const param);
 
 
 #endif

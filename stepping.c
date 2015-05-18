@@ -25,15 +25,14 @@
 #include <gsl/gsl_errno.h>
 
 #include "particle.h"
+#include "parameters.h"
 #include "msg.h"
 #include "stepping.h"
 #include "timer.h"
 
 static double Om= -1.0f;
-static int USE_COLA = 1;
 static double nLPT= -2.5f;
 static int stdDA = 0; // velocity growth model
-static int noPM;
 static int martinKick = 0;
 
 double growthD(double a);
@@ -41,27 +40,27 @@ double growthD2(double a);
 double Sphi(double ai, double af, double aRef);
 double Sq(double ai, double af, double aRef);
 double Qfactor(double a);
-
+static int FORCE_MODE;
+void stepping_init(Parameters * param) {
+    FORCE_MODE = param->force_mode;
+    stdDA = param->stdda;
+    Om = param->omega_m;
+}
 // Leap frog time integration
 // ** Total momentum adjustment dropped
-void stepping_set_subtract_lpt(int flag) {
-    USE_COLA = flag?1:0;
-}
-void stepping_set_std_da(int flag) {
-    stdDA = flag;
-}
-void stepping_set_no_pm(int flag) {
-    noPM = flag;
-}
 
-void stepping_kick(Particles* p, double Omega_m,
+void stepping_kick(Particles* p,
         double ai, double af, double ac)
     /* a_v     avel1     a_x*/
 {
+    if(FORCE_MODE == FORCE_MODE_ZA
+    || FORCE_MODE == FORCE_MODE_2LPT) {
+        /* ZA and 2LPT sims no kicks */
+        return;
+    }
     timer_start(evolve);  
     msg_printf(normal, "Kick %g -> %g\n", ai, af);
 
-    Om= Omega_m;
     double Om143= pow(Om/(Om + (1 - Om)*ac*ac*ac), 1.0/143.0);
     double dda= Sphi(ai, af, ac);
     double growth1=growthD(ac);
@@ -89,14 +88,10 @@ void stepping_kick(Particles* p, double Omega_m,
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d++) {
             float ax= -1.5*Om_*f[i][d];
-            if(USE_COLA) {
+            if(FORCE_MODE == FORCE_MODE_COLA) {
                 ax -= (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
             }
-            if(!noPM) {
-                p->v[i][d] += ax * dda;
-            } else {
-                p->v[i][d] = 0;
-            }
+            p->v[i][d] += ax * dda;
         }
     }
 
@@ -104,7 +99,7 @@ void stepping_kick(Particles* p, double Omega_m,
     timer_stop(evolve);  
 }
 
-void stepping_drift(Particles* p, double Omega_m,
+void stepping_drift(Particles* p,
         double ai, double af, double ac)
     /*a_x, apos1, a_v */
 {
@@ -114,26 +109,29 @@ void stepping_drift(Particles* p, double Omega_m,
 
     double dyyy=Sq(ai, af, ac);
 
-    double da1= growthD(af) - growthD(ai);    // change in D_{1lpt}
-double da2= growthD2(af) - growthD2(ai);  // change in D_{2lpt}
+    double da1= growthD(af) - growthD(ai);    // change in D_1lpt
+    double da2= growthD2(af) - growthD2(ai);  // change in D_2lpt
 
-msg_printf(normal, "Drift %g -> %g\n", ai, af);
-msg_printf(normal, "dyyy = %g \n", dyyy);
+    msg_printf(normal, "Drift %g -> %g\n", ai, af);
+    msg_printf(normal, "dyyy = %g \n", dyyy);
 
-// Drift
+    // Drift
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
 #endif
-for(int i=0; i<np; i++) {
-    for(int d = 0; d < 3; d ++) {
-        p->x[i][d] += p->v[i][d]*dyyy;
-        if(USE_COLA) {
-            p->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+    for(int i=0; i<np; i++) {
+        for(int d = 0; d < 3; d ++) {
+            if(FORCE_MODE == FORCE_MODE_PM
+            || FORCE_MODE == FORCE_MODE_COLA) {
+                p->x[i][d] += p->v[i][d]*dyyy;
+            }
+            if(FORCE_MODE != FORCE_MODE_PM) {
+                p->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+            }
         }
     }
-}
 
-timer_stop(evolve);
+    timer_stop(evolve);
 }
 
 double growthDtemp(double a){
@@ -314,13 +312,11 @@ double Sphi(double ai, double af, double aRef) {
 
 
 // Interpolate position and velocity for snapshot at a=aout
-void stepping_set_initial(double aout, double omega_m, Particles * p)
+void stepping_set_initial(double aout, Particles * p)
 {
     timer_start(interp);
 
     int np= p->np_local;
-
-    Om= omega_m; assert(Om >= 0.0f);
 
     msg_printf(verbose, "Setting up inital snapshot at a= %4.2f (z=%4.2f).\n", aout, 1.0f/aout-1);
 
@@ -345,7 +341,7 @@ void stepping_set_initial(double aout, double omega_m, Particles * p)
 #endif
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d ++) {
-            if(USE_COLA) {
+            if(FORCE_MODE != FORCE_MODE_PM) {
                 p->v[i][d] = 0;
             } else {
                 p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
@@ -416,15 +412,18 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
         for(int d = 0; d < 3; d ++) {
             // Kick + adding back 2LPT velocity + convert to km/s
             float ax= -1.5*Om*f[i][0];
-            if(USE_COLA)
+            if(FORCE_MODE == FORCE_MODE_COLA)
                 ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;
 
             po->v[i][d] = vfac*(p->v[i][d] + ax*dda);
-            if(USE_COLA)
+            if(FORCE_MODE == FORCE_MODE_COLA)
                 po->v[i][d] += vfac * (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
             // Drift
-            po->x[i][d] = p->x[i][d] + p->v[i][d]*dyyy;
-            if(USE_COLA)
+            po->x[i][d] = p->x[i][d]; 
+            if(FORCE_MODE == FORCE_MODE_COLA
+            || FORCE_MODE == FORCE_MODE_PM)
+                po->x[i][d] += p->v[i][d]*dyyy;
+            if(FORCE_MODE == FORCE_MODE_COLA)
                 po->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
         }
 

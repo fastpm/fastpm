@@ -157,6 +157,8 @@ int main(int argc, char* argv[])
 
     lpt_init(param.nc);
 
+    stepping_init(&param);
+
     int nout = param.n_zout;
     double* aout = malloc(sizeof(double)*nout);
     for(int i=0; i<nout; i++) {
@@ -165,21 +167,6 @@ int main(int argc, char* argv[])
                 i, param.zout[i], aout[i]);
     }
 
-    if (param.qpm) {
-        stepping_set_subtract_lpt(0);
-    } else {
-        stepping_set_subtract_lpt(1);
-    }
-    if (param.stdda) {
-        stepping_set_std_da(1);
-    } else {
-        stepping_set_std_da(0);
-    }
-    if (param.nopm) {
-        stepping_set_no_pm(1);
-    } else {
-        stepping_set_no_pm(0);
-    }
     //
     // Many realizations with different initial conditions
     //
@@ -208,8 +195,9 @@ int main(int argc, char* argv[])
 
         // always do this because it intializes the initial velocity
         // correctly.
-        stepping_set_initial(a_init, OmegaM, particles);
-        if(param.qpm) {
+        stepping_set_initial(a_init, particles);
+
+        if(param.force_mode == FORCE_MODE_PM) {
             heap_return(particles->dx2);
             heap_return(particles->dx1);
         }
@@ -293,7 +281,7 @@ int main(int argc, char* argv[])
                 if(iout >= nout) break;
 
                 // Leap-frog "kick" -- velocities updated
-                stepping_kick(particles, OmegaM, a_v, a_v1, a_x);
+                stepping_kick(particles, a_v, a_v1, a_x);
 
                 while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                     // Time to write output
@@ -303,7 +291,7 @@ int main(int argc, char* argv[])
                 if(iout >= nout) break;
 
                 // Leap-frog "drift" -- positions updated
-                stepping_drift(particles, OmegaM, a_x, a_x1, a_v1);
+                stepping_drift(particles, a_x, a_x1, a_v1);
                 msg_printf(verbose, "Max memory = %td bytes\n", heap_get_max_usage());
             }
         }

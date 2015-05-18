@@ -29,8 +29,6 @@
 #define M_PI 3.1415926535897932384626433832795
 #endif
 
-static int ThisNode, NNode, LeftNode=-1, RightNode=-1;
-
 static int Ngrid;
 static size_t NgridL; // for index to avoid 4byte integer overflow
 static int PM_factor;
@@ -97,6 +95,7 @@ void pm_set_diff_order(int order) {
     if(order < 0) order = 0;
     diff_kernel = kernels[order];
 }
+
 void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int many)
 {
     // Assume FFTW3 is initialized in lpt.c
@@ -129,37 +128,6 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int m
     p11= fftwf_mpi_plan_dft_c2r_3d(Ngrid, Ngrid, Ngrid, fftdata, (float*)fftdata,
             MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_IN);
 
-    // FFTW_MEASURE is probably better for multiple realization **
-
-    // Find Adjacent Nodes
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisNode);
-    MPI_Comm_size(MPI_COMM_WORLD, &NNode);
-
-    int* local_x_table  = malloc(sizeof(int)*NNode*2);
-    int* local_nx_table = local_x_table + NNode;
-
-    MPI_Allgather(&Local_nx, 1, MPI_INT, local_nx_table, 1, MPI_INT, 
-            MPI_COMM_WORLD);
-    MPI_Allgather(&Local_x_start, 1, MPI_INT, local_x_table, 1, MPI_INT, 
-            MPI_COMM_WORLD);
-
-    //for(int i=0; i<NNode; i++)
-    //  msg_printf(debug, "Task=%d x=%d..%d\n", i, local_x_table[i],
-    //                    local_x_table[i]+local_nx_table[i]-1);
-
-    for(int i=0; i<NNode; i++) {
-        if((local_x_table[i] + local_nx_table[i]) % Ngrid == Local_x_start)
-            LeftNode= i;
-        if((Local_x_start + Local_nx) % Ngrid == local_x_table[i])
-            RightNode= i;
-    }
-    //msg_printf(debug, "Node %d LeftNode= %d, RightNode= %d\n", 
-    //     ThisNode, LeftNode, RightNode);
-    assert(LeftNode >= 0 && RightNode >= 0);
-
-    free(local_x_table);
-    //
-    // buffer for particle transfer
     const int ncp= nc_pm/nc_pm_factor;
     NParticleTotal= (long long) ncp*ncp*ncp;
     heap_return(fftdata);
@@ -520,15 +488,15 @@ void pm_calculate_forces(Particles* particles)
     compute_power_spectrum(density_k);
     timer_stop(powerspectrum);
 
-    for(int axes=0; axes<3; axes++) {
-        // density(k) -> f(x_i) [fftdata]
-        compute_force_mesh(axes, fftdata, density_k);
+        for(int axes=0; axes<3; axes++) {
+            // density(k) -> f(x_i) [fftdata]
+            compute_force_mesh(axes, fftdata, density_k);
 
-        timer_start(pforce);
-        force_at_particle_locations(particles->x, np_plus_buffer, axes,
-                (float*) fftdata, particles->force);
-        timer_stop(pforce);
-    }
+            timer_start(pforce);
+            force_at_particle_locations(particles->x, np_plus_buffer, axes,
+                    (float*) fftdata, particles->force);
+            timer_stop(pforce);
+        }
 
     heap_return(fftdata);
     heap_return(density_k);

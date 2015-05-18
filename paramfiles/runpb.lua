@@ -14,12 +14,11 @@ h       = 0.69
 sigma8  = 0.820
 
 -- canonical cola parameters
-qpm = true
+force_mode = 'pm'
 time_step = 'a'
 stdda = true
 smoothing = 2.0
 diff_order = 0
-nopm = false
 
 
 pm_nc_factor1= 3            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
