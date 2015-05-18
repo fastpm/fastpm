@@ -40,6 +40,7 @@ extern int write_runpb_snapshot(Particles * snapshot,
 extern int read_runpb_ic(Parameters * param, double a_init, Particles * particles);
 
 Particles* allocate_particles(Parameters * param, int allocate_memory);
+static size_t calculate_heap_size(Parameters * param);
 
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
@@ -146,8 +147,7 @@ int main(int argc, char* argv[])
     power_init(param.power_spectrum_filename, a_init, 
             sigma8, OmegaM, OmegaLambda);
 
-
-    heap_init(0);
+    heap_init(calculate_heap_size(&param));
     Particles * particles = allocate_particles(&param, 1);
     Particles * snapshot = allocate_particles(&param, 0);
 
@@ -443,9 +443,8 @@ Particles* allocate_particles(Parameters * param, int allocate_memory)
         particles->force = heap_allocate(sizeof(float) * 3 *np_alloc);
         particles->dx1 = heap_allocate(sizeof(float) * 3 *np_alloc);
         particles->dx2 = heap_allocate(sizeof(float) * 3 *np_alloc);
-        particles->id = heap_allocate(sizeof(int64_t) * 3 *np_alloc);
+        particles->id = heap_allocate(sizeof(int64_t) * np_alloc);
 
-        particles->force = heap_allocate(sizeof(float)*3*np_alloc);
         particles->np_allocated = np_alloc;
     } else {
         particles->np_allocated = 0;
@@ -457,3 +456,19 @@ Particles* allocate_particles(Parameters * param, int allocate_memory)
     return particles;
 }
 
+static size_t calculate_heap_size(Parameters * param) {
+    size_t nc = param->nc;
+    size_t nm = param->pm_nc_factor2 * nc;
+    int NTask;
+    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+    
+    size_t np_alloc = param->np_alloc_factor * param->nc * param->nc * param->nc / NTask;
+    size_t psize = np_alloc * (sizeof(float) * 3 * 5 + 8);
+    size_t fftsize = nm * nm * (nm + 1) * sizeof(float) * 2 * 2 / NTask; 
+
+
+    size_t total = psize + fftsize + 4096 * 1024; 
+    msg_printf(verbose, "Particles: %td bytes\nFFT: %td bytes for FFT\nTotal: %td\n",
+        psize, fftsize, total);
+    return total;
+}

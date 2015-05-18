@@ -499,11 +499,11 @@ void force_at_particle_locations(float (*Px)[3], const int np,
 void pm_calculate_forces(Particles* particles)
 {
 
-    fftwf_complex * density_k = heap_allocate(total_size * sizeof(fftw_complex));
-    fftwf_complex * fftdata = heap_allocate(total_size * sizeof(fftw_complex));
-
     int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid);
     int np_plus_buffer= particles->np_local + nghosts;
+
+    fftwf_complex * density_k = heap_allocate(total_size * sizeof(fftw_complex));
+    fftwf_complex * fftdata = heap_allocate(total_size * sizeof(fftw_complex));
 
     timer_start(assign);
     // x_i -> density(x) = fftdata
@@ -530,6 +530,8 @@ void pm_calculate_forces(Particles* particles)
         timer_stop(pforce);
     }
 
+    heap_return(fftdata);
+    heap_return(density_k);
     timer_start(comm);
     domain_annihilate_ghosts(particles, nghosts, particles->force);
 

@@ -68,6 +68,7 @@ int heap_return(void * ptr) {
     if (NODES[top].ptr != ptr) {
         msg_abort(9999, "Ptr %p is not last allocated block (%p of size %td)\n", 
                 ptr, NODES[top].ptr, NODES[top].bytes);
+    } else{
         size_t bytes = NODES[top].bytes;
         if(BASE != NULL) {
             FREE -= bytes;
