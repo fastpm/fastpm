@@ -181,10 +181,6 @@ void PtoMesh(float (*Px)[3], int np, float* const density)
         float T2W =T2*WPAR;
         float D2W =D2*WPAR;
 
-#ifdef CHECK
-        assert(Y >= 0.0f && Z >= 0.0f);
-#endif
-
         // Do periodic wrapup in all directions. 
         // Buffer particles are copied from adjacent nodes
         while(iI >= Ngrid) iI -= Ngrid;

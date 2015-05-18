@@ -10,6 +10,8 @@
  *  Author: Yu Feng <rainwoodman@gmail.com>
  */
 
+#define MAKE_ASSERTIONS
+
 #include <stdio.h>
 #include <mpi.h>
 #include <stdlib.h>
@@ -280,12 +282,14 @@ void domain_annihilate_ghosts(Particles * p,
                 MPI_COMM_WORLD);
     MPI_Type_free(&MPI_F3);
 
+#ifdef MAKE_ASSERTIONS
     double sum0[3] = {0};
     for(int i = 0; i < np_local + nghosts; i ++) {
         for(int d = 0; d < 3; d ++) {
             sum0[d] += f3[i][d];
         }
     }
+#endif
 
     for(int i = 0; i < nrecv; i ++) {
         int index = indexrecv[i];
@@ -296,6 +300,7 @@ void domain_annihilate_ghosts(Particles * p,
             f3[index][d] += g3[i][d];
         }
     }
+#ifdef MAKE_ASSERTIONS
     double sum1[3] = {0};
     for(int i = 0; i < np_local; i ++) {
         for(int d = 0; d < 3; d ++) {
@@ -307,12 +312,16 @@ void domain_annihilate_ghosts(Particles * p,
     msg_printf(verbose, "Checking ghost forces: %g %g %g ~ %g %g %g \n", 
             sum0[0], sum0[1], sum0[2], 
             sum1[0], sum0[1], sum0[2]);
+#endif
     heap_return(g3);
     heap_return(indexrecv);
     heap_return(indexsend);
 }
 
 void domain_wrap(Particles * p) {
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
     for(int i = 0; i < p->np_local; i ++) {
         for(int d = 0; d < 3; d++) {
             while(p->x[i][d] < 0) p->x[i][d] += BoxSize;
@@ -339,6 +348,7 @@ struct DomainBuf {
 };
 
 void domain_decompose(Particles* p) {
+#ifdef MAKE_ASSERTIONS
     {
         size_t total1 = p->np_local;
         size_t total = 0;
@@ -351,7 +361,7 @@ void domain_decompose(Particles* p) {
         MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
         msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
-
+#endif
     int64_t * ind = heap_allocate(sizeof(int64_t) * p->np_local);
     for(int i = 0; i < p->np_local; i++) {
         ind[i] = i;
@@ -452,6 +462,7 @@ void domain_decompose(Particles* p) {
             msg_abort(2314, "Some particles are not in the correct domain after exchange.");
         }
     }
+#ifdef MAKE_ASSERTIONS
     {
         size_t total1 = p->np_local;
         size_t total = 0;
@@ -464,4 +475,5 @@ void domain_decompose(Particles* p) {
         MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
         msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
+#endif
 }
