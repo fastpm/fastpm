@@ -14,7 +14,6 @@ typedef struct {
     int np_local;
     int np_allocated;
     size_t np_total;
-    float np_average;
 
 /* for a snapshot */
     float a; //, a_x, a_v;

@@ -403,28 +403,28 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
 
 
     float da1= growthD(AF) - growthD(A);    // change in D_{1lpt}
-float da2= growthD2(AF) - growthD2(A);  // change in D_{2lpt}
+    float da2= growthD2(AF) - growthD2(A);  // change in D_{2lpt}
 
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)  
 #endif
-for(int i=0; i<np; i++) {
-    for(int d = 0; d < 3; d ++) {
-        // Kick + adding back 2LPT velocity + convert to km/s
-        float ax= -1.5*Om*f[i][0] - subtractLPT*(p->dx1[i][0]*q1 + p->dx2[i][0]*q2);
+    for(int i=0; i<np; i++) {
+        for(int d = 0; d < 3; d ++) {
+            // Kick + adding back 2LPT velocity + convert to km/s
+            float ax= -1.5*Om*f[i][0] - subtractLPT*(p->dx1[i][0]*q1 + p->dx2[i][0]*q2);
 
-        po->v[i][d] = vfac*(p->v[i][d] + ax*dda +
-                (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2)*subtractLPT);
-        // Drift
-        po->x[i][d] = p->x[i][d] + p->v[i][d]*dyyy + 
-            subtractLPT*(p->dx1[i][d]*da1 + p->dx2[i][d]*da2);
+            po->v[i][d] = vfac*(p->v[i][d] + ax*dda +
+                    (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2)*subtractLPT);
+            // Drift
+            po->x[i][d] = p->x[i][d] + p->v[i][d]*dyyy + 
+                subtractLPT*(p->dx1[i][d]*da1 + p->dx2[i][d]*da2);
+        }
+
+        po->id[i] = p->id[i];
     }
 
-    po->id[i] = p->id[i];
-}
-
-po->np_local= np;
-po->a= aout;
-po->qfactor = Qfactor(aout);
-timer_stop(interp);
+    po->np_local= np;
+    po->a= aout;
+    po->qfactor = Qfactor(aout);
+    timer_stop(interp);
 }
