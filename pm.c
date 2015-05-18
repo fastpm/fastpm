@@ -244,7 +244,7 @@ void compute_density_k(float * density, fftwf_complex * density_k)
 #pragma omp parallel for default(shared)
 #endif
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
-        int J = Jl + Local_y_start_td;
+        /* int J = Jl + Local_y_start_td; */
         for(int iI=0; iI<Ngrid; iI++) {
             for(int K=0; K<Ngrid/2+1; K++){
                 size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
@@ -353,7 +353,6 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
             int KMIN= (iI==0 && J==0); // skip (0,0,0) because FN=0 for k=(0,0,0)
 
             for(int K=KMIN; K<Ngrid/2+1; K++){
-                //float RK =(float) (K*K + I0*I0 + J0*J0);
                 const float tmp = di2[J] + di2[iI] + di2[K];
                 const int ind[] = {iI, J, K};
                 float f2= f1/tmp * diff[ind[axes]];
@@ -361,18 +360,6 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
                 size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
                 FN11[index][0]= -f2*P3D[index][1];
                 FN11[index][1]=  f2*P3D[index][0];
-                //complex float dens = -P3D[K + (NgridL/2+1)*(iI + NgridL*Jl)];
-                //dens *= dens_fac/RK;
-
-                //#ifdef FILTER
-                //	int KK= RK*Scale*Scale; // what is this factor?
-                //#else
-                //int KK= 1;// ** factors around here can be cleaned/optimized
-                //#endif
-                //FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)]= dens*I*di[axes]/Scale*KK;
-
-                //FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)]= dens*I*di[axes]/scale;
-                //FN11[K + (NgridL/2+1)*(iI + NgridL*Jl)][0]= 0.0f; //dens[0];
             }
         }
     }

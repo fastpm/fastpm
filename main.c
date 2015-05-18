@@ -270,7 +270,7 @@ int main(int argc, char* argv[])
                     sigma8 = sigma8 / pow(param.nc * nc_factor, 6.0) * pow(param.boxsize, 3.0);
                     sigma8 /= pow(3.1415926 * 2, 3);
                     sigma8 = sqrt(sigma8);
-                    msg_printf(verbose, "sigma8 = %g expected = %g\n", sigma8, param.sigma8 * GrowthFactor(1.0, a_x));
+                    msg_printf(verbose, "Non-Linear sigma8 = %g Linear sigma8 = %g\n", sigma8, param.sigma8 * GrowthFactor(1.0, a_x));
                 }
 
                 while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
@@ -301,8 +301,6 @@ int main(int argc, char* argv[])
         }
         timer_print();
     }
-
-    //move_particles(particles);
 
 
     MPI_Finalize();
@@ -368,8 +366,6 @@ void snapshot_time(const float aout, const int iout,
         Particles * particles, 
         Particles * snapshot)
 {
-    // Halo finding and snapshot outputs
-
     char filebase[1024];      // TODO: make 256 to variable number...?
     const int isnp= iout+1;
 
@@ -392,16 +388,12 @@ void snapshot_time(const float aout, const int iout,
     timer_stop(comm);
 
     timer_start(write);
-    // Gadget snapshot for all particles
     // periodic wrapup not done, what about after fof? what about doing move_particle_min here?
     if(snapshot->filename) {
         sprintf(filebase, "%s%05d_%0.04f.bin", snapshot->filename, snapshot->seed, snapshot->a);
         write_runpb_snapshot(snapshot, filebase);
     }
     timer_stop(write);
-    // text file of a slice
-    //sprintf(filebase, "slice%02d", isnp); temp
-    //write_snapshot_slice(filebase, snapshot, boxsize); temp
 
     const double rho_crit = 27.7455;
     const double M0 = snapshot->omega_m*rho_crit*pow(snapshot->boxsize / snapshot->nc, 3.0);
@@ -414,6 +406,7 @@ void snapshot_time(const float aout, const int iout,
 
     msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
             isnp, z_out, aout);
+
     timer_set_category(STEPPING);
 }
 
@@ -424,7 +417,6 @@ Particles* allocate_particles(Parameters * param, int allocate_memory)
     particles->boxsize = param->boxsize;
     particles->omega_m = param->omega_m;
     particles->h = param->h;
-    //strncpy(snapshot->filename, param.snapshot_filename, 64);
     particles->filename = param->snapshot_filename;
 
     int nc = param->nc;
