@@ -19,20 +19,20 @@
 #define FILENAME  "%s.%02d"
 
 typedef struct {
-  int   npart;          /* Total number of particles. */
-  int   nsph;           /* Number of gas particles.   */
-  int   nstar;          /* Number of star particles.  */
+  int   npart;          /* Total number of p. */
+  int   nsph;           /* Number of gas p.   */
+  int   nstar;          /* Number of star p.  */
   float aa;             /* Scale factor. */
   float eps;            /* Gravitational softening    */
 } FileHeader;
 
-int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
+int read_runpb_ic(Parameters * param, double a_init, Particles * p) {
     int ThisTask;
     int NTask;
     size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc;
     void * scratch = heap_allocate(scratch_bytes);
     float * fscratch = (float*) scratch;
-    long long * lscratch = (long long *) scratch;
+    int64_t * lscratch = (int64_t *) scratch;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
@@ -85,7 +85,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
             fclose(fp);
         }
         if (Ntot != param->nc * param->nc * param->nc) {
-            msg_abort(0030, "Number of particles does not match nc\n");
+            msg_abort(0030, "Number of p does not match nc\n");
         }
         MPI_Bcast(NperFile, Nfile, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Bcast(&Ntot, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
@@ -107,10 +107,9 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
 
     size_t start = ThisTask * Ntot / NTask;
     size_t end   = (ThisTask + 1) * Ntot / NTask;
-    particles->np_local = end - start;
+    p->np_local = end - start;
 
     
-    Particle * par = particles->p;
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
     msg_printf(verbose, "chunknpart = %d\n", chunknpart);
@@ -149,10 +148,9 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
             fread(scratch, sizeof(float) * 3, nbatch, fp);
-            for(int p = 0, q = 0; p < nbatch; p ++) {
-                par[offset + nread + p].x[0] = fscratch[q++];
-                par[offset + nread + p].x[1] = fscratch[q++];
-                par[offset + nread + p].x[2] = fscratch[q++];
+            for(int ip = 0, q = 0; ip < nbatch; ip ++) {
+                for(int d = 0; d < 3; d ++)
+                    p->x[offset + nread + ip][d] = fscratch[q++];
             }
             nread += nbatch;
         }
@@ -164,32 +162,31 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
             fread(scratch, sizeof(float) * 3, nbatch, fp);
-            for(int p = 0, q = 0; p < nbatch; p ++) {
-                par[offset + nread + p].v[0] = fscratch[q++];
-                par[offset + nread + p].v[1] = fscratch[q++];
-                par[offset + nread + p].v[2] = fscratch[q++];
+            for(int ip = 0, q = 0; ip < nbatch; ip ++) {
+                for(int d = 0; d < 3; d ++)
+                    p->v[offset + nread + ip][d] = fscratch[q++];
             }
             nread += nbatch;
         }
         fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
         /* ID */
-        fseek(fp, mystart * sizeof(long long), SEEK_CUR);
+        fseek(fp, mystart * sizeof(int64_t), SEEK_CUR);
         nread = 0;
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            fread(scratch, sizeof(long long), nbatch, fp);
-            for(int p = 0, q = 0; p < nbatch; p ++) {
-                par[offset + nread + p].id = lscratch[q++];
+            fread(scratch, sizeof(int64_t), nbatch, fp);
+            for(int ip = 0, q = 0; ip < nbatch; ip ++) {
+                p->id[offset + nread + ip] = lscratch[q++];
             }
             nread += nbatch;
         }
-        fseek(fp, (NperFile[i] - myend) * sizeof(long long), SEEK_CUR);
+        fseek(fp, (NperFile[i] - myend) * sizeof(int64_t), SEEK_CUR);
         fclose(fp);
         offset += myend - mystart;
     }
-    if(offset != particles->np_local) {
-        msg_abort(0030, "mismatch %d != %d\n", offset, particles->np_local);
+    if(offset != p->np_local) {
+        msg_abort(0030, "mismatch %d != %d\n", offset, p->np_local);
     }
     const double Omega_m = param->omega_m;
     const double omega=Omega_m/(Omega_m + (1.0 - Omega_m)*aa*aa*aa);
@@ -200,20 +197,20 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
     const double f1 = pow(omega, (4./7));
     const double f2 = pow(omega, (6./11));
 
-    long long strides[] = {param->nc * param->nc, param->nc, 1};
+    int64_t strides[] = {param->nc * param->nc, param->nc, 1};
 
     /* RUN PB ic global shifting */
     const double offset0 = 0.5 * 1.0 / param->nc;
     double dx1max = 0;
     double dx2max = 0;
-    for(int p = 0; p < offset; p ++) {
-        float * x = par[p].x;
-        float * v = par[p].v;
-        float * dx1 = par[p].dx1;
-        float * dx2 = par[p].dx2;
+    for(int ip = 0; ip < offset; ip ++) {
+        float * x = p->x[ip];
+        float * v = p->v[ip];
+        float * dx1 = p->dx1[ip];
+        float * dx2 = p->dx2[ip];
         
-        long long id = par[p].id;
-        long long id0 = par[p].id;
+        int64_t id = p->id[ip];
+        int64_t id0 = id;
 
         for(int d = 0; d < 3; d ++ ) {
             double opos = (id / strides[d]) * (1.0 / param->nc) + offset0;
@@ -231,7 +228,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
             dx1[d] *= param->boxsize;
 
             if(dx1[d] > 100) {
-                printf("id = %lld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g Dplus=%g, D20=%g, D2=%g, DplusIC=%g\n", 
+                printf("id = %ld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g Dplus=%g, D20=%g, D2=%g, DplusIC=%g\n", 
                     id0, dx1[d], v[d], x[d], disp, opos, f1, f2, Dplus, D20, D2, DplusIC);
             }
             dx2[d] *= param->boxsize;
@@ -252,22 +249,22 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * particles) {
     return 0;
 }
 
-int write_runpb_snapshot(Snapshot * snapshot,  
+int write_runpb_snapshot(Particles * p,  
         char * filebase){
     int ThisTask;
     int NTask;
-    size_t scratch_bytes = snapshot->np_total * 8;
+    size_t scratch_bytes = p->np_total * 8;
     void * scratch = heap_allocate(scratch_bytes);
 
     float * fscratch = (float*) scratch;
-    long long * lscratch = (long long *) scratch;
+    int64_t * lscratch = (int64_t *) scratch;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
 
     size_t chunksize = scratch_bytes;
 
-    int np_local = snapshot->np_local;
+    int np_local = p->np_local;
 
     int * NperTask = alloca(sizeof(int) * NTask);
     size_t * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
@@ -280,13 +277,13 @@ int write_runpb_snapshot(Snapshot * snapshot,
     }
     size_t Ntot = NcumTask[NTask];
 
-    double aa = snapshot->a;
+    double aa = p->a;
     int Nfile = (Ntot + (1024 * 1024 * 128 - 1)) / (1024 * 1024 * 128);
 
     msg_printf(verbose, "Writing to %td paritlces to  %d files\n", Ntot, Nfile);
 
     double vfac = 100. / aa;
-    double RSD = aa / snapshot->qfactor / vfac;
+    double RSD = aa / p->qfactor / vfac;
 
     int * NperFile = NperFile = alloca(sizeof(int) * Nfile);
 
@@ -304,7 +301,6 @@ int write_runpb_snapshot(Snapshot * snapshot,
     size_t start = NcumTask[ThisTask];
     size_t end   = NcumTask[ThisTask + 1];
 
-    ParticleMinimum * par = snapshot->p;
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
 
@@ -356,10 +352,9 @@ int write_runpb_snapshot(Snapshot * snapshot,
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            for(int p = 0, q = 0; p < nbatch; p ++) {
-                fscratch[q++] = par[offset + nread + p].x[0] / snapshot->boxsize;
-                fscratch[q++] = par[offset + nread + p].x[1] / snapshot->boxsize;
-                fscratch[q++] = par[offset + nread + p].x[2] / snapshot->boxsize;
+            for(int ip = 0, q = 0; ip < nbatch; ip ++) {
+                for(int d = 0; d < 3; d++) 
+                    fscratch[q++] = p->x[offset + nread + ip][d] / p->boxsize;
             }
             fwrite(scratch, sizeof(float) * 3, nbatch, fp);
             nread += nbatch;
@@ -371,33 +366,32 @@ int write_runpb_snapshot(Snapshot * snapshot,
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            for(int p = 0, q = 0; p < nbatch; p ++) {
-                fscratch[q++] = par[offset + nread + p].v[0] * RSD / snapshot->boxsize;
-                fscratch[q++] = par[offset + nread + p].v[1] * RSD / snapshot->boxsize;
-                fscratch[q++] = par[offset + nread + p].v[2] * RSD / snapshot->boxsize;
+            for(int ip = 0, q = 0; ip < nbatch; ip ++) {
+                for(int d = 0; d < 3; d++) 
+                    fscratch[q++] = p->v[offset + nread + ip][d] * RSD / p->boxsize;
             }
             fwrite(scratch, sizeof(float) * 3, nbatch, fp);
             nread += nbatch;
         }
         fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
         /* ID */
-        fseek(fp, mystart * sizeof(long long), SEEK_CUR);
+        fseek(fp, mystart * sizeof(int64_t), SEEK_CUR);
         nread = 0;
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            for(int p = 0, q = 0; p < nbatch; p ++) {
-                lscratch[q++] = par[offset + nread + p].id;
+            for(int ip = 0, q = 0; ip < nbatch; ip ++) {
+                lscratch[q++] = p->id[offset + nread + ip];
             }
-            fwrite(scratch, sizeof(long long), nbatch, fp);
+            fwrite(scratch, sizeof(int64_t), nbatch, fp);
             nread += nbatch;
         }
-        fseek(fp, (NperFile[i] - myend) * sizeof(long long), SEEK_CUR);
+        fseek(fp, (NperFile[i] - myend) * sizeof(int64_t), SEEK_CUR);
         fclose(fp);
         offset += myend - mystart;
     }
-    if(offset != snapshot->np_local) {
-        msg_abort(0030, "mismatch %d != %d\n", offset, snapshot->np_local);
+    if(offset != p->np_local) {
+        msg_abort(0030, "mismatch %d != %d\n", offset, p->np_local);
     }
     heap_return(scratch);
     return 0;

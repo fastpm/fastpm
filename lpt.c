@@ -471,13 +471,16 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     float x[3];
     const float dx= Box/Nmesh;
     const float Dplus = 1.0/GrowthFactor(InitTime, 1.0);
-    Particle* p= particles->p;
     float maxdisp= 0.0f;
-
+    float (*Px)[3] = particles->x;
+    float (*Pv)[3] = particles->v;
+    int64_t (*Pid) = particles->id;
+    float (*Pdx1)[3] = particles->dx1;
+    float (*Pdx2)[3] = particles->dx2;
 
 
     double nmesh3_inv= 1.0/pow((double)Nmesh, 3.0);
-    long long id= (long long) Local_x_start*Nmesh*Nmesh + 1;
+    int64_t id= (int64_t) Local_x_start*Nmesh*Nmesh + 1;
 
     // small change to make it consistent with cola
     // use consistent growth factor... **
@@ -494,7 +497,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     msg_printf(debug, "2LPT vel_prefac (a=%5.3f) %e %e\n", InitTime, Dplus*vel_prefac, Dplus*Dplus*vel_prefac2);
 
 
-
+    int p = 0;
     for(int i=0; i<Local_nx; i++) {
         x[0]= (Local_x_start + i + 0.5f)*dx;
         for(int j=0; j<Nmesh; j++) {
@@ -509,17 +512,11 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
 
                     //p->x[axes]= x[axes] + dis*Dplus - 3.0/7.0*dis2*Dplus*Dplus;
 
-                    p->x[axes]= x[axes] + dis*Dplus - 3.0/7.0*D20*dis2*D2;
-                    p->dx1[axes]= dis;                 // 1LPT extrapolated to a=1
-                    p->dx2[axes]= -3.0/7.0*D20*dis2;   // 2LPT extrapolated to a=1
-                    p->v[axes]= 0.0f;                  // velocity in comoving 2LPT
-                    /*	  
-                          p->x[axes]= x[axes] + 1.4;
-                          p->dx1[axes]= 10.0 ; 
-                          p->dx2[axes]= 0.0 ;
-                          p->v[axes]= 0.0f;
-                          */
-                    //
+                    Px[p][axes]= x[axes] + dis*Dplus - 3.0/7.0*D20*dis2*D2;
+                    Pdx1[p][axes]= dis;                 // 1LPT extrapolated to a=1
+                    Pdx2[p][axes]= -3.0/7.0*D20*dis2;   // 2LPT extrapolated to a=1
+                    Pv[p][axes]= 0.0f;                  // velocity in comoving 2LPT
+                    
                     //2LPT velocity
                     //P[n].Vel[axes] = dis * vel_prefac - 3.0/7.0 * dis2 * vel_prefac2;
                     //dis & dis2 has growth factor
@@ -527,7 +524,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                     if(dis_mag > maxdisp)
                         maxdisp= dis_mag;
                 }
-                p->id= id++;
+                Pid[p] = id++;
                 p++;
             }
         }

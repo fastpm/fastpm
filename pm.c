@@ -172,7 +172,7 @@ void pm_finalize(void)
 }
 
 
-void PtoMesh(const Particle P[], const int np, float* const density)
+void PtoMesh(float (*Px)[3], int np, float* const density)
 {
     // ** precondition
     //   particles are assumed to be periodiclly wraped up in y,z direction
@@ -194,9 +194,9 @@ void PtoMesh(const Particle P[], const int np, float* const density)
 #pragma omp parallel for default(shared)
 #endif
     for(int i=0; i<np; i++) {
-        float X=P[i].x[0]*scaleBox;
-        float Y=P[i].x[1]*scaleBox;
-        float Z=P[i].x[2]*scaleBox;
+        float X=Px[i][0]*scaleBox;
+        float Y=Px[i][1]*scaleBox;
+        float Z=Px[i][2]*scaleBox;
 
         int iI=(int) floorf(X); // without floor, -1 < X < 0 is mapped to iI=0
         int J=(int) floorf(Y);          // Assumes Y,Z are positive
@@ -438,9 +438,9 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
 
 // Does 3-linear interpolation
 // particles= Values of mesh at particle positions P.x
-void force_at_particle_locations(const Particle P[], const int np, 
+void force_at_particle_locations(float (*Px)[3], const int np, 
         const int axes, 
-        const float fmesh[], float3 f[])
+        const float fmesh[], float (*f)[3])
 {
     const float scaleBox=((float) Ngrid)/((float) BoxSize);
 
@@ -450,9 +450,9 @@ void force_at_particle_locations(const Particle P[], const int np,
 #pragma omp parallel for default(shared)     
 #endif
     for(int i=0; i<np; i++) {
-        float X=P[i].x[0]*scaleBox;
-        float Y=P[i].x[1]*scaleBox;
-        float Z=P[i].x[2]*scaleBox;
+        float X=Px[i][0]*scaleBox;
+        float Y=Px[i][1]*scaleBox;
+        float Z=Px[i][2]*scaleBox;
 
         int iI= (int) floorf(X);
         int J=  (int) floorf(Y);
@@ -507,7 +507,7 @@ void pm_calculate_forces(Particles* particles)
 
     timer_start(assign);
     // x_i -> density(x) = fftdata
-    PtoMesh(particles->p, np_plus_buffer, (float*) fftdata);
+    PtoMesh(particles->x, np_plus_buffer, (float*) fftdata);
     timer_stop(assign);
 
     timer_start(fft);
@@ -525,7 +525,7 @@ void pm_calculate_forces(Particles* particles)
         compute_force_mesh(axes, fftdata, density_k);
 
         timer_start(pforce);
-        force_at_particle_locations(particles->p, np_plus_buffer, axes,
+        force_at_particle_locations(particles->x, np_plus_buffer, axes,
                 (float*) fftdata, particles->force);
         timer_stop(pforce);
     }

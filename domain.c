@@ -92,7 +92,7 @@ void domain_finalize() {
     free(MeshToTask[0]);
     free(MeshToTask[1]);
 }
-static int par_node(const float x[3]) {
+static int par_node(float x[3]) {
     int task = 0;
     for(int d = 0; d < 2; d ++) {
         int ind = floor(x[d] * MeshPerBox);
@@ -105,18 +105,21 @@ static int par_node(const float x[3]) {
 
 /* this will sort my particles to the top, 
  * then the other particles near the end by order */
-static int cmp_par_task(const void * c1, const void * c2, void * data) {
-    int task1 = par_node(((ParticleMinimum*) c1)->x);
-    int task2 = par_node(((ParticleMinimum*) c2)->x);
+static int cmp_par_task(void * c1, void * c2, void * data) {
+    int64_t i1 = *((int64_t *) c1);
+    int64_t i2 = *((int64_t *) c2);
+    Particles * p = data;
+    int task1 = par_node(p->x[i1]);
+    int task2 = par_node(p->x[i2]);
     if (task1 == ThisTask) task1 = -1;
     if (task2 == ThisTask) task2 = -1;
     int rt = (task1 > task2) - (task2 > task1);
     if(rt) return rt;
-    long long id1 = ((ParticleMinimum*) c1)->id;
-    long long id2 = ((ParticleMinimum*) c2)->id;
+    long long id1 = p->id[i1];
+    long long id2 = p->id[i2];
     return (id1 > id2) - (id2 > id1);
 }
-struct SendBuf {
+struct GhostBuf {
     float x[3];
     union {
         int TargetTask;
@@ -124,41 +127,22 @@ struct SendBuf {
     };
     int index;
 };
-typedef struct {
-    int * SendCount;    
-    int * RecvCount;    
-    int * SendDispl;    
-    int * RecvDispl;    
-} GhostData;
 
-static int cmp_sendbuf_target(const void * c1, const void * c2, void* data) {
-    int t1 = ((struct SendBuf*) c1)->TargetTask;
-    int t2 = ((struct SendBuf*) c2)->TargetTask;
+static int cmp_ghostbuf_target(void * c1, void * c2, void* data) {
+    int t1 = ((struct GhostBuf*) c1)->TargetTask;
+    int t2 = ((struct GhostBuf*) c2)->TargetTask;
     return (t1 > t2) - (t2 > t1);
 }
 
-static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
-double eps);
+int domain_create_ghosts(Particles* p, double eps) {
 
-int domain_create_ghosts(Particles* const particles, double eps) {
-    return domain_create_ghosts0(particles->p, particles->np_local, particles->np_allocated, 
-                sizeof(Particle), eps);
-}
-
-int domain_create_ghosts_min(Snapshot * const particles, double eps) {
-    return domain_create_ghosts0(particles->p, particles->np_local, particles->np_allocated, 
-                sizeof(ParticleMinimum), eps);
-}
-
-static int domain_create_ghosts0( void * p, int np_local, int np_allocated, size_t elsize, 
-double eps) 
-{
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
     int * SendDispl = alloca(sizeof(int) * NTask);
     int * RecvDispl = alloca(sizeof(int) * NTask);
 
-    struct SendBuf * sendbuf = heap_allocate(sizeof(struct SendBuf) * np_local);
+    /* FIXME: for now at most create np_local ghosts; we are CHECK this! */
+    struct GhostBuf * sendbuf = heap_allocate(sizeof(struct GhostBuf) * p->np_local);
 
     for(int i = 0; i < NTask; i ++) {
         SendCount[i] = 0;
@@ -169,8 +153,8 @@ double eps)
 
     /* build the send buf */
     int nsend = 0;
-    for(int i = 0; i < np_local; i ++) {
-        float * x = ((ParticleMinimum*)((char*) p + i * elsize))->x;
+    for(int i = 0; i < p->np_local; i ++) {
+        float * x = p->x[i];
         float tmp[3];
         memcpy(tmp, x, 3 * sizeof(float));
         /* check all neighbours to see if the particle
@@ -199,14 +183,14 @@ double eps)
     }
     size_t tmp_size = 2 * nsend * sizeof(void*) + sizeof(sendbuf[0]);
     void * tmp = heap_allocate(tmp_size);
-    qsort_r_with_tmp(sendbuf, nsend, sizeof(sendbuf[0]), cmp_sendbuf_target, NULL, tmp, tmp_size);
+    qsort_r_with_tmp(sendbuf, nsend, sizeof(sendbuf[0]), cmp_ghostbuf_target, p, tmp, tmp_size);
     heap_return(tmp);
     for(int i = 0; i < nsend; i ++) {
         sendbuf[i].OriginalTask = ThisTask;
     }
 
     /* now exchange the ghosts */
-    struct SendBuf * recvbuf = &sendbuf[nsend];
+    struct GhostBuf * recvbuf = &sendbuf[nsend];
 
     MPI_Alltoall(SendCount, 1, MPI_INT, RecvCount, 1, MPI_INT, MPI_COMM_WORLD);
     for(int i = 1; i < NTask; i ++) {
@@ -214,9 +198,9 @@ double eps)
         RecvDispl[i] = RecvDispl[i - 1] + RecvCount[i - 1];
     }
     int nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
-    if( np_local + nrecv  > np_allocated) {
+    if( p->np_local + nrecv  > p->np_allocated) {
         msg_abort(2415, "Not enough particle space ghosts, nrecv=%d, left=%td",
-            nrecv, np_allocated - np_local
+            nrecv, p->np_allocated - p->np_local
             );
     }
 
@@ -232,39 +216,23 @@ double eps)
     
     /* add ghosts to particles */
     for(int i = 0; i < nrecv; i ++) {
-        ParticleMinimum * ghost = (ParticleMinimum*) ((char*) p + (np_local + i) * elsize);
-        memset(ghost, 0, elsize);
-        memcpy(ghost->x, recvbuf[i].x, sizeof(float) * 3);
-        ghost->OriginalTask = recvbuf[i].OriginalTask;
-        ghost->OriginalIndex = recvbuf[i].index;
-        ghost->id = -1;
+        memcpy(p->x[p->np_local + i], recvbuf[i].x, sizeof(float) * 3);
+        /* ghost ID encodes the original index and task */
+        p->id[p->np_local + i] = (((int64_t)recvbuf[i].OriginalTask) << 32L) + recvbuf[i].index;
     }
     int maxghosts = 0;
     MPI_Allreduce(&nrecv, &maxghosts, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    msg_printf(verbose, "Max number of ghosts is %d, %g / 1\n", maxghosts, 1.0 * maxghosts/ np_allocated);
+    msg_printf(verbose, "Max number of ghosts is %d, %g / 1\n", maxghosts, 1.0 * maxghosts/ p->np_allocated);
 
     heap_return(sendbuf);
     return nrecv;
 }
 
-static void domain_annihilate_ghosts0(
-        void * p, int np_local, size_t elsize, 
-        int nghosts,
-        float (* f3)[3]);
-
-void domain_annihilate_ghosts(Particles* const particles, 
+void domain_annihilate_ghosts(Particles * p, 
         int nghosts,
         float (* f3)[3])
 {
-    domain_annihilate_ghosts0(particles->p, particles->np_local,
-        sizeof(Particle), nghosts, f3);
-}
-
-static void domain_annihilate_ghosts0(
-        void * p, int np_local, size_t elsize, 
-        int nghosts,
-        float (* f3)[3])
-{
+    int np_local = p->np_local;
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
     int * SendDispl = alloca(sizeof(int) * NTask);
@@ -282,9 +250,10 @@ static void domain_annihilate_ghosts0(
     int * indexsend = heap_allocate(sizeof(int*) * nghosts);
 
     for(int i = 0; i < nghosts; i ++) {
-        ParticleMinimum * ghost = (ParticleMinimum *) ((char*)p + (np_local + i) * elsize);
-        SendCount[ghost->OriginalTask] ++;
-        indexsend[i] = ghost->OriginalIndex;
+        int originalIndex = p->id[p->np_local + i] & 0xffffffff;
+        int originalTask = p->id[p->np_local + i] >> 32L;
+        SendCount[originalTask] ++;
+        indexsend[i] = originalIndex;
     }
 
     MPI_Alltoall(SendCount, 1, MPI_INT, RecvCount, 1, MPI_INT, MPI_COMM_WORLD);
@@ -343,62 +312,68 @@ static void domain_annihilate_ghosts0(
     heap_return(indexsend);
 }
 
-void domain_wrap(Particles * particles) {
-    Particle * p = particles->p;
-    for(int i = 0; i < particles->np_local; i ++) {
+void domain_wrap(Particles * p) {
+    for(int i = 0; i < p->np_local; i ++) {
         for(int d = 0; d < 3; d++) {
-            while(p[i].x[d] < 0) p[i].x[d] += BoxSize;
-            while(p[i].x[d] >= BoxSize) p[i].x[d] -= BoxSize;
+            while(p->x[i][d] < 0) p->x[i][d] += BoxSize;
+            while(p->x[i][d] >= BoxSize) p->x[i][d] -= BoxSize;
         }
     }
 }
-void domain_wrap_min(Snapshot * particles) {
-    ParticleMinimum * p = particles->p;
-    for(int i = 0; i < particles->np_local; i ++) {
-        for(int d = 0; d < 3; d++) {
-            while(p[i].x[d] < 0) p[i].x[d] += BoxSize;
-            while(p[i].x[d] >= BoxSize) p[i].x[d] -= BoxSize;
-        }
+static void permute(void * data, int np, size_t elsize, int64_t * ind) {
+    void * tmp = heap_allocate(np * elsize);
+    char * p = tmp;
+    char * q = data;
+    for(int i = 0; i < np; i ++) {
+        memcpy(&p[i * elsize], &q[ind[i] * elsize], elsize);
     }
-}
-
-static int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated);
-
-void domain_decompose(Particles* particles) {
-    void * P = particles->p;
-    size_t elsize = sizeof(Particle);
-    particles->np_local = 
-        domain_decompose0(P, elsize, particles->np_local, particles->np_allocated);
-}
-
-void domain_decompose_min(Snapshot * particles) {
-    void * P = particles->p;
-    size_t elsize = sizeof(ParticleMinimum);
-    particles->np_local = 
-        domain_decompose0(P, elsize, particles->np_local, particles->np_allocated);
-}
-
-int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated)
-{
-    char * Pc = P;
-
-    {
-    size_t total1 = np_local;
-    size_t total = 0;
-    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    msg_printf(verbose, "Total number of particles = %td\n", total);
-    total1 = 0;
-    for(int i = 0; i < np_local; i ++) {
-        total1 += (((ParticleMinimum*) &Pc[i * elsize])->id);
-    }
-    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    msg_printf(verbose, "Sum of particle ID = %td\n", total);
-    }
-
-    size_t tmp_size = 2 * np_local * sizeof(void*) + elsize;
-    void * tmp = heap_allocate(tmp_size);
-    qsort_r_with_tmp(P, np_local, elsize, cmp_par_task, NULL, tmp, tmp_size);
+    memcpy(data, tmp, elsize * np);
     heap_return(tmp);
+}
+struct DomainBuf {
+    float x[3];
+    float v[3];
+    float dx1[3];
+    float dx2[3];
+    int64_t id;
+};
+
+void domain_decompose(Particles* p) {
+    {
+        size_t total1 = p->np_local;
+        size_t total = 0;
+        MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        msg_printf(verbose, "Total number of particles = %td\n", total);
+        total1 = 0;
+        for(int i = 0; i < p->np_local; i ++) {
+            total1 += p->id[i];
+        }
+        MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        msg_printf(verbose, "Sum of particle ID = %td\n", total);
+    }
+
+    int64_t * ind = heap_allocate(sizeof(int64_t) * p->np_local);
+    for(int i = 0; i < p->np_local; i++) {
+        ind[i] = i;
+    }
+    size_t tmp_size = 2 * p->np_local * sizeof(void*) + sizeof(int64_t);
+    void * tmp = heap_allocate(tmp_size);
+    qsort_r_with_tmp(ind, p->np_local, sizeof(int64_t), cmp_par_task, p, tmp, tmp_size);
+    heap_return(tmp);
+
+    if(p->x)
+        permute(p->x, p->np_local, sizeof(float) * 3, ind);
+    if(p->v)
+        permute(p->v, p->np_local, sizeof(float) * 3, ind);
+    if(p->id)
+        permute(p->id, p->np_local, sizeof(int64_t), ind);
+
+    if(p->dx1)
+        permute(p->dx1, p->np_local, sizeof(float) * 3, ind);
+    if(p->dx2)
+        permute(p->dx2, p->np_local, sizeof(float) * 3, ind);
+
+    heap_return(ind);
 
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
@@ -410,20 +385,32 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated)
         SendDispl[i] = 0;
         RecvDispl[i] = 0;
     }
-    for(int i = 0; i < np_local; i ++) {
-        int task = par_node(((ParticleMinimum*) &Pc[i * elsize])->x);
+    for(int i = 0; i < p->np_local; i ++) {
+        int task = par_node(p->x[i]);
         SendCount[task] ++;
     }
-    char * sendbuf = (char*) &Pc[SendCount[ThisTask] *elsize];
-
-    MPI_Datatype MPI_PAR;
-    MPI_Type_contiguous(elsize, MPI_BYTE, &MPI_PAR);
-    MPI_Type_commit(&MPI_PAR);
-
+    int nsend = p->np_local - SendCount[ThisTask];
     /* chop the p buffer to local and send buf */
-    np_local = SendCount[ThisTask];
+    p->np_local = SendCount[ThisTask];
     /* local particles are not sent */
     SendCount[ThisTask] = 0;
+
+    struct DomainBuf * sendbuf = heap_allocate(sizeof(struct DomainBuf) * nsend);
+
+    for(int i = 0; i < nsend; i ++) {
+        for(int d = 0; d < 3; d ++) {
+            sendbuf[i].x[d] = p->x[p->np_local + i][d];
+            sendbuf[i].v[d] = p->v[p->np_local + i][d];
+            if(p->dx1)
+                sendbuf[i].dx1[d] = p->dx1[p->np_local + i][d];
+            if(p->dx2)
+                sendbuf[i].dx2[d] = p->dx2[p->np_local + i][d];
+        }
+        sendbuf[i].id = p->id[p->np_local + i];
+    }
+    MPI_Datatype MPI_PAR;
+    MPI_Type_contiguous(sizeof(struct DomainBuf), MPI_BYTE, &MPI_PAR);
+    MPI_Type_commit(&MPI_PAR);
 
     MPI_Alltoall(SendCount, 1, MPI_INT, RecvCount, 1, MPI_INT, MPI_COMM_WORLD);
     for(int i = 1; i < NTask; i ++) {
@@ -431,41 +418,53 @@ int domain_decompose0(void * P, size_t elsize, int np_local, int np_allocated)
         RecvDispl[i] = RecvDispl[i - 1] + RecvCount[i - 1];
     }
     /* prepare the recv buf from scratch */
-    size_t recv_total = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
+    size_t nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
 
-    void * recvbuf = heap_allocate(elsize * recv_total);
+    struct DomainBuf * recvbuf = heap_allocate(sizeof(struct DomainBuf) * nrecv);
 
     MPI_Alltoallv(sendbuf, SendCount, SendDispl, MPI_PAR, 
             recvbuf, RecvCount, RecvDispl, MPI_PAR, MPI_COMM_WORLD);
     
-    if(recv_total + np_local > np_allocated) {
+    if(nrecv + p->np_local > p->np_allocated) {
         msg_abort(2314, "Not enough memory in particles for this exchange."
                 "Need %d particles. Allocated %d particles\n",
-                recv_total + np_local, np_allocated);
+                nrecv + p->np_local, p->np_allocated);
 
     }
-    /* concatenate received particles with the local particles */
-    memcpy(sendbuf, recvbuf, elsize * recv_total);
+
+    for(int i = 0; i < nrecv; i ++) {
+        for(int d = 0; d < 3; d ++) {
+            p->x[p->np_local][d] = recvbuf[i].x[d];
+            p->v[p->np_local][d] = recvbuf[i].v[d];
+            if(p->dx1)
+                p->dx1[p->np_local][d] = recvbuf[i].dx1[d];
+            if(p->dx2)
+                p->dx2[p->np_local][d] = recvbuf[i].dx2[d];
+        }
+        p->id[p->np_local] = recvbuf[i].id;
+        p->np_local ++;
+    }
+
     heap_return(recvbuf);
-    np_local += recv_total;
+    heap_return(sendbuf);
 
     MPI_Type_free(&MPI_PAR);
-    for(int i = 0; i < np_local; i ++) {
-        if(par_node(((ParticleMinimum*) &Pc[i * elsize])->x) != ThisTask) {
+
+    for(int i = 0; i < p->np_local; i ++) {
+        if(par_node(p->x[i]) != ThisTask) {
             msg_abort(2314, "Some particles are not in the correct domain after exchange.");
         }
     }
     {
-    size_t total1 = np_local;
-    size_t total = 0;
-    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    msg_printf(verbose, "Total number of particles = %td\n", total);
-    total1 = 0;
-    for(int i = 0; i < np_local; i ++) {
-        total1 += (((ParticleMinimum*) &Pc[i * elsize])->id);
+        size_t total1 = p->np_local;
+        size_t total = 0;
+        MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        msg_printf(verbose, "Total number of particles = %td\n", total);
+        total1 = 0;
+        for(int i = 0; i < p->np_local; i ++) {
+            total1 += p->id[i];
+        }
+        MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
-    MPI_Allreduce(&total1, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    msg_printf(verbose, "Sum of particle ID = %td\n", total);
-    }
-    return np_local;
 }
