@@ -37,7 +37,7 @@ static int Local_ny_td, Local_y_start_td;  // transposed
 static size_t total_size;
 static float BoxSize;
 
-static fftwf_plan p0, p11;
+static fftwf_plan r2c_outplace_plan, c2r_inplace_plan;
 
 static double * PowerSpectrumVariable;
 
@@ -116,27 +116,29 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int m
     Local_y_start_td= local_y_start;
 
 
-    fftwf_complex * fftdata = heap_allocate(sizeof(fftwf_complex) * total_size);
+    fftwf_complex * cdata = heap_allocate(sizeof(fftwf_complex) * total_size);
+    fftwf_complex * rdata = heap_allocate(sizeof(fftwf_complex) * total_size);
 
     msg_printf(verbose, "Setting up FFTW3 plans\n");
 
-    p0=  fftwf_mpi_plan_dft_r2c_3d(Ngrid, Ngrid, Ngrid, 
-            (float*) fftdata, fftdata,
+    r2c_outplace_plan =  fftwf_mpi_plan_dft_r2c_3d(Ngrid, Ngrid, Ngrid, 
+            (float*) rdata, cdata,
             MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_OUT);
 
     // inverse FFT
-    p11= fftwf_mpi_plan_dft_c2r_3d(Ngrid, Ngrid, Ngrid, fftdata, (float*)fftdata,
+    c2r_inplace_plan = fftwf_mpi_plan_dft_c2r_3d(Ngrid, Ngrid, Ngrid, cdata, (float*)cdata,
             MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_IN);
 
     const int ncp= nc_pm/nc_pm_factor;
     NParticleTotal= (long long) ncp*ncp*ncp;
-    heap_return(fftdata);
+    heap_return(rdata);
+    heap_return(cdata);
 }
 
 void pm_finalize(void)
 {
-    fftwf_destroy_plan(p0);
-    fftwf_destroy_plan(p11);
+    fftwf_destroy_plan(r2c_outplace_plan);
+    fftwf_destroy_plan(c2r_inplace_plan);
 }
 
 
@@ -224,9 +226,8 @@ static double sinc_unnormed(double x) {
 // FFT density mesh and copy it to density_k
 void compute_density_k(float * density, fftwf_complex * density_k)
 {
-    fftwf_complex * fftdata = (fftwf_complex*) density;
     // FFT density(x) mesh -> density(k)
-    fftwf_mpi_execute_dft_r2c(p0, (float*) fftdata, fftdata);
+    fftwf_mpi_execute_dft_r2c(r2c_outplace_plan, (float*) density, density_k);
 
     // copy density(k) in fftdata to density_k
 
@@ -238,10 +239,7 @@ void compute_density_k(float * density, fftwf_complex * density_k)
      *
      * */
 
-    /* 
-     * we deconvolve CIC twice here.
-     * which means, in powerspectrum we need to convolve once.
-     * */
+    /* we apply no kernel here */
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
 #endif
@@ -250,8 +248,8 @@ void compute_density_k(float * density, fftwf_complex * density_k)
         for(int iI=0; iI<Ngrid; iI++) {
             for(int K=0; K<Ngrid/2+1; K++){
                 size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
-                density_k[index][0] = fftdata[index][0];
-                density_k[index][1] = fftdata[index][1];
+                density_k[index][0] = density_k[index][0];
+                density_k[index][1] = density_k[index][1];
             }
         }
     }
@@ -381,13 +379,11 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     timer_stop(force_mesh);
 
 
-    //msg_printf("Inverse FFT to Force, axes= %d ...", axes);
     timer_start(fft);
-    //fftwf_mpi_execute_dft_c2r(p11, FN11, N11);
     // Force(k) -> Force(x)
-    fftwf_mpi_execute_dft_c2r(p11, fftdata, (float*) fftdata);
+    fftwf_mpi_execute_dft_c2r(c2r_inplace_plan, fftdata, (float*) fftdata);
     timer_stop(fft);
-    //msg_printf("done\n");
+
 #if 0
     This will dump force into files
         static int step = 0;
