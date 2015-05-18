@@ -278,6 +278,11 @@ int main(int argc, char* argv[])
                     snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot);
                     iout++;
                 }
+
+                msg_printf(verbose, "Memory utilization = %td / %td bytes at root rank\n", 
+                    heap_get_max_usage(),
+                    heap_get_total_bytes());
+
                 if(iout >= nout) break;
 
                 // Leap-frog "kick" -- velocities updated
@@ -292,7 +297,6 @@ int main(int argc, char* argv[])
 
                 // Leap-frog "drift" -- positions updated
                 stepping_drift(particles, a_x, a_x1, a_v1);
-                msg_printf(verbose, "Max memory = %td bytes\n", heap_get_max_usage());
             }
         }
         timer_print();

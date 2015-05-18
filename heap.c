@@ -63,6 +63,10 @@ size_t heap_get_max_usage() {
     return max_usage;
 }
 
+size_t heap_get_total_bytes() {
+    return total_bytes;
+}
+
 int heap_return0(void * ptr) {
     top --;
     if (NODES[top].ptr != ptr) {
