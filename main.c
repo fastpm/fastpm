@@ -452,11 +452,17 @@ static size_t calculate_heap_size(Parameters * param) {
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
     
     size_t np_alloc = param->np_alloc_factor * param->nc * param->nc * param->nc / NTask;
-    size_t psize = np_alloc * (sizeof(float) * 3 * 5 + 8);
-    size_t fftsize = nm * nm * (nm + 1) * sizeof(float) * 2 / NTask; 
+    size_t psize;
+    if (param->force_mode == FORCE_MODE_PM) {
+        /* dx1 and dx2 are not needed */
+        psize = np_alloc * (sizeof(float) * 3 * 3 + 8);
+    } else {
+        psize = np_alloc * (sizeof(float) * 3 * 5 + 8);
+    }
+    size_t fftsize = nm * nm * (nm / 2 + 1) * sizeof(float) * 2 * 2 / NTask; 
 
 
-    size_t total = psize + fftsize + 4096 * 1024; 
+    size_t total = psize + fftsize + 4096 * 128; 
     msg_printf(verbose, "Particles: %td bytes\nFFT: %td bytes for FFT\nTotal: %td\n",
         psize, fftsize, total);
     return total;
