@@ -193,6 +193,10 @@ int main(int argc, char* argv[])
         domain_init(param.nc * nc_factor, param.boxsize);
 
         timer_set_category(LPT);
+
+        particles->dx1 = heap_allocate(sizeof(float) * 3 * particles->np_allocated);
+        particles->dx2 = heap_allocate(sizeof(float) * 3 * particles->np_allocated);
+
         if(param.readic_filename) {
             read_runpb_ic(&param, a_init, particles);
         } else {
@@ -205,7 +209,10 @@ int main(int argc, char* argv[])
         // always do this because it intializes the initial velocity
         // correctly.
         stepping_set_initial(a_init, OmegaM, particles);
-
+        if(param.qpm) {
+            heap_return(particles->dx2);
+            heap_return(particles->dx1);
+        }
         timer_set_category(STEPPING);
 
         //
@@ -441,8 +448,6 @@ Particles* allocate_particles(Parameters * param, int allocate_memory)
         particles->x = heap_allocate(sizeof(float) * 3 *np_alloc);
         particles->v = heap_allocate(sizeof(float) * 3 *np_alloc);
         particles->force = heap_allocate(sizeof(float) * 3 *np_alloc);
-        particles->dx1 = heap_allocate(sizeof(float) * 3 *np_alloc);
-        particles->dx2 = heap_allocate(sizeof(float) * 3 *np_alloc);
         particles->id = heap_allocate(sizeof(int64_t) * np_alloc);
 
         particles->np_allocated = np_alloc;

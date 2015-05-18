@@ -14,9 +14,9 @@ h       = 0.69
 sigma8  = 0.820
 
 -- canonical cola parameters
-qpm = false
+qpm = true
 time_step = 'a'
-stdda = false
+stdda = true
 smoothing = 2.0
 diff_order = 0
 nopm = false

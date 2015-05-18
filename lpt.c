@@ -81,8 +81,13 @@ void lpt_init(const int nc)
     seedtable = malloc(Nmesh * Nmesh * sizeof(unsigned int)); assert(seedtable);
 }
 
-int lpt_set_displacement(const double InitTime, const double omega_m, const int Seed, const double Box, Particles* particles)
+int lpt_set_displacement(const double InitTime, const double omega_m, const int Seed, const double Box, Particles* p)
 {
+    /* 
+     * Whoever wrote this code shall be ashamed for nesting so many levels of braces.
+     * this code is beyond salvaging.
+     **/
+
     msg_printf(verbose, "Computing LPT displacement fields...\n");
     msg_printf(info, "Random Seed = %d\n", Seed);
 
@@ -472,12 +477,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     const float dx= Box/Nmesh;
     const float Dplus = 1.0/GrowthFactor(InitTime, 1.0);
     float maxdisp= 0.0f;
-    float (*Px)[3] = particles->x;
-    float (*Pv)[3] = particles->v;
-    int64_t (*Pid) = particles->id;
-    float (*Pdx1)[3] = particles->dx1;
-    float (*Pdx2)[3] = particles->dx2;
-
 
     double nmesh3_inv= 1.0/pow((double)Nmesh, 3.0);
     int64_t id= (int64_t) Local_x_start*Nmesh*Nmesh + 1;
@@ -497,7 +496,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     msg_printf(debug, "2LPT vel_prefac (a=%5.3f) %e %e\n", InitTime, Dplus*vel_prefac, Dplus*Dplus*vel_prefac2);
 
 
-    int p = 0;
+    int ip = 0;
     for(int i=0; i<Local_nx; i++) {
         x[0]= (Local_x_start + i + 0.5f)*dx;
         for(int j=0; j<Nmesh; j++) {
@@ -510,12 +509,10 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                     float dis2= nmesh3_inv*
                         disp2[axes][(i * Nmesh + j) * (2 * (Nmesh / 2 + 1)) + k];
 
-                    //p->x[axes]= x[axes] + dis*Dplus - 3.0/7.0*dis2*Dplus*Dplus;
-
-                    Px[p][axes]= x[axes] + dis*Dplus - 3.0/7.0*D20*dis2*D2;
-                    Pdx1[p][axes]= dis;                 // 1LPT extrapolated to a=1
-                    Pdx2[p][axes]= -3.0/7.0*D20*dis2;   // 2LPT extrapolated to a=1
-                    Pv[p][axes]= 0.0f;                  // velocity in comoving 2LPT
+                    p->x[ip][axes]= x[axes] + dis*Dplus - 3.0/7.0*D20*dis2*D2;
+                    p->dx1[ip][axes]= dis;                 // 1LPT extrapolated to a=1
+                    p->dx2[ip][axes]= -3.0/7.0*D20*dis2;   // 2LPT extrapolated to a=1
+                    p->v[ip][axes]= 0.0f;                  // velocity in comoving 2LPT
                     
                     //2LPT velocity
                     //P[n].Vel[axes] = dis * vel_prefac - 3.0/7.0 * dis2 * vel_prefac2;
@@ -524,8 +521,8 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                     if(dis_mag > maxdisp)
                         maxdisp= dis_mag;
                 }
-                Pid[p] = id++;
-                p++;
+                p->id[ip] = id++;
+                ip++;
             }
         }
     }
@@ -540,7 +537,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
             "Maximum displacement: %f, in units of the part-spacing= %f\n",
             max_disp_glob, max_disp_glob / dx);
 
-    particles->np_local= Local_nx*Nmesh*Nmesh;
+    p->np_local= Local_nx*Nmesh*Nmesh;
 
     heap_return(fftdata);
 

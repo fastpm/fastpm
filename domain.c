@@ -361,12 +361,9 @@ void domain_decompose(Particles* p) {
     qsort_r_with_tmp(ind, p->np_local, sizeof(int64_t), cmp_par_task, p, tmp, tmp_size);
     heap_return(tmp);
 
-    if(p->x)
-        permute(p->x, p->np_local, sizeof(float) * 3, ind);
-    if(p->v)
-        permute(p->v, p->np_local, sizeof(float) * 3, ind);
-    if(p->id)
-        permute(p->id, p->np_local, sizeof(int64_t), ind);
+    permute(p->x, p->np_local, sizeof(float) * 3, ind);
+    permute(p->v, p->np_local, sizeof(float) * 3, ind);
+    permute(p->id, p->np_local, sizeof(int64_t), ind);
 
     if(p->dx1)
         permute(p->dx1, p->np_local, sizeof(float) * 3, ind);

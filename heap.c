@@ -63,7 +63,7 @@ size_t heap_get_max_usage() {
     return max_usage;
 }
 
-int heap_return(void * ptr) {
+int heap_return0(void * ptr) {
     top --;
     if (NODES[top].ptr != ptr) {
         msg_abort(9999, "Ptr %p is not last allocated block (%p of size %td)\n", 

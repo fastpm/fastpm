@@ -30,7 +30,7 @@
 #include "timer.h"
 
 static double Om= -1.0f;
-static double subtractLPT= 1.0f;
+static int USE_COLA = 1;
 static double nLPT= -2.5f;
 static int stdDA = 0; // velocity growth model
 static int noPM;
@@ -45,7 +45,7 @@ double Qfactor(double a);
 // Leap frog time integration
 // ** Total momentum adjustment dropped
 void stepping_set_subtract_lpt(int flag) {
-    subtractLPT = flag?1.0:0.0;
+    USE_COLA = flag?1:0;
 }
 void stepping_set_std_da(int flag) {
     stdDA = flag;
@@ -88,8 +88,10 @@ void stepping_kick(Particles* p, double Omega_m,
 #endif
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d++) {
-            float ax= -1.5*Om_*f[i][d] - subtractLPT*(p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
-
+            float ax= -1.5*Om_*f[i][d];
+            if(USE_COLA) {
+                ax -= (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
+            }
             if(!noPM) {
                 p->v[i][d] += ax * dda;
             } else {
@@ -124,8 +126,10 @@ msg_printf(normal, "dyyy = %g \n", dyyy);
 #endif
 for(int i=0; i<np; i++) {
     for(int d = 0; d < 3; d ++) {
-        p->x[i][d] += p->v[i][d]*dyyy + 
-            subtractLPT*(p->dx1[i][d]*da1 + p->dx2[i][d]*da2);
+        p->x[i][d] += p->v[i][d]*dyyy;
+        if(USE_COLA) {
+            p->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+        }
     }
 }
 
@@ -341,7 +345,7 @@ void stepping_set_initial(double aout, double omega_m, Particles * p)
 #endif
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d ++) {
-            if(subtractLPT) {
+            if(USE_COLA) {
                 p->v[i][d] = 0;
             } else {
                 p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
@@ -411,13 +415,17 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d ++) {
             // Kick + adding back 2LPT velocity + convert to km/s
-            float ax= -1.5*Om*f[i][0] - subtractLPT*(p->dx1[i][0]*q1 + p->dx2[i][0]*q2);
+            float ax= -1.5*Om*f[i][0];
+            if(USE_COLA)
+                ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;
 
-            po->v[i][d] = vfac*(p->v[i][d] + ax*dda +
-                    (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2)*subtractLPT);
+            po->v[i][d] = vfac*(p->v[i][d] + ax*dda);
+            if(USE_COLA)
+                po->v[i][d] += vfac * (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
             // Drift
-            po->x[i][d] = p->x[i][d] + p->v[i][d]*dyyy + 
-                subtractLPT*(p->dx1[i][d]*da1 + p->dx2[i][d]*da2);
+            po->x[i][d] = p->x[i][d] + p->v[i][d]*dyyy;
+            if(USE_COLA)
+                po->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
         }
 
         po->id[i] = p->id[i];
