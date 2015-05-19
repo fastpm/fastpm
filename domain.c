@@ -427,11 +427,6 @@ void domain_decompose(Particles* p) {
     /* prepare the recv buf from scratch */
     size_t nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
 
-    struct DomainBuf * recvbuf = heap_allocate(sizeof(struct DomainBuf) * nrecv);
-
-    MPI_Alltoallv(sendbuf, SendCount, SendDispl, MPI_PAR, 
-            recvbuf, RecvCount, RecvDispl, MPI_PAR, MPI_COMM_WORLD);
-    
     if(nrecv + p->np_local > p->np_allocated) {
         msg_abort(2314, "Not enough memory in particles for this exchange."
                 "Need %d particles. Allocated %d particles\n",
@@ -439,6 +434,11 @@ void domain_decompose(Particles* p) {
 
     }
 
+    struct DomainBuf * recvbuf = heap_allocate(sizeof(struct DomainBuf) * nrecv);
+
+    MPI_Alltoallv(sendbuf, SendCount, SendDispl, MPI_PAR, 
+            recvbuf, RecvCount, RecvDispl, MPI_PAR, MPI_COMM_WORLD);
+    
     for(int i = 0; i < nrecv; i ++) {
         for(int d = 0; d < 3; d ++) {
             p->x[p->np_local][d] = recvbuf[i].x[d];
