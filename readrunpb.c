@@ -32,7 +32,7 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * p) {
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
 
-    size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc / NTask;
+    size_t scratch_bytes = heap_get_free_bytes();
     void * scratch = heap_allocate(scratch_bytes);
     float * fscratch = (float*) scratch;
     int64_t * lscratch = (int64_t *) scratch;
@@ -257,7 +257,7 @@ int write_runpb_snapshot(Parameters * param, Particles * p,
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
 
-    size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc / NTask;
+    size_t scratch_bytes = heap_get_free_bytes();
     void * scratch = heap_allocate(scratch_bytes);
 
     float * fscratch = (float*) scratch;

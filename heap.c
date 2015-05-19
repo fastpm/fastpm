@@ -67,6 +67,10 @@ size_t heap_get_total_bytes() {
     return total_bytes;
 }
 
+size_t heap_get_free_bytes() {
+    return 4096 * (total_bytes - used_bytes) / 4096;
+}
+
 int heap_return0(void * ptr) {
     top --;
     if (NODES[top].ptr != ptr) {
