@@ -29,13 +29,13 @@ typedef struct {
 int read_runpb_ic(Parameters * param, double a_init, Particles * p) {
     int ThisTask;
     int NTask;
-    size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc;
+    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+    size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc / NTask;
     void * scratch = heap_allocate(scratch_bytes);
     float * fscratch = (float*) scratch;
     int64_t * lscratch = (int64_t *) scratch;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
 
     size_t chunksize = scratch_bytes;
 
@@ -249,18 +249,20 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * p) {
     return 0;
 }
 
-int write_runpb_snapshot(Particles * p,  
+int write_runpb_snapshot(Parameters * param, Particles * p,  
         char * filebase){
     int ThisTask;
     int NTask;
-    size_t scratch_bytes = p->np_total * 8;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+    size_t scratch_bytes = ((size_t) 4) * param->nc * param->nc * param->nc / NTask;
     void * scratch = heap_allocate(scratch_bytes);
 
     float * fscratch = (float*) scratch;
     int64_t * lscratch = (int64_t *) scratch;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
 
     size_t chunksize = scratch_bytes;
 

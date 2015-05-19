@@ -35,7 +35,7 @@
 #include "timer.h"
 #include "heap.h"
 
-extern int write_runpb_snapshot(Particles * snapshot,  
+extern int write_runpb_snapshot(Parameters * param, Particles * snapshot,  
         char * filebase);
 extern int read_runpb_ic(Parameters * param, double a_init, Particles * particles);
 
@@ -44,7 +44,7 @@ static size_t calculate_heap_size(Parameters * param);
 
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
-void snapshot_time(const float aout, const int iout, 
+void snapshot_time(Parameters * param, float aout, int iout, 
         double a_x, double a_v,
         Particles * particles, 
         Particles * snapshot
@@ -275,7 +275,7 @@ int main(int argc, char* argv[])
 
                 while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
                     // Time to write output
-                    snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot);
+                    snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
                     iout++;
                 }
 
@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
 
                 while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
                     // Time to write output
-                    snapshot_time(aout[iout], iout, a_x, a_v, particles, snapshot);
+                    snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
                     iout++;
                 }
                 if(iout >= nout) break;
@@ -361,7 +361,7 @@ void fft_init(int threads_ok)
 }
 
 
-void snapshot_time(const float aout, const int iout, 
+void snapshot_time(Parameters * param, float aout, int iout, 
         double a_x, double a_v,
         Particles * particles, 
         Particles * snapshot)
@@ -391,7 +391,7 @@ void snapshot_time(const float aout, const int iout,
     // periodic wrapup not done, what about after fof? what about doing move_particle_min here?
     if(snapshot->filename) {
         sprintf(filebase, "%s%05d_%0.04f.bin", snapshot->filename, snapshot->seed, snapshot->a);
-        write_runpb_snapshot(snapshot, filebase);
+        write_runpb_snapshot(param, snapshot, filebase);
     }
     timer_stop(write);
 
