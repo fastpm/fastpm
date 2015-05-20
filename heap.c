@@ -34,11 +34,11 @@ int heap_init(size_t allocation) {
     return 0;
 }
 
-void * heap_allocate(size_t bytes) {
+void * heap_allocate0(size_t bytes, char * filename, int lineno) {
     /* align to 4K boundary */
     bytes = 4096 * (size_t)((bytes + 4096 - 1) / 4096);
     if(BASE != NULL && used_bytes + bytes > total_bytes) {
-        msg_abort(9999, "Failed to allocation %td bytes\n", bytes);
+        msg_abort(9999, "Failed to allocated %td bytes, free=%td %s:%d\n", bytes, total_bytes - used_bytes, filename, lineno);
         return NULL;
     } else {
         void * ptr;
@@ -68,7 +68,7 @@ size_t heap_get_total_bytes() {
 }
 
 size_t heap_get_free_bytes() {
-    return 4096 * (total_bytes - used_bytes) / 4096;
+    return 4096 * ((total_bytes - used_bytes) / 4096 - 1);
 }
 
 int heap_return0(void * ptr) {
