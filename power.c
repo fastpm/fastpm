@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_integration.h>
 #include <mpi.h>
