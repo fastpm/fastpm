@@ -107,7 +107,7 @@ static int par_node(float x[3]) {
 
 /* this will sort my particles to the top, 
  * then the other particles near the end by order */
-static int cmp_par_task(void * c1, void * c2, void * data) {
+static int cmp_par_task(const void * c1, const void * c2, void * data) {
     int64_t i1 = *((int64_t *) c1);
     int64_t i2 = *((int64_t *) c2);
     Particles * p = data;
@@ -130,7 +130,7 @@ struct GhostBuf {
     int index;
 };
 
-static int cmp_ghostbuf_target(void * c1, void * c2, void* data) {
+static int cmp_ghostbuf_target(const void * c1, const void * c2, void* data) {
     int t1 = ((struct GhostBuf*) c1)->TargetTask;
     int t2 = ((struct GhostBuf*) c2)->TargetTask;
     return (t1 > t2) - (t2 > t1);
