@@ -326,16 +326,18 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     const float scale=2.0*M_PI/BoxSize;
     //const float dens_fac= 1.0/(pow(Ngrid, 3));
 
-    const float f1= -1.0/pow(Ngrid, 3.0)/scale;
+    const float f1= -1.0/pow(Ngrid, 3.0);
 
     float * diff = alloca(sizeof(float) * Ngrid);
     float * di2 = alloca(sizeof(float) * Ngrid);
     float * ff = alloca(sizeof(float) * Ngrid);
+    float * k2 = alloca(sizeof(float) * Ngrid);
     for(int J = 0 ; J < Ngrid; J ++) {
         int J0= J <= (Ngrid/2) ? J : J - Ngrid;
-        diff[J] = diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
+        diff[J] = diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0) * scale;
         ff[J] = sinc_unnormed(J0 * M_PI / Ngrid);
-        di2[J] = J0 * ff[J] * J0 * ff[J];
+        di2[J] = (J0 * ff[J] * J0 * ff[J]) * (scale * scale);
+        k2[J] = (J0 * scale) * (J0 * scale);
     }
     //complex float di[3];
     //#shared(FN11, P3D, Local_ny_td, Local_y_start_td, Ngrid, NgridL)
@@ -349,9 +351,11 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
             int KMIN= (iI==0 && J==0); // skip (0,0,0) because FN=0 for k=(0,0,0)
 
             for(int K=KMIN; K<Ngrid/2+1; K++){
-                const float tmp = di2[J] + di2[iI] + di2[K];
+                const float tmpdi2 = di2[J] + di2[iI] + di2[K];
                 const int ind[] = {iI, J, K};
-                float f2= f1/tmp * diff[ind[axes]];
+                float tmpk2 = k2[J] + k2[iI] + k2[K];
+
+                float f2= f1 / tmpdi2 * diff[ind[axes]];
 
                 size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
                 FN11[index][0]= -f2*P3D[index][1];
