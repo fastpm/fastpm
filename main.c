@@ -207,7 +207,7 @@ int main(int argc, char* argv[])
         // Time evolution loop
         //
         //   TODO: allow nstep=1?
-        if(nout > 0 && nsteps > 1 && a_final > a_init) {
+        if(nout > 0 && nsteps >= 0 && a_final >= a_init) {
             msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
                     a_init, a_final, nsteps);
 

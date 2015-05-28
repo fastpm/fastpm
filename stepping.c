@@ -423,7 +423,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
             if(FORCE_MODE == FORCE_MODE_COLA
             || FORCE_MODE == FORCE_MODE_PM)
                 po->x[i][d] += p->v[i][d]*dyyy;
-            if(FORCE_MODE == FORCE_MODE_COLA)
+            if(FORCE_MODE != FORCE_MODE_PM)
                 po->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
         }
 
