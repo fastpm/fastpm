@@ -153,6 +153,8 @@ int main(int argc, char* argv[])
 
     nc_factor = param.pm_nc_factor1;
     pm_set_diff_order(param.diff_order);
+    pm_set_mond(PM_NO_MOND);
+
     pm_init(nc_factor * param.nc, nc_factor, param.boxsize, param.nrealization>1);
 
     lpt_init(param.nc);

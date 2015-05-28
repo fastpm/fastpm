@@ -36,6 +36,7 @@ static int Local_nx, Local_x_start;
 static int Local_ny_td, Local_y_start_td;  // transposed
 static size_t total_size;
 static float BoxSize;
+static pm_mond_func pm_mond_mu_k;
 
 static fftwf_plan r2c_outplace_plan, c2r_inplace_plan;
 
@@ -96,10 +97,17 @@ void pm_set_diff_order(int order) {
     diff_kernel = kernels[order];
 }
 
-void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int many)
+double PM_NO_MOND(double k2) {
+    return 1.0;
+}
+
+void pm_set_mond(pm_mond_func mond_mu_k) {
+    pm_mond_mu_k = mond_mu_k;
+}
+void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize,
+        int many)
 {
     // Assume FFTW3 is initialized in lpt.c
-
     Ngrid= nc_pm; NgridL= nc_pm;
     PowerSpectrumVariable = malloc(sizeof(double) * Ngrid / 2);
     BoxSize= boxsize;
@@ -354,8 +362,8 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
                 const float tmpdi2 = di2[J] + di2[iI] + di2[K];
                 const int ind[] = {iI, J, K};
                 float tmpk2 = k2[J] + k2[iI] + k2[K];
-
-                float f2= f1 / tmpdi2 * diff[ind[axes]];
+                float mu = pm_mond_mu_k(tmpk2);
+                float f2= mu * f1 / tmpdi2 * diff[ind[axes]];
 
                 size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
                 FN11[index][0]= -f2*P3D[index][1];
