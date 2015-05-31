@@ -460,8 +460,10 @@ static size_t calculate_heap_size(Parameters * param) {
         psize = np_alloc * (sizeof(float) * 3 * 5 + 8);
     }
     size_t fftsize = nm * nm * (nm / 2 + 1) * sizeof(float) * 2 * 2 / NTask; 
-
-
+    size_t snapshotsize = (np_alloc) * ( sizeof(float) * 3 * 2 + 8 + sizeof(int));
+    if (snapshotsize > fftsize) {
+        fftsize = snapshotsize;
+    }
     size_t total = psize + fftsize + 4096 * 128; 
     msg_printf(verbose, "Particles: %td bytes\nFFT: %td bytes for FFT\nTotal: %td\n",
         psize, fftsize, total);
