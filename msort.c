@@ -392,10 +392,13 @@ msort_with_tmp (const struct msort_param *p, void *b, size_t n)
   memcpy (b, p->t, (n - n2) * s);
 }
 
+void qsort_r_inplace(void * b, size_t n, size_t s, __compar_d_fn_t cmp, void *arg) {
+    _quicksort (b, n, s, cmp, arg);
+}
 void
 qsort_r_with_tmp (void *b, size_t n, size_t s, __compar_d_fn_t cmp, void *arg, void * scratch, size_t scratch_size)
 {
-  size_t size = n * s;
+  size_t size = 2 * n * s + s;
   struct msort_param p;
 
   /* For large object sizes use indirect sorting.  */

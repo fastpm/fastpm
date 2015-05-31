@@ -25,6 +25,7 @@
 
 #include "heap.h"
 #include "msort.c"
+#include "permute.c"
 
 double BoxSize;
 int * MeshToTask[2];
@@ -108,8 +109,8 @@ static int par_node(float x[3]) {
 /* this will sort my particles to the top, 
  * then the other particles near the end by order */
 static int cmp_par_task(const void * c1, const void * c2, void * data) {
-    int64_t i1 = *((int64_t *) c1);
-    int64_t i2 = *((int64_t *) c2);
+    int i1 = *((int *) c1);
+    int i2 = *((int *) c2);
     Particles * p = data;
     int task1 = par_node(p->x[i1]);
     int task2 = par_node(p->x[i2]);
@@ -183,10 +184,8 @@ int domain_create_ghosts(Particles* p, double eps) {
             continue;
         }
     }
-    size_t tmp_size = 2 * nsend * sizeof(void*) + sizeof(sendbuf[0]);
-    void * tmp = heap_allocate(tmp_size);
-    qsort_r_with_tmp(sendbuf, nsend, sizeof(sendbuf[0]), cmp_ghostbuf_target, p, tmp, tmp_size);
-    heap_return(tmp);
+    qsort_r_inplace(sendbuf, nsend, sizeof(sendbuf[0]), cmp_ghostbuf_target, p);
+
     for(int i = 0; i < nsend; i ++) {
         sendbuf[i].OriginalTask = ThisTask;
     }
@@ -249,7 +248,7 @@ void domain_annihilate_ghosts(Particles * p,
 
     float (*f3g)[3] = f3 + np_local;
 
-    int * indexsend = heap_allocate(sizeof(int*) * nghosts);
+    int * indexsend = heap_allocate(sizeof(int) * nghosts);
 
     for(int i = 0; i < nghosts; i ++) {
         int originalIndex = p->id[p->np_local + i] & 0xffffffff;
@@ -265,7 +264,7 @@ void domain_annihilate_ghosts(Particles * p,
     }
     int nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
 
-    int * indexrecv = heap_allocate(sizeof(int*) * nrecv);
+    int * indexrecv = heap_allocate(sizeof(int) * nrecv);
 
     MPI_Alltoallv(indexsend, SendCount, SendDispl, MPI_INT,
                 indexrecv, RecvCount, RecvDispl, MPI_INT,
@@ -329,16 +328,7 @@ void domain_wrap(Particles * p) {
         }
     }
 }
-static void permute(void * data, int np, size_t elsize, int64_t * ind) {
-    void * tmp = heap_allocate(np * elsize);
-    char * p = tmp;
-    char * q = data;
-    for(int i = 0; i < np; i ++) {
-        memcpy(&p[i * elsize], &q[ind[i] * elsize], elsize);
-    }
-    memcpy(data, tmp, elsize * np);
-    heap_return(tmp);
-}
+
 struct DomainBuf {
     float x[3];
     float v[3];
@@ -362,14 +352,11 @@ void domain_decompose(Particles* p) {
         msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
 #endif
-    int64_t * ind = heap_allocate(sizeof(int64_t) * p->np_local);
+    int * ind = heap_allocate(sizeof(int) * p->np_local);
     for(int i = 0; i < p->np_local; i++) {
         ind[i] = i;
     }
-    size_t tmp_size = 2 * p->np_local * sizeof(void*) + sizeof(int64_t);
-    void * tmp = heap_allocate(tmp_size);
-    qsort_r_with_tmp(ind, p->np_local, sizeof(int64_t), cmp_par_task, p, tmp, tmp_size);
-    heap_return(tmp);
+    qsort_r_inplace(ind, p->np_local, sizeof(int), cmp_par_task, p);
 
     permute(p->x, p->np_local, sizeof(float) * 3, ind);
     permute(p->v, p->np_local, sizeof(float) * 3, ind);
