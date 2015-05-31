@@ -12,6 +12,8 @@ static size_t used_bytes;
 static struct Node {
     void * ptr;
     size_t bytes;
+    char file[256];
+    int line;
 } NODES[1024];
 
 static int top;
@@ -54,6 +56,8 @@ void * heap_allocate0(size_t bytes, char * filename, int lineno) {
         }
         NODES[top].ptr = ptr;
         NODES[top].bytes = bytes;
+        strcpy(NODES[top].file, filename);
+        NODES[top].line = lineno;
         top ++;
         return ptr;
     }
