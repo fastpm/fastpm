@@ -51,6 +51,7 @@ qrpm: $(OBJS)
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
   stepping.h write.h timer.h 
+domain.o: domain.c domain.h msort.c permute.c
 stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h
 heap.o: heap.c heap.h msg.h
