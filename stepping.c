@@ -41,10 +41,92 @@ double Sphi(double ai, double af, double aRef);
 double Sq(double ai, double af, double aRef);
 double Qfactor(double a);
 static int FORCE_MODE;
+static int NSTEPS;
+static double *A_X;
+static double *A_V;
+
+static double polval(const double * pol, const int degrees, const double x) {
+    double rt = 0;
+    int i;
+    for(i = 0; i < degrees; i ++) {
+        rt += pow(x, degrees - i - 1) * pol[i];
+    }
+    return rt;
+}
+
+
 void stepping_init(Parameters * param) {
     FORCE_MODE = param->force_mode;
+    NSTEPS = param->ntimestep;
     stdDA = param->stdda;
     Om = param->omega_m;
+
+    int nsteps= param->ntimestep;
+    double a_final= param->a_final;
+    double a_init = param->a_init;
+
+    /* one extra item in the end; to avoid an if conditioni in main loop */
+    A_X = (double*) calloc(nsteps + 2, sizeof(double));
+    A_V = (double*) calloc(nsteps + 2, sizeof(double));
+
+    switch(param->time_step) {
+        case TIME_STEP_LOGA:
+            msg_printf(info, "timestep linear in loga\n");
+            for(int i = 0; i < nsteps + 2; i ++) {
+                double dloga = (log(a_final) - log(a_init)) / nsteps;
+                A_X[i] = exp(log(a_init) + i * dloga);
+                A_V[i] = exp(log(a_init) + i * dloga - 0.5 * dloga);
+            }
+            break;
+        case TIME_STEP_A:
+            msg_printf(info, "timestep linear in a\n");
+            for(int i = 0; i < nsteps + 2; i ++) {
+                double da = (a_final - a_init) / nsteps;
+                A_X[i] = a_init + (i * da);
+                A_V[i] = a_init + (i * da - 0.5 * da);
+            }
+            break;
+        case TIME_STEP_GROWTH:
+            msg_printf(info, "timestep linear in growth factor\n");
+            for(int i = 0; i < nsteps + 2; i ++) {
+                /* best fit coefficients for unnormalized wmap7 cosmology dplus
+                 * shoudn't matter as long as we are close */
+                const double a2d[] = {0.35630564,-1.58170455, 0.34493492, 3.65626615, 0};
+                const double d2a[] = {0.00657966,-0.01088151, 0.00861105, 0.27018028, 0};
+                double dfinal = polval(a2d, 5, a_final);
+                double dinit = polval(a2d, 5, a_init);
+                double dd = (dfinal - dinit) / nsteps;
+                A_X[i] = polval(d2a, 5, dinit + i * dd);
+                A_V[i] = polval(d2a, 5, dinit + i * dd - 0.5 * dd);
+            }
+            break;
+        default:
+            abort();
+
+    }
+    /* fix up the IC time */
+    A_V[0] = A_X[0] = a_init;
+    A_X[nsteps] = a_final;
+    msg_printf(normal, "Drift points: \n");
+    for(int i = 0; i < nsteps + 2; i ++) {
+        msg_printf(normal, "%g, ", A_X[i]);
+    }
+    msg_printf(normal, "\n");
+}
+
+int stepping_get_nsteps() {
+    return NSTEPS;
+}
+void stepping_get_times(int istep,
+    double * a_x,
+    double * a_x1,
+    double * a_v,
+    double * a_v1) {
+
+    *a_v = A_V[istep];
+    *a_x = A_X[istep];
+    *a_v1= A_V[istep + 1];
+    *a_x1= A_X[istep + 1];
 }
 // Leap frog time integration
 // ** Total momentum adjustment dropped
@@ -435,3 +517,4 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     po->qfactor = Qfactor(aout);
     timer_stop(interp);
 }
+

@@ -15,6 +15,7 @@ typedef struct {
 
     int loglevel;
 
+    double a_init;
     double a_final;
     double boxsize;
 

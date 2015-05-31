@@ -50,15 +50,6 @@ void snapshot_time(Parameters * param, float aout, int iout,
         Particles * snapshot
         );
 
-static double polval(const double * pol, const int degrees, const double x) {
-    double rt = 0;
-    int i;
-    for(i = 0; i < degrees; i ++) {
-        rt += pow(x, degrees - i - 1) * pol[i];
-    }
-    return rt;
-}
-
 static double measured_power(double k, Parameters * param) {
     size_t nk;
     double * power = pm_compute_power_spectrum(&nk);
@@ -91,60 +82,8 @@ int main(int argc, char* argv[])
     msg_set_loglevel(param.loglevel);
 
     fft_init(multi_thread);
-    const int nsteps= param.ntimestep;
-    const double a_final= param.a_final;
 
-    double a_init = 0.1;
-
-    /* one extra item in the end; to avoid an if conditioni in main loop */
-    double * A_X = (double*) calloc(nsteps + 2, sizeof(double));
-    double * A_V = (double*) calloc(nsteps + 2, sizeof(double));
-
-    switch(param.time_step) {
-        case TIME_STEP_LOGA:
-            msg_printf(info, "timestep linear in loga\n");
-            for(int i = 0; i < nsteps + 2; i ++) {
-                double dloga = (log(a_final) - log(a_init)) / nsteps;
-                A_X[i] = exp(log(a_init) + i * dloga);
-                A_V[i] = exp(log(a_init) + i * dloga - 0.5 * dloga);
-            }
-            break;
-        case TIME_STEP_A:
-            msg_printf(info, "timestep linear in a\n");
-            for(int i = 0; i < nsteps + 2; i ++) {
-                double da = (a_final - a_init) / nsteps;
-                A_X[i] = a_init + (i * da);
-                A_V[i] = a_init + (i * da - 0.5 * da);
-            }
-            break;
-        case TIME_STEP_GROWTH:
-            msg_printf(info, "timestep linear in growth factor\n");
-            for(int i = 0; i < nsteps + 2; i ++) {
-                /* best fit coefficients for unnormalized wmap7 cosmology dplus
-                 * shoudn't matter as long as we are close */
-                const double a2d[] = {0.35630564,-1.58170455, 0.34493492, 3.65626615, 0};
-                const double d2a[] = {0.00657966,-0.01088151, 0.00861105, 0.27018028, 0};
-                double dfinal = polval(a2d, 5, a_final);
-                double dinit = polval(a2d, 5, a_init);
-                double dd = (dfinal - dinit) / nsteps;
-                A_X[i] = polval(d2a, 5, dinit + i * dd);
-                A_V[i] = polval(d2a, 5, dinit + i * dd - 0.5 * dd);
-            }
-            break;
-        default:
-            abort();
-
-    }
-    /* fix up the IC time */
-    A_V[0] = A_X[0] = a_init;
-    A_X[nsteps] = a_final;
-    msg_printf(normal, "Drift points: \n");
-    for(int i = 0; i < nsteps + 2; i ++) {
-        msg_printf(normal, "%g, ", A_X[i]);
-    }
-    msg_printf(normal, "\n");
-
-    power_init(param.power_spectrum_filename, a_init, 
+    power_init(param.power_spectrum_filename, param.a_init, 
             sigma8, OmegaM, OmegaLambda);
 
     heap_init(calculate_heap_size(&param));
@@ -158,8 +97,9 @@ int main(int argc, char* argv[])
     lpt_init(param.nc);
 
     stepping_init(&param);
-
+    int nsteps = stepping_get_nsteps();
     int nout = param.n_zout;
+
     double* aout = malloc(sizeof(double)*nout);
     for(int i=0; i<nout; i++) {
         aout[i] = (double)(1.0/(1 + param.zout[i]));
@@ -174,6 +114,10 @@ int main(int argc, char* argv[])
         MPI_Barrier(MPI_COMM_WORLD);
         msg_printf(verbose, "\n%d/%d realization.\n", 
                 irealization+1, param.nrealization);
+
+        msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
+                param.a_init, param.a_final, nsteps);
+
         int seed= param.random_seed + irealization;
 
         int iout= 0;
@@ -185,17 +129,17 @@ int main(int argc, char* argv[])
         particles->dx2 = heap_allocate(sizeof(float) * 3 * particles->np_allocated);
 
         if(param.readic_filename) {
-            read_runpb_ic(&param, a_init, particles);
+            read_runpb_ic(&param, param.a_init, particles);
         } else {
             // Sets initial grid and 2LPT desplacement
-            lpt_set_displacement(a_init, OmegaM, seed,
+            lpt_set_displacement(param.a_init, OmegaM, seed,
                     param.boxsize, particles);
         }
         snapshot->seed= seed;
 
         // always do this because it intializes the initial velocity
         // correctly.
-        stepping_set_initial(a_init, particles);
+        stepping_set_initial(param.a_init, particles);
 
         if(param.force_mode == FORCE_MODE_PM) {
             heap_return(particles->dx2);
@@ -207,97 +151,89 @@ int main(int argc, char* argv[])
         // Time evolution loop
         //
         //   TODO: allow nstep=1?
-        if(nout > 0 && nsteps >= 0 && a_final >= a_init) {
-            msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
-                    a_init, a_final, nsteps);
+        int chk_change = 0;
+        for (int istep = 0; istep <= nsteps; istep++) {
+            double a_v, a_x, a_v1, a_x1;
 
-            int chk_change = 0;
-            for (int istep=0; istep<= nsteps; istep++) {
-                double a_v, a_x, a_v1, a_x1;
+            stepping_get_times(istep,
+                &a_x, &a_x1, &a_v, &a_v1);
 
+            if(a_x1 >= change_pm && chk_change != 1 && param.pm_nc_factor2 != param.pm_nc_factor1){
 
-                a_v = A_V[istep];
-                a_x = A_X[istep];
-                a_v1= A_V[istep + 1];
-                a_x1= A_X[istep + 1];
+                msg_printf(normal, "Switching to new pm factor: %d->%d\n",
+                        param.pm_nc_factor1,
+                        param.pm_nc_factor2);
 
-                if(a_x1 >= change_pm && chk_change != 1 && param.pm_nc_factor2 != param.pm_nc_factor1){
+                nc_factor = param.pm_nc_factor2;
+                pm_finalize();
+                domain_finalize();
 
-                    msg_printf(normal, "Switching to new pm factor: %d->%d\n",
-                            param.pm_nc_factor1,
-                            param.pm_nc_factor2);
-
-                    nc_factor = param.pm_nc_factor2;
-                    pm_finalize();
-                    domain_finalize();
-
-                    domain_init(param.nc * nc_factor, param.boxsize);
-                    pm_init(nc_factor*param.nc, nc_factor, param.boxsize, param.nrealization>1);
-                    chk_change = 1;
-                }
-
-                msg_printf(normal, "Timestep %d/%d\n", istep + 1, nsteps);
-
-                timer_start(comm);
-                // move particles to other nodes
-                domain_wrap(particles);
-                domain_decompose(particles);
-
-                timer_stop(comm);
-
-                pm_calculate_forces(particles); 
-
-                if(param.measure_power_spectrum_filename) {
-                    size_t nk = 0;
-                    double * powerspectrum = pm_compute_power_spectrum(&nk);
-                    char fname[9999];
-                    sprintf(fname, "%s-%0.4f.txt", param.measure_power_spectrum_filename, a_x);
-                    int myrank;
-                    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-                    if(myrank == 0) {
-                        FILE * fp = fopen(fname, "w");
-                        if (fp == NULL) {
-                            msg_abort(0020, "Unable to write to %s\n", fname);
-                        }
-                        for(int i = 0; i < nk; i ++) {
-                            fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * (i + 0.5), 
-                                    powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
-                                   );
-                        }
-                        fclose(fp);
-                    }
-                    double sigma8 = TopHatSigma2(8.0, (void*) measured_power, &param);
-                    sigma8 = sigma8 / pow(param.nc * nc_factor, 6.0) * pow(param.boxsize, 3.0);
-                    sigma8 /= pow(3.1415926 * 2, 3);
-                    sigma8 = sqrt(sigma8);
-                    msg_printf(verbose, "Non-Linear sigma8 = %g Linear sigma8 = %g\n", sigma8, param.sigma8 * GrowthFactor(1.0, a_x));
-                }
-
-                while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
-                    // Time to write output
-                    snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
-                    iout++;
-                }
-
-                msg_printf(verbose, "Memory utilization = %td / %td bytes at root rank\n", 
-                    heap_get_max_usage(),
-                    heap_get_total_bytes());
-
-                if(iout >= nout) break;
-
-                // Leap-frog "kick" -- velocities updated
-                stepping_kick(particles, a_v, a_v1, a_x);
-
-                while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
-                    // Time to write output
-                    snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
-                    iout++;
-                }
-                if(iout >= nout) break;
-
-                // Leap-frog "drift" -- positions updated
-                stepping_drift(particles, a_x, a_x1, a_v1);
+                domain_init(param.nc * nc_factor, param.boxsize);
+                pm_init(nc_factor*param.nc, nc_factor, param.boxsize, param.nrealization>1);
+                chk_change = 1;
             }
+
+            msg_printf(normal, "Timestep %d/%d\n", istep + 1, nsteps);
+
+            timer_start(comm);
+            // move particles to other nodes
+            domain_wrap(particles);
+            domain_decompose(particles);
+
+            timer_stop(comm);
+
+            pm_calculate_forces(particles); 
+
+            if(param.measure_power_spectrum_filename) {
+                size_t nk = 0;
+                double * powerspectrum = pm_compute_power_spectrum(&nk);
+                char fname[9999];
+                sprintf(fname, "%s-%0.4f.txt", param.measure_power_spectrum_filename, a_x);
+                int myrank;
+                MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+                if(myrank == 0) {
+                    FILE * fp = fopen(fname, "w");
+                    if (fp == NULL) {
+                        msg_abort(0020, "Unable to write to %s\n", fname);
+                    }
+                    for(int i = 0; i < nk; i ++) {
+                        fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * (i + 0.5), 
+                                powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
+                               );
+                    }
+                    fclose(fp);
+                }
+                double sigma8 = TopHatSigma2(8.0, (void*) measured_power, &param);
+                sigma8 = sigma8 / pow(param.nc * nc_factor, 6.0) * pow(param.boxsize, 3.0);
+                sigma8 /= pow(3.1415926 * 2, 3);
+                sigma8 = sqrt(sigma8);
+                msg_printf(verbose, "Non-Linear sigma8 = %g Linear sigma8 = %g\n", sigma8, param.sigma8 * GrowthFactor(1.0, a_x));
+            }
+
+            while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
+                // Time to write output
+                snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
+                iout++;
+            }
+
+            msg_printf(verbose, "Memory utilization = %td / %td bytes at root rank\n", 
+                heap_get_max_usage(),
+                heap_get_total_bytes());
+
+            if(iout >= nout) break;
+
+            // Leap-frog "kick" -- velocities updated
+            stepping_kick(particles, a_v, a_v1, a_x);
+
+            while(iout < nout && a_x < aout[iout] && aout[iout] <= a_v1) {
+                // Time to write output
+                snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
+                iout++;
+            }
+            if(iout >= nout) break;
+
+            // Leap-frog "drift" -- positions updated
+            stepping_drift(particles, a_x, a_x1, a_v1);
         }
         timer_print();
     }

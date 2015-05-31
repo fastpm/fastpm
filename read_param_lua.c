@@ -181,6 +181,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     param->nc= read_int(L, "nc");
     param->boxsize= read_double(L, "boxsize");
 
+    param->a_init = read_double(L, "a_init");
     param->a_final= read_double(L, "a_final");
     param->ntimestep= read_int(L, "ntimestep");
     param->zout= read_array_double(L, "output_redshifts", &param->n_zout);

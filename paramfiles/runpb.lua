@@ -6,6 +6,7 @@ random_seed= 100
 nrealization= 1
 
 ntimestep= 10
+a_init = 0.1
 a_final= 1.0
 output_redshifts= {9.0, 3.0, 0.55, 0.0}  -- redshifts of output
 
