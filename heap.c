@@ -40,6 +40,11 @@ void * heap_allocate0(size_t bytes, char * filename, int lineno) {
     /* align to 4K boundary */
     bytes = 4096 * (size_t)((bytes + 4096 - 1) / 4096);
     if(BASE != NULL && used_bytes + bytes > total_bytes) {
+        int i = 0;
+        for(i = 0; i < top; i ++) {
+            printf("%p : %td : %s:%d \n", 
+                NODES[i].ptr, NODES[i].bytes, NODES[i].file, NODES[i].line);
+        }
         msg_abort(9999, "Failed to allocated %td bytes, free=%td %s:%d\n", bytes, total_bytes - used_bytes, filename, lineno);
         return NULL;
     } else {
