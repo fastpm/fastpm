@@ -41,6 +41,7 @@ extern int read_runpb_ic(Parameters * param, double a_init, Particles * particle
 
 Particles* allocate_particles(Parameters * param, int allocate_memory);
 static size_t calculate_heap_size(Parameters * param);
+static void write_powerspectrum(Parameters * param, double a_x, int nc_factor);
 
 int mpi_init(int* p_argc, char*** p_argv);
 void fft_init(int threads_ok);
@@ -172,7 +173,8 @@ int main(int argc, char* argv[])
                 chk_change = 1;
             }
 
-            msg_printf(normal, "Timestep %d/%d\n", istep + 1, nsteps);
+            msg_printf(normal, "Timestep %d/%d a_x:%g a_x1:%g a_v:%g a_v1:%g\n", 
+                    istep + 1, nsteps, a_x, a_x1, a_v, a_v1);
 
             timer_start(comm);
             // move particles to other nodes
@@ -181,32 +183,11 @@ int main(int argc, char* argv[])
 
             timer_stop(comm);
 
-            pm_calculate_forces(particles); 
+            if(param.force_mode == FORCE_MODE_PM ||
+               param.force_mode == FORCE_MODE_COLA) {
+                pm_calculate_forces(particles); 
 
-            if(param.measure_power_spectrum_filename) {
-                size_t nk = 0;
-                double * powerspectrum = pm_compute_power_spectrum(&nk);
-                char fname[9999];
-                sprintf(fname, "%s-%0.4f.txt", param.measure_power_spectrum_filename, a_x);
-                int myrank;
-                MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-                if(myrank == 0) {
-                    FILE * fp = fopen(fname, "w");
-                    if (fp == NULL) {
-                        msg_abort(0020, "Unable to write to %s\n", fname);
-                    }
-                    for(int i = 0; i < nk; i ++) {
-                        fprintf(fp, "%g %g\n", 3.1416 * 2 / param.boxsize * (i + 0.5), 
-                                powerspectrum[i] / pow(nc_factor * param.nc, 6) * pow(param.boxsize, 3.0)
-                               );
-                    }
-                    fclose(fp);
-                }
-                double sigma8 = TopHatSigma2(8.0, (void*) measured_power, &param);
-                sigma8 = sigma8 / pow(param.nc * nc_factor, 6.0) * pow(param.boxsize, 3.0);
-                sigma8 /= pow(3.1415926 * 2, 3);
-                sigma8 = sqrt(sigma8);
-                msg_printf(verbose, "Non-Linear sigma8 = %g Linear sigma8 = %g\n", sigma8, param.sigma8 * GrowthFactor(1.0, a_x));
+                write_powerspectrum(&param, a_x, nc_factor);
             }
 
             while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
@@ -319,7 +300,7 @@ void snapshot_time(Parameters * param, float aout, int iout,
 
     timer_start(comm);
     domain_wrap(snapshot);
-    domain_decompose(snapshot);
+
     timer_stop(comm);
 
     timer_start(write);
@@ -403,4 +384,31 @@ static size_t calculate_heap_size(Parameters * param) {
     msg_printf(verbose, "Particles: %td bytes\nFFT: %td bytes for FFT\nTotal: %td\n",
         psize, fftsize, total);
     return total;
+}
+static void write_powerspectrum(Parameters * param, double a_x, int nc_factor) {
+    if(param->measure_power_spectrum_filename) {
+        size_t nk = 0;
+        double * powerspectrum = pm_compute_power_spectrum(&nk);
+        char fname[9999];
+        sprintf(fname, "%s-%0.4f.txt", param->measure_power_spectrum_filename, a_x);
+        int myrank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+        if(myrank == 0) {
+            FILE * fp = fopen(fname, "w");
+            if (fp == NULL) {
+                msg_abort(0020, "Unable to write to %s\n", fname);
+            }
+            for(int i = 0; i < nk; i ++) {
+                fprintf(fp, "%g %g\n", 3.1416 * 2 / param->boxsize * (i + 0.5), 
+                        powerspectrum[i] / pow(nc_factor * param->nc, 6) * pow(param->boxsize, 3.0)
+                       );
+            }
+            fclose(fp);
+        }
+        double sigma8 = TopHatSigma2(8.0, (void*) measured_power, &param);
+        sigma8 = sigma8 / pow(param->nc * nc_factor, 6.0) * pow(param->boxsize, 3.0);
+        sigma8 /= pow(3.1415926 * 2, 3);
+        sigma8 = sqrt(sigma8);
+        msg_printf(verbose, "Non-Linear sigma8 = %g Linear sigma8 = %g\n", sigma8, param->sigma8 * GrowthFactor(1.0, a_x));
+    }
 }
