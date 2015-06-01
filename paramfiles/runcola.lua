@@ -6,6 +6,7 @@ random_seed= 100
 nrealization= 1
 
 ntimestep= 10
+a_init=0.1
 a_final= 1.0
 output_redshifts= {9.0, 0.55, 0.0}  -- redshifts of output
 
@@ -14,17 +15,16 @@ h       = 0.697
 sigma8  = 0.820
 
 -- canonical cola parameters
-qpm = true
+force_mode='cola'
 time_step = 'a'
 stdda = true
-smoothing = 2.0
+smoothing = 1.0
 diff_order = 0
-nopm = false
 
 
-pm_nc_factor1= 1            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
+pm_nc_factor1= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm = 0.0            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
-pm_nc_factor2= 1            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
+pm_nc_factor2= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
 np_alloc_factor= 1.25      -- Amount of memory allocated for particle
 loglevel=0                 -- 0=verbose increase value to reduce output msgs
 
