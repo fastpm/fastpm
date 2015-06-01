@@ -30,13 +30,14 @@
 #define M_PI 3.1415926535897932384626433832795
 #endif
 
-static int Ngrid;
-static size_t NgridL; // for index to avoid 4byte integer overflow
+static int Nmesh;
+#define NmeshL ((size_t) Nmesh)
+static int Nc;
 static int PM_factor;
 static int Local_nx, Local_x_start;
 static int Local_ny_td, Local_y_start_td;  // transposed
 static size_t total_size;
-static float BoxSize;
+static double BoxSize;
 
 static fftwf_plan r2c_outplace_plan, c2r_inplace_plan;
 
@@ -76,13 +77,13 @@ static inline float WRtPlus(float * const d,
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-    d[k + 2*(NgridL/2 + 1)*(j + NgridL*i)] += f;
+    d[k + 2*(NmeshL/2 + 1)*(j + NmeshL*i)] += f;
     return f;
 }
 
 static inline float REd(float const * const d, const int i, const int j, const int k)
 {
-    return d[k + 2*(NgridL/2 + 1)*(j + NgridL * i)];
+    return d[k + 2*(NmeshL/2 + 1)*(j + NmeshL * i)];
 }
 void pm_set_diff_order(int order) {
     double (*kernels[4])(double w) = {
@@ -97,18 +98,28 @@ void pm_set_diff_order(int order) {
     diff_kernel = kernels[order];
 }
 
-void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int many)
-{
-    // Assume FFTW3 is initialized in lpt.c
+void pm_init(double boxsize, int nc) {
+    Nc = nc;
+    BoxSize = boxsize;
+    r2c_outplace_plan = NULL;
+    c2r_inplace_plan = NULL;
+    PowerSpectrumVariable = NULL;
 
-    Ngrid= nc_pm; NgridL= nc_pm;
-    PowerSpectrumVariable = malloc(sizeof(double) * Ngrid / 2);
-    BoxSize= boxsize;
-    PM_factor= nc_pm_factor;
+    NParticleTotal= ((size_t) nc) * nc * nc;
+}
+
+void pm_set_size(int nc_pm_factor) {
+
+    pm_free();
+
+    Nmesh = Nc * nc_pm_factor; 
+    PowerSpectrumVariable = malloc(sizeof(double) * Nmesh / 2);
+
+    PM_factor = nc_pm_factor;
 
     ptrdiff_t local_nx, local_x_start, local_ny, local_y_start;
     total_size= 
-        fftwf_mpi_local_size_3d_transposed(Ngrid, Ngrid, Ngrid / 2 + 1, MPI_COMM_WORLD,
+        fftwf_mpi_local_size_3d_transposed(Nmesh, Nmesh, Nmesh / 2 + 1, MPI_COMM_WORLD,
                 &local_nx, &local_x_start, &local_ny, &local_y_start);
 
     Local_nx= local_nx;
@@ -122,24 +133,32 @@ void pm_init(const int nc_pm, const int nc_pm_factor, const float boxsize, int m
 
     msg_printf(verbose, "Setting up FFTW3 plans\n");
 
-    r2c_outplace_plan =  fftwf_mpi_plan_dft_r2c_3d(Ngrid, Ngrid, Ngrid, 
+    r2c_outplace_plan =  fftwf_mpi_plan_dft_r2c_3d(Nmesh, Nmesh, Nmesh, 
             (float*) rdata, cdata,
-            MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_OUT);
+            MPI_COMM_WORLD, FFTW_ESTIMATE | FFTW_MPI_TRANSPOSED_OUT);
 
     // inverse FFT
-    c2r_inplace_plan = fftwf_mpi_plan_dft_c2r_3d(Ngrid, Ngrid, Ngrid, cdata, (float*)cdata,
-            MPI_COMM_WORLD, (many?FFTW_MEASURE:FFTW_ESTIMATE) | FFTW_MPI_TRANSPOSED_IN);
+    c2r_inplace_plan = fftwf_mpi_plan_dft_c2r_3d(Nmesh, Nmesh, Nmesh, cdata, (float*)cdata,
+            MPI_COMM_WORLD, FFTW_ESTIMATE | FFTW_MPI_TRANSPOSED_IN);
 
-    const int ncp= nc_pm/nc_pm_factor;
-    NParticleTotal= (long long) ncp*ncp*ncp;
     heap_return(rdata);
     heap_return(cdata);
 }
 
-void pm_finalize(void)
+void pm_free(void)
 {
-    fftwf_destroy_plan(r2c_outplace_plan);
-    fftwf_destroy_plan(c2r_inplace_plan);
+    if(r2c_outplace_plan) {
+        fftwf_destroy_plan(r2c_outplace_plan);
+        r2c_outplace_plan = NULL;
+    }
+    if(c2r_inplace_plan) {
+        fftwf_destroy_plan(c2r_inplace_plan);
+        c2r_inplace_plan = NULL;
+    }   
+    if(PowerSpectrumVariable) {
+        free(PowerSpectrumVariable);
+        PowerSpectrumVariable = NULL;
+    }
 }
 
 
@@ -150,16 +169,16 @@ void PtoMesh(float (*Px)[3], int np, float* const density)
 
     msg_printf(verbose, "Calculating PtoMesh\n");
 
-    const float scaleBox=((float) Ngrid)/((float) BoxSize);
+    const float scaleBox=((float) Nmesh)/((float) BoxSize);
     const float WPAR= pow(PM_factor, 3);
 
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
 #endif
     for(int i = 0; i < Local_nx; i++)
-        for(int j = 0; j < Ngrid; j++)
-            for(int k = 0; k < Ngrid; k++)
-                density[(i*NgridL + j)*2*(NgridL/2 + 1) + k] = 0.0f;
+        for(int j = 0; j < Nmesh; j++)
+            for(int k = 0; k < Nmesh; k++)
+                density[(i*NmeshL + j)*2*(NmeshL/2 + 1) + k] = 0.0f;
 
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
@@ -184,13 +203,13 @@ void PtoMesh(float (*Px)[3], int np, float* const density)
 
         // Do periodic wrapup in all directions. 
         // Buffer particles are copied from adjacent nodes
-        while(iI >= Ngrid) iI -= Ngrid;
-        while(J >= Ngrid) J -= Ngrid;
-        while(K >= Ngrid) K -= Ngrid;
+        while(iI >= Nmesh) iI -= Nmesh;
+        while(J >= Nmesh) J -= Nmesh;
+        while(K >= Nmesh) K -= Nmesh;
 
-        int I1=iI+1; while(I1 >= Ngrid) I1-=Ngrid;
-        int J1=J+1; while(J1 >= Ngrid) J1-=Ngrid; // assumes y,z < BoxSize
-        int K1=K+1; while(K1 >= Ngrid) K1-=Ngrid;
+        int I1=iI+1; while(I1 >= Nmesh) I1-=Nmesh;
+        int J1=J+1; while(J1 >= Nmesh) J1-=Nmesh; // assumes y,z < BoxSize
+        int K1=K+1; while(K1 >= Nmesh) K1-=Nmesh;
 
         iI -= Local_x_start;
         I1 -= Local_x_start;
@@ -242,9 +261,9 @@ void compute_density_k(float * density, fftwf_complex * density_k)
 #endif
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         /* int J = Jl + Local_y_start_td; */
-        for(int iI=0; iI<Ngrid; iI++) {
-            for(int K=0; K<Ngrid/2+1; K++){
-                size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
+        for(int iI=0; iI<Nmesh; iI++) {
+            for(int K=0; K<Nmesh/2+1; K++){
+                size_t index = K + (NmeshL/2+1)*(iI + NmeshL*Jl);
                 density_k[index][0] = density_k[index][0];
                 density_k[index][1] = density_k[index][1];
             }
@@ -263,43 +282,43 @@ void compute_density_k(float * density, fftwf_complex * density_k)
     }
     MPI_Bcast(&Norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     msg_printf(verbose, "delta_k(0) = %g ; CIC err is = %g\n", 
-            Norm, pow(Ngrid, 3), Norm / pow(Ngrid, 3) - 1);
+            Norm, pow(Nmesh, 3), Norm / pow(Nmesh, 3) - 1);
 }
 
 double * pm_compute_power_spectrum(size_t * nk) {
     double * power = PowerSpectrumVariable;
-    nk[0] = Ngrid / 2;
+    nk[0] = Nmesh / 2;
     return power;
 }
 
 void compute_power_spectrum(fftwf_complex * density_k) {
     msg_printf(verbose, "Calculating power spectrum...\n");
     double * power = PowerSpectrumVariable;
-    double * count = (double*) alloca(sizeof(double) * (Ngrid / 2));
-    for(int i = 0; i < Ngrid / 2; i ++) {
+    double * count = (double*) alloca(sizeof(double) * (Nmesh / 2));
+    for(int i = 0; i < Nmesh / 2; i ++) {
         count[i] = 0;
         power[i] = 0;
     }
-    float * ff = (float*) alloca(sizeof(float) * (Ngrid));
-    float * i2 = (float*) alloca(sizeof(float) * (Ngrid));
-    for(int J = 0; J < Ngrid; J ++) {
-        int J0 = J <= (Ngrid/2) ? J : J - Ngrid;
-        double tmp = sin(M_PI * 0.5 * J0 / ( 0.5 * Ngrid));
+    float * ff = (float*) alloca(sizeof(float) * (Nmesh));
+    float * i2 = (float*) alloca(sizeof(float) * (Nmesh));
+    for(int J = 0; J < Nmesh; J ++) {
+        int J0 = J <= (Nmesh/2) ? J : J - Nmesh;
+        double tmp = sin(M_PI * 0.5 * J0 / ( 0.5 * Nmesh));
         ff[J] = 1 - 2. / 3 * tmp * tmp;
         i2[J] = (float)J0 * J0;
     }
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J = Jl + Local_y_start_td;
-        for(int iI=0; iI<Ngrid; iI++) {
-            for(int K=0; K<Ngrid/2; K++){
+        for(int iI=0; iI<Nmesh; iI++) {
+            for(int K=0; K<Nmesh/2; K++){
                 int i = sqrt(i2[J] + i2[K] + i2[iI]);
-                if (i >= Ngrid / 2) continue;
+                if (i >= Nmesh / 2) continue;
                 const float fx2 = ff[iI];
                 const float fy2 = ff[J];
                 const float fz2 = ff[K];
                 const float fxyz2 = fx2 * fy2 * fz2;
 
-                size_t index = K + (NgridL/2+1)*(iI + NgridL*Jl);
+                size_t index = K + (NmeshL/2+1)*(iI + NmeshL*Jl);
                 float a = density_k[index][0];
                 float b = density_k[index][1];
                 float p = a * a + b * b;
@@ -308,9 +327,9 @@ void compute_power_spectrum(fftwf_complex * density_k) {
             }
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, power, Ngrid / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, count, Ngrid / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    for(int i = 0; i < Ngrid / 2; i ++) {
+    MPI_Allreduce(MPI_IN_PLACE, power, Nmesh / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, count, Nmesh / 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    for(int i = 0; i < Nmesh / 2; i ++) {
         power[i] /= (count[i]);
     }
 }
@@ -325,36 +344,36 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     FN11[0][1]= 0.0f;
 
     const float scale=2.0*M_PI/BoxSize;
-    //const float dens_fac= 1.0/(pow(Ngrid, 3));
+    //const float dens_fac= 1.0/(pow(Nmesh, 3));
 
-    const float f1= -1.0/pow(Ngrid, 3.0)/scale;
+    const float f1= -1.0/pow(Nmesh, 3.0)/scale;
 
-    float * diff = alloca(sizeof(float) * Ngrid);
-    float * di2 = alloca(sizeof(float) * Ngrid);
-    float * ff = alloca(sizeof(float) * Ngrid);
-    for(int J = 0 ; J < Ngrid; J ++) {
-        int J0= J <= (Ngrid/2) ? J : J - Ngrid;
-        diff[J] = diff_kernel(J0 * M_PI * 2.0 / Ngrid) * Ngrid / (M_PI * 2.0);
-        ff[J] = sinc_unnormed(J0 * M_PI / Ngrid);
+    float * diff = alloca(sizeof(float) * Nmesh);
+    float * di2 = alloca(sizeof(float) * Nmesh);
+    float * ff = alloca(sizeof(float) * Nmesh);
+    for(int J = 0 ; J < Nmesh; J ++) {
+        int J0= J <= (Nmesh/2) ? J : J - Nmesh;
+        diff[J] = diff_kernel(J0 * M_PI * 2.0 / Nmesh) * Nmesh / (M_PI * 2.0);
+        ff[J] = sinc_unnormed(J0 * M_PI / Nmesh);
         di2[J] = J0 * ff[J] * J0 * ff[J];
     }
     //complex float di[3];
-    //#shared(FN11, P3D, Local_ny_td, Local_y_start_td, Ngrid, NgridL)
+    //#shared(FN11, P3D, Local_ny_td, Local_y_start_td, Nmesh, NmeshL)
 
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
 #endif
     for(int Jl=0; Jl<Local_ny_td; Jl++) {
         int J= Jl + Local_y_start_td;
-        for(int iI=0; iI<Ngrid; iI++) {
+        for(int iI=0; iI<Nmesh; iI++) {
             int KMIN= (iI==0 && J==0); // skip (0,0,0) because FN=0 for k=(0,0,0)
 
-            for(int K=KMIN; K<Ngrid/2+1; K++){
+            for(int K=KMIN; K<Nmesh/2+1; K++){
                 const float tmp = di2[J] + di2[iI] + di2[K];
                 const int ind[] = {iI, J, K};
                 float f2= f1/tmp * diff[ind[axes]];
 
-                size_t index= K + (NgridL/2+1)*(iI + NgridL*Jl);
+                size_t index= K + (NmeshL/2+1)*(iI + NmeshL*Jl);
                 FN11[index][0]= -f2*P3D[index][1];
                 FN11[index][1]=  f2*P3D[index][0];
             }
@@ -377,7 +396,7 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
         char buf[1024];
         sprintf(buf, "densitydump-%d-%d.%d", step, axes, ThisTask);
         FILE * fp = fopen(buf, "w");
-        fwrite(fftdata, sizeof(float), Local_nx * NgridL * (NgridL /2 + 1) * 2, fp);
+        fwrite(fftdata, sizeof(float), Local_nx * NmeshL * (NmeshL /2 + 1) * 2, fp);
         fclose(fp);
         if (axes == 2) step ++;
     }
@@ -390,7 +409,7 @@ void force_at_particle_locations(float (*Px)[3], const int np,
         const int axes, 
         const float fmesh[], float (*f)[3])
 {
-    const float scaleBox=((float) Ngrid)/((float) BoxSize);
+    const double scaleBox=((double) Nmesh)/((double) BoxSize);
 
     msg_printf(verbose, "Calculating MP...\n");
 
@@ -412,13 +431,13 @@ void force_at_particle_locations(float (*Px)[3], const int np,
         float T2= 1.0f - D2;
         float T3= 1.0f - D3;
 
-        while(iI >= Ngrid) iI -= Ngrid;
-        while(J >= Ngrid) J -= Ngrid;
-        while(K >= Ngrid) K -= Ngrid;
+        while(iI >= Nmesh) iI -= Nmesh;
+        while(J >= Nmesh) J -= Nmesh;
+        while(K >= Nmesh) K -= Nmesh;
 
-        int I1=iI+1; if(I1 >= Ngrid) I1=0;
-        int J1=J+1; if(J1 >= Ngrid) J1=0;
-        int K1=K+1; if(K1 >= Ngrid) K1=0;
+        int I1=iI+1; if(I1 >= Nmesh) I1=0;
+        int J1=J+1; if(J1 >= Nmesh) J1=0;
+        int K1=K+1; if(K1 >= Nmesh) K1=0;
 
         iI -= Local_x_start;
         I1 -= Local_x_start;
@@ -447,7 +466,7 @@ void force_at_particle_locations(float (*Px)[3], const int np,
 void pm_calculate_forces(Particles* particles)
 {
 
-    int nghosts = domain_create_ghosts(particles, BoxSize/Ngrid);
+    int nghosts = domain_create_ghosts(particles, BoxSize/Nmesh);
     int np_plus_buffer= particles->np_local + nghosts;
 
     fftwf_complex * density_k = heap_allocate(total_size * sizeof(fftwf_complex));

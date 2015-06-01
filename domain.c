@@ -22,27 +22,37 @@
 #include "msg.h"
 #include "particle.h"
 #include <fftw3-mpi.h>
+#include "domain.h"
 
 #include "heap.h"
 #include "msort.c"
 #include "permute.c"
 
-double BoxSize;
-int * MeshToTask[2];
-int NTask;
-int ThisTask;
-int NTask2D[2];
-int TaskStrides[2];
-ptrdiff_t local_n[2];
-ptrdiff_t local_start[2];
+static double BoxSize;
+static int * MeshToTask[2];
+static int NTask;
+static int ThisTask;
+static int NTask2D[2];
+static int TaskStrides[2];
+static ptrdiff_t local_n[2];
+static ptrdiff_t local_start[2];
 
-MPI_Comm Comm2D;
-ptrdiff_t Nmesh;
-double MeshPerBox;
+static MPI_Comm Comm2D;
+static ptrdiff_t Nmesh;
+static double MeshPerBox;
+static int Nc;
 
-void domain_init(int Nmesh_, double BoxSize_) {
-    Nmesh = Nmesh_;
-    BoxSize = BoxSize_;
+void domain_init(double boxsize, int nc) {
+    BoxSize = boxsize;
+    Nc = nc;
+    Comm2D = NULL;
+    MeshToTask[0] = NULL;
+    MeshToTask[1] = NULL;
+}
+
+void domain_set_size(int ncfactor) {
+    domain_free();
+    Nmesh = Nc * ncfactor;
     MeshPerBox = Nmesh/ BoxSize;
 
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
@@ -90,11 +100,20 @@ void domain_init(int Nmesh_, double BoxSize_) {
     }
 
 }
-void domain_finalize() {
-    MPI_Comm_free(&Comm2D);
-    free(MeshToTask[0]);
-    free(MeshToTask[1]);
+
+void domain_free() {
+    if(Comm2D) {
+        MPI_Comm_free(&Comm2D);
+        Comm2D = NULL;
+    }
+    for(int d = 0; d < 2; d ++) {
+        if(MeshToTask[d]){
+            free(MeshToTask[d]);
+            MeshToTask[d] = NULL;
+        }
+    }
 }
+
 static int par_node(float x[3]) {
     int task = 0;
     for(int d = 0; d < 2; d ++) {

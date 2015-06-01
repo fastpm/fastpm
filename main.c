@@ -92,8 +92,8 @@ int main(int argc, char* argv[])
 
     nc_factor = param.pm_nc_factor1;
     pm_set_diff_order(param.diff_order);
-    pm_init(nc_factor * param.nc, nc_factor, param.boxsize, param.nrealization>1);
-
+    pm_init(param.boxsize, param.nc);
+    domain_init(param.boxsize, param.nc);
     lpt_init(param.nc);
 
     stepping_init(&param);
@@ -121,7 +121,9 @@ int main(int argc, char* argv[])
         int seed= param.random_seed + irealization;
 
         int iout= 0;
-        domain_init(param.nc * nc_factor, param.boxsize);
+
+        pm_set_size(nc_factor);
+        domain_set_size(nc_factor);
 
         timer_set_category(LPT);
 
@@ -165,11 +167,8 @@ int main(int argc, char* argv[])
                         param.pm_nc_factor2);
 
                 nc_factor = param.pm_nc_factor2;
-                pm_finalize();
-                domain_finalize();
-
-                domain_init(param.nc * nc_factor, param.boxsize);
-                pm_init(nc_factor*param.nc, nc_factor, param.boxsize, param.nrealization>1);
+                domain_set_size(nc_factor);
+                pm_set_size(nc_factor);
                 chk_change = 1;
             }
 
