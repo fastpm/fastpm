@@ -13,7 +13,7 @@
    invpermute: OUT[ind[i]] = IN[i]           i = 0 .. N-1
 */
 static void permute(void * data, int np, size_t elsize, int * ind){
-    unsigned char * done = alloca(np / 8) + 1;
+    unsigned char * done = alloca(np / 8 + 1);
     char * q = data;
     char * temp1 = alloca(elsize);
     int j, i;
@@ -30,20 +30,20 @@ static void permute(void * data, int np, size_t elsize, int * ind){
 
         /* loop till we are back to the head of the ring */
 
-        int i0 = i;
-        for(j = ind[i]; j != i0; i = j, j = ind[j]) {
-            memcpy(&q[i * elsize], &q[j * elsize], elsize);
+        int ii = i;
+        for(j = ind[ii]; j != i; ii = j, j = ind[j]) {
+            memcpy(&q[ii * elsize], &q[j * elsize], elsize);
             /* now j contains the correct item */;
-            done[i >> 3] |= 1 << (i & 7);
+            done[ii >> 3] |= 1 << (ii & 7);
         }
         /* now move the saved item to the end of the ring */
-        memcpy(&q[i * elsize], temp1, elsize);
-        done[i >> 3] |= 1 << (i & 7);
+        memcpy(&q[ii * elsize], temp1, elsize);
+        done[ii >> 3] |= 1 << (ii & 7);
     }
 }
 
 static void ipermute(void * data, int np, size_t elsize, int * ind){
-    unsigned char * done = alloca(np / 8) + 1;
+    unsigned char * done = alloca(np / 8 + 1);
     char * q = data;
     char * temp1 = alloca(elsize);
     char * temp2 = alloca(elsize);
@@ -77,20 +77,40 @@ static void ipermute(void * data, int np, size_t elsize, int * ind){
 }
 
 #ifdef __TEST_PERMUTE__
-void main() {
-    char data[5] = {0, 1, 2, 3, 4};
-    char odata[5] = {0, 1, 2, 3, 4};
-    int ind[5] = {1, 2, 3, 4, 0};
-    memcpy(odata, data, 5);
-    permute(data, 5, sizeof(char), ind);
+void test(int * ind) {
     int i;
-    for(i = 0; i < 5; i ++){
-        printf("data[%d] <= data[%d], %d\n", i, ind[i], data[i]);
+    int * data = malloc(sizeof(int) * 4);
+    for(i = 0; i < 4; i ++) {
+        data[i] = i;
     }
-    memcpy(data, odata, 5);
-    ipermute(data, 5, sizeof(char), ind);
-    for(i = 0; i < 5; i ++){
-        printf("data[%d] <= data[%d], %d\n", ind[i], i, data[i]);
+    permute(data, 4, sizeof(data[0]), ind);
+    for(i = 0; i < 4; i ++){
+        if(data[i] != ind[i]) {
+            abort();
+        }
     }
 }
+void main() {
+    int ind[4];
+    int i, j;
+    for(ind[0] = 0; ind[0] < 4; ind[0]++)
+    for(ind[1] = 0; ind[1] < 4; ind[1]++)
+    for(ind[2] = 0; ind[2] < 4; ind[2]++)
+    for(ind[3] = 0; ind[3] < 4; ind[3]++) {
+        for(i = 0; i < 4; i ++) {
+            for(j = 0; j < 4; j ++) {
+                if(i == j) continue;
+                if(ind[i] == ind[j]) goto next;
+            }
+        }
+        for(i = 0; i < 4; i ++) {
+            printf("%d ", ind[i]);
+        }
+        printf("\n");
+        test(ind);
+        next:
+        continue;
+    }
+}
+
 #endif
