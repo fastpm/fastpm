@@ -117,6 +117,8 @@ double normalize_power(const double a_init, const double sigma8)
   double sigma8_input= sqrt(res);
 
   msg_printf(info, "Input power spectrum sigma8 %f\n", sigma8_input);
+    if (sigma8 == 0)
+        return 1;
   msg_printf(info, "Expected power spectrum sigma8 %f\n", sigma8);
 
   if(fabs(sigma8_input - sigma8)/sigma8 > 0.05)
@@ -126,7 +128,7 @@ double normalize_power(const double a_init, const double sigma8)
   //double Dplus = GrowthFactor(a_init, 1.0);
   //msg_printf("Growth factor correction %f\n", 1.0/Dplus);
   //msg_printf("sigma8_initial %f\n", sigma8/res/Dplus);
-
+     
   return sigma8 * sigma8/ res;
   //return sigma8 * sigma8 / res / (Dplus*Dplus); **
   //return 1.0/(Dplus*Dplus);
