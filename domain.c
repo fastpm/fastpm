@@ -42,6 +42,8 @@ static ptrdiff_t Nmesh;
 static double MeshPerBox;
 static int Nc;
 
+static void sort_particles_by_target(Particles * p, int * SendCount);
+
 void domain_init(double boxsize, int nc) {
     BoxSize = boxsize;
     Nc = nc;
@@ -371,27 +373,11 @@ void domain_decompose(Particles* p) {
         msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
 #endif
-    int * ind = heap_allocate(sizeof(int) * p->np_local);
-    for(int i = 0; i < p->np_local; i++) {
-        ind[i] = i;
-    }
-    qsort_r_inplace(ind, p->np_local, sizeof(int), cmp_par_task, p);
-
-    permute(p->x, p->np_local, sizeof(float) * 3, ind);
-    permute(p->v, p->np_local, sizeof(float) * 3, ind);
-    permute(p->id, p->np_local, sizeof(int64_t), ind);
-
-    if(p->dx1)
-        permute(p->dx1, p->np_local, sizeof(float) * 3, ind);
-    if(p->dx2)
-        permute(p->dx2, p->np_local, sizeof(float) * 3, ind);
-
-    heap_return(ind);
-
     int * SendCount = alloca(sizeof(int) * NTask);
     int * RecvCount = alloca(sizeof(int) * NTask);
     int * SendDispl = alloca(sizeof(int) * NTask);
     int * RecvDispl = alloca(sizeof(int) * NTask);
+
     for(int i = 0; i < NTask; i ++) {
         SendCount[i] = 0;
         RecvCount[i] = 0;
@@ -402,6 +388,9 @@ void domain_decompose(Particles* p) {
         int task = par_node(p->x[i]);
         SendCount[task] ++;
     }
+
+    sort_particles_by_target(p, SendCount);
+
     int nsend = p->np_local - SendCount[ThisTask];
     /* chop the p buffer to local and send buf */
     p->np_local = SendCount[ThisTask];
@@ -426,6 +415,9 @@ void domain_decompose(Particles* p) {
     MPI_Type_commit(&MPI_PAR);
 
     MPI_Alltoall(SendCount, 1, MPI_INT, RecvCount, 1, MPI_INT, MPI_COMM_WORLD);
+
+    SendDispl[0] = 0;
+    RecvDispl[0] = 0;
     for(int i = 1; i < NTask; i ++) {
         SendDispl[i] = SendDispl[i - 1] + SendCount[i - 1];
         RecvDispl[i] = RecvDispl[i - 1] + RecvCount[i - 1];
@@ -482,4 +474,35 @@ void domain_decompose(Particles* p) {
         msg_printf(verbose, "Sum of particle ID = %td\n", total);
     }
 #endif
+}
+
+static void sort_particles_by_target(Particles * p, int * SendCount) {
+    int * Displ = alloca(sizeof(int) * NTask);
+
+    Displ[ThisTask] = 0;
+    int tmp = SendCount[ThisTask];
+    SendCount[ThisTask] = 0;
+    Displ[0] = tmp;
+    for(int i = 1; i < NTask; i ++) {
+        Displ[i] = Displ[i - 1] + SendCount[i - 1];
+    }
+    Displ[ThisTask] = 0;
+    SendCount[ThisTask] = tmp;
+    int * ind = heap_allocate(sizeof(int) * p->np_local);
+    for(int i = 0; i < p->np_local; i++) {
+        int task = par_node(p->x[i]);
+        ind[Displ[task]] = i;
+        Displ[task]++;
+    }
+
+    permute(p->x, p->np_local, sizeof(float) * 3, ind);
+    permute(p->v, p->np_local, sizeof(float) * 3, ind);
+    permute(p->id, p->np_local, sizeof(int64_t), ind);
+
+    if(p->dx1)
+        permute(p->dx1, p->np_local, sizeof(float) * 3, ind);
+    if(p->dx2)
+        permute(p->dx2, p->np_local, sizeof(float) * 3, ind);
+
+    heap_return(ind);
 }
