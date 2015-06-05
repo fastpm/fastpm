@@ -53,7 +53,7 @@ qrpm: $(OBJS) lua/liblua.a
 	$(CC) $(OBJS) -llua $(LIBS) -o $@
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
-  stepping.h write.h timer.h 
+  stepping.h write.h timer.h version.h
 domain.o: domain.c domain.h msort.c permute.c
 stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h
@@ -69,8 +69,12 @@ power.o: power.c msg.h
 read_param_lua.o: read_param_lua.c parameters.h msg.h
 temp.o: temp.c msg.h particle.h
 timer.o: timer.c msg.h timer.h
+version.h:
+	(echo "#define FPM_VERSION \\"; \
+        git log -1 | sed -e 's;$$;\\n"\\;' -e 's;^;";'; \
+        echo \"\") > version.h
 
-.PHONY: clean run dependence
+.PHONY: clean run dependence version.h
 clean :
 	rm -f $(EXEC) $(OBJS) $(OBJS2) move_min.?
 

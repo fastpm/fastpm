@@ -34,6 +34,7 @@
 #include "stepping.h"
 #include "timer.h"
 #include "heap.h"
+#include "version.h"
 
 extern int write_runpb_snapshot(Parameters * param, Particles * snapshot,  
         char * filebase);
@@ -81,6 +82,8 @@ int main(int argc, char* argv[])
     const double sigma8= param.sigma8;
 
     msg_set_loglevel(param.loglevel);
+
+    msg_printf(verbose, "This fPM. Version: %s\n", FPM_VERSION);
 
     fft_init(multi_thread);
 
