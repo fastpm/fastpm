@@ -221,7 +221,7 @@ int domain_create_ghosts(Particles* p, double eps) {
     }
     int nrecv = RecvDispl[NTask - 1] + RecvCount[NTask - 1];
     if( p->np_local + nrecv  > p->np_allocated) {
-        msg_abort(2415, "Not enough particle space ghosts, nrecv=%d, left=%td",
+        msg_abort(2415, "Not enough particle space ghosts, nrecv=%d, left=%td\n",
             nrecv, p->np_allocated - p->np_local
             );
     }
