@@ -16,14 +16,15 @@ LIBS    := -lm
 
 # Define paths of FFTW3 & GSL libraries if necessary.
 
-LUA_DIR   ?= /opt/local
 FFTW3_DIR ?= #e.g. /Users/jkoda/Research/opt/gcc/fftw3
 GSL_DIR   ?= #e.g. /Users/jkoda/Research/opt/gcc/gsl
 
-DIR_PATH = $(FFTW3_DIR) $(GSL_DIR) $(LUA_DIR)
+DIR_PATH = $(FFTW3_DIR) $(GSL_DIR) 
 
 CFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
-LIBS   += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
+LIBS   += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
+LIBS += -Llua
+CFLAGS += -Ilua
 
 EXEC = qrpm # halo
 all: $(EXEC)
@@ -36,18 +37,20 @@ OBJS += domain.o
 OBJS += timer.o 
 OBJS += heap.o
 
-LIBS += -llua -ldl 
+LIBS += -ldl 
 LIBS += -lgsl -lgslcblas
 LIBS += -lfftw3f_mpi -lfftw3f
 
+lua/liblua.a: lua/Makefile
+	(cd lua; CC="$(CC)" make generic)
 
 ifdef OPENMP
   LIBS += -lfftw3f_omp
   #LIBS += -lfftw3f_threads       # for thread parallelization instead of omp
 endif
 
-qrpm: $(OBJS)
-	$(CC) $(OBJS) $(LIBS) -o $@
+qrpm: $(OBJS) lua/liblua.a
+	$(CC) $(OBJS) -llua $(LIBS) -o $@
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
   stepping.h write.h timer.h 
