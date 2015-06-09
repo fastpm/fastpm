@@ -135,7 +135,7 @@ DEF_READ2(enum, int, string, parse_enum, struct enum_entry *, enum_table)
 
 int read_parameter_file(const char filename[], Parameters * param);
 static void bcast_string(char** string);
-static void bcast_array_double(double** parray, int* len);
+static void bcast_array(void ** parray, size_t elsize, int* len);
 
 //int read_parameters(const char filename[], Parameters* const param)
 int read_parameters(const int argc, char * argv[],
@@ -163,7 +163,7 @@ int read_parameters(const int argc, char * argv[],
     bcast_string(&param->snapshot_filename);
     bcast_string(&param->readic_filename);
 
-    bcast_array_double(&param->zout,          &param->n_zout);
+    bcast_array((void**)&param->zout,   sizeof(double), &param->n_zout);
 
     return 0;
 }
@@ -225,7 +225,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     param->force_mode = read_enum(L, "force_mode", table);
     param->time_step = read_enum(L, "time_step", table);
     param->diff_order = read_integer(L, "diff_order");
-    if(force_mode == FORCE_MODE_COLA) {
+    if(param->force_mode == FORCE_MODE_COLA) {
         param->cola_stdda = read_boolean(L, "cola_stdda");
     } else {
         param->cola_stdda = 1;
@@ -260,23 +260,23 @@ void bcast_string(char ** pstring)
     MPI_Bcast(*pstring, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 }
 
-void bcast_array_double(double** parray, int* len)
+void bcast_array(void ** parray, size_t elsize, int* len)
 {
-    const int ret1 = MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    assert(ret1 == MPI_SUCCESS);
+    MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     const int n = *len;
 
     if(n == 0) {
-        *parray = 0;
+        *parray = NULL;
         return;
     }
 
     if(ThisTask != 0) {
-        *parray = malloc(sizeof(double)*n);
+        *parray = malloc(elsize * n);
     }
-    assert(*parray);
-
-    const int ret2 = MPI_Bcast(*parray, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    assert(ret2 == MPI_SUCCESS);
+    MPI_Datatype type;
+    MPI_Type_contiguous(elsize, MPI_BYTE, &type);
+    MPI_Type_commit(&type);
+    MPI_Bcast(*parray, n, type, 0, MPI_COMM_WORLD);
+    MPI_Type_free(&type);
 }
