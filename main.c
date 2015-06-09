@@ -408,7 +408,7 @@ static void write_powerspectrum(Parameters * param, double a_x, int nc_factor) {
             }
             fclose(fp);
         }
-        double sigma8 = TopHatSigma2(8.0, (void*) measured_power, &param);
+        double sigma8 = TopHatSigma2(8.0, (void*) measured_power, param);
         sigma8 = sigma8 / pow(param->nc * nc_factor, 6.0) * pow(param->boxsize, 3.0);
         sigma8 /= pow(3.1415926 * 2, 3);
         sigma8 = sqrt(sigma8);
