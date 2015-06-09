@@ -164,6 +164,7 @@ int read_parameters(const int argc, char * argv[],
     bcast_string(&param->readic_filename);
 
     bcast_array((void**)&param->zout,   sizeof(double), &param->n_zout);
+    bcast_array((void**)&param->pm_mond_parameters,   sizeof(double), &param->n_pm_mond_parameters);
 
     return 0;
 }
@@ -221,7 +222,15 @@ int read_parameter_file(const char filename[], Parameters* const param)
         {"pm", FORCE_MODE_PM},
         {NULL, -1},
     };
-
+    struct enum_entry mond_table[] = {
+        {"none", PM_MOND_NONE},
+        {"simple", PM_MOND_SIMPLE},
+        {NULL, -1},
+    };
+    param->pm_mond_mode = read_enum_opt(L, "pm_mond_mode", PM_MOND_NONE, mond_table);
+    if(param->pm_mond_mode > PM_MOND_NONE) {
+        param->pm_mond_parameters = read_array_number(L, "pm_mond_parameters", &param->n_pm_mond_parameters);
+    }
     param->force_mode = read_enum(L, "force_mode", table);
     param->time_step = read_enum(L, "time_step", table);
     param->diff_order = read_integer(L, "diff_order");

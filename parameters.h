@@ -23,6 +23,9 @@ typedef struct {
 
     double * zout; int n_zout;
 
+    int pm_mond_mode;
+    double * pm_mond_parameters; int n_pm_mond_parameters;
+
     char * power_spectrum_filename;
     char * measure_power_spectrum_filename; 
     char * snapshot_filename;
@@ -34,6 +37,9 @@ typedef struct {
     int diff_order;
     int time_step;
 } Parameters;
+
+#define PM_MOND_NONE 0
+#define PM_MOND_SIMPLE 1
 
 #define FORCE_MODE_ZA 0
 #define FORCE_MODE_2LPT 1

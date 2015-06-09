@@ -3,6 +3,9 @@
 
 #include "particle.h"
 
+typedef double (* pm_modulator)(double k2, void * data);
+void pm_set_mond(pm_modulator mond, void * data);
+
 void pm_set_diff_order(int order);
 void pm_init(double boxsize, int nc);
 void pm_set_size(int nc_pm_factor);

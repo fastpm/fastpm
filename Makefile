@@ -36,6 +36,7 @@ OBJS += readrunpb.o
 OBJS += domain.o
 OBJS += timer.o 
 OBJS += heap.o
+OBJS += mond.o
 
 LIBS += -ldl 
 LIBS += -lgsl -lgslcblas
@@ -53,7 +54,8 @@ qrpm: $(OBJS) lua/liblua.a
 	$(CC) $(OBJS) -llua $(LIBS) -o $@
 
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
-  stepping.h write.h timer.h version.h
+  stepping.h write.h timer.h mond.h version.h
+mond.o : mond.h parameters.h msg.h pm.h
 domain.o: domain.c domain.h msort.c permute.c
 stepping.o: stepping.c particle.h msg.h stepping.h timer.h
 comm.o: comm.c msg.h

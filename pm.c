@@ -30,6 +30,9 @@
 #define M_PI 3.1415926535897932384626433832795
 #endif
 
+static pm_modulator PM_MODULATOR = NULL;
+static void * PM_MODULATOR_DATA = NULL;
+
 static int Nmesh;
 #define NmeshL ((size_t) Nmesh)
 static int Nc;
@@ -106,6 +109,11 @@ void pm_init(double boxsize, int nc) {
     PowerSpectrumVariable = NULL;
 
     NParticleTotal= ((size_t) nc) * nc * nc;
+}
+
+void pm_set_mond(pm_modulator mond, void * data) {
+    PM_MODULATOR = mond;
+    PM_MODULATOR_DATA= data;
 }
 
 void pm_set_size(int nc_pm_factor) {
@@ -346,16 +354,19 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     const float scale=2.0*M_PI/BoxSize;
     //const float dens_fac= 1.0/(pow(Nmesh, 3));
 
-    const float f1= -1.0/pow(Nmesh, 3.0)/scale;
+    const float f1= -1.0/pow(Nmesh, 3.0);
 
     float * diff = alloca(sizeof(float) * Nmesh);
     float * di2 = alloca(sizeof(float) * Nmesh);
     float * ff = alloca(sizeof(float) * Nmesh);
+    float * kk = alloca(sizeof(float) * Nmesh);
     for(int J = 0 ; J < Nmesh; J ++) {
         int J0= J <= (Nmesh/2) ? J : J - Nmesh;
-        diff[J] = diff_kernel(J0 * M_PI * 2.0 / Nmesh) * Nmesh / (M_PI * 2.0);
+        // kk diff, di in physical units
+        diff[J] = diff_kernel(J0 * M_PI * 2.0 / Nmesh) * Nmesh / (M_PI * 2.0) * scale;
         ff[J] = sinc_unnormed(J0 * M_PI / Nmesh);
-        di2[J] = J0 * ff[J] * J0 * ff[J];
+        di2[J] = J0 * ff[J] * J0 * ff[J] * (scale * scale);
+        kk[J] = (J0 * scale) * (J0 * scale) ;
     }
     //complex float di[3];
     //#shared(FN11, P3D, Local_ny_td, Local_y_start_td, Nmesh, NmeshL)
@@ -372,7 +383,10 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
                 const float tmp = di2[J] + di2[iI] + di2[K];
                 const int ind[] = {iI, J, K};
                 float f2= f1/tmp * diff[ind[axes]];
-
+                if(PM_MODULATOR) {
+                    float k2 = kk[J] + kk[iI] + kk[K];
+                    f2 *= PM_MODULATOR(k2, PM_MODULATOR_DATA);
+                }
                 size_t index= K + (NmeshL/2+1)*(iI + NmeshL*Jl);
                 FN11[index][0]= -f2*P3D[index][1];
                 FN11[index][1]=  f2*P3D[index][0];

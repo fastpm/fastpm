@@ -34,6 +34,7 @@
 #include "stepping.h"
 #include "timer.h"
 #include "heap.h"
+#include "mond.h"
 #include "version.h"
 
 extern int write_runpb_snapshot(Parameters * param, Particles * snapshot,  
@@ -96,6 +97,10 @@ int main(int argc, char* argv[])
 
     nc_factor = param.pm_nc_factor1;
     pm_set_diff_order(param.diff_order);
+    if(param.pm_mond_mode != PM_MOND_NONE) {
+        mond_init(&param);
+        pm_set_mond(mond_get_modulator(), &param);
+    }
     pm_init(param.boxsize, param.nc);
     domain_init(param.boxsize, param.nc);
     lpt_init(param.nc);
@@ -188,6 +193,7 @@ int main(int argc, char* argv[])
 
             if(param.force_mode == FORCE_MODE_PM ||
                param.force_mode == FORCE_MODE_COLA) {
+                mond_set_time(a_x);
                 pm_calculate_forces(particles); 
 
                 write_powerspectrum(&param, a_x, nc_factor);
