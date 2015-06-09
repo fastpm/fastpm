@@ -14,13 +14,132 @@
 
 static int ThisTask;
 
-int read_parameter_file(const char filename[], Parameters* const param);
-static void bcast_string(char** string, int* len);
+#define DEF_READ(my_typename, c_typename, lua_typename, transform) \
+c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue) { \
+    lua_getglobal(L, name); \
+    if (!lua_is ## lua_typename (L, -1)) { \
+        return defvalue; \
+    } \
+    c_typename retvalue = transform(lua_to ## lua_typename(L, -1)); \
+    lua_pop(L, 1); \
+    return  retvalue; \
+} \
+c_typename read_## my_typename (lua_State * L, const char * name) { \
+    lua_getglobal(L, name); \
+    if (!lua_is ## lua_typename (L, -1)) { \
+        msg_abort(1030, "Error: Parameter %s not found in the parameter file\n", name); \
+    } \
+    c_typename retvalue = transform(lua_to ## lua_typename(L, -1)); \
+    lua_pop(L, 1); \
+    return  retvalue; \
+} \
+c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *len) \
+{ \
+    lua_getglobal(L, name); \
+    if(!lua_istable(L, -1)) { \
+        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n"); \
+    } \
+    const int n = luaL_len(L, -1);     \
+    c_typename * array = (c_typename *) malloc(sizeof(c_typename) * n); \
+    for(int i = 1; i <= n; ++i) { \
+        lua_pushinteger(L, i); \
+        lua_gettable(L, -2); \
+        c_typename x = transform(lua_to ## lua_typename(L, -1)); \
+        lua_pop(L,1); \
+        array[i-1] = x; \
+    } \
+    lua_pop(L, 1); \
+    *len = n; \
+    return array; \
+}
+
+#define DEF_READ2(my_typename, c_typename, lua_typename, transform, argtype, argname) \
+c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue, argtype argname){ \
+    lua_getglobal(L, name); \
+    if (!lua_is ## lua_typename (L, -1)) { \
+        return defvalue; \
+    } \
+    c_typename retvalue = transform(lua_to ## lua_typename(L, -1), argname); \
+    lua_pop(L, 1); \
+    return  retvalue; \
+} \
+c_typename read_## my_typename (lua_State * L, const char * name, argtype argname) { \
+    lua_getglobal(L, name); \
+    if (!lua_is ## lua_typename (L, -1)) { \
+        msg_abort(1030, "Error: Parameter %s not found in the parameter file\n", name); \
+    } \
+    c_typename retvalue = transform(lua_to ## lua_typename(L, -1), argname); \
+    lua_pop(L, 1); \
+    return  retvalue; \
+} \
+c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *len, argtype argname) \
+{ \
+    lua_getglobal(L, name); \
+    if(!lua_istable(L, -1)) { \
+        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n"); \
+    } \
+    int n = luaL_len(L, -1);     \
+    c_typename * array = (c_typename *) malloc(sizeof(c_typename) * n); \
+    for(int i = 1; i <= n; ++i) { \
+        lua_pushinteger(L, i); \
+        lua_gettable(L, -2); \
+        c_typename x = transform(lua_to ## lua_typename(L, -1), argname); \
+        lua_pop(L,1); \
+        array[i-1] = x; \
+    } \
+    lua_pop(L, 1); \
+    *len = n; \
+    return array; \
+}
+
+#define PLAIN(a) (a)
+static char * _strdup(const char * str) {
+    char * ret = malloc(strlen(str) + 1);
+    strcpy(ret, str);
+    return ret;
+}
+struct enum_entry {
+    char * str;
+    int value;
+};
+static int parse_enum(const char * str, struct enum_entry * enum_table) {
+    struct enum_entry * p;
+    for(p = enum_table; p->str; p ++) {
+        if(!strcmp(str, p->str)) {
+            return p->value;
+        }
+    }
+    int n = 10;
+    for(p = enum_table; p->str; p ++) {
+        n += strlen(p->str) + 10;
+    }
+    char * options = malloc(n);
+    options[0] = 0;
+    for(p = enum_table; p->str; p ++) {
+        if(p != enum_table)
+            strcat(options, ", ");
+        strcat(options, "`");
+        strcat(options, p->str);
+        strcat(options, "`");
+    }
+     
+    msg_abort(9999, "value `%s` is not recognized. Options are %s \n",
+        str, options);
+    return 0;
+}
+DEF_READ(boolean, int, boolean, PLAIN)
+DEF_READ(integer, int, integer, PLAIN)
+DEF_READ(number, double, number, PLAIN)
+DEF_READ(string, char *, string, _strdup)
+DEF_READ2(enum, int, string, parse_enum, struct enum_entry *, enum_table)
+
+int read_parameter_file(const char filename[], Parameters * param);
+static void bcast_string(char** string);
 static void bcast_array_double(double** parray, int* len);
 
 //int read_parameters(const char filename[], Parameters* const param)
 int read_parameters(const int argc, char * argv[],
-        Parameters* const param)
+        Parameters * param)
 {
     if(argc < 2)
         msg_abort(1, "Error: Parameter file not specified. cola_code param.lua\n");
@@ -38,133 +157,15 @@ int read_parameters(const int argc, char * argv[],
     // Share parameters with other nodes
     MPI_Bcast(param, sizeof(Parameters), MPI_BYTE, 0, MPI_COMM_WORLD);
 
-    bcast_string(&param->power_spectrum_filename, 
-            &param->strlen_power_spectrum_filename);
-    bcast_string(&param->measure_power_spectrum_filename, 
-            &param->strlen_measure_power_spectrum_filename);
+    bcast_string(&param->power_spectrum_filename);
+    bcast_string(&param->measure_power_spectrum_filename);
 
-    bcast_string(&param->snapshot_filename,   &param->strlen_snapshot_filename);
-    bcast_string(&param->readic_filename,       &param->strlen_readic_filename);
+    bcast_string(&param->snapshot_filename);
+    bcast_string(&param->readic_filename);
 
     bcast_array_double(&param->zout,          &param->n_zout);
 
     return 0;
-}
-
-static int read_int(lua_State* L, const char name[])
-{
-    lua_getglobal(L, name);
-    if(!lua_isnumber(L, -1)) {
-        msg_abort(1010, "Error: Parameter %s not found in the parameter file\n",
-                name);
-    }
-
-    int n = lua_tointeger(L, -1);
-    lua_pop(L, 1);
-
-    return n;
-}
-
-static double read_double(lua_State* L, const char name[])
-{
-    lua_getglobal(L, name);
-    if(!lua_isnumber(L, -1)) {
-        msg_abort(1020, "Error: parameter %s not found in the parameter file\n",
-                name);
-    }
-
-    double val = lua_tonumber(L, -1);
-    lua_pop(L, 1);
-
-    return val;
-}
-
-/*
-   static void read_string_fixed(lua_State* L, const char name[], 
-   char* val, const int n)
-   {
-   lua_getglobal(L, name);
-   if(!lua_isstring(L, -1)) {
-   msg_printf(debug, "Parameter %s not found, possibly on optional one.\n", name);
-   val[0] = '\0';
-   return;
-   }
-
-   char const * const str = lua_tostring(L, -1);
-
-   strncpy(val, str, n);
-
-   lua_pop(L, 1);
-   }
-   */
-
-static char* read_string2(lua_State* L, const char name[], int* len, 
-        bool required)
-{
-    lua_getglobal(L, name);
-
-    if(!lua_isstring(L, -1)) { // string name not found
-        if(required)
-            msg_abort(1030, "Error: Parameter %s not found in the parameter file\n",
-                    name);
-        else {
-            *len = 0;
-            return 0;
-        }
-    }
-
-    char const * const str = lua_tostring(L, -1);
-    const int n = strlen(str) + 1; // +1 for the terminating null '\0'
-    char* const val = malloc(sizeof(char)*n); assert(val);
-
-    strncpy(val, str, n);
-
-    lua_pop(L, 1);
-
-    *len = n;
-    return val;
-}
-
-
-
-static int read_bool(lua_State* L, const char name[])
-{
-    lua_getglobal(L, name);
-    if(!lua_isboolean(L, -1)) {
-        msg_abort(1030, "Error: Parameter %s not found in the parameter file\n",
-                name);
-    }
-
-    int n = lua_toboolean(L, -1);
-    lua_pop(L, 1);
-
-    return n;
-}
-
-static double* read_array_double(lua_State* L, const char name[], int *len)
-{
-    lua_getglobal(L, name);
-    if(!lua_istable(L, -1)) {
-        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n");
-    }
-
-    //n = lua_objlen(L, -1); // old version
-    const int n = luaL_len(L, -1);     // version 5.2-work3 (5.2.2_1 now) and later
-
-    double* const array = (double*) malloc(sizeof(double)*n); assert(array);
-
-    for(int i = 1; i <= n; ++i) {
-        lua_pushinteger(L, i);
-        lua_gettable(L, -2);
-        double x = lua_tonumber(L, -1);
-        lua_pop(L,1);
-
-        array[i-1] = x;
-    }
-    lua_pop(L, 1); // pop table "aout"
-
-    *len = n;
-    return array;
 }
 
 int read_parameter_file(const char filename[], Parameters* const param)
@@ -178,53 +179,39 @@ int read_parameter_file(const char filename[], Parameters* const param)
     }
 
     memset(param, 0, sizeof(*param));
-    param->nc = read_int(L, "nc");
-    param->boxsize = read_double(L, "boxsize");
+    param->nc = read_integer(L, "nc");
+    param->boxsize = read_number(L, "boxsize");
 
-    param->a_init = read_double(L, "a_init");
-    param->a_final = read_double(L, "a_final");
-    param->ntimestep = read_int(L, "ntimestep");
-    param->zout = read_array_double(L, "output_redshifts", &param->n_zout);
+    param->a_init = read_number(L, "a_init");
+    param->a_final = read_number(L, "a_final");
+    param->ntimestep = read_integer(L, "ntimestep");
+    param->zout = read_array_number(L, "output_redshifts", &param->n_zout);
 
-    param->random_seed = read_int(L, "random_seed");
-    param->nrealization = read_int(L, "nrealization");
+    param->random_seed = read_integer(L, "random_seed");
+    param->nrealization = read_integer(L, "nrealization");
 
-    param->omega_m = read_double(L, "omega_m");
-    param->h = read_double(L, "h");
-    param->sigma8 = read_double(L, "sigma8");
+    param->omega_m = read_number(L, "omega_m");
+    param->h = read_number(L, "h");
+    param->sigma8 = read_number(L, "sigma8");
 
-    param->pm_nc_factor1 = read_int(L, "pm_nc_factor1");
-    param->pm_nc_factor2 = read_int(L, "pm_nc_factor2");
-    param->change_pm = read_double(L, "change_pm");
-    param->np_alloc_factor = read_double(L, "np_alloc_factor");
-    param->loglevel = read_int(L, "loglevel");
+    param->pm_nc_factor1 = read_integer(L, "pm_nc_factor1");
+    param->pm_nc_factor2 = read_integer(L, "pm_nc_factor2");
+    param->change_pm = read_number(L, "change_pm");
+    param->np_alloc_factor = read_number(L, "np_alloc_factor");
+    param->loglevel = read_integer(L, "loglevel");
 
     // File Names and optional parameters realated
-    param->readic_filename =
-        read_string2(L, "readic", &param->strlen_readic_filename, false);
+    param->readic_filename = read_string_opt(L, "readic", NULL);
 
     if(!param->readic_filename) {
-        param->power_spectrum_filename =
-            read_string2(L, "powerspectrum", &param->strlen_power_spectrum_filename, 
-                    true);
+        param->power_spectrum_filename = read_string(L, "powerspectrum");
     }
-    param->measure_power_spectrum_filename =
-        read_string2(L, "measure_power", 
-                &param->strlen_measure_power_spectrum_filename, false);
 
-    param->snapshot_filename =
-        read_string2(L, "snapshot", &param->strlen_snapshot_filename, false);
+    param->measure_power_spectrum_filename = read_string_opt(L, "measure_power", NULL);
 
-    param->readic_filename =
-        read_string2(L, "readic", &param->strlen_readic_filename, false);
+    param->snapshot_filename = read_string_opt(L, "snapshot", NULL);
 
-    int junk;
-    char * force_mode = read_string2(L, "force_mode", &junk, true);
-    char * time_step = read_string2(L, "time_step", &junk, true);
-
-    param->force_mode = -1;
-    param->time_step = -1;
-    struct {char * str; int value; } *p, table[] = {
+    struct enum_entry table[] = {
         {"a", TIME_STEP_A},
         {"loga", TIME_STEP_LOGA},
         {"growth", TIME_STEP_GROWTH},
@@ -234,48 +221,40 @@ int read_parameter_file(const char filename[], Parameters* const param)
         {"pm", FORCE_MODE_PM},
         {NULL, -1},
     };
-    for(p = table; p->str; p ++) {
-        if(!strcmp(force_mode, p->str)) {
-            param->force_mode = p->value;
-        }
-        if(!strcmp(time_step, p->str)) {
-            param->time_step = p->value;
-        }
-    }
-    if(param->force_mode == -1) {
-        msg_abort(9999, "force_mode is not set, use za, 2lpt cola or pm\n");
-    }
-    if(param->time_step == -1) {
-        msg_abort(9999, "time_step is not set, use a, loga, or growth\n");
-    }
 
-    param->diff_order = read_int(L, "diff_order");
-    param->stdda = read_bool(L, "stdda");
+    param->force_mode = read_enum(L, "force_mode", table);
+    param->time_step = read_enum(L, "time_step", table);
+    param->diff_order = read_integer(L, "diff_order");
+    param->stdda = read_boolean(L, "stdda");
 
     lua_close(L);
 
     return 0;
 }
 
-void bcast_string(char** pstring, int* len)
+void bcast_string(char ** pstring)
 {
-    const int ret1 = MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    assert(ret1 == MPI_SUCCESS);
+    int len;
+    if(ThisTask == 0) {
+        if(*pstring)
+            len = strlen(*pstring);
+        else
+            len = 0;
+    } else {
+        len = 0;
+    }
+    MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    const int n = *len;
-
-    if(n == 0) {
-        *pstring = 0;
+    if(len == 0) {
+        *pstring = NULL;
         return;
     }
 
     if(ThisTask != 0) {
-        *pstring = malloc(sizeof(char)*n);
+        *pstring = malloc( sizeof(char) * (len + 1));
     }
-    assert(*pstring);
 
-    const int ret2 = MPI_Bcast(*pstring, n, MPI_CHAR, 0, MPI_COMM_WORLD);
-    assert(ret2 == MPI_SUCCESS);
+    MPI_Bcast(*pstring, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 }
 
 void bcast_array_double(double** parray, int* len)

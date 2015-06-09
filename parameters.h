@@ -21,13 +21,12 @@ typedef struct {
 
     double omega_m, sigma8, h;
 
-    double* zout; int n_zout;
+    double * zout; int n_zout;
 
-    char* power_spectrum_filename; int strlen_power_spectrum_filename;
-    char* measure_power_spectrum_filename; int strlen_measure_power_spectrum_filename;
-    char* snapshot_filename;   int strlen_snapshot_filename;
-    char* readic_filename;   int strlen_readic_filename;
-    // 'strlen' includes the null character. It is the number of chars.
+    char * power_spectrum_filename;
+    char * measure_power_spectrum_filename; 
+    char * snapshot_filename;
+    char * readic_filename;
 
     int force_mode;
     int stdda;
@@ -44,10 +43,8 @@ typedef struct {
 #define TIME_STEP_LOGA 0
 #define TIME_STEP_A 1
 #define TIME_STEP_GROWTH 2
-//
-//int read_parameters(const char filename[], Parameters* const param);
-int read_parameters(const int argc, char * argv[], 
-        Parameters* const param);
 
+int read_parameters(const int argc, char * argv[], 
+        Parameters * param);
 
 #endif
