@@ -9,3 +9,4 @@ slice_*.txt
 exchange_buffer
 original
 bak
+version.h
