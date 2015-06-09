@@ -226,9 +226,9 @@ int read_parameter_file(const char filename[], Parameters* const param)
     param->time_step = read_enum(L, "time_step", table);
     param->diff_order = read_integer(L, "diff_order");
     if(force_mode == FORCE_MODE_COLA) {
-        param->stdda = read_boolean(L, "stdda");
+        param->cola_stdda = read_boolean(L, "cola_stdda");
     } else {
-        param->stdda = 1;
+        param->cola_stdda = 1;
     }
     lua_close(L);
 

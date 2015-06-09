@@ -29,7 +29,7 @@ typedef struct {
     char * readic_filename;
 
     int force_mode;
-    int stdda;
+    int cola_stdda;
     double smoothing;
     int diff_order;
     int time_step;

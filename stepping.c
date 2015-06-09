@@ -58,7 +58,11 @@ static double polval(const double * pol, const int degrees, const double x) {
 void stepping_init(Parameters * param) {
     FORCE_MODE = param->force_mode;
     NSTEPS = param->ntimestep;
-    stdDA = param->stdda;
+    if(param->force_mode == FORCE_MODE_COLA) {
+        stdDA = param->cola_stdda;
+    } else {
+        stdDA = 1;
+    }
     Om = param->omega_m;
 
     double a_final= param->a_final;
