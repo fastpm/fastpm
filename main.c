@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
 
     fft_init(multi_thread);
 
-    power_init(param.power_spectrum_filename, param.a_init, 
+    power_init(param.power_spectrum_filename, param.time_step2[0], 
             sigma8, OmegaM, OmegaLambda);
 
     heap_init(calculate_heap_size(&param));
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
                 irealization+1, param.nrealization);
 
         msg_printf(normal, "Time integration a= %g -> %g, %d steps\n", 
-                param.a_init, param.a_final, nsteps);
+                param.time_step2[0], param.time_step2[param.n_time_step2-1], param.n_time_step2);
 
         int seed= param.random_seed + irealization;
 
@@ -140,17 +140,17 @@ int main(int argc, char* argv[])
         particles->dx2 = heap_allocate(sizeof(float) * 3 * particles->np_allocated);
 
         if(param.readic_filename) {
-            read_runpb_ic(&param, param.a_init, particles);
+            read_runpb_ic(&param, param.time_step2[0], particles);
         } else {
             // Sets initial grid and 2LPT desplacement
-            lpt_set_displacement(param.a_init, OmegaM, seed,
+            lpt_set_displacement(param.time_step2[0], OmegaM, seed,
                     param.boxsize, particles);
         }
         snapshot->seed= seed;
 
         // always do this because it intializes the initial velocity
         // correctly.
-        stepping_set_initial(param.a_init, particles);
+        stepping_set_initial(param.time_step2[0], particles);
 
         if(param.force_mode == FORCE_MODE_PM) {
             heap_return(particles->dx2);

@@ -9,14 +9,14 @@ typedef struct {
 
     double np_alloc_factor;
 
-    int ntimestep;
+//    int ntimestep;
     int random_seed;
     int nrealization;
 
     int loglevel;
 
-    double a_init;
-    double a_final;
+//    double a_init;
+//    double a_final;
     double boxsize;
 
     double omega_m, sigma8, h;
@@ -35,7 +35,9 @@ typedef struct {
     int cola_stdda;
     double smoothing;
     int diff_order;
-    int time_step;
+//    int time_step;
+//    bool ext_time;
+    double * time_step2; int n_time_step2;
 } Parameters;
 
 #define PM_MOND_NONE 0

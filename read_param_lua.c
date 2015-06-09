@@ -164,6 +164,7 @@ int read_parameters(const int argc, char * argv[],
     bcast_string(&param->readic_filename);
 
     bcast_array((void**)&param->zout,   sizeof(double), &param->n_zout);
+    bcast_array((void**)&param->time_step2,   sizeof(double), &param->n_time_step2);
     bcast_array((void**)&param->pm_mond_parameters,   sizeof(double), &param->n_pm_mond_parameters);
 
     return 0;
@@ -183,9 +184,9 @@ int read_parameter_file(const char filename[], Parameters* const param)
     param->nc = read_integer(L, "nc");
     param->boxsize = read_number(L, "boxsize");
 
-    param->a_init = read_number(L, "a_init");
-    param->a_final = read_number(L, "a_final");
-    param->ntimestep = read_integer(L, "ntimestep");
+//    param->a_init = read_number(L, "a_init");
+//    param->a_final = read_number(L, "a_final");
+//    param->ntimestep = read_integer(L, "ntimestep");
     param->zout = read_array_number(L, "output_redshifts", &param->n_zout);
 
     param->random_seed = read_integer(L, "random_seed");
@@ -232,7 +233,8 @@ int read_parameter_file(const char filename[], Parameters* const param)
         param->pm_mond_parameters = read_array_number(L, "pm_mond_parameters", &param->n_pm_mond_parameters);
     }
     param->force_mode = read_enum(L, "force_mode", table);
-    param->time_step = read_enum(L, "time_step", table);
+//    param->time_step = read_enum(L, "time_step", table);
+    param->time_step2 = read_array_number(L, "time_step2", &param->n_time_step2);
     param->diff_order = read_integer(L, "diff_order");
     if(param->force_mode == FORCE_MODE_COLA) {
         param->cola_stdda = read_boolean(L, "cola_stdda");
