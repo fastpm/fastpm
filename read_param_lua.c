@@ -25,12 +25,12 @@ int read_parameters(const int argc, char * argv[],
     if(argc < 2)
         msg_abort(1, "Error: Parameter file not specified. cola_code param.lua\n");
 
-    char const * const filename= argv[argc-1];
+    char const * const filename = argv[argc-1];
 
     //int myrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     if(ThisTask == 0) {
-        int ret= read_parameter_file(filename, param);
+        int ret = read_parameter_file(filename, param);
         if(ret != 0)
             msg_abort(1001, "Error: Unable to read parameter file: %s\n", filename);
     }
@@ -86,11 +86,11 @@ static double read_double(lua_State* L, const char name[])
    lua_getglobal(L, name);
    if(!lua_isstring(L, -1)) {
    msg_printf(debug, "Parameter %s not found, possibly on optional one.\n", name);
-   val[0]= '\0';
+   val[0] = '\0';
    return;
    }
 
-   char const * const str= lua_tostring(L, -1);
+   char const * const str = lua_tostring(L, -1);
 
    strncpy(val, str, n);
 
@@ -108,20 +108,20 @@ static char* read_string2(lua_State* L, const char name[], int* len,
             msg_abort(1030, "Error: Parameter %s not found in the parameter file\n",
                     name);
         else {
-            *len= 0;
+            *len = 0;
             return 0;
         }
     }
 
-    char const * const str= lua_tostring(L, -1);
-    const int n= strlen(str) + 1; // +1 for the terminating null '\0'
-    char* const val= malloc(sizeof(char)*n); assert(val);
+    char const * const str = lua_tostring(L, -1);
+    const int n = strlen(str) + 1; // +1 for the terminating null '\0'
+    char* const val = malloc(sizeof(char)*n); assert(val);
 
     strncpy(val, str, n);
 
     lua_pop(L, 1);
 
-    *len= n;
+    *len = n;
     return val;
 }
 
@@ -148,22 +148,22 @@ static double* read_array_double(lua_State* L, const char name[], int *len)
         msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n");
     }
 
-    //n= lua_objlen(L, -1); // old version
-    const int n= luaL_len(L, -1);     // version 5.2-work3 (5.2.2_1 now) and later
+    //n = lua_objlen(L, -1); // old version
+    const int n = luaL_len(L, -1);     // version 5.2-work3 (5.2.2_1 now) and later
 
-    double* const array= (double*) malloc(sizeof(double)*n); assert(array);
+    double* const array = (double*) malloc(sizeof(double)*n); assert(array);
 
-    for(int i=1; i<=n; ++i) {
+    for(int i = 1; i <= n; ++i) {
         lua_pushinteger(L, i);
         lua_gettable(L, -2);
-        double x= lua_tonumber(L, -1);
+        double x = lua_tonumber(L, -1);
         lua_pop(L,1);
 
-        array[i-1]= x;
+        array[i-1] = x;
     }
     lua_pop(L, 1); // pop table "aout"
 
-    *len= n;
+    *len = n;
     return array;
 }
 
@@ -178,44 +178,44 @@ int read_parameter_file(const char filename[], Parameters* const param)
     }
 
     memset(param, 0, sizeof(*param));
-    param->nc= read_int(L, "nc");
-    param->boxsize= read_double(L, "boxsize");
+    param->nc = read_int(L, "nc");
+    param->boxsize = read_double(L, "boxsize");
 
     param->a_init = read_double(L, "a_init");
-    param->a_final= read_double(L, "a_final");
-    param->ntimestep= read_int(L, "ntimestep");
-    param->zout= read_array_double(L, "output_redshifts", &param->n_zout);
+    param->a_final = read_double(L, "a_final");
+    param->ntimestep = read_int(L, "ntimestep");
+    param->zout = read_array_double(L, "output_redshifts", &param->n_zout);
 
-    param->random_seed= read_int(L, "random_seed");
-    param->nrealization= read_int(L, "nrealization");
+    param->random_seed = read_int(L, "random_seed");
+    param->nrealization = read_int(L, "nrealization");
 
-    param->omega_m= read_double(L, "omega_m");
-    param->h= read_double(L, "h");
-    param->sigma8= read_double(L, "sigma8");
+    param->omega_m = read_double(L, "omega_m");
+    param->h = read_double(L, "h");
+    param->sigma8 = read_double(L, "sigma8");
 
-    param->pm_nc_factor1= read_int(L, "pm_nc_factor1");
-    param->pm_nc_factor2= read_int(L, "pm_nc_factor2");
-    param->change_pm= read_double(L, "change_pm");
-    param->np_alloc_factor= read_double(L, "np_alloc_factor");
-    param->loglevel= read_int(L, "loglevel");
+    param->pm_nc_factor1 = read_int(L, "pm_nc_factor1");
+    param->pm_nc_factor2 = read_int(L, "pm_nc_factor2");
+    param->change_pm = read_double(L, "change_pm");
+    param->np_alloc_factor = read_double(L, "np_alloc_factor");
+    param->loglevel = read_int(L, "loglevel");
 
     // File Names and optional parameters realated
-    param->readic_filename=
+    param->readic_filename =
         read_string2(L, "readic", &param->strlen_readic_filename, false);
 
     if(!param->readic_filename) {
-        param->power_spectrum_filename=
+        param->power_spectrum_filename =
             read_string2(L, "powerspectrum", &param->strlen_power_spectrum_filename, 
                     true);
     }
-    param->measure_power_spectrum_filename=
+    param->measure_power_spectrum_filename =
         read_string2(L, "measure_power", 
                 &param->strlen_measure_power_spectrum_filename, false);
 
-    param->snapshot_filename=
+    param->snapshot_filename =
         read_string2(L, "snapshot", &param->strlen_snapshot_filename, false);
 
-    param->readic_filename=
+    param->readic_filename =
         read_string2(L, "readic", &param->strlen_readic_filename, false);
 
     int junk;
@@ -245,7 +245,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     if(param->force_mode == -1) {
         msg_abort(9999, "force_mode is not set, use za, 2lpt cola or pm\n");
     }
-    if(param->time_step== -1) {
+    if(param->time_step == -1) {
         msg_abort(9999, "time_step is not set, use a, loga, or growth\n");
     }
 
@@ -259,42 +259,42 @@ int read_parameter_file(const char filename[], Parameters* const param)
 
 void bcast_string(char** pstring, int* len)
 {
-    const int ret1= MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    const int ret1 = MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
     assert(ret1 == MPI_SUCCESS);
 
-    const int n= *len;
+    const int n = *len;
 
     if(n == 0) {
-        *pstring= 0;
+        *pstring = 0;
         return;
     }
 
     if(ThisTask != 0) {
-        *pstring= malloc(sizeof(char)*n);
+        *pstring = malloc(sizeof(char)*n);
     }
     assert(*pstring);
 
-    const int ret2= MPI_Bcast(*pstring, n, MPI_CHAR, 0, MPI_COMM_WORLD);
+    const int ret2 = MPI_Bcast(*pstring, n, MPI_CHAR, 0, MPI_COMM_WORLD);
     assert(ret2 == MPI_SUCCESS);
 }
 
 void bcast_array_double(double** parray, int* len)
 {
-    const int ret1= MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    const int ret1 = MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
     assert(ret1 == MPI_SUCCESS);
 
-    const int n= *len;
+    const int n = *len;
 
     if(n == 0) {
-        *parray= 0;
+        *parray = 0;
         return;
     }
 
     if(ThisTask != 0) {
-        *parray= malloc(sizeof(double)*n);
+        *parray = malloc(sizeof(double)*n);
     }
     assert(*parray);
 
-    const int ret2= MPI_Bcast(*parray, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    const int ret2 = MPI_Bcast(*parray, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     assert(ret2 == MPI_SUCCESS);
 }
