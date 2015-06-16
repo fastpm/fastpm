@@ -1,11 +1,11 @@
 -- cola code parameter file
-nc = 256
+nc = 64
 boxsize = 1024.0
 
 random_seed= 100
 nrealization= 1
 
-ntimestep= 10
+ntimestep= 3
 a_init=0.1
 a_final= 1.0
 output_redshifts= {9.0, 0.55, 0.0}  -- redshifts of output
@@ -17,7 +17,7 @@ sigma8  = 0.820
 -- canonical cola parameters
 force_mode='cola'
 time_step = 'a'
-stdda = true
+cola_stdda = false
 smoothing = 1.0
 diff_order = 0
 

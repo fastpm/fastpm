@@ -57,7 +57,7 @@ static double polval(const double * pol, const int degrees, const double x) {
 
 void stepping_init(Parameters * param) {
     FORCE_MODE = param->force_mode;
-    NSTEPS = param->n_time_step2;
+    NSTEPS = param->n_time_step;
     if(param->force_mode == FORCE_MODE_COLA) {
         stdDA = param->cola_stdda;
     } else {
@@ -73,20 +73,20 @@ void stepping_init(Parameters * param) {
         NSTEPS = 1;
         A_X = (double*) calloc(NSTEPS + 2, sizeof(double));
         A_V = (double*) calloc(NSTEPS + 2, sizeof(double));
-        A_V[1] = param->time_step2[param->n_time_step2-1];
-        A_X[1] = param->time_step2[param->n_time_step2-1];
+        A_V[1] = param->time_step[param->n_time_step-1];
+        A_X[1] = param->time_step[param->n_time_step-1];
     } else {
         /* one extra item in the end; to avoid an if conditioni in main loop */
         A_X = (double*) calloc(NSTEPS + 2, sizeof(double));
         A_V = (double*) calloc(NSTEPS + 2, sizeof(double));
 
-        for (int i = 0;i<=param->n_time_step2-1;++i){
-            A_X[i] = param->time_step2[i];
+        for (int i = 0;i<=param->n_time_step-1;++i){
+            A_X[i] = param->time_step[i];
         }
 
         A_V[0] = A_X[0];
 
-        for (int i = 1;i<=param->n_time_step2-1;++i){
+        for (int i = 1;i<=param->n_time_step-1;++i){
             A_V[i] = (A_X[i]+A_X[i-1])/2;
         }
     }

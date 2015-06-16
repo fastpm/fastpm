@@ -35,9 +35,8 @@ typedef struct {
     int cola_stdda;
     double smoothing;
     int diff_order;
-//    int time_step;
-//    bool ext_time;
-    double * time_step2; int n_time_step2;
+    double * time_step; int n_time_step;
+
 } Parameters;
 
 #define PM_MOND_NONE 0
