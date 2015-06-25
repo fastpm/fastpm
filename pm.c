@@ -41,6 +41,7 @@ static int Local_nx, Local_x_start;
 static int Local_ny_td, Local_y_start_td;  // transposed
 static size_t total_size;
 static double BoxSize;
+static int poisson_order;
 
 static fftwf_plan r2c_outplace_plan, c2r_inplace_plan;
 
@@ -87,6 +88,9 @@ static inline float WRtPlus(float * const d,
 static inline float REd(float const * const d, const int i, const int j, const int k)
 {
     return d[k + 2*(NmeshL/2 + 1)*(j + NmeshL * i)];
+}
+void pm_set_poisson_order(int order) {
+    poisson_order = order;
 }
 void pm_set_diff_order(int order) {
     double (*kernels[4])(double w) = {
@@ -371,7 +375,7 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
         int J0= J <= (Nmesh/2) ? J : J - Nmesh;
         // kk diff, di in physical units
         diff[J] = diff_kernel(J0 * M_PI * 2.0 / Nmesh) * Nmesh / (M_PI * 2.0) * scale;
-        ff[J] = sinc_unnormed(J0 * M_PI / Nmesh);
+        ff[J] = (poisson_order==0)?1:sinc_unnormed(J0 * M_PI / Nmesh);
         di2[J] = J0 * ff[J] * J0 * ff[J] * (scale * scale);
         kk[J] = (J0 * scale) * (J0 * scale) ;
     }

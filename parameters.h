@@ -9,14 +9,11 @@ typedef struct {
 
     double np_alloc_factor;
 
-//    int ntimestep;
     int random_seed;
     int nrealization;
 
     int loglevel;
 
-//    double a_init;
-//    double a_final;
     double boxsize;
 
     double omega_m, sigma8, h;
@@ -35,6 +32,8 @@ typedef struct {
     int cola_stdda;
     double smoothing;
     int diff_order;
+    int poisson_order;
+
     double * time_step; int n_time_step;
     int enforce_broadband;
 } Parameters;

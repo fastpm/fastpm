@@ -97,6 +97,7 @@ int main(int argc, char* argv[])
 
     nc_factor = param.pm_nc_factor1;
     pm_set_diff_order(param.diff_order);
+    pm_set_poisson_order(param.poisson_order);
     if(param.pm_mond_mode != PM_MOND_NONE) {
         mond_init(&param);
         pm_set_mond(mond_get_modulator(), &param);
