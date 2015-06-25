@@ -45,7 +45,7 @@ static double BoxSize;
 static fftwf_plan r2c_outplace_plan, c2r_inplace_plan;
 
 static double * PowerSpectrumVariable;
-
+static double EnforceBroadBandPower;
 static long long NParticleTotal;
 
 /* the transfer functions for force in fourier space applied to potential */
@@ -107,10 +107,17 @@ void pm_init(double boxsize, int nc) {
     r2c_outplace_plan = NULL;
     c2r_inplace_plan = NULL;
     PowerSpectrumVariable = NULL;
+    EnforceBroadBandPower = 0.0;
 
     NParticleTotal= ((size_t) nc) * nc * nc;
 }
-
+void pm_enforce_broadband(double power) {
+    EnforceBroadBandPower = power;
+}
+double pm_get_broadband() {
+    return PowerSpectrumVariable[1] / pow(Nmesh, 6) * 
+        pow(BoxSize, 3.0);
+}
 void pm_set_mond(pm_modulator mond, void * data) {
     PM_MODULATOR = mond;
     PM_MODULATOR_DATA= data;
@@ -342,7 +349,7 @@ void compute_power_spectrum(fftwf_complex * density_k) {
     }
 }
 // Calculate one component of force mesh from precalculated density(k)
-void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex * P3D)
+void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex * P3D, double bb_boost)
 {
     timer_start(force_mesh);
 
@@ -354,7 +361,7 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     const float scale=2.0*M_PI/BoxSize;
     //const float dens_fac= 1.0/(pow(Nmesh, 3));
 
-    const float f1= -1.0/pow(Nmesh, 3.0);
+    const float f1= -1.0/pow(Nmesh, 3.0) * bb_boost;
 
     float * diff = alloca(sizeof(float) * Nmesh);
     float * di2 = alloca(sizeof(float) * Nmesh);
@@ -500,16 +507,23 @@ void pm_calculate_forces(Particles* particles)
     timer_start(powerspectrum);
     compute_power_spectrum(density_k);
     timer_stop(powerspectrum);
+    for(int axes=0; axes<3; axes++) {
+        double ratio;
+        double real_bb = pm_get_broadband();
+        if(EnforceBroadBandPower > 0) {
+            ratio = EnforceBroadBandPower / real_bb;
+        } else {
+            ratio = 1.0;
+        } 
+        msg_printf(verbose, "ratio %g %g\n", EnforceBroadBandPower, real_bb);
+        // density(k) -> f(x_i) [fftdata]
+        compute_force_mesh(axes, fftdata, density_k, ratio);
 
-        for(int axes=0; axes<3; axes++) {
-            // density(k) -> f(x_i) [fftdata]
-            compute_force_mesh(axes, fftdata, density_k);
-
-            timer_start(pforce);
-            force_at_particle_locations(particles->x, np_plus_buffer, axes,
-                    (float*) fftdata, particles->force);
-            timer_stop(pforce);
-        }
+        timer_start(pforce);
+        force_at_particle_locations(particles->x, np_plus_buffer, axes,
+                (float*) fftdata, particles->force);
+        timer_stop(pforce);
+    }
 
     heap_return(fftdata);
     heap_return(density_k);

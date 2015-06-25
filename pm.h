@@ -15,4 +15,7 @@ void pm_free(void);
 void pm_calculate_forces(Particles*);
 double * pm_compute_power_spectrum(size_t * nk);
 
+double pm_get_broadband();
+void pm_enforce_broadband(double power);
+
 #endif

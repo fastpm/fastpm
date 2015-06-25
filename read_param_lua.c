@@ -245,6 +245,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
         param->pm_mond_parameters = read_array_number(L, "pm_mond_parameters", &param->n_pm_mond_parameters);
     }
     param->force_mode = read_enum(L, "force_mode", table);
+    param->enforce_broadband = read_boolean(L, "enforce_broadband");
     param->diff_order = read_integer(L, "diff_order");
     if(param->force_mode == FORCE_MODE_COLA) {
         param->cola_stdda = read_boolean(L, "cola_stdda");

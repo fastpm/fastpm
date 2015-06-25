@@ -36,7 +36,7 @@ typedef struct {
     double smoothing;
     int diff_order;
     double * time_step; int n_time_step;
-
+    int enforce_broadband;
 } Parameters;
 
 #define PM_MOND_NONE 0

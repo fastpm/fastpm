@@ -158,6 +158,8 @@ int main(int argc, char* argv[])
         }
         timer_set_category(STEPPING);
 
+        double broadband_init = 0;
+        double a_init = 0; 
         //
         // Time evolution loop
         //
@@ -194,9 +196,17 @@ int main(int argc, char* argv[])
             if(param.force_mode == FORCE_MODE_PM ||
                param.force_mode == FORCE_MODE_COLA) {
                 mond_set_time(a_x);
+                if(param.enforce_broadband && istep > 0) {
+                    double growth = GrowthFactor(a_init, a_x);
+                    pm_enforce_broadband(broadband_init * growth * growth);
+                }
                 pm_calculate_forces(particles); 
-
+                if(istep == 0) {
+                    broadband_init = pm_get_broadband();
+                    a_init = a_x;
+                }
                 write_powerspectrum(&param, a_x, nc_factor);
+                
             }
 
             while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
