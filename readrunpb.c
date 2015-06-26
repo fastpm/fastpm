@@ -249,72 +249,25 @@ int read_runpb_ic(Parameters * param, double a_init, Particles * p) {
     return 0;
 }
 
-int write_runpb_snapshot(Parameters * param, Particles * p,  
-        char * filebase){
-    int ThisTask;
-    int NTask;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
-
+static void write_mine(char * filebase, 
+            Particles * p, size_t Ntot,
+            size_t * NcumFile, int * NperFile, int Nfile, 
+            ptrdiff_t start, ptrdiff_t end) {
     size_t scratch_bytes = heap_get_free_bytes();
     void * scratch = heap_allocate(scratch_bytes);
 
     float * fscratch = (float*) scratch;
     int64_t * lscratch = (int64_t *) scratch;
 
-
-    size_t chunksize = scratch_bytes;
-
-    int np_local = p->np_local;
-
-    int * NperTask = alloca(sizeof(int) * NTask);
-    size_t * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
-
-    MPI_Allgather(&np_local, 1, MPI_INT, NperTask, 1, MPI_INT, MPI_COMM_WORLD);
-
-    NcumTask[0] = 0;
-    for(int i = 1; i <= NTask; i ++) {
-        NcumTask[i] = NcumTask[i - 1] + NperTask[i - 1];
-    }
-    size_t Ntot = NcumTask[NTask];
-
     double aa = p->a;
-    int Nfile = (Ntot + (1024 * 1024 * 128 - 1)) / (1024 * 1024 * 128);
-
-    msg_printf(verbose, "Writing to %td paritlces to  %d files\n", Ntot, Nfile);
-
     double vfac = 100. / aa;
     double RSD = aa / p->qfactor / vfac;
 
-    int * NperFile = NperFile = alloca(sizeof(int) * Nfile);
 
-    size_t * NcumFile = alloca(sizeof(size_t) * Nfile);
-
-    NcumFile[0] = 0;
-    for(int i = 0; i < Nfile; i ++) {
-        NperFile[i] = (i+1) * Ntot / Nfile -i * Ntot/ Nfile;
-    }
-    for(int i = 1; i < Nfile; i ++) {
-        NcumFile[i] = NcumFile[i - 1] + NperFile[i - 1];
-    }
-
-
-    size_t start = NcumTask[ThisTask];
-    size_t end   = NcumTask[ThisTask + 1];
+    size_t chunksize = scratch_bytes;
 
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
-
-    for(int i = 0; i < Nfile; i ++) {
-        char buf[1024];
-        sprintf(buf, FILENAME, filebase, i);
-        if(ThisTask == 0) {
-            FILE * fp = fopen(buf, "w");
-            fclose(fp);
-        }
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
 
     for(int i = 0; i < Nfile; i ++) {
         ptrdiff_t mystart = start - NcumFile[i];
@@ -396,5 +349,64 @@ int write_runpb_snapshot(Parameters * param, Particles * p,
         msg_abort(0030, "mismatch %d != %d\n", offset, p->np_local);
     }
     heap_return(scratch);
+}
+
+int write_runpb_snapshot(Parameters * param, Particles * p,  
+        char * filebase){
+    int ThisTask;
+    int NTask;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
+    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+    int np_local = p->np_local;
+
+    int * NperTask = alloca(sizeof(int) * NTask);
+    size_t * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
+
+    MPI_Allgather(&np_local, 1, MPI_INT, NperTask, 1, MPI_INT, MPI_COMM_WORLD);
+
+    NcumTask[0] = 0;
+    for(int i = 1; i <= NTask; i ++) {
+        NcumTask[i] = NcumTask[i - 1] + NperTask[i - 1];
+    }
+    size_t Ntot = NcumTask[NTask];
+
+    int Nfile = (Ntot + (1024 * 1024 * 128 - 1)) / (1024 * 1024 * 128);
+
+    msg_printf(verbose, "Writing to %td paritlces to  %d files\n", Ntot, Nfile);
+
+    int * NperFile = NperFile = alloca(sizeof(int) * Nfile);
+
+    size_t * NcumFile = alloca(sizeof(size_t) * Nfile);
+
+    NcumFile[0] = 0;
+    for(int i = 0; i < Nfile; i ++) {
+        NperFile[i] = (i+1) * Ntot / Nfile -i * Ntot/ Nfile;
+    }
+    for(int i = 1; i < Nfile; i ++) {
+        NcumFile[i] = NcumFile[i - 1] + NperFile[i - 1];
+    }
+
+
+    size_t start = NcumTask[ThisTask];
+    size_t end   = NcumTask[ThisTask + 1];
+
+    for(int i = 0; i < Nfile; i ++) {
+        char buf[1024];
+        sprintf(buf, FILENAME, filebase, i);
+        if(ThisTask == 0) {
+            FILE * fp = fopen(buf, "w");
+            fclose(fp);
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(int color = 0; color < Nfile; color ++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (ThisTask % Nfile != color) continue;
+        write_mine(filebase, p, Ntot, NcumFile, NperFile, Nfile, start, end);
+    }
     return 0;
 }
+
