@@ -402,11 +402,7 @@ int write_runpb_snapshot(Parameters * param, Particles * p,
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
-    for(int color = 0; color < Nfile; color ++) {
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (ThisTask % Nfile != color) continue;
-        write_mine(filebase, p, Ntot, NcumFile, NperFile, Nfile, start, end);
-    }
+    write_mine(filebase, p, Ntot, NcumFile, NperFile, Nfile, start, end);
     return 0;
 }
 

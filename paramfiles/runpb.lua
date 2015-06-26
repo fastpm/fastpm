@@ -19,6 +19,7 @@ force_mode = 'pm'
 stdda = true
 smoothing = 2.0
 diff_order = 1
+enforce_broadband = true
 
 
 pm_nc_factor1= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
