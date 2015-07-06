@@ -253,7 +253,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     if(param->force_mode == FORCE_MODE_PM)
         param->cola_stdda = 0;
     if(param->force_mode == FORCE_MODE_COLA || param->force_mode== FORCE_MODE_PM) {
-        param->cola_stdda = read_boolean_opt(L, "cola_stdda", param->cola_stdda);
+        param->cola_stdda = ! read_boolean_opt(L, "cola_nonstdda", param->cola_stdda);
     }
     lua_close(L);
 

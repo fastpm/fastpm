@@ -16,7 +16,7 @@ sigma8  = 0.820
 
 -- canonical cola parameters
 force_mode = 'pm'
-cola_stdda = true
+cola_nonstdda = false
 smoothing = 2.0
 diff_order = 1
 enforce_broadband = true
