@@ -5,7 +5,7 @@ boxsize = 128.0
 random_seed= 100
 nrealization= 1
 
-ntimestep= 40
+ntimestep= 10
 a_init = 0.1
 a_final= 1.0
 output_redshifts= {9.0, 3.0, 0.55, 0.0}  -- redshifts of output
@@ -16,7 +16,7 @@ sigma8  = 0.820
 
 -- canonical cola parameters
 force_mode = 'pm'
-stdda = true
+cola_stdda = true
 smoothing = 2.0
 diff_order = 1
 enforce_broadband = true
