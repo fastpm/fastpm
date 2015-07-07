@@ -238,6 +238,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
     struct enum_entry mond_table[] = {
         {"none", PM_MOND_NONE},
         {"simple", PM_MOND_SIMPLE},
+        {"nbc", PM_MOND_NBC},
         {NULL, -1},
     };
     param->pm_mond_mode = read_enum_opt(L, "pm_mond_mode", PM_MOND_NONE, mond_table);

@@ -40,6 +40,7 @@ typedef struct {
 
 #define PM_MOND_NONE 0
 #define PM_MOND_SIMPLE 1
+#define PM_MOND_NBC 2
 
 #define FORCE_MODE_ZA 0
 #define FORCE_MODE_2LPT 1
