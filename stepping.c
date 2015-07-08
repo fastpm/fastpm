@@ -290,28 +290,20 @@ double gpQ(double a) {
     return pow(a, nLPT);
 }
 
-double fun (double a, void * params) {
-    double f;
-    if (stdDA==0) f = gpQ(a)/Qfactor(a); 
-    else f = 1.0/Qfactor(a);
-
-    return f;
+double stddriftfunc (double a, void * params) {
+    return 1.0/Qfactor(a);
 }
 
-double fun2 (double a, void * params) {
-    double f;
-    if (stdDA==0) abort();
-    else f = a/Qfactor(a);
-
-    return f;
+double nonstddriftfunc (double a, void * params) {
+    return gpQ(a)/Qfactor(a); 
 }
 
-double fun2martin (double a, void * params) {
-    double f;
-    if (stdDA==0) abort();
-    else f = Qfactor(a) / (a*a);
+double stdkickfunc (double a, void * params) {
+    return a/Qfactor(a);
+}
 
-    return f;
+double martinkickfunc (double a, void * params) {
+    return Qfactor(a) / (a*a);
 }
 
 /*     
@@ -325,21 +317,32 @@ double Sq(double ai, double af, double aRef) {
     gsl_integration_workspace * w 
         = gsl_integration_workspace_alloc (5000);
 
-    double result, error;
+    double resultstd, result2, error;
     double alpha=0;
 
     gsl_function F;
-    F.function = &fun;
+    F.function = &stddriftfunc;
     F.params = &alpha;
 
     gsl_integration_qag (&F, ai, af, 0, 1e-5, 5000,6,
-            w, &result, &error); 
+            w, &resultstd, &error); 
+
+    F.function = &nonstddriftfunc;
+    F.params = &alpha;
+
+    gsl_integration_qag (&F, ai, af, 0, 1e-5, 5000,6,
+            w, &result2, &error); 
+    result2 /= gpQ(aRef);
 
     gsl_integration_workspace_free (w);
 
-    if (stdDA==0)
-        return result/gpQ(aRef);
-    return result;
+    msg_printf(verbose, "time = %g, std drift =%g, non std drift = %g \n",
+        aRef, resultstd, result2);
+
+    if (stdDA == 0)
+        return result2;
+    else
+        return resultstd;
 }
 
 double DERgpQ(double a) { // This must return d(gpQ)/da
@@ -348,32 +351,39 @@ double DERgpQ(double a) { // This must return d(gpQ)/da
 
 double Sphi(double ai, double af, double aRef) {
     double result;
-    if (stdDA==0) {
-        result=(gpQ(af)-gpQ(ai))*aRef/Qfactor(aRef)/DERgpQ(aRef);
+    double resultstd;
+
+    /* Qfactor is a**2 da / dt */
+    result = (gpQ(af) - gpQ(ai)) * aRef 
+        / (Qfactor(aRef) * DERgpQ(aRef));
+
+    gsl_integration_workspace * w 
+        = gsl_integration_workspace_alloc (5000);
+
+    double error;
+    double alpha=0;
+
+    gsl_function F;
+    if (martinKick) {
+        F.function = &martinkickfunc;
+    } else{
+        F.function = &stdkickfunc;
+    }
+    F.params = &alpha;
+
+    gsl_integration_qag (&F, ai, af, 0, 1e-5, 5000,6,
+            w, &resultstd, &error); 
+
+    gsl_integration_workspace_free (w);
+
+    msg_printf(verbose, "time = %g, std kick = %g, non std kick = %g\n",
+            aRef, resultstd, result);
+
+    if (stdDA == 0) {
         return result;
     } else {
-        gsl_integration_workspace * w 
-            = gsl_integration_workspace_alloc (5000);
-
-        double result, error;
-        double alpha=0;
-
-        gsl_function F;
-        if (martinKick) {
-            F.function = &fun2martin;
-        } else{
-            F.function = &fun2;
-        }
-        F.params = &alpha;
-
-        gsl_integration_qag (&F, ai, af, 0, 1e-5, 5000,6,
-                w, &result, &error); 
-
-        gsl_integration_workspace_free (w);
-        return result; 
+        return resultstd;
     }
-
-    return result;
 }
 
 
