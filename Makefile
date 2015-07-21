@@ -5,9 +5,9 @@
 # Define OPENMP to enable MPI+OpenMP hybrid parallelization
 # OPENMP  = -fopenmp # -openmp for Intel, -fopenmp for gcc
 
-CC      = mpicc -std=c99 
+CC      = mpicc 
 WOPT    ?= -Wall
-CFLAGS  := -O3 -g $(WOPT) $(OPENMP) -Wall
+CFLAGS  := -std=c99 -O3 -g $(WOPT)
 LIBS    := -lm
 
 
@@ -41,6 +41,7 @@ OBJS += mond.o
 LIBS += -ldl 
 LIBS += -lgsl -lgslcblas
 LIBS += -lfftw3f_mpi -lfftw3f
+LIBS += -lm
 
 lua/liblua.a: lua/Makefile
 	(cd lua; CC="$(CC)" make generic)
@@ -51,8 +52,11 @@ ifdef OPENMP
 endif
 
 qrpm: $(OBJS) lua/liblua.a
-	$(CC) $(OBJS) -llua $(LIBS) -o $@
+	$(CC) $(CFLAGS) $(OBJS) -llua $(LIBS) -o $@
 
+.c.o:
+	$(CC) $(CFLAGS) -c -o $@ $<
+	
 main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
   stepping.h write.h timer.h mond.h version.h
 mond.o : mond.h parameters.h msg.h pm.h
