@@ -1,0 +1,30 @@
+language: c
+
+env:
+    - NUMPY_VERSION=1.8 OMP_NUM_THREADS=2
+
+addons:
+    apt:
+        packages:
+            - openmpi
+            - openmpi-dev
+
+cache:
+    directories:
+        - $HOME/rainwoodman/fastPM/depends
+
+before_install:
+    - wget https://github.com/FFTW/fftw3/archive/fftw-3.3.4.tar.gz
+    - tar -xzf fftw-3.3.4.tar.gz
+    - pushd fftw-3.3.4
+    - ./configure --disable-option-checking --prefix=$PWD/depends  '--enable-single' '--disable-shared' '--enable-static' '--disable-fortran' '--disable-doc' '--enable-mpi'
+    - make install -j 2
+    - popd
+
+install:
+    - make FFTW3_DIR=$PWD/depends
+script:
+    - pushd tests
+    - sh runtest.sh
+    - test -f example-output/powerspec-1.0000.txt
+    - test -f example-output/snp00100_1.0000.bin.00
