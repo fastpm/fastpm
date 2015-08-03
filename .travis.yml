@@ -12,7 +12,7 @@ addons:
 
 before_install:
     - wget http://www.fftw.org/fftw-3.3.4.tar.gz
-    - tar -xzvf fftw-3.3.4.tar.gz
+    - tar -xzf fftw-3.3.4.tar.gz
     - pushd fftw-3.3.4
     - ./configure --disable-option-checking --prefix=$HOME/local '--enable-single' '--disable-shared' '--enable-static' '--disable-fortran' '--disable-doc' '--enable-mpi'
     - make install -j 2
