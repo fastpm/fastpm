@@ -2,6 +2,7 @@
 # qrpm
 #   
 
+# Define CC=cc
 # Define OPENMP to enable MPI+OpenMP hybrid parallelization
 # OPENMP  = -fopenmp # -openmp for Intel, -fopenmp for gcc
 
