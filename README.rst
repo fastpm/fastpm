@@ -37,3 +37,21 @@ under GPLv3.
 .. [2] https://bitbucket.org/tassev/colacode/
 .. [3] http://github.com/bccp/nbodykit/
 
+Installation
+------------
+
+First install fftw3 (--enable-mpi) and gsl. Most super-computing have these already installed.
+
+Then point FFTW3_DIR and GSL_DIR to the installation dir and use
+
+.. code::
+
+    make FFTW3_DIR= ..... GSL_DIR= .... MPICC=....
+
+Example
+-------
+
+Refer to tests/example.lua and tests/runtest.sh
+
+
+
