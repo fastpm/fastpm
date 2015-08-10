@@ -154,8 +154,13 @@ void stepping_kick(Particles* p,
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d++) {
             float ax= -1.5*Om_*f[i][d];
-            if(FORCE_MODE == FORCE_MODE_COLA) {
-                ax -= (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
+            switch(FORCE_MODE) {
+                case FORCE_MODE_COLA:
+                    ax -= (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
+                break;
+                case FORCE_MODE_COLA1:
+                    ax -= (p->dx1[i][d]*q1);
+                break;
             }
             p->v[i][d] += ax * dda;
         }
@@ -187,12 +192,18 @@ void stepping_drift(Particles* p,
 #endif
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d ++) {
-            if(FORCE_MODE == FORCE_MODE_PM
-            || FORCE_MODE == FORCE_MODE_COLA) {
+            if(FORCE_MODE & FORCE_MODE_PM) {
                 p->x[i][d] += p->v[i][d]*dyyy;
             }
-            if(FORCE_MODE != FORCE_MODE_PM) {
-                p->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+            switch(FORCE_MODE) {
+                case FORCE_MODE_2LPT:
+                case FORCE_MODE_COLA:
+                    p->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+                break;
+                case FORCE_MODE_ZA:
+                case FORCE_MODE_COLA1:
+                    p->x[i][d] += p->dx1[i][d]*da1;
+                break;
             }
         }
     }
@@ -418,6 +429,8 @@ void stepping_set_initial(double aout, Particles * p)
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d ++) {
             if(FORCE_MODE != FORCE_MODE_PM) {
+                // for COLA and COLA1, v cancels out such that the initial
+                // is zero
                 p->v[i][d] = 0;
             } else {
                 p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
@@ -488,19 +501,41 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
         for(int d = 0; d < 3; d ++) {
             // Kick + adding back 2LPT velocity + convert to km/s
             float ax= -1.5*Om*f[i][0];
-            if(FORCE_MODE == FORCE_MODE_COLA)
-                ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;
-
+            switch(FORCE_MODE) {
+                case FORCE_MODE_COLA:
+                    ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;
+                    break;
+                case FORCE_MODE_COLA1:
+                    ax -= p->dx1[i][0]*q1;
+                    break;
+            } 
             po->v[i][d] = vfac*(p->v[i][d] + ax*dda);
-            if(FORCE_MODE == FORCE_MODE_COLA)
-                po->v[i][d] += vfac * (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
+
+            switch(FORCE_MODE) {
+                case FORCE_MODE_COLA:
+                    po->v[i][d] += vfac * (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
+                break;
+                case FORCE_MODE_COLA1:
+                    po->v[i][d] += vfac * (p->dx1[i][d]*Dv);
+                break;
+            }
+
             // Drift
             po->x[i][d] = p->x[i][d]; 
-            if(FORCE_MODE == FORCE_MODE_COLA
-            || FORCE_MODE == FORCE_MODE_PM)
+            if(FORCE_MODE & FORCE_MODE_PM) {
                 po->x[i][d] += p->v[i][d]*dyyy;
-            if(FORCE_MODE != FORCE_MODE_PM)
-                po->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+
+            } 
+            switch(FORCE_MODE) {
+                case FORCE_MODE_COLA:
+                case FORCE_MODE_2LPT:
+                    po->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+                break; 
+                case FORCE_MODE_COLA1:
+                case FORCE_MODE_ZA:
+                    po->x[i][d] += p->dx1[i][d]*da1;
+                break;
+            }
         }
 
         po->id[i] = p->id[i];

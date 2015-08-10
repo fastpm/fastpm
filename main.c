@@ -194,8 +194,7 @@ int main(int argc, char* argv[])
 
             timer_stop(comm);
 
-            if(param.force_mode == FORCE_MODE_PM ||
-               param.force_mode == FORCE_MODE_COLA) {
+            if(param.force_mode & FORCE_MODE_PM) {
                 mond_set_time(a_x);
                 if(param.enforce_broadband && istep > 0) {
                     double growth = GrowthFactor(a_init, a_x);

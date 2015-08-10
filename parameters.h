@@ -42,10 +42,12 @@ typedef struct {
 #define PM_MOND_SIMPLE 1
 #define PM_MOND_NBC 2
 
-#define FORCE_MODE_ZA 0
-#define FORCE_MODE_2LPT 1
-#define FORCE_MODE_PM 2
-#define FORCE_MODE_COLA 3
+#define FORCE_MODE_ZA 1
+#define FORCE_MODE_2LPT 2
+/* Important that modes with PM have the bit set */
+#define FORCE_MODE_PM 8
+#define FORCE_MODE_COLA1 9
+#define FORCE_MODE_COLA 10
 
 #define TIME_STEP_LOGA 0
 #define TIME_STEP_A 1

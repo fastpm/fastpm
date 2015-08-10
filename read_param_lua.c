@@ -230,6 +230,7 @@ int read_parameter_file(const char filename[], Parameters* const param)
         {"loga", TIME_STEP_LOGA},
         {"growth", TIME_STEP_GROWTH},
         {"cola", FORCE_MODE_COLA},
+        {"cola1", FORCE_MODE_COLA1},
         {"za", FORCE_MODE_ZA},
         {"2lpt", FORCE_MODE_2LPT},
         {"pm", FORCE_MODE_PM},
@@ -249,12 +250,16 @@ int read_parameter_file(const char filename[], Parameters* const param)
     param->enforce_broadband = read_boolean(L, "enforce_broadband");
     param->diff_order = read_integer(L, "diff_order");
     param->poisson_order = read_integer_opt(L, "poisson_order", 1);
-    if(param->force_mode == FORCE_MODE_COLA)
-        param->cola_stdda = 1;
-    if(param->force_mode == FORCE_MODE_PM)
-        param->cola_stdda = 0;
-    if(param->force_mode == FORCE_MODE_COLA || param->force_mode== FORCE_MODE_PM) {
+
+    if(param->force_mode & FORCE_MODE_PM) {
+        if(param->force_mode > FORCE_MODE_PM) {
+            param->cola_stdda = 1;
+        } else {
+            param->cola_stdda = 0;
+        }
         param->cola_stdda = ! read_boolean_opt(L, "cola_nonstdda", param->cola_stdda);
+    } else {
+        param->cola_stdda = 1;
     }
     lua_close(L);
 
