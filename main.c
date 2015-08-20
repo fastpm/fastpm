@@ -207,10 +207,16 @@ int main(int argc, char* argv[])
                     double growth = GrowthFactor(a_init, a_x);
                     double linear_bb = broadband_init * growth * growth;
                     double real_bb = pm_get_broadband();
-                    msg_printf(verbose, "linear %g fastPM %g\n", linear_bb, real_bb);
                     double step_boost = sqrt(linear_bb / real_bb);
 
+                    if(istep == 0) {
+                        step_boost = 1.0 + pow((a_x1 - a_x), 1.5) * pow((1.0 - a_x), 2);
+                    } else {
+                        step_boost = pow(step_boost, 3.0);
+                    }
                     stepping_set_boost(step_boost);
+                    msg_printf(verbose, "fastPM %g linear %g ratio=%g boost=%g\n", 
+                        real_bb, linear_bb, real_bb / linear_bb, step_boost);
                 }
             }
 

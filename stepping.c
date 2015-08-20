@@ -133,12 +133,10 @@ void stepping_kick(Particles* p,
     msg_printf(normal, "Kick %g -> %g\n", ai, af);
 
     double Om143= pow(Om/(Om + (1 - Om)*ac*ac*ac), 1.0/143.0);
-    double dda= Sphi(ai, af, ac);
+    double dda= Sphi(ai, af, ac) * stepping_boost;
     double growth1=growthD(ac);
 
-    msg_printf(normal, "growth factor %g dda=%g boost=%g\n", growth1, dda, stepping_boost);
-
-    dda *= stepping_boost;
+    msg_printf(normal, "growth factor %g dda=%g\n", growth1, dda);
 
     double q2=1.5*Om*growth1*growth1*(1.0 + 7.0/3.0*Om143);
     double q1=1.5*Om*growth1;
@@ -470,10 +468,9 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     float AF=  aout;
 
     float Om143= pow(Om/(Om + (1 - Om)*A*A*A), 1.0/143.0);
-    float dda= Sphi(AI, AF, A);
+    float dda= Sphi(AI, AF, A) * stepping_boost;
     float growth1=growthD(A);
 
-    dda *= stepping_boost;
     //msg_printf(normal, "set snapshot %f from %f %f\n", aout, AI, A);
     //msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growth1, A);
     msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growthD(AF), AF);
