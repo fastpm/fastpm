@@ -24,12 +24,8 @@ static double mond_narrowband_correction(double k2, Parameters * param) {
     double a = param->pm_mond_parameters[0];
     double p = param->pm_mond_parameters[1];
     double peak = param->pm_mond_parameters[2];
-    double t = peak * peak;
-    if(k2 < t)
-        return 1 + a * pow(k2, p / 2.0);
-    if(k2 < 2 * t)
-        return 1 + a * pow(2 * t - k2, p / 2.0);
-    return 1;
+    double k4 = pow(k2, 2);
+    return 1 +  a * aa * k4 / (pow(peak, 4)  + k4);
 }
 
 pm_modulator MODULATOR = NULL;

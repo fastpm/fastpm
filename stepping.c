@@ -45,6 +45,8 @@ static int NSTEPS;
 static double *A_X;
 static double *A_V;
 
+static double stepping_boost = 1.0;
+
 static double polval(const double * pol, const int degrees, const double x) {
     double rt = 0;
     int i;
@@ -54,6 +56,9 @@ static double polval(const double * pol, const int degrees, const double x) {
     return rt;
 }
 
+void stepping_set_boost(double boost) {
+    stepping_boost = boost;
+}
 
 void stepping_init(Parameters * param) {
     FORCE_MODE = param->force_mode;
@@ -131,7 +136,9 @@ void stepping_kick(Particles* p,
     double dda= Sphi(ai, af, ac);
     double growth1=growthD(ac);
 
-    msg_printf(normal, "growth factor %g dda=%g \n", growth1, dda);
+    msg_printf(normal, "growth factor %g dda=%g boost=%g\n", growth1, dda, stepping_boost);
+
+    dda *= stepping_boost;
 
     double q2=1.5*Om*growth1*growth1*(1.0 + 7.0/3.0*Om143);
     double q1=1.5*Om*growth1;
@@ -185,6 +192,8 @@ void stepping_drift(Particles* p,
 
     msg_printf(normal, "Drift %g -> %g\n", ai, af);
     msg_printf(normal, "dyyy = %g \n", dyyy);
+
+    dyyy *= stepping_boost;
 
     // Drift
 #ifdef _OPENMP
@@ -464,6 +473,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     float dda= Sphi(AI, AF, A);
     float growth1=growthD(A);
 
+    dda *= stepping_boost;
     //msg_printf(normal, "set snapshot %f from %f %f\n", aout, AI, A);
     //msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growth1, A);
     msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growthD(AF), AF);
@@ -478,6 +488,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     float AC= a_v;
     float dyyy=Sq(A, AF, AC);
 
+    dyyy *= stepping_boost;
 
     /*
        if(AF < A) {

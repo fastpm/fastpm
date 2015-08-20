@@ -5,6 +5,8 @@ void stepping_kick(Particles* particles,
         double ai, double af, double ac);
 void stepping_drift(Particles* particles, 
         double ai, double af, double ac);
+void stepping_set_boost(double boost);
+
 int stepping_get_nsteps();
 void stepping_get_times(int istep,
     double * a_x,

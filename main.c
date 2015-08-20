@@ -196,10 +196,6 @@ int main(int argc, char* argv[])
 
             if(param.force_mode & FORCE_MODE_PM) {
                 mond_set_time(a_x);
-                if(param.enforce_broadband && istep > 0) {
-                    double growth = GrowthFactor(a_init, a_x);
-                    pm_enforce_broadband(broadband_init * growth * growth);
-                }
                 pm_calculate_forces(particles); 
                 if(istep == 0) {
                     broadband_init = pm_get_broadband();
@@ -207,6 +203,15 @@ int main(int argc, char* argv[])
                 }
                 write_powerspectrum(&param, a_x, nc_factor);
                 
+                if(param.enforce_broadband) {
+                    double growth = GrowthFactor(a_init, a_x);
+                    double linear_bb = broadband_init * growth * growth;
+                    double real_bb = pm_get_broadband();
+                    msg_printf(verbose, "linear %g fastPM %g\n", linear_bb, real_bb);
+                    double step_boost = sqrt(linear_bb / real_bb);
+
+                    stepping_set_boost(step_boost);
+                }
             }
 
             while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {

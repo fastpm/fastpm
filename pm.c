@@ -46,7 +46,6 @@ static int poisson_order;
 static fftwf_plan r2c_outplace_plan, c2r_inplace_plan;
 
 static double * PowerSpectrumVariable;
-static double EnforceBroadBandPower;
 static long long NParticleTotal;
 
 /* the transfer functions for force in fourier space applied to potential */
@@ -111,12 +110,8 @@ void pm_init(double boxsize, int nc) {
     r2c_outplace_plan = NULL;
     c2r_inplace_plan = NULL;
     PowerSpectrumVariable = NULL;
-    EnforceBroadBandPower = 0.0;
 
     NParticleTotal= ((size_t) nc) * nc * nc;
-}
-void pm_enforce_broadband(double power) {
-    EnforceBroadBandPower = power;
 }
 double pm_get_broadband() {
     return PowerSpectrumVariable[1] / pow(Nmesh, 6) * 
@@ -353,7 +348,7 @@ void compute_power_spectrum(fftwf_complex * density_k) {
     }
 }
 // Calculate one component of force mesh from precalculated density(k)
-void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex * P3D, double bb_boost)
+void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex * P3D)
 {
     timer_start(force_mesh);
 
@@ -365,12 +360,13 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     const float scale=2.0*M_PI/BoxSize;
     //const float dens_fac= 1.0/(pow(Nmesh, 3));
 
-    const float f1= -1.0/pow(Nmesh, 3.0) * bb_boost;
+    const float f1= -1.0/pow(Nmesh, 3.0);
 
     float * diff = alloca(sizeof(float) * Nmesh);
     float * di2 = alloca(sizeof(float) * Nmesh);
     float * ff = alloca(sizeof(float) * Nmesh);
     float * kk = alloca(sizeof(float) * Nmesh);
+    float * mond = alloca(sizeof(float) * Nmesh);
     for(int J = 0 ; J < Nmesh; J ++) {
         int J0= J <= (Nmesh/2) ? J : J - Nmesh;
         // kk diff, di in physical units
@@ -378,6 +374,8 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
         ff[J] = (poisson_order==0)?1:sinc_unnormed(J0 * M_PI / Nmesh);
         di2[J] = J0 * ff[J] * J0 * ff[J] * (scale * scale);
         kk[J] = (J0 * scale) * (J0 * scale) ;
+        if(PM_MODULATOR)
+            mond[J] = PM_MODULATOR(kk[J], PM_MODULATOR_DATA);
     }
     //complex float di[3];
     //#shared(FN11, P3D, Local_ny_td, Local_y_start_td, Nmesh, NmeshL)
@@ -396,8 +394,12 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
                 float f2= f1/tmp * diff[ind[axes]];
                 if(PM_MODULATOR) {
                     float k2 = kk[J] + kk[iI] + kk[K];
-                    f2 *= PM_MODULATOR(k2, PM_MODULATOR_DATA);
+                    int ki = sqrt(k2) / scale;
+                    if (ki < Nmesh) {
+                        f2 *= mond[ki];
+                    }
                 }
+
                 size_t index= K + (NmeshL/2+1)*(iI + NmeshL*Jl);
                 FN11[index][0]= -f2*P3D[index][1];
                 FN11[index][1]=  f2*P3D[index][0];
@@ -512,16 +514,8 @@ void pm_calculate_forces(Particles* particles)
     compute_power_spectrum(density_k);
     timer_stop(powerspectrum);
     for(int axes=0; axes<3; axes++) {
-        double ratio;
-        double real_bb = pm_get_broadband();
-        if(EnforceBroadBandPower > 0) {
-            ratio = EnforceBroadBandPower / real_bb;
-        } else {
-            ratio = 1.0;
-        } 
-        msg_printf(verbose, "ratio %g %g\n", EnforceBroadBandPower, real_bb);
         // density(k) -> f(x_i) [fftdata]
-        compute_force_mesh(axes, fftdata, density_k, ratio);
+        compute_force_mesh(axes, fftdata, density_k);
 
         timer_start(pforce);
         force_at_particle_locations(particles->x, np_plus_buffer, axes,

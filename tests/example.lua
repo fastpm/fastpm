@@ -6,7 +6,7 @@
 --boxsize = 1380.0
 
 -- For Testing
-nc = 128
+nc = 256
 boxsize = 1380.0
 
 -- Broken, always use 1
