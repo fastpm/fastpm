@@ -399,16 +399,23 @@ static size_t calculate_heap_size(Parameters * param) {
     
     size_t np_alloc = param->np_alloc_factor * param->nc * param->nc * param->nc / NTask;
     size_t psize;
+    size_t fftsize = nm * nm * (nm / 2 + 1) * sizeof(float) * 2 * 2 / NTask; 
+    size_t lptsize = nc * nc * (nc / 2 + 1) * sizeof(float) * 2 * 12 / NTask; 
+    size_t snapshotsize = (np_alloc) * ( sizeof(float) * 3 * 2 + 8 + sizeof(int));
+
     if (param->force_mode == FORCE_MODE_PM) {
         /* dx1 and dx2 are not needed */
         psize = np_alloc * (sizeof(float) * 3 * 3 + 8);
+        lptsize += np_alloc * sizeof(float) * 3 * 2;
     } else {
         psize = np_alloc * (sizeof(float) * 3 * 5 + 8);
     }
-    size_t fftsize = nm * nm * (nm / 2 + 1) * sizeof(float) * 2 * 2 / NTask; 
-    size_t snapshotsize = (np_alloc) * ( sizeof(float) * 3 * 2 + 8 + sizeof(int));
+
     if (snapshotsize > fftsize) {
         fftsize = snapshotsize;
+    }
+    if (lptsize > fftsize) {
+        fftsize = lptsize;
     }
     size_t total = psize + fftsize + 4096 * 128; 
     msg_printf(verbose, "Particles: %td bytes\nFFT: %td bytes for FFT\nTotal: %td\n",

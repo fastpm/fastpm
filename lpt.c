@@ -60,7 +60,7 @@ void lpt_init(const int nc)
     Local_nx= local_nx;
     Local_x_start= local_x_start;
 
-    fftwf_complex * fftdata = heap_allocate(total_size);
+    fftwf_complex * fftdata = heap_allocate(total_size * sizeof(fftwf_complex));
     //
     // FFTW3 plans
     //
