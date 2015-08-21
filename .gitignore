@@ -10,3 +10,4 @@ exchange_buffer
 original
 bak
 version.h
+tests/*/*.txt
