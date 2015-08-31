@@ -35,8 +35,10 @@ typedef struct {
     PMInit init;
     int NTask;
     int ThisTask;
-    pfft_plan r2c;
-    pfft_plan c2r;
+
+    pfft_plan r2c;   /* Forward r2c plan */
+    pfft_plan c2r;   /* Bacward c2r plan */
+    pfft_gcplan rgc; /* Ghost Cell plan */
 
     int Nproc[2];
     MPI_Comm Comm2D;
@@ -144,6 +146,9 @@ void pm_pfft_init(PM * pm, PMInit * init, MPI_Comm comm) {
             3, pm->Nmesh, buffer, buffer, 
             pm->Comm2D,
             PFFT_BACKWARD, PFFT_TRANSPOSED_IN | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
+
+    pm->rgc = pfft_plan_rgc(3, pm->Nmesh, pm->GhostSize, pm->GhostSize,
+      buffer, pm->Comm2D, PFFT_GC_TRANSPOSED_NONE);
 
     pm->init.free(buffer);
 }
