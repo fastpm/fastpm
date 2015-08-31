@@ -91,6 +91,10 @@ void stepping_init(Parameters * param) {
             A_V[i] = (A_X[i]+A_X[i-1])/2;
         }
     }
+    A_X[NSTEPS+1] = 1.0;
+    A_X[NSTEPS] = 1.0;
+    A_V[NSTEPS+1] = 1.0;
+    A_V[NSTEPS] = 1.0;
     msg_printf(normal, "Drift points: \n");
     for(int i = 0; i < NSTEPS + 2; i ++) {
         msg_printf(normal, "%g, ", A_X[i]);
@@ -412,7 +416,7 @@ void stepping_set_initial(double aout, Particles * p)
 
     int np= p->np_local;
 
-    msg_printf(verbose, "Setting up inital snapshot at a= %4.2f (z=%4.2f).\n", aout, 1.0f/aout-1);
+    msg_printf(verbose, "Setting up inital snapshot at a= %g (z=%g).\n", aout, 1.0f/aout-1);
 
     //float vfac=A/Qfactor(A); // RSD /h Mpc unit
     float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
@@ -458,7 +462,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
 
     Om = po->omega_m; assert(Om >= 0.0f);
 
-    msg_printf(verbose, "Setting up snapshot at a= %4.2f (z=%4.2f) <- %4.2f %4.2f.\n", aout, 1.0f/aout-1, a_x, a_v);
+    msg_printf(verbose, "Setting up snapshot at a= %g (z=%g) <- %g %g.\n", aout, 1.0f/aout-1, a_x, a_v);
 
     //float vfac=A/Qfactor(A); // RSD /h Mpc unit
     float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)

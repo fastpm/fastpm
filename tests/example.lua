@@ -20,7 +20,7 @@ a_final= 1.0
 -- Alternatively, specify the steps manually
 --time_step = {0.1, 0.5, 1.0}
 
-output_redshifts= {1.0, 0.55, 0.0}  -- redshifts of output
+output_redshifts= {1.0, 0.55, 0.09, 0.0}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 1-0.708
@@ -45,8 +45,8 @@ enforce_broadband = true
 
 pm_nc_factor1= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm = 0.5            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
-pm_nc_factor2= 3            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
-np_alloc_factor= 1.5      -- Amount of memory allocated for particle
+pm_nc_factor2= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
+np_alloc_factor= 1.1      -- Amount of memory allocated for particle
 loglevel=0                 -- 0=verbose increase value to reduce output msgs
 
 -------- Output ---------------
