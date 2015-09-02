@@ -20,7 +20,7 @@ LIBS    := -lm
 FFTW3_DIR ?= #e.g. /Users/jkoda/Research/opt/gcc/fftw3
 GSL_DIR   ?= #e.g. /Users/jkoda/Research/opt/gcc/gsl
 
-DIR_PATH = $(FFTW3_DIR) $(GSL_DIR) 
+DIR_PATH = $(FFTW3_DIR) $(GSL_DIR) depends/install
 
 CFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LIBS   += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
