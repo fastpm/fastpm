@@ -128,9 +128,9 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
 }
 
 static void reduce_ghosts(PM * pm, PMGhostData * ppd) {
-    pm->iface.unpack(ppd->pdata, ppd->ipar, 
+    pm->iface.reduce(ppd->pdata, ppd->ipar, 
         (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, 
-        ppd->ReductionAttributes | pm->init.ReductionFlag);
+        ppd->ReductionAttributes);
 }
 
 void pm_reduce_ghosts(PM * pm, PMGhostData * ppd, int attributes) {

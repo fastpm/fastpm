@@ -163,121 +163,38 @@ void pm_c2r(PM * pm) {
     pfft_execute_dft_c2r(pm->c2r, (pfft_complex*) pm->workspace, pm->workspace);
 }
 
-#define AttrPos  1
-#define AttrVel  2
-#define AttrAccX  4
-#define AttrAccY  8
-#define AttrAccZ  16
-
-typedef struct {
-    double pos[100][3];
-    double vel[100][3];
-    double acc[100][3];
-} TestPData;
-
-void   get_position(void * pdata, ptrdiff_t index, double pos[3]) {
-    TestPData * p = (TestPData*) pdata;
-    pos[0] = p->pos[index][0];
-    pos[1] = p->pos[index][1];
-    pos[2] = p->pos[index][2];
-}
-
-size_t pack  (void * pdata, ptrdiff_t index, void * packed, int attributes) {
-    TestPData * p = (TestPData*) pdata;
-    size_t s = 0;
-    s += 24 * ((AttrPos & attributes) != 0);
-    s += 24 * ((AttrVel & attributes) != 0);
-    s += 8 * ((AttrAccX & attributes) != 0);
-    s += 8 * ((AttrAccY & attributes) != 0);
-    s += 8 * ((AttrAccZ & attributes) != 0);
-    if(pdata == NULL) {
-        return s;
-    } 
-    double * dp = (double*) packed;
-    if(AttrPos & attributes) {
-        *(dp++) = p->pos[index][0];
-        *(dp++) = p->pos[index][1];
-        *(dp++) = p->pos[index][2];
-    }
-    if(AttrVel & attributes) {
-        *(dp++) = p->vel[index][0];
-        *(dp++) = p->vel[index][1];
-        *(dp++) = p->vel[index][2];
-    }
-    if(AttrAccX & attributes) {
-        *(dp++) = p->acc[index][0];
-    }
-    if(AttrAccY & attributes) {
-        *(dp++) = p->acc[index][1];
-    }
-    if(AttrAccZ & attributes) {
-        *(dp++) = p->acc[index][2];
-    }
-    return s;
-}
-void   unpack(void * pdata, ptrdiff_t index, void * packed, int attributes) {
-    TestPData * p = (TestPData*) pdata;
-    double * dp = (double*) packed;
-    if(AttrPos & attributes) {
-        p->pos[index][0] =         *(dp++);
-        p->pos[index][1] =         *(dp++);
-        p->pos[index][2] =         *(dp++);
-    }
-    if(AttrVel & attributes) {
-        p->vel[index][0] =         *(dp++);
-        p->vel[index][1] =         *(dp++);
-        p->vel[index][2] =         *(dp++);
-    }
-    if(AttrAccX & attributes) {
-        p->acc[index][0] +=         *(dp++);
-    }
-    if(AttrAccY & attributes) {
-        p->acc[index][1] +=         *(dp++);
-    }
-    if(AttrAccZ & attributes) {
-        p->acc[index][2] +=         *(dp++);
-    }
-}
-
 int main(int argc, char ** argv) {
     MPI_Init(&argc, &argv);
     pfft_init();
 
-    TestPData pdata;
+    PMStore pdata;
     memset(&pdata, 0, sizeof(pdata));
+    pm_store_init(&pdata, 100);
+
     int i;
-    for(i = 0; i < 4; i ++) {
-        pdata.pos[i][0] = i + 0.2;
-        pdata.pos[i][1] = i;
-        pdata.pos[i][2] = i;
-        pdata.acc[i][0] = 1;
+    for(i = 0; i < 100; i ++) {
+        pdata.x[i][0] = i + 0.2;
+        pdata.x[i][1] = i;
+        pdata.x[i][2] = i;
+        pdata.acc[0][i] = 1;
     }
     
-    PMIFace pmiface = {
-        .malloc = malloc,
-        .free = free,
-        .get_position = get_position,
-        .pack = pack,
-        .unpack = unpack,
-    };
-
     PMInit pminit = {
         .Nmesh = 4,
         .BoxSize = 4.,
-        .AllAttributes = AttrPos | AttrVel,
-        .GhostAttributes = AttrPos,
-        .ReductionFlag = 0,
+        .AllAttributes = 0xffff,
+        .GhostAttributes = PACK_POS,
     };
     PM pm;
     PMGhostData pgd;
 
-    pm_pfft_init(&pm, &pminit, &pmiface, MPI_COMM_WORLD);
+    pm_pfft_init(&pm, &pminit, &pdata.iface, MPI_COMM_WORLD);
     pm_ghost_data_init(&pm, &pdata, 4, &pgd);
     pm_append_ghosts(&pm, 100, &pgd);
     
-    pm_reduce_ghosts(&pm, &pgd, AttrAccX); 
-    pm_reduce_ghosts(&pm, &pgd, AttrAccY); 
-    pm_reduce_ghosts(&pm, &pgd, AttrAccZ); 
+    pm_reduce_ghosts(&pm, &pgd, PACK_ACC_X); 
+    pm_reduce_ghosts(&pm, &pgd, PACK_ACC_Y); 
+    pm_reduce_ghosts(&pm, &pgd, PACK_ACC_Z); 
 
     pm_start(&pm);
     pm_paint(&pm, &pdata, 4);

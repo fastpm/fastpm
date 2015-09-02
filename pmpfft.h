@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <math.h>
 #include <mpi.h>
@@ -12,14 +13,37 @@ typedef struct {
     void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
     size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
     void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
+    void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int method);
 } PMIFace;
+
+typedef struct {
+    PMIFace iface;
+
+    double (* x)[3];
+    float (* v)[3];
+    float * acc[3];
+    float (* dx1)[3];
+    float (* dx2)[3];
+    uint64_t * id;
+    size_t np;
+    size_t np_upper;
+} PMStore;
+
+#define PACK_POS   (1 << 0)
+#define PACK_VEL   (1 << 1)
+#define PACK_DX1   (1 << 2)
+#define PACK_DX2   (1 << 3)
+#define PACK_ID    (1 << 4)
+#define PACK_ACC_X (1 << 5)
+#define PACK_ACC_Y (1 << 6)
+#define PACK_ACC_Z (1 << 7)
+#define HAS(a, b) ((a & b) != 0)
 
 typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
     int GhostAttributes;
     int AllAttributes;
-    int ReductionFlag;
 } PMInit;
 
 typedef struct {
