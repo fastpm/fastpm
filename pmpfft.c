@@ -26,9 +26,12 @@ static void module_init() {
     }
 }
 
-void pm_pfft_init(PM * pm, PMInit * init, MPI_Comm comm) {
+void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
     module_init();
+
+    pm->init = *init;
+    pm->iface = *iface;
 
     /* initialize the domain */    
     MPI_Comm_rank(comm, &pm->ThisTask);
@@ -104,8 +107,7 @@ void pm_pfft_init(PM * pm, PMInit * init, MPI_Comm comm) {
         }
     }
 
-    pm->init = *init;
-    void * buffer = pm->init.malloc(pm->allocsize * sizeof(double));
+    void * buffer = pm->iface.malloc(pm->allocsize * sizeof(double));
 
     pm->r2c = pfft_plan_dft_r2c(
             3, pm->Nmesh, buffer, buffer, 
@@ -116,7 +118,7 @@ void pm_pfft_init(PM * pm, PMInit * init, MPI_Comm comm) {
             3, pm->Nmesh, buffer, buffer, 
             pm->Comm2D,
             PFFT_BACKWARD, PFFT_TRANSPOSED_IN | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
-    pm->init.free(buffer);
+    pm->iface.free(buffer);
 
     for(d = 0; d < 3; d++) {
         pm->MeshtoK[d] = malloc(pm->Nmesh[d] * sizeof(double));
@@ -143,12 +145,12 @@ int pm_pos_to_rank(PM * pm, double pos[3]) {
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
 }
 void pm_start(PM * pm) {
-    pm->canvas = pm->init.malloc(sizeof(double) * pm->allocsize);
-    pm->workspace = pm->init.malloc(sizeof(double) * pm->allocsize);
+    pm->canvas = pm->iface.malloc(sizeof(double) * pm->allocsize);
+    pm->workspace = pm->iface.malloc(sizeof(double) * pm->allocsize);
 }
 void pm_stop(PM * pm) {
-    pm->init.free(pm->canvas);
-    pm->init.free(pm->workspace);
+    pm->iface.free(pm->canvas);
+    pm->iface.free(pm->workspace);
     pm->canvas = NULL;
     pm->workspace = NULL;
 }
@@ -251,14 +253,17 @@ int main(int argc, char ** argv) {
         pdata.acc[i][0] = 1;
     }
     
-    PMInit pminit = {
+    PMIFace pmiface = {
         .malloc = malloc,
         .free = free,
-        .Nmesh = 4,
-        .BoxSize = 4.,
         .get_position = get_position,
         .pack = pack,
         .unpack = unpack,
+    };
+
+    PMInit pminit = {
+        .Nmesh = 4,
+        .BoxSize = 4.,
         .AllAttributes = AttrPos | AttrVel,
         .GhostAttributes = AttrPos,
         .ReductionFlag = 0,
@@ -266,7 +271,7 @@ int main(int argc, char ** argv) {
     PM pm;
     PMGhostData pgd;
 
-    pm_pfft_init(&pm, &pminit, MPI_COMM_WORLD);
+    pm_pfft_init(&pm, &pminit, &pmiface, MPI_COMM_WORLD);
     pm_ghost_data_init(&pm, &pdata, 4, &pgd);
     pm_append_ghosts(&pm, 100, &pgd);
     

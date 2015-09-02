@@ -86,13 +86,13 @@ void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
     memset(pm->canvas, 0, sizeof(pm->canvas[0]) * pm->allocsize);
     for (i = 0; i < size; i ++) {
         double pos[3];
-        pm->init.get_position(pdata, i, pos);
+        pm->iface.get_position(pdata, i, pos);
         pm_paint_pos(pm, pos, 1.0);
     }
 }
 
 double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i) {
     double pos[3];
-    pm->init.get_position(pdata, i, pos);
+    pm->iface.get_position(pdata, i, pos);
     return pm_readout_pos(pm, pos);
 }

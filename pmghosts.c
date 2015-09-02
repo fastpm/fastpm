@@ -29,7 +29,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
     for (i = 0; i < ppd->np; i ++) {
         double pos[3];
         int rank;
-        pm->init.get_position(ppd->pdata, i, pos);
+        pm->iface.get_position(ppd->pdata, i, pos);
 
         /* probe neighbours */
         double j[3];
@@ -66,7 +66,7 @@ static void count_ghosts(PM * pm, PMGhostData * ppd) {
 }
 
 static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
-    pm->init.pack(ppd->pdata, ppd->ipar, 
+    pm->iface.pack(ppd->pdata, ppd->ipar, 
         (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, pm->init.GhostAttributes);
 }
 
@@ -74,7 +74,7 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pm->init.pack(NULL, 0, NULL, pm->init.GhostAttributes);
+    size_t elsize = pm->iface.pack(NULL, 0, NULL, pm->init.GhostAttributes);
 
     ppd->elsize = elsize;
 
@@ -111,7 +111,7 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
     MPI_Type_free(&GHOST_TYPE);
 
     for(i = 0; i < Nrecv; i ++) {
-        pm->init.unpack(ppd->pdata, ppd->np + i, 
+        pm->iface.unpack(ppd->pdata, ppd->np + i, 
                 (char*) ppd->recv_buffer + i * ppd->elsize, 
                         pm->init.GhostAttributes);
     }
@@ -128,7 +128,7 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
 }
 
 static void reduce_ghosts(PM * pm, PMGhostData * ppd) {
-    pm->init.unpack(ppd->pdata, ppd->ipar, 
+    pm->iface.unpack(ppd->pdata, ppd->ipar, 
         (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, 
         ppd->ReductionAttributes | pm->init.ReductionFlag);
 }
@@ -138,13 +138,13 @@ void pm_reduce_ghosts(PM * pm, PMGhostData * ppd, int attributes) {
     size_t Nrecv = cumsum(NULL, ppd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    ppd->elsize = pm->init.pack(NULL, 0, NULL, attributes);
+    ppd->elsize = pm->iface.pack(NULL, 0, NULL, attributes);
     ppd->recv_buffer = malloc(Nrecv * ppd->elsize);
     ppd->send_buffer = malloc(Nsend * ppd->elsize);
     ppd->ReductionAttributes = attributes;
 
     for(i = 0; i < ppd->nghosts; i ++) {
-        pm->init.pack(ppd->pdata, i + ppd->np, 
+        pm->iface.pack(ppd->pdata, i + ppd->np, 
             (char*) ppd->recv_buffer + i * ppd->elsize, 
             ppd->ReductionAttributes);
     }

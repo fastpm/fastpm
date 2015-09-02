@@ -9,10 +9,12 @@
 typedef struct {
     void * (*malloc )(size_t);
     void   (*free   )(void *);
-    MPI_Datatype PType;
     void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
     size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
     void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
+} PMIFace;
+
+typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
     int GhostAttributes;
@@ -33,6 +35,7 @@ typedef struct {
 
 typedef struct {
     PMInit init;
+    PMIFace iface;
     int NTask;
     int ThisTask;
 
@@ -85,7 +88,7 @@ typedef struct {
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
 
-void pm_pfft_init(PM * pm, PMInit * init, MPI_Comm comm);
+void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
 int pm_pos_to_rank(PM * pm, double pos[3]);
 
 static inline size_t cumsum(int * out, int * in, size_t nitems) {
