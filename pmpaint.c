@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <math.h>
 #include <mpi.h>
-
+#include <signal.h>
 #include "pmpfft.h"
 
 /* paint and read out */
@@ -21,7 +21,7 @@ static void pm_paint_pos(PM * pm, double pos[3], double weight) {
             int intpos = floor(gpos);
             double diff = gpos - intpos;
             int rel = (n>>d) & 1;
-            int targetpos = intpos + rel;
+            int targetpos = intpos + rel - pm->IRegion.start[d];
             if(rel != 0) {
                 kernel *= diff;
             } else {
@@ -39,8 +39,9 @@ static void pm_paint_pos(PM * pm, double pos[3], double weight) {
             ind = ind * pm->IRegion.size[d] + targetpos;
         }
         pm->canvas[ind] += weight * kernel;
-    }
 outside:
+        continue;
+    }
     return;
 }
 
@@ -75,10 +76,10 @@ static double pm_readout_pos(PM * pm, double pos[3]) {
             ind = ind * pm->IRegion.size[d] + targetpos;
         }
         value += kernel * pm->workspace[ind];
+outside:
+        continue;
     }
     return value;
-outside:
-    return 0;
 }
 
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
@@ -87,6 +88,12 @@ void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
     for (i = 0; i < size; i ++) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
+
+/*
+        if(pm_pos_to_rank(pm, pos) != pm->ThisTask) {
+            raise(SIGTRAP);
+        }
+*/
         pm_paint_pos(pm, pos, 1.0);
     }
 }

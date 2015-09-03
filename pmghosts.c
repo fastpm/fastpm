@@ -7,13 +7,19 @@
 #include <mpi.h>
 #include "pmpfft.h"
 
-void pm_ghost_data_init(PM * pm, void * pdata, size_t np, PMGhostData * ppd) {
+void pm_ghost_data_init(PMGhostData * ppd, PM * pm, void * pdata, size_t np) {
     ppd->pdata = pdata;
     ppd->np = np;
     ppd->Nsend = calloc(pm->NTask, sizeof(int));
     ppd->Osend = calloc(pm->NTask, sizeof(int));
     ppd->Nrecv = calloc(pm->NTask, sizeof(int));
     ppd->Orecv = calloc(pm->NTask, sizeof(int));
+}
+void pm_ghost_data_destroy(PMGhostData * ppd) {
+    free(ppd->Nsend);
+    free(ppd->Osend);
+    free(ppd->Nrecv);
+    free(ppd->Orecv);
 }
 
 static void pm_iter_ghosts(PM * pm, PMGhostData * ppd, 
@@ -44,8 +50,8 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
             for(d = 0; d < 3; d ++) {
                 npos[d] = pos[d] + j[d] * CellSize[d];
             }
-            rank = pm_pos_to_rank(pm, pos);
-            if(rank == pm->ThisTask) break;
+            rank = pm_pos_to_rank(pm, npos);
+            if(rank == pm->ThisTask)  continue;
             int ptr;
             for(ptr = 0; ptr < used; ptr++) {
                 if(rank == ranks[ptr]) break;

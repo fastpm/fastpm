@@ -121,7 +121,7 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     for(i = 0; i < nitems; i ++) {
         total += in[i];
         if (out == NULL) continue;
-        if(i > 1) 
+        if(i >= 1) 
             out[i] = out[i - 1] + in[i - 1];
         else
             out[i] = 0;
@@ -134,3 +134,14 @@ void pm_reduce_ghosts(PM * pm, PMGhostData * ppd, int attributes);
 
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size);
 double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i);
+
+typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
+
+void pm_store_read(PMStore * p, char * datasource);
+void pm_store_write(PMStore * p, char * datasource);
+void pm_store_destroy(PMStore * p);
+
+void pm_store_init(PMStore * p, size_t np_upper);
+void pm_store_init_bare(PMStore * p, size_t np_upper);
+void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
+void pm_store_wrap(PMStore * p, double BoxSize[3]);

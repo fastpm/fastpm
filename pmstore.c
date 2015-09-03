@@ -70,6 +70,7 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
 static void * malloczero(size_t s) {
     return calloc(s, 1);
 }
+
 void pm_store_init_bare(PMStore * p, size_t np_upper) {
     p->iface.malloc = malloczero;
     p->iface.free = free;
@@ -86,6 +87,7 @@ void pm_store_init_bare(PMStore * p, size_t np_upper) {
     p->dx1 = NULL;
     p->dx2 = NULL;
     p->np = 0; 
+    p->np_upper = np_upper;
 };
 
 void pm_store_init(PMStore * p, size_t np_upper) {
@@ -117,7 +119,7 @@ void pm_store_write(PMStore * p, char * datasource) {
     /* parse data soure and write */
 }
 
-void pm_store_permute(PMStore * p, int * ind) {
+static void pm_store_permute(PMStore * p, int * ind) {
     permute(p->x, p->np, sizeof(p->x[0]), ind);
     permute(p->v, p->np, sizeof(p->v[0]), ind);
     permute(p->id, p->np, sizeof(p->id[0]), ind);
@@ -133,3 +135,94 @@ void pm_store_permute(PMStore * p, int * ind) {
     if(p->dx2)
         permute(p->dx2, p->np, sizeof(p->dx2[0]) * 3, ind);
 }
+
+typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
+
+void pm_store_wrap(PMStore * p, double BoxSize[3]) {
+    int i;
+    int d;
+    for(i = 0; i < p->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            while(p->x[i][d] < 0) p->x[i][d] += BoxSize[d];
+            while(p->x[i][d] >= BoxSize[d]) p->x[i][d] -= BoxSize[d];
+        }
+    } 
+}
+
+void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm) {
+    int * target = p->iface.malloc(sizeof(int) * p->np);
+    int NTask, ThisTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
+
+    ptrdiff_t i;
+    for(i = 0; i < p->np; i ++) {
+        target[i] = target_func(p, i, data);
+        if(ThisTask == target[i]) {
+            target[i] = 0;
+        } else {
+            target[i] ++;
+        }
+    }
+    /* do a bincount; offset by -1 because -1 is for self */
+    int * count = calloc(NTask + 1, sizeof(int));
+    int * offsets = calloc(NTask + 1, sizeof(int));
+    int * sendcount = count + 1;
+    int * recvcount = malloc(sizeof(int) * (NTask));
+    int * recvoffset = malloc(sizeof(int) * (NTask));
+    int * sendoffset = malloc(sizeof(int) * (NTask));
+
+    for(i = 0; i < p->np; i ++) {
+        count[target[i]] ++;
+    }
+    cumsum(offsets, count, NTask + 1);
+
+    int * arg = p->iface.malloc(sizeof(int) * p->np);
+    for(i = 0; i < p->np; i ++) {
+        int offset = offsets[target[i]] ++;
+        arg[offset] = i;
+    }
+    
+    pm_store_permute(p, arg);
+
+    p->iface.free(arg);
+    p->iface.free(target);
+
+    MPI_Alltoall(sendcount, 1, MPI_INT, 
+                 recvcount, 1, MPI_INT, 
+                 comm);
+
+    size_t Nsend = cumsum(sendoffset, sendcount, NTask);
+    size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
+    size_t elsize = p->iface.pack(NULL, 0, NULL, 0xffff);
+
+    void * send_buffer = p->iface.malloc(elsize * Nsend);
+    void * recv_buffer = p->iface.malloc(elsize * Nrecv);
+
+    p->np -= Nsend;
+    for(i = 0; i < Nsend; i ++) {
+        p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, 0xffff);
+    }
+
+    MPI_Datatype PTYPE;
+    MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
+    MPI_Type_commit(&PTYPE);
+    MPI_Alltoallv(
+            send_buffer, sendcount, sendoffset, PTYPE,
+            recv_buffer, recvcount, recvoffset, PTYPE,
+            comm);
+    MPI_Type_free(&PTYPE);
+    
+    for(i = 0; i < Nrecv; i ++) {
+        p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, 0xffff);
+    }
+
+    p->np += Nrecv;
+
+    p->iface.free(recv_buffer);
+    p->iface.free(send_buffer);
+    free(offsets);
+    free(count);
+}
+
