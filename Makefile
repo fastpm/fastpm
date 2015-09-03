@@ -18,4 +18,5 @@ include $(SOURCES:%.c=.deps/%.d)
 
 .deps/%.d : %.c
 	@if ! [ -d .deps ]; then mkdir .deps; fi
-	(echo -n .objs/ ; mpicc -M $(CPPFLAGS) -o - $<) > $@
+	echo -n .objs/ > $@
+	mpicc -M $(CPPFLAGS) -o - $< >> $@

@@ -39,8 +39,6 @@ int main(int argc, char ** argv) {
     PMInit pminit = {
         .Nmesh = 4,
         .BoxSize = 4.,
-        .AllAttributes = 0xffff,
-        .GhostAttributes = PACK_POS,
         .NprocX = 0, /* 0 for auto, 1 for slabs */
     };
     PM pm;
@@ -50,7 +48,7 @@ int main(int argc, char ** argv) {
     pm_store_wrap(&pdata, pm.BoxSize);
     pm_store_decompose(&pdata, to_rank, &pm, MPI_COMM_WORLD);
 
-    pm_ghost_data_init(&pgd, &pm, &pdata, pdata.np);
+    pm_ghost_data_init(&pgd, &pm, &pdata, pdata.np, PACK_POS);
 
     pm_append_ghosts(&pm, pdata.np_upper, &pgd);
     

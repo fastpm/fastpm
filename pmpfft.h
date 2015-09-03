@@ -42,7 +42,6 @@ typedef struct {
 typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
-    int GhostAttributes;
     int AllAttributes;
     int NprocX;
 } PMInit;
@@ -93,6 +92,7 @@ typedef struct {
     void * pdata;
     size_t np;
     size_t nghosts;
+    int GhostAttributes;
 
     /* private members */
     int * Nsend;
@@ -130,8 +130,9 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     return total;
 }
 
-size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd);
-void pm_reduce_ghosts(PM * pm, PMGhostData * ppd, int attributes);
+void pm_ghost_data_init(PMGhostData * pgd, PM* pm, void * pdata, size_t np, int attributes);
+size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * pgd);
+void pm_reduce_ghosts(PM * pm, PMGhostData * pgd, int attributes);
 
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size);
 double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i);

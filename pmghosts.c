@@ -7,9 +7,10 @@
 #include <mpi.h>
 #include "pmpfft.h"
 
-void pm_ghost_data_init(PMGhostData * ppd, PM * pm, void * pdata, size_t np) {
+void pm_ghost_data_init(PMGhostData * ppd, PM * pm, void * pdata, size_t np, int attributes) {
     ppd->pdata = pdata;
     ppd->np = np;
+    ppd->GhostAttributes = attributes;
     ppd->Nsend = calloc(pm->NTask, sizeof(int));
     ppd->Osend = calloc(pm->NTask, sizeof(int));
     ppd->Nrecv = calloc(pm->NTask, sizeof(int));
@@ -73,14 +74,14 @@ static void count_ghosts(PM * pm, PMGhostData * ppd) {
 
 static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
     pm->iface.pack(ppd->pdata, ppd->ipar, 
-        (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, pm->init.GhostAttributes);
+        (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, ppd->GhostAttributes);
 }
 
 size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pm->iface.pack(NULL, 0, NULL, pm->init.GhostAttributes);
+    size_t elsize = pm->iface.pack(NULL, 0, NULL, ppd->GhostAttributes);
 
     ppd->elsize = elsize;
 
@@ -119,7 +120,7 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
     for(i = 0; i < Nrecv; i ++) {
         pm->iface.unpack(ppd->pdata, ppd->np + i, 
                 (char*) ppd->recv_buffer + i * ppd->elsize, 
-                        pm->init.GhostAttributes);
+                        ppd->GhostAttributes);
     }
     free(ppd->recv_buffer);
     free(ppd->send_buffer);
