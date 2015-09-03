@@ -44,6 +44,7 @@ typedef struct {
     double BoxSize;
     int GhostAttributes;
     int AllAttributes;
+    int NprocX;
 } PMInit;
 
 typedef struct {

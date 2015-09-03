@@ -41,6 +41,7 @@ int main(int argc, char ** argv) {
         .BoxSize = 4.,
         .AllAttributes = 0xffff,
         .GhostAttributes = PACK_POS,
+        .NprocX = 0, /* 0 for auto, 1 for slabs */
     };
     PM pm;
     PMGhostData pgd;

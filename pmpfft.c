@@ -33,17 +33,25 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     MPI_Comm_rank(comm, &pm->ThisTask);
     MPI_Comm_size(comm, &pm->NTask);
 
-    int Nx = 1;
-    int Ny = pm->NTask;
-    for(; Nx * Nx < pm->NTask; Nx ++) continue;
-    for(; Nx >= 1; Nx--) {
-        if (pm->NTask % Nx == 0) break;
-        continue;
+    int Nx = init->NprocX;
+    int Ny;
+    if(Nx <= 0) {
+        Nx = 1;
+        Ny = pm->NTask;
+        for(; Nx * Nx < pm->NTask; Nx ++) continue;
+        for(; Nx >= 1; Nx--) {
+            if (pm->NTask % Nx == 0) break;
+            continue;
+        }
+    } else {
+        if(pm->NTask % Nx != 0) {
+            fprintf(stderr, "NprocX(%d) and NTask(%d) is incompatible\n", Nx, pm->NTask);
+            MPI_Abort(comm, -1);
+        }
     }
-
     Ny = pm->NTask / Nx;
-    pm->Nproc[0] = Ny;
-    pm->Nproc[1] = Nx;
+    pm->Nproc[0] = Nx;
+    pm->Nproc[1] = Ny;
 
     pm->Nmesh[0] = init->Nmesh;
     pm->Nmesh[1] = init->Nmesh;
