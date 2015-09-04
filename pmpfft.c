@@ -45,8 +45,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         }
     } else {
         if(pm->NTask % Nx != 0) {
-            fprintf(stderr, "NprocX(%d) and NTask(%d) is incompatible\n", Nx, pm->NTask);
-            MPI_Abort(comm, -1);
+            msg_abort(-1, "NprocX(%d) and NTask(%d) is incompatible\n", Nx, pm->NTask);
         }
     }
     Ny = pm->NTask / Nx;

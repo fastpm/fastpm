@@ -6,7 +6,7 @@
 #include <math.h>
 #include <mpi.h>
 #include "pmpfft.h"
-
+#include "msg.h"
 
 void pm_destroy_ghosts(PMGhostData * ppd) {
     free(ppd->Nsend);
@@ -103,8 +103,7 @@ void pm_append_ghosts(PMGhostData * ppd) {
     ppd->nghosts = Nrecv;
 
     if(Nrecv + ppd->np > ppd->np_upper) {
-        fprintf(stderr, "Too many ghosts; asking for %td, space for %td\n", Nrecv, ppd->np_upper - ppd->np);
-        MPI_Abort(pm->Comm2D, -1);
+        msg_abort(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, ppd->np_upper - ppd->np);
     }
 
     MPI_Datatype GHOST_TYPE;

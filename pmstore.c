@@ -47,9 +47,7 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fprintf(stderr, "Runtime Error, unknown packing field.\n");
-        raise(SIGTRAP);
-        MPI_Abort(MPI_COMM_WORLD, -1);
+        msg_abort(-1, "Runtime Error, unknown packing field.\n");
     }
     return s;
 }
@@ -74,7 +72,7 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ACC_Z, acc[2])
     #undef DISPATCH
     if(flags != 0) {
-        fprintf(stderr, "Runtime Error, unknown unpacking field.\n");
+        msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
         raise(SIGTRAP);
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
@@ -108,8 +106,7 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fprintf(stderr, "Runtime Error, unknown unpacking field.\n");
-        MPI_Abort(MPI_COMM_WORLD, -1);
+        msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
 

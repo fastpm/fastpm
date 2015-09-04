@@ -86,8 +86,7 @@ typedef struct {
     double    Above[3];
 
     ptrdiff_t allocsize;
-
-    PMRegion IRegion;
+PMRegion IRegion;
     PMRegion ORegion;
     double * canvas;
     double * workspace;

@@ -8,6 +8,7 @@
 #include <signal.h>
 
 #include "pmpfft.h"
+#include "msg.h"
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
@@ -20,8 +21,11 @@ static int to_rank(PMStore * pdata, ptrdiff_t i, void * data) {
     return pm_pos_to_rank(pm, pos);
 }
 int main(int argc, char ** argv) {
+
     MPI_Init(&argc, &argv);
     pfft_init();
+    msg_init();
+    msg_set_loglevel(verbose);
 
     PMStore pdata;
     memset(&pdata, 0, sizeof(pdata));
