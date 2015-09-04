@@ -36,7 +36,7 @@ static void pm_paint_pos(PM * pm, double pos[3], double weight) {
             if(targetpos >= pm->IRegion.size[d]) {
                 goto outside;
             } 
-            ind = ind * pm->IRegion.size[d] + targetpos;
+            ind += pm->IRegion.strides[d] * targetpos;
         }
         pm->canvas[ind] += weight * kernel;
 outside:
@@ -73,7 +73,7 @@ static double pm_readout_pos(PM * pm, double pos[3]) {
             if(targetpos >= pm->IRegion.size[d]) {
                 goto outside;
             } 
-            ind = ind * pm->IRegion.size[d] + targetpos;
+            ind += pm->IRegion.strides[d] * targetpos;
         }
         value += kernel * pm->workspace[ind];
 outside:

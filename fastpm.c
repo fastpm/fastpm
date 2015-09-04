@@ -42,16 +42,20 @@ int main(int argc, char ** argv) {
         .NprocX = 0, /* 0 for auto, 1 for slabs */
     };
     PM pm;
-    PMGhostData pgd;
 
     pm_pfft_init(&pm, &pminit, &pdata.iface, MPI_COMM_WORLD);
     pm_store_wrap(&pdata, pm.BoxSize);
     pm_store_decompose(&pdata, to_rank, &pm, MPI_COMM_WORLD);
 
-    pm_ghost_data_init(&pgd, &pm, &pdata, pdata.np, PACK_POS);
+    PMGhostData pgd = {
+        .pm = &pm,
+        .pdata = &pdata,
+        .np = pdata.np,
+        .np_upper = pdata.np_upper,
+        .attributes = PACK_POS,
+    };
+    pm_append_ghosts(&pgd);
 
-    pm_append_ghosts(&pm, pdata.np_upper, &pgd);
-    
     pm_start(&pm);
     pm_paint(&pm, &pdata, pdata.np + pgd.nghosts);
     pm_r2c(&pm);
@@ -59,9 +63,9 @@ int main(int argc, char ** argv) {
     pm_c2r(&pm);
     pm_readout_one(&pm, &pdata, 0);
 
-    pm_reduce_ghosts(&pm, &pgd, PACK_ACC_X); 
-    pm_reduce_ghosts(&pm, &pgd, PACK_ACC_Y); 
-    pm_reduce_ghosts(&pm, &pgd, PACK_ACC_Z); 
+    pm_reduce_ghosts(&pgd, PACK_ACC_X); 
+    pm_reduce_ghosts(&pgd, PACK_ACC_Y); 
+    pm_reduce_ghosts(&pgd, PACK_ACC_Z); 
 
     sleep(pm.ThisTask * 2);
     printf("----rank = %d\n", pm.ThisTask);
@@ -75,7 +79,7 @@ int main(int argc, char ** argv) {
 
 
     pm_stop(&pm);
-    pm_ghost_data_destroy(&pgd);
+    pm_destroy_ghosts(&pgd);
     pfft_cleanup();
     MPI_Finalize();
 }

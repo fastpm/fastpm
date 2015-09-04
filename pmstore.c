@@ -2,6 +2,7 @@
 #include "pmpfft.h"
 #include "permute.c"
 #include "msort.c"
+#include <signal.h>
 
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
     PMStore * p = (PMStore *)pdata;
@@ -14,6 +15,13 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     if(HAS(flags, f)) { \
         if(ptr) memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
         s += sizeof(p->field[0]); \
+        flags &= ~f; \
+    }
+    #define DISPATCHC(f, field, c) \
+    if(HAS(flags, f)) { \
+        if(ptr) memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
+        s += sizeof(p->field[0][0]); \
+        flags &= ~f; \
     }
 
     PMStore * p = (PMStore *)pdata;
@@ -28,7 +36,21 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ACC_Y, acc[1])
     DISPATCH(PACK_ACC_Z, acc[2])
 
+    /* components */
+    DISPATCHC(PACK_DX1_X, dx1, 0)
+    DISPATCHC(PACK_DX1_Y, dx1, 1)
+    DISPATCHC(PACK_DX1_Z, dx1, 2)
+    DISPATCHC(PACK_DX2_X, dx2, 0)
+    DISPATCHC(PACK_DX2_Y, dx2, 1)
+    DISPATCHC(PACK_DX2_Z, dx2, 2)
+
     #undef DISPATCH
+    #undef DISPATCHC
+    if(flags != 0) {
+        fprintf(stderr, "Runtime Error, unknown packing field.\n");
+        raise(SIGTRAP);
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
     return s;
 }
 static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
@@ -40,6 +62,7 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     if(HAS(flags, f)) { \
         memcpy(&p->field[index], &ptr[s], sizeof(p->field[0])); \
         s += sizeof(p->field[0]); \
+        flags &= ~f; \
     }
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
@@ -50,6 +73,11 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ACC_Y, acc[1])
     DISPATCH(PACK_ACC_Z, acc[2])
     #undef DISPATCH
+    if(flags != 0) {
+        fprintf(stderr, "Runtime Error, unknown unpacking field.\n");
+        raise(SIGTRAP);
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
 }
 static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
     PMStore * p = (PMStore *)pdata;
@@ -60,11 +88,29 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
         if(HAS(flags, f)) { \
             p->field[index] += * ((typeof(p->field[index])*) &ptr[s]); \
             s += sizeof(p->field[index]); \
+            flags &= ~f; \
+        }
+    #define DISPATCHC(f, field, i) \
+        if(HAS(flags, f)) { \
+            p->field[index][i] += * ((typeof(p->field[index][i])*) &ptr[s]); \
+            s += sizeof(p->field[index][i]); \
+            flags &= ~f; \
         }
     DISPATCH(PACK_ACC_X, acc[0]);
     DISPATCH(PACK_ACC_Y, acc[1]);
     DISPATCH(PACK_ACC_Z, acc[2]);
+    DISPATCHC(PACK_DX1_X, dx1, 0)
+    DISPATCHC(PACK_DX1_Y, dx1, 1)
+    DISPATCHC(PACK_DX1_Z, dx1, 2)
+    DISPATCHC(PACK_DX2_X, dx2, 0)
+    DISPATCHC(PACK_DX2_Y, dx2, 1)
+    DISPATCHC(PACK_DX2_Z, dx2, 2)
     #undef DISPATCH
+    #undef DISPATCHC
+    if(flags != 0) {
+        fprintf(stderr, "Runtime Error, unknown unpacking field.\n");
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
 }
 
 static void * malloczero(size_t s) {
@@ -78,6 +124,7 @@ void pm_store_init_bare(PMStore * p, size_t np_upper) {
     p->iface.unpack = unpack;
     p->iface.reduce = reduce;
     p->iface.get_position = get_position;
+    p->iface.AllAttributes = PACK_ALL;
     p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
     p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);
     p->id = p->iface.malloc(sizeof(p->id[0]) * np_upper);
@@ -195,14 +242,14 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = p->iface.pack(NULL, 0, NULL, 0xffff);
+    size_t elsize = p->iface.pack(NULL, 0, NULL, p->iface.AllAttributes);
 
     void * send_buffer = p->iface.malloc(elsize * Nsend);
     void * recv_buffer = p->iface.malloc(elsize * Nrecv);
 
     p->np -= Nsend;
     for(i = 0; i < Nsend; i ++) {
-        p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, 0xffff);
+        p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, p->iface.AllAttributes);
     }
 
     MPI_Datatype PTYPE;
@@ -215,7 +262,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     MPI_Type_free(&PTYPE);
     
     for(i = 0; i < Nrecv; i ++) {
-        p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, 0xffff);
+        p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->iface.AllAttributes);
     }
 
     p->np += Nrecv;

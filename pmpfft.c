@@ -71,9 +71,19 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
     pfft_create_procmesh(2, comm, pm->Nproc, &pm->Comm2D);
     pm->allocsize = 2 * pfft_local_size_dft_r2c(
-                3, pm->Nmesh, pm->Comm2D, PFFT_TRANSPOSED_OUT, 
+                3, pm->Nmesh, pm->Comm2D, PFFT_TRANSPOSED_OUT | PFFT_PADDED_R2C, 
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
+
+
+    /* Set up strides for IRegion (real) and ORegion(complex) */
+    pm->IRegion.strides[2] = 1;
+    pm->IRegion.strides[1] = 2* (pm->Nmesh[2] / 2 + 1); /* padded */
+    pm->IRegion.strides[0] = pm->IRegion.size[1] * pm->IRegion.strides[1];
+
+    pm->ORegion.strides[2] = 1;
+    pm->ORegion.strides[0] = pm->Nmesh[2] / 2 + 1; /* transposed */
+    pm->ORegion.strides[1] = pm->IRegion.size[0] * pm->IRegion.strides[0];
 
     int d;
     for(d = 0; d < 2; d ++) {
@@ -116,12 +126,12 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->r2c = pfft_plan_dft_r2c(
             3, pm->Nmesh, buffer, buffer, 
             pm->Comm2D,
-            PFFT_FORWARD, PFFT_TRANSPOSED_OUT | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
+            PFFT_FORWARD, PFFT_PADDED_R2C | PFFT_TRANSPOSED_OUT | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
 
     pm->c2r = pfft_plan_dft_c2r(
             3, pm->Nmesh, buffer, buffer, 
             pm->Comm2D,
-            PFFT_BACKWARD, PFFT_TRANSPOSED_IN | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
+            PFFT_BACKWARD, PFFT_PADDED_C2R | PFFT_TRANSPOSED_IN | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
     pm->iface.free(buffer);
 
     for(d = 0; d < 3; d++) {

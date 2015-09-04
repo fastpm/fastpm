@@ -8,6 +8,7 @@
 #include <pfft.h>
 
 typedef struct {
+    int AllAttributes;
     void * (*malloc )(size_t);
     void   (*free   )(void *);
     void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
@@ -34,15 +35,22 @@ typedef struct {
 #define PACK_DX1   (1 << 2)
 #define PACK_DX2   (1 << 3)
 #define PACK_ID    (1 << 4)
+#define PACK_ALL   (PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2)
+
 #define PACK_ACC_X (1 << 5)
 #define PACK_ACC_Y (1 << 6)
 #define PACK_ACC_Z (1 << 7)
+#define PACK_DX1_X   (1 << 10)
+#define PACK_DX1_Y   (1 << 11)
+#define PACK_DX1_Z   (1 << 12)
+#define PACK_DX2_X   (1 << 13)
+#define PACK_DX2_Y   (1 << 14)
+#define PACK_DX2_Z   (1 << 15)
 #define HAS(a, b) ((a & b) != 0)
 
 typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
-    int AllAttributes;
     int NprocX;
 } PMInit;
 
@@ -53,8 +61,10 @@ typedef struct {
 } PMGrid;
 
 typedef struct {
+    /* in units of real numbers, not bytes. */
     ptrdiff_t start[3];
     ptrdiff_t size[3];
+    ptrdiff_t strides[3]; 
 } PMRegion;
 
 typedef struct {
@@ -89,10 +99,12 @@ typedef struct {
 
 
 typedef struct {
+    PM * pm;
     void * pdata;
     size_t np;
+    size_t np_upper;
     size_t nghosts;
-    int GhostAttributes;
+    int attributes;
 
     /* private members */
     int * Nsend;
@@ -130,9 +142,9 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     return total;
 }
 
-void pm_ghost_data_init(PMGhostData * pgd, PM* pm, void * pdata, size_t np, int attributes);
-size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * pgd);
-void pm_reduce_ghosts(PM * pm, PMGhostData * pgd, int attributes);
+void pm_append_ghosts(PMGhostData * pgd);
+void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
+void pm_destroy_ghosts(PMGhostData * pgd);
 
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size);
 double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i);

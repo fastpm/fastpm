@@ -7,16 +7,8 @@
 #include <mpi.h>
 #include "pmpfft.h"
 
-void pm_ghost_data_init(PMGhostData * ppd, PM * pm, void * pdata, size_t np, int attributes) {
-    ppd->pdata = pdata;
-    ppd->np = np;
-    ppd->GhostAttributes = attributes;
-    ppd->Nsend = calloc(pm->NTask, sizeof(int));
-    ppd->Osend = calloc(pm->NTask, sizeof(int));
-    ppd->Nrecv = calloc(pm->NTask, sizeof(int));
-    ppd->Orecv = calloc(pm->NTask, sizeof(int));
-}
-void pm_ghost_data_destroy(PMGhostData * ppd) {
+
+void pm_destroy_ghosts(PMGhostData * ppd) {
     free(ppd->Nsend);
     free(ppd->Osend);
     free(ppd->Nrecv);
@@ -74,14 +66,20 @@ static void count_ghosts(PM * pm, PMGhostData * ppd) {
 
 static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
     pm->iface.pack(ppd->pdata, ppd->ipar, 
-        (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, ppd->GhostAttributes);
+        (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, ppd->attributes);
 }
 
-size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
+void pm_append_ghosts(PMGhostData * ppd) {
+    PM * pm = ppd->pm;
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pm->iface.pack(NULL, 0, NULL, ppd->GhostAttributes);
+    size_t elsize = pm->iface.pack(NULL, 0, NULL, ppd->attributes);
+
+    ppd->Nsend = calloc(pm->NTask, sizeof(int));
+    ppd->Osend = calloc(pm->NTask, sizeof(int));
+    ppd->Nrecv = calloc(pm->NTask, sizeof(int));
+    ppd->Orecv = calloc(pm->NTask, sizeof(int));
 
     ppd->elsize = elsize;
 
@@ -104,8 +102,8 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
 
     ppd->nghosts = Nrecv;
 
-    if(Nrecv + ppd->np > np_upper) {
-        fprintf(stderr, "Too many ghosts; asking for %td, space for %td\n", Nrecv, np_upper - ppd->np);
+    if(Nrecv + ppd->np > ppd->np_upper) {
+        fprintf(stderr, "Too many ghosts; asking for %td, space for %td\n", Nrecv, ppd->np_upper - ppd->np);
         MPI_Abort(pm->Comm2D, -1);
     }
 
@@ -120,18 +118,11 @@ size_t pm_append_ghosts(PM * pm, size_t np_upper, PMGhostData * ppd) {
     for(i = 0; i < Nrecv; i ++) {
         pm->iface.unpack(ppd->pdata, ppd->np + i, 
                 (char*) ppd->recv_buffer + i * ppd->elsize, 
-                        ppd->GhostAttributes);
+                        ppd->attributes);
     }
     free(ppd->recv_buffer);
     free(ppd->send_buffer);
 
-    /*
-    free(ppd->Orecv);
-    free(ppd->Osend);
-    free(ppd->Nrecv);
-    free(ppd->Nsend);
-    */
-    return Nrecv;
 }
 
 static void reduce_ghosts(PM * pm, PMGhostData * ppd) {
@@ -140,7 +131,8 @@ static void reduce_ghosts(PM * pm, PMGhostData * ppd) {
         ppd->ReductionAttributes);
 }
 
-void pm_reduce_ghosts(PM * pm, PMGhostData * ppd, int attributes) {
+void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
+    PM * pm = ppd->pm;
     size_t Nsend = cumsum(NULL, ppd->Nsend, pm->NTask);
     size_t Nrecv = cumsum(NULL, ppd->Nrecv, pm->NTask);
     ptrdiff_t i;
