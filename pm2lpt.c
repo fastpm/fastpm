@@ -11,6 +11,13 @@
 #include "pmpfft.h"
 #include "msg.h"
 
+#define PM_2LPT_LOAD_DELTA_K
+#define PM_2LPT_DUMP_DELTA_K
+#define PM_2LPT_DUMP_DELTA_R
+#define PM_2LPT_DUMP_2LPT
+#define PM_2LPT_DUMP_ZA
+#define PM_2LPT_DUMP_DELTA_K_P
+
 typedef double (*pkfunc)(double k, void * data);
 
 static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
@@ -134,15 +141,22 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
 
         ampl = -log(ampl);
         /* ensure the fourier space is a normal distribution */
-        ampl /= sqrt(pm->Norm * 0.5);
+        ampl /= sqrt(pm->Norm);
+        ampl *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
         pm->canvas[ind] = ampl * sin(phase);
         pm->canvas[ind + 1] = ampl * cos(phase);
     }
-//    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("real.f8", "w"));
+#ifdef PM_2LPT_DUMP_DELTA_R
+    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("real.f4", "w"));
+#endif
     msg_printf(info, "Transforming to fourier space .\n");
     pm_r2c(pm);
-//   fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("complex.f8", "w"));
-
+#ifdef PM_2LPT_LOAD_DELTA_K
+    fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("qrpm.f4", "r"));
+#endif
+#ifdef PM_2LPT_DUMP_DELTA_K
+    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("complex.f4", "w"));
+#endif
     msg_printf(info, "Inducing correlation.\n");
     msg_printf(debug, "Volume = %g.\n", pm->Volume);
     /* Watch out: PFFT_TRANSPOSED_OUT is y, x, z */
@@ -151,14 +165,18 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
         double k[3];
         double knorm = 0;
         pm_unravel_o_index(pm, ind, i);
-        for(d = 0; d < 3; d ++) {
-            k[d] = pm->MeshtoK[d][i[d]];
-            knorm += k[d] * k[d];
-        } 
-        knorm = sqrt(knorm);
-        pm->canvas[ind] *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume) * pk(knorm, pkdata));
+        double k2 = index_to_k2(pm, i, k);
+        knorm = sqrt(k2);
+        /* FIXME: this doesn't agree with qrpm yet.*/
+        double f = sqrt(pk(knorm, pkdata));
+        msg_printf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
+                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
+        pm->canvas[2 * ind + 0] *= f;
+        pm->canvas[2 * ind + 1] *= f;
     }
-    fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("qrpm.f4", "r"));
+#ifdef PM_2LPT_DUMP_DELTA_K_P
+    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("complex-pk.f4", "w"));
+#endif
 }
 void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, void * pkdata) {
     PM pm;
@@ -197,8 +215,11 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX1 axis = %d\n", d);
         apply_za_transfer(&pm, d);
-        char * fnames[] = {"za-0.f8", "za-1.f8", "za-2.f8"};
+
+#ifdef PM_2LPT_DUMP_ZA
+        char * fnames[] = {"za-0.f4", "za-1.f4", "za-2.f4"};
         fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
+#endif
         pm_c2r(&pm);
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             p->dx1[i][d] = pm_readout_one(&pm, p, i);
@@ -242,11 +263,15 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     } 
     for(i = 0; i < pm.allocsize; i ++) {
         /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
-        source[i] *= 1.0 / pm.Norm ;
+        source[i] *= 1.0;
     }
     memcpy(pm.canvas, source, pm.allocsize * sizeof(pm.canvas[0]));
 
-    fwrite(pm.canvas, sizeof(pm.canvas[0]), pm.allocsize, fopen("digrad.f8", "w"));
+#ifdef PM_2LPT_DUMP_2LPT
+    fwrite(pm.canvas, sizeof(pm.canvas[0]), pm.allocsize, fopen("digrad.f4", "w"));
+#endif
+    fread(pm.canvas, sizeof(pm.canvas[0]), pm.allocsize, fopen("qrpm-digrad.f4", "w"));
+
     pm_r2c(&pm);
 
     for(d = 2; d >=0; d-- )
@@ -256,9 +281,11 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX2 axis = %d .\n", d);
         apply_za_transfer(&pm, d);
+        char * fnames[] = {"2lpt-0.f4", "2lpt-1.f4", "2lpt-2.f4"};
+        fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
         pm_c2r(&pm);
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
-            p->dx2[i][d] = pm_readout_one(&pm, p, i);
+            p->dx2[i][d] = 3.0 / 7.0 * pm_readout_one(&pm, p, i) / pm.Norm ;
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }
@@ -287,5 +314,8 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     msg_printf(info, "dx2 disp : %g %g %g %g\n", 
             dx2disp[0], dx2disp[1], dx2disp[2],
             (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
+
+    fwrite(p->dx1, sizeof(p->dx1[0]), p->np, fopen("dx1.f4x3", "w"));
+    fwrite(p->dx2, sizeof(p->dx2[0]), p->np, fopen("dx2.f4x3", "w"));
 }
 
