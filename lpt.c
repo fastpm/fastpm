@@ -365,11 +365,11 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
         }
     }
 
-    fwrite(cdigrad[0], 2 * sizeof(float), total_size, fopen("qrpm.f4", "w"));
-    fwrite(cdigrad[1], 2 * sizeof(float), total_size, fopen("qrpm-pk.f4", "w"));
-    fwrite(cdisp[0], 2 * sizeof(float), total_size, fopen("qrpm-za-0.f4", "w"));
-    fwrite(cdisp[1], 2 * sizeof(float), total_size, fopen("qrpm-za-1.f4", "w"));
-    fwrite(cdisp[2], 2 * sizeof(float), total_size, fopen("qrpm-za-2.f4", "w"));
+    fwrite(cdigrad[0], 2 * sizeof(float), total_size, fopen("input-noise-k.f4", "w"));
+    fwrite(cdigrad[1], 2 * sizeof(float), total_size, fopen("qrpm-delta-k.f4", "w"));
+    fwrite(cdisp[0], 2 * sizeof(float), total_size, fopen("qrpm-dx1-0.f4", "w"));
+    fwrite(cdisp[1], 2 * sizeof(float), total_size, fopen("qrpm-dx1-1.f4", "w"));
+    fwrite(cdisp[2], 2 * sizeof(float), total_size, fopen("qrpm-dx1-2.f4", "w"));
     //
     // 2nd order LPT
     //
@@ -440,7 +440,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
         }
     }
 
-    fwrite(digrad[3], 2 * sizeof(float), total_size, fopen("qrpm-digrad.f4", "w"));
+    fwrite(digrad[3], 2 * sizeof(float), total_size, fopen("input-digrad.f4", "w"));
 
     msg_printf(verbose, "Fourier transforming second order source...\n");
 
@@ -514,9 +514,9 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
         }
     }
 
-    fwrite(cdisp2[0], 2 * sizeof(float), total_size, fopen("qrpm-2lpt-0.f4", "w"));
-    fwrite(cdisp2[1], 2 * sizeof(float), total_size, fopen("qrpm-2lpt-1.f4", "w"));
-    fwrite(cdisp2[2], 2 * sizeof(float), total_size, fopen("qrpm-2lpt-2.f4", "w"));
+    fwrite(cdisp2[0], 2 * sizeof(float), total_size, fopen("qrpm-dx2-0.f4", "w"));
+    fwrite(cdisp2[1], 2 * sizeof(float), total_size, fopen("qrpm-dx2-1.f4", "w"));
+    fwrite(cdisp2[2], 2 * sizeof(float), total_size, fopen("qrpm-dx2-2.f4", "w"));
     // Now, both cdisp, and cdisp2 have the ZA and 2nd order displacements
 
     for(int axes = 0; axes < 3; axes++) {  
