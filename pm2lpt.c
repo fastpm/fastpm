@@ -13,7 +13,7 @@
 
 #define PM_2LPT_LOAD_NOISE_K
 //#define PM_2LPT_LOAD_DIGRAD
-#define PM_2LPT_DUMP
+//#define PM_2LPT_DUMP
 
 typedef double (*pkfunc)(double k, void * data);
 
@@ -121,7 +121,7 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
     ptrdiff_t ind;
     int d;
 
-    msg_printf(info, "Filling initial gaussian fluctuations.\n");
+    msg_printf(info, "Filling initial white noise field in x-space.\n");
 
     gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
 
@@ -139,6 +139,8 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
         ampl = -log(ampl);
         /* ensure the fourier space is a normal distribution */
         ampl /= sqrt(pm->Norm);
+        /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
+         * forget where it is from. */
         ampl *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
         pm->canvas[ind] = ampl * sin(phase);
         pm->canvas[ind + 1] = ampl * cos(phase);
@@ -148,13 +150,15 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
 #endif
     msg_printf(info, "Transforming to fourier space .\n");
     pm_r2c(pm);
+
 #ifdef PM_2LPT_LOAD_NOISE_K
     fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("input-noise-k.f4", "r"));
 #endif
 #ifdef PM_2LPT_DUMP
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("noise-k.f4", "w"));
 #endif
-    msg_printf(info, "Inducing correlation.\n");
+
+    msg_printf(info, "Inducing correlation to the white noise.\n");
     msg_printf(debug, "Volume = %g.\n", pm->Volume);
     /* Watch out: PFFT_TRANSPOSED_OUT is y, x, z */
     for(ind = 0; ind < pm->allocsize / 2; ind ++) {
