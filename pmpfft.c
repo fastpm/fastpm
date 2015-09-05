@@ -11,10 +11,27 @@
 
 static MPI_Datatype MPI_PTRDIFF = NULL;
 
+#if FFT_PRECISION == 64
+    #define plan_dft_r2c pfft_plan_dft_r2c
+    #define plan_dft_c2r pfft_plan_dft_c2r
+    #define execute_dft_r2c pfft_execute_dft_r2c
+    #define execute_dft_c2r pfft_execute_dft_c2r
+    typedef pfft_plan plan;
+    #define _pfft_init pfft_init
+#elif FFT_PRECISION == 32
+    #define plan_dft_r2c pfftf_plan_dft_r2c
+    #define plan_dft_c2r pfftf_plan_dft_c2r
+    #define execute_dft_r2c pfftf_execute_dft_r2c
+    #define execute_dft_c2r pfftf_execute_dft_c2r
+    typedef pfftf_plan plan;
+    #define _pfft_init pfftf_init
+#endif
 
 static void module_init() {
     if(MPI_PTRDIFF != NULL) return;
         
+    _pfft_init();
+
     if(sizeof(ptrdiff_t) == 8) {
         MPI_PTRDIFF = MPI_LONG;
     } else {
@@ -28,6 +45,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
     pm->init = *init;
     pm->iface = *iface;
+    pm->transposed = 0;
 
     /* initialize the domain */    
     MPI_Comm_rank(comm, &pm->ThisTask);
@@ -68,22 +86,38 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->Above[1] = 1;
     pm->Above[2] = 1;
 
+    pm->Norm = ((double) pm->Nmesh[0]) * pm->Nmesh[1] * pm->Nmesh[2];
+    pm->Volume = ((double) pm->BoxSize[0]) * pm->BoxSize[1] * pm->BoxSize[2];
+
     pfft_create_procmesh(2, comm, pm->Nproc, &pm->Comm2D);
     pm->allocsize = 2 * pfft_local_size_dft_r2c(
-                3, pm->Nmesh, pm->Comm2D, PFFT_TRANSPOSED_OUT | PFFT_PADDED_R2C, 
+                3, pm->Nmesh, pm->Comm2D, 
+                          0
+                        | (pm->transposed?PFFT_TRANSPOSED_OUT:0)
+                        | PFFT_PADDED_R2C, 
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
 
 
     /* Set up strides for IRegion (real) and ORegion(complex) */
+
+    /* Note that we need to fix up the padded size of the real data;
+     * and transpose with strides , */
+
+    pm->IRegion.size[2] = pm->Nmesh[2];
+
     pm->IRegion.strides[2] = 1;
     pm->IRegion.strides[1] = 2* (pm->Nmesh[2] / 2 + 1); /* padded */
     pm->IRegion.strides[0] = pm->IRegion.size[1] * pm->IRegion.strides[1];
 
     pm->ORegion.strides[2] = 1;
-    pm->ORegion.strides[0] = pm->Nmesh[2] / 2 + 1; /* transposed */
-    pm->ORegion.strides[1] = pm->IRegion.size[0] * pm->IRegion.strides[0];
-
+    if(pm->transposed) {
+        pm->ORegion.strides[0] = pm->Nmesh[2] / 2 + 1; /* transposed */
+        pm->ORegion.strides[1] = pm->ORegion.size[0] * pm->ORegion.strides[0];
+    } else {
+        pm->ORegion.strides[1] = pm->Nmesh[2] / 2 + 1; /* non-transposed */
+        pm->ORegion.strides[0] = pm->ORegion.size[1] * pm->ORegion.strides[1];
+    }
     int d;
     for(d = 0; d < 2; d ++) {
         MPI_Comm projected;
@@ -120,28 +154,37 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         }
     }
 
-    void * buffer = pm->iface.malloc(pm->allocsize * sizeof(double));
+    pm->canvas = pm->iface.malloc(pm->allocsize * sizeof(pm->canvas[0]));
 
-    pm->r2c = pfft_plan_dft_r2c(
-            3, pm->Nmesh, buffer, buffer, 
-            pm->Comm2D,
-            PFFT_FORWARD, PFFT_PADDED_R2C | PFFT_TRANSPOSED_OUT | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
+    int r2cflags = PFFT_PADDED_R2C 
+            | (pm->transposed?PFFT_TRANSPOSED_OUT:0)
+            | PFFT_ESTIMATE | PFFT_DESTROY_INPUT;
+    int c2rflags = PFFT_PADDED_C2R 
+            | (pm->transposed?PFFT_TRANSPOSED_IN:0)
+            | PFFT_ESTIMATE | PFFT_DESTROY_INPUT;
 
-    pm->c2r = pfft_plan_dft_c2r(
-            3, pm->Nmesh, buffer, buffer, 
+    pm->r2c = (pfft_plan) plan_dft_r2c(
+            3, pm->Nmesh, (void*) pm->canvas, (void*) pm->canvas, 
             pm->Comm2D,
-            PFFT_BACKWARD, PFFT_PADDED_C2R | PFFT_TRANSPOSED_IN | PFFT_ESTIMATE | PFFT_DESTROY_INPUT);
-    pm->iface.free(buffer);
+            PFFT_FORWARD, r2cflags);
+
+    pm->c2r = (pfft_plan) plan_dft_c2r(
+            3, pm->Nmesh, (void*) pm->canvas, (void*) pm->canvas, 
+            pm->Comm2D,
+            PFFT_BACKWARD, c2rflags);
+
+    pm->iface.free(pm->canvas);
+    pm->canvas = NULL;
 
     for(d = 0; d < 3; d++) {
         pm->MeshtoK[d] = malloc(pm->Nmesh[d] * sizeof(double));
         int i;
         for(i = 0; i < pm->Nmesh[d]; i++) {
             int ii = i;
-            if(ii > pm->Nmesh[d] / 2) {
+            if(ii >= pm->Nmesh[d] / 2) {
                 ii -= pm->Nmesh[d];
             }
-            pm->MeshtoK[d][i] = i * 2 * M_PI / pm->BoxSize[d];
+            pm->MeshtoK[d][i] = ii * 2 * M_PI / pm->BoxSize[d];
         }
     }
 }
@@ -158,8 +201,8 @@ int pm_pos_to_rank(PM * pm, double pos[3]) {
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
 }
 void pm_start(PM * pm) {
-    pm->canvas = pm->iface.malloc(sizeof(double) * pm->allocsize);
-    pm->workspace = pm->iface.malloc(sizeof(double) * pm->allocsize);
+    pm->canvas = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
+    pm->workspace = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
 }
 void pm_stop(PM * pm) {
     pm->iface.free(pm->canvas);
@@ -169,10 +212,34 @@ void pm_stop(PM * pm) {
 }
 
 void pm_r2c(PM * pm) {
-    pfft_execute_dft_r2c(pm->r2c, pm->canvas, (pfft_complex*)pm->canvas);
+    execute_dft_r2c((plan) pm->r2c, pm->canvas, (void*)pm->canvas);
 }
 
 void pm_c2r(PM * pm) {
-    pfft_execute_dft_c2r(pm->c2r, (pfft_complex*) pm->workspace, pm->workspace);
+    execute_dft_c2r((plan) pm->c2r, (void*) pm->workspace, pm->workspace);
 }
 
+void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
+    ptrdiff_t tmp = ind;
+    if(pm->transposed) {
+        i[1] = tmp / pm->ORegion.strides[1];
+        tmp %= pm->ORegion.strides[1];
+        i[0] = tmp / pm->ORegion.strides[0];
+        tmp %= pm->ORegion.strides[0];
+        i[2] = tmp;
+    } else {
+        i[0] = tmp / pm->ORegion.strides[0];
+        tmp %= pm->ORegion.strides[0];
+        i[1] = tmp / pm->ORegion.strides[1];
+        tmp %= pm->ORegion.strides[1];
+        i[2] = tmp;
+    }
+}
+void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
+    ptrdiff_t tmp = ind;
+    i[0] = tmp / pm->IRegion.strides[0];
+    tmp %= pm->IRegion.strides[0];
+    i[1] = tmp / pm->IRegion.strides[1];
+    tmp %= pm->IRegion.strides[1];
+    i[2] = tmp;
+}

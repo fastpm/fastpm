@@ -9,17 +9,10 @@
 #include <gsl/gsl_rng.h>
 
 #include "pmpfft.h"
+#include "msg.h"
 
 typedef double (*pkfunc)(double k, void * data);
 
-static void unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
-    ptrdiff_t tmp = ind;
-    i[1] = tmp / pm->ORegion.strides[1];
-    tmp %= pm->ORegion.strides[1];
-    i[0] = tmp / pm->ORegion.strides[0];
-    tmp %= pm->ORegion.strides[0];
-    i[2] = tmp;
-}
 static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
     int d;
     double k2 = 0;
@@ -32,48 +25,100 @@ static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
 
 static void apply_za_transfer(PM * pm, int dir) {
     ptrdiff_t ind;
-    pfft_complex * c1 = (pfft_complex*) pm->canvas;
-    pfft_complex * c2 = (pfft_complex*) pm->workspace;
 
     for(ind = 0; ind < pm->allocsize / 2; ind ++) {
         ptrdiff_t i[3];
         double k[3];
         double k2;
-        unravel_o_index(pm, ind, i);
+        pm_unravel_o_index(pm, ind, i);
         k2 = index_to_k2(pm, i, k);
-
+        ptrdiff_t i2 = ind * 2;
         /* i k[d] / k2 */
-        c2[ind][0] = - c1[ind][1] * (k[dir] / k2);
-        c2[ind][1] =   c1[ind][0] * (k[dir] / k2);
+        if(k2 > 0) {
+            pm->workspace[i2 + 0] = - pm->canvas[i2 + 1] * (k[dir] / k2);
+            pm->workspace[i2 + 1] =   pm->canvas[i2 + 0] * (k[dir] / k2);
+        } else {
+            pm->workspace[i2 + 0] = 0;
+            pm->workspace[i2 + 1] = 0;
+        }
+#if 0
+        if(dir == 0)
+            msg_printf(debug, "%ld %ld %ld %ld %g %g %g %g,%g->%g,%g\n", ind, i[0], i[1], i[2], k[0], k[1], k[2],
+            pm->canvas[i2][0], pm->canvas[i2][1],
+            pm->workspace[i2][0], pm->workspace[i2][1]
+            );
+#endif
     }
 }
 
 static void apply_2lpt_transfer(PM * pm, int dir1, int dir2) {
     ptrdiff_t ind;
-    pfft_complex * c1 = (pfft_complex*) pm->canvas;
-    pfft_complex * c2 = (pfft_complex*) pm->workspace;
-
     for(ind = 0; ind < pm->allocsize / 2; ind ++) {
         ptrdiff_t i[3];
         double k[3];
         double k2;
-        unravel_o_index(pm, ind, i);
+        pm_unravel_o_index(pm, ind, i);
         k2 = index_to_k2(pm, i, k);
-
-        c2[ind][0] = c1[ind][0] * (-k[dir1] * k[dir2] / k2);
-        c2[ind][1] = c1[ind][1] * (-k[dir1] * k[dir2] / k2);
+        ptrdiff_t i2 = ind * 2;
+        if(k2 > 0) {
+            pm->workspace[i2 + 0] = pm->canvas[i2 + 0] * (-k[dir1] * k[dir2] / k2);
+            pm->workspace[i2 + 1] = pm->canvas[i2 + 1] * (-k[dir1] * k[dir2] / k2);
+        } else {
+            pm->workspace[i2 + 0] = 0;
+            pm->workspace[i2 + 1] = 0;
+        }
     }
 }
 
 static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
     /* fill pdata with a uniform grid, respecting domain given by pm */
-    pm_store_init(p, 10);
-    p->np = 0;
+    
+    ptrdiff_t i[3];
+    ptrdiff_t ind;
+    int d;
+    p->np = 1;
+    for(d = 0; d < 3; d++) {
+        p->np *= pm->IRegion.size[d];
+    }
+    if(p->np > p->np_upper) {
+        msg_abort(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
+    }
+    ptrdiff_t ptrmax = 0;
+    for(ind = 0; ind < pm->allocsize; ind ++){
+        ptrdiff_t ptr;
+        uint64_t id;
+        pm_unravel_i_index(pm, ind, i);
+        /* avoid the padded region */
+        if(i[2] >= pm->IRegion.size[2]) continue;
+
+        ptr = 0;
+        id = 0;
+        for(d = 0; d < 3; d ++) {
+            ptr = ptr * pm->IRegion.size[d] + i[d];
+            id = id * pm->Nmesh[d] + i[d] + pm->IRegion.start[d];
+        }
+//        msg_aprintf(debug, "Creating particle at offset %td i = %td %td %td\n", ptr, i[0], i[1], i[2]);
+        for(d = 0; d < 3; d ++) {
+            p->x[ptr][d] = (i[d] + pm->IRegion.start[d]) * (pm->BoxSize[d] / pm->Nmesh[d]);
+            p->v[ptr][d] = 0;
+            p->dx1[ptr][d] = 0;
+            p->dx2[ptr][d] = 0;
+            p->acc[d][ptr] = 0;
+            p->id[ptr]  = id;
+        }
+        if(ptr > ptrmax) ptrmax = ptr;
+    }
+    if(ptrmax + 1 != p->np) {
+        msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td\n", ptrmax + 1, p->np);
+    }
 }
 
 static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
     ptrdiff_t ind;
     int d;
+
+    msg_printf(info, "Filling initial gaussian fluctuations.\n");
+
     gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
 
     gsl_rng_set(random_generator, seed * pm->NTask + pm->ThisTask);
@@ -88,25 +133,32 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
         while(ampl == 0.0);
 
         ampl = -log(ampl);
+        /* ensure the fourier space is a normal distribution */
+        ampl /= sqrt(pm->Norm * 0.5);
         pm->canvas[ind] = ampl * sin(phase);
         pm->canvas[ind + 1] = ampl * cos(phase);
     }
-
+//    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("real.f8", "w"));
+    msg_printf(info, "Transforming to fourier space .\n");
     pm_r2c(pm);
+//   fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("complex.f8", "w"));
 
+    msg_printf(info, "Inducing correlation.\n");
+    msg_printf(debug, "Volume = %g.\n", pm->Volume);
     /* Watch out: PFFT_TRANSPOSED_OUT is y, x, z */
     for(ind = 0; ind < pm->allocsize / 2; ind ++) {
         ptrdiff_t i[3];
         double k[3];
         double knorm = 0;
-        unravel_o_index(pm, ind, i);
+        pm_unravel_o_index(pm, ind, i);
         for(d = 0; d < 3; d ++) {
             k[d] = pm->MeshtoK[d][i[d]];
             knorm += k[d] * k[d];
         } 
         knorm = sqrt(knorm);
-        pm->canvas[ind] *= pk(knorm, pkdata);
+        pm->canvas[ind] *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume) * pk(knorm, pkdata));
     }
+    fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("qrpm.f4", "r"));
 }
 void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, void * pkdata) {
     PM pm;
@@ -119,12 +171,6 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
 
     pm_pfft_init(&pm, &pminit, &p->iface, MPI_COMM_WORLD);
 
-    int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
-    int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
-    int D1[] = {1, 2, 0};
-    int D2[] = {2, 0, 1};
-    ptrdiff_t i;
-    int d;
     pm_2lpt_fill_pdata(p, &pm);
     
     PMGhostData pgd = {
@@ -141,28 +187,39 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     
     pm_2lpt_fill_gaussian(&pm, seed, pk, pkdata);
 
+    int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
+    int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
+    int D1[] = {1, 2, 0};
+    int D2[] = {2, 0, 1};
+    ptrdiff_t i;
+    int d;
+
     for(d = 0; d < 3; d++) {
+        msg_printf(info, "Solving for DX1 axis = %d\n", d);
         apply_za_transfer(&pm, d);
+        char * fnames[] = {"za-0.f8", "za-1.f8", "za-2.f8"};
+        fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
         pm_c2r(&pm);
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
-            pm_readout_one(&pm, p, i);
+            p->dx1[i][d] = pm_readout_one(&pm, p, i);
         }
         pm_reduce_ghosts(&pgd, DX1[d]);
     } 
 
-    double * source;
-    source = (double*) p->iface.malloc(pm.allocsize * sizeof(double));
+    real_t * source;
+    source = (real_t*) p->iface.malloc(pm.allocsize * sizeof(source[0]));
 
-    memset(source, 0, sizeof(double) * pm.allocsize);
+    memset(source, 0, sizeof(source[0]) * pm.allocsize);
 
-    double * field[3];
+    real_t * field[3];
     for(d = 0; d < 3; d++ )
-        field[d] = p->iface.malloc(pm.allocsize * sizeof(double));
+        field[d] = p->iface.malloc(pm.allocsize * sizeof(field[d][0]));
 
     for(d = 0; d< 3; d++) {
+        msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d, d);
         apply_2lpt_transfer(&pm, d, d);
         pm_c2r(&pm);
-        memcpy(field[d], pm.workspace, pm.allocsize * sizeof(double));
+        memcpy(field[d], pm.workspace, pm.allocsize * sizeof(field[d][0]));
     }
 
     for(d = 0; d < 3; d++) {
@@ -176,25 +233,59 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     for(d = 0; d < 3; d++) {
         int d1 = D1[d];
         int d2 = D2[d];
+        msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d1, d2);
         apply_2lpt_transfer(&pm, d1, d2);
         pm_c2r(&pm);
         for(i = 0; i < pm.allocsize; i ++) {
             source[i] -= pm.workspace[i] * pm.workspace[i];
         }
     } 
-    memcpy(pm.canvas, source, pm.allocsize * sizeof(double));
+    for(i = 0; i < pm.allocsize; i ++) {
+        /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
+        source[i] *= 1.0 / pm.Norm ;
+    }
+    memcpy(pm.canvas, source, pm.allocsize * sizeof(pm.canvas[0]));
+
+    fwrite(pm.canvas, sizeof(pm.canvas[0]), pm.allocsize, fopen("digrad.f8", "w"));
+    pm_r2c(&pm);
 
     for(d = 2; d >=0; d-- )
         p->iface.free(field[d]);
     p->iface.free(source);
 
     for(d = 0; d < 3; d++) {
+        msg_printf(info, "Solving for DX2 axis = %d .\n", d);
         apply_za_transfer(&pm, d);
         pm_c2r(&pm);
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
-            pm_readout_one(&pm, p, i);
+            p->dx2[i][d] = pm_readout_one(&pm, p, i);
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }
+    double dx1disp[3] = {0};
+    double dx2disp[3] = {0};
+
+    for(i = 0; i < p->np; i ++) {
+        for(d =0; d < 3; d++) {
+            dx1disp[d] += p->dx1[i][d] * p->dx1[i][d];
+            dx2disp[d] += p->dx2[i][d] * p->dx2[i][d];
+        } 
+    }
+    uint64_t Ntot = p->np;
+    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, pm.Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, pm.Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, &Ntot,   1, MPI_LONG,  MPI_SUM, pm.Comm2D);
+    for(d =0; d < 3; d++) {
+        dx1disp[d] /= Ntot;
+        dx1disp[d] = sqrt(dx1disp[d]);
+        dx2disp[d] /= Ntot;
+        dx2disp[d] = sqrt(dx2disp[d]);
+    }
+    msg_printf(info, "dx1 disp : %g %g %g %g\n", 
+            dx1disp[0], dx1disp[1], dx1disp[2],
+            (dx1disp[0] + dx1disp[1] + dx1disp[2]) / 3.0);
+    msg_printf(info, "dx2 disp : %g %g %g %g\n", 
+            dx2disp[0], dx2disp[1], dx2disp[2],
+            (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
 }
 

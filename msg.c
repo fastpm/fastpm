@@ -34,6 +34,19 @@ void msg_printf(const enum LogLevel msg_level, const char *fmt, ...)
     }
 }
 
+void msg_aprintf(const enum LogLevel msg_level, const char *fmt, ...)
+{
+    if(msg_level >= Log_level) {
+        va_list argp;
+
+        va_start(argp, fmt);
+        vfprintf(stdout, fmt, argp);
+        fflush(stdout);
+        va_end(argp);
+    }
+}
+
+
 void msg_abort(const int errret, const char *fmt, ...)
 {
     va_list argp;

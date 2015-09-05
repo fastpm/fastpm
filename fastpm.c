@@ -9,6 +9,8 @@
 
 #include "pmpfft.h"
 #include "msg.h"
+#include "parameters.h"
+#include "power.h"
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
@@ -23,31 +25,36 @@ static int to_rank(PMStore * pdata, ptrdiff_t i, void * data) {
 int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
-    pfft_init();
+
     msg_init();
     msg_set_loglevel(verbose);
 
+    Parameters prr;
     PMStore pdata;
-    memset(&pdata, 0, sizeof(pdata));
-    pm_store_init(&pdata, 100);
+    PM pm;
 
-    int i;
-    for(i = 0; i < 100; i ++) {
-        pdata.x[i][1] = fmod(i + 0.5, 4);
-        pdata.x[i][0] = 0;
-        pdata.x[i][2] = 0;
-        pdata.acc[0][i] = 1;
-    }
-    pdata.np = 4;
- 
+    read_parameters(argc, argv, &prr);
+
+    power_init(prr.power_spectrum_filename, 
+            prr.time_step[0], 
+            prr.sigma8, 
+            prr.omega_m, 
+            1 - prr.omega_m);
+
+    pm_store_init(&pdata);
+
     PMInit pminit = {
         .Nmesh = 4,
         .BoxSize = 4.,
         .NprocX = 0, /* 0 for auto, 1 for slabs */
     };
-    PM pm;
 
     pm_pfft_init(&pm, &pminit, &pdata.iface, MPI_COMM_WORLD);
+
+    pm_store_alloc(&pdata, 1.0 * prr.nc * prr.nc * prr.nc / pm.NTask * prr.np_alloc_factor);
+
+    pm_2lpt_main(&pdata, prr.nc, prr.boxsize, PowerSpecWithData, prr.random_seed, NULL);
+
     pm_store_wrap(&pdata, pm.BoxSize);
     pm_store_decompose(&pdata, to_rank, &pm, MPI_COMM_WORLD);
 
@@ -63,7 +70,7 @@ int main(int argc, char ** argv) {
     pm_start(&pm);
     pm_paint(&pm, &pdata, pdata.np + pgd.nghosts);
     pm_r2c(&pm);
-    memcpy(pm.workspace, pm.canvas, pm.allocsize*sizeof(double));
+    memcpy(pm.workspace, pm.canvas, pm.allocsize * sizeof(pm.canvas[0]));
     pm_c2r(&pm);
     pm_readout_one(&pm, &pdata, 0);
 
@@ -71,7 +78,8 @@ int main(int argc, char ** argv) {
     pm_reduce_ghosts(&pgd, PACK_ACC_Y); 
     pm_reduce_ghosts(&pgd, PACK_ACC_Z); 
 
-    sleep(pm.ThisTask * 2);
+/*
+    sleep(pm.ThisTask);
     printf("----rank = %d\n", pm.ThisTask);
     rungdb("p ((double*)%p)[0]@32", &pm.workspace[0]);
     rungdb("p *((PMGhostData*)%p)", &pgd);
@@ -80,7 +88,7 @@ int main(int argc, char ** argv) {
     //
     rungdb("p ((PM*)%p)->Grid.edges_float[0][0]@%d", &pm, pm.Nproc[0]+1);
     rungdb("p ((PM*)%p)->Grid.edges_float[1][0]@%d", &pm, pm.Nproc[1]+1);
-
+*/
 
     pm_stop(&pm);
     pm_destroy_ghosts(&pgd);

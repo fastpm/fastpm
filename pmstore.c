@@ -32,11 +32,11 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ID, id)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
-    DISPATCH(PACK_ACC_X, acc[0])
-    DISPATCH(PACK_ACC_Y, acc[1])
-    DISPATCH(PACK_ACC_Z, acc[2])
 
     /* components */
+    DISPATCHC(PACK_ACC_X, acc, 0)
+    DISPATCHC(PACK_ACC_Y, acc, 1)
+    DISPATCHC(PACK_ACC_Z, acc, 2)
     DISPATCHC(PACK_DX1_X, dx1, 0)
     DISPATCHC(PACK_DX1_Y, dx1, 1)
     DISPATCHC(PACK_DX1_Z, dx1, 2)
@@ -67,9 +67,6 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ID, id)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
-    DISPATCH(PACK_ACC_X, acc[0])
-    DISPATCH(PACK_ACC_Y, acc[1])
-    DISPATCH(PACK_ACC_Z, acc[2])
     #undef DISPATCH
     if(flags != 0) {
         msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
@@ -82,28 +79,21 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
-    #define DISPATCH(f, field) \
-        if(HAS(flags, f)) { \
-            p->field[index] += * ((typeof(p->field[index])*) &ptr[s]); \
-            s += sizeof(p->field[index]); \
-            flags &= ~f; \
-        }
     #define DISPATCHC(f, field, i) \
         if(HAS(flags, f)) { \
             p->field[index][i] += * ((typeof(p->field[index][i])*) &ptr[s]); \
             s += sizeof(p->field[index][i]); \
             flags &= ~f; \
         }
-    DISPATCH(PACK_ACC_X, acc[0]);
-    DISPATCH(PACK_ACC_Y, acc[1]);
-    DISPATCH(PACK_ACC_Z, acc[2]);
+    DISPATCHC(PACK_ACC_X, acc, 0);
+    DISPATCHC(PACK_ACC_Y, acc, 1);
+    DISPATCHC(PACK_ACC_Z, acc, 2);
     DISPATCHC(PACK_DX1_X, dx1, 0)
     DISPATCHC(PACK_DX1_Y, dx1, 1)
     DISPATCHC(PACK_DX1_Z, dx1, 2)
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
-    #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
         msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
@@ -114,7 +104,20 @@ static void * malloczero(size_t s) {
     return calloc(s, 1);
 }
 
-void pm_store_init_bare(PMStore * p, size_t np_upper) {
+void pm_store_alloc_bare(PMStore * p, size_t np_upper) {
+    pm_store_init(p);
+    p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
+    p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);
+    p->id = p->iface.malloc(sizeof(p->id[0]) * np_upper);
+    p->acc = NULL;
+    p->dx1 = NULL;
+    p->dx2 = NULL;
+    p->np = 0; 
+    p->np_upper = np_upper;
+};
+
+void pm_store_init(PMStore * p) {
+    memset(p, 0, sizeof(p[0]));
     p->iface.malloc = malloczero;
     p->iface.free = free;
     p->iface.pack = pack;
@@ -122,24 +125,11 @@ void pm_store_init_bare(PMStore * p, size_t np_upper) {
     p->iface.reduce = reduce;
     p->iface.get_position = get_position;
     p->iface.AllAttributes = PACK_ALL;
-    p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
-    p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);
-    p->id = p->iface.malloc(sizeof(p->id[0]) * np_upper);
-    p->acc[0] = NULL;
-    p->acc[1] = NULL;
-    p->acc[2] = NULL;
-    p->dx1 = NULL;
-    p->dx2 = NULL;
-    p->np = 0; 
-    p->np_upper = np_upper;
-};
+}
+void pm_store_alloc(PMStore * p, size_t np_upper) {
+    pm_store_alloc_bare(p, np_upper);
 
-void pm_store_init(PMStore * p, size_t np_upper) {
-    pm_store_init_bare(p, np_upper);
-
-    p->acc[0] = p->iface.malloc(sizeof(p->acc[0][0]) * np_upper);
-    p->acc[1] = p->iface.malloc(sizeof(p->acc[1][0]) * np_upper);
-    p->acc[2] = p->iface.malloc(sizeof(p->acc[2][0]) * np_upper);
+    p->acc = p->iface.malloc(sizeof(p->acc[0]) * np_upper);
     p->dx1 = p->iface.malloc(sizeof(p->dx1[0]) * np_upper);
     p->dx2 = p->iface.malloc(sizeof(p->dx2[0]) * np_upper);
 };
@@ -148,9 +138,7 @@ void pm_store_destroy(PMStore * p) {
     p->iface.free(p->x);
     p->iface.free(p->v);
     p->iface.free(p->id);
-    if(p->acc[0]) p->iface.free(p->acc[0]);
-    if(p->acc[1]) p->iface.free(p->acc[1]);
-    if(p->acc[2]) p->iface.free(p->acc[2]);
+    if(p->acc) p->iface.free(p->acc);
     if(p->dx1) p->iface.free(p->dx1);
     if(p->dx2) p->iface.free(p->dx2);
 }
@@ -167,17 +155,12 @@ static void pm_store_permute(PMStore * p, int * ind) {
     permute(p->x, p->np, sizeof(p->x[0]), ind);
     permute(p->v, p->np, sizeof(p->v[0]), ind);
     permute(p->id, p->np, sizeof(p->id[0]), ind);
-    if(p->acc[0])
-        permute(p->acc[0], p->np, sizeof(p->acc[0]), ind);
-    if(p->acc[1])
-        permute(p->acc[1], p->np, sizeof(p->acc[1]), ind);
-    if(p->acc[2])
-        permute(p->acc[2], p->np, sizeof(p->acc[2]), ind);
-
+    if(p->acc)
+        permute(p->acc, p->np, sizeof(p->acc[0]), ind);
     if(p->dx1)
-        permute(p->dx1, p->np, sizeof(p->dx1[0]) * 3, ind);
+        permute(p->dx1, p->np, sizeof(p->dx1[0]), ind);
     if(p->dx2)
-        permute(p->dx2, p->np, sizeof(p->dx2[0]) * 3, ind);
+        permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
 }
 
 typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);

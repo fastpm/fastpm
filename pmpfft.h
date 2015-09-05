@@ -7,6 +7,15 @@
 #include <mpi.h>
 #include <pfft.h>
 
+#define FFT_PRECISION 32
+#if FFT_PRECISION == 64
+    typedef double real_t;
+#elif FFT_PRECISION == 32
+    typedef float real_t;
+#else
+    #error FFT_PRECISION must be 32 or 64
+#endif
+
 typedef struct {
     int AllAttributes;
     void * (*malloc )(size_t);
@@ -22,7 +31,7 @@ typedef struct {
 
     double (* x)[3];
     float (* v)[3];
-    float * acc[3];
+    float (* acc)[3];
     float (* dx1)[3];
     float (* dx2)[3];
     uint64_t * id;
@@ -86,14 +95,16 @@ typedef struct {
     double    Above[3];
 
     ptrdiff_t allocsize;
-PMRegion IRegion;
+    PMRegion IRegion;
     PMRegion ORegion;
-    double * canvas;
-    double * workspace;
+    real_t * canvas;
+    real_t * workspace;
  
     PMGrid Grid;
     double * MeshtoK[3];
-
+    double Norm;
+    double Volume;
+    int transposed;
 } PM;
 
 
@@ -117,6 +128,7 @@ typedef struct {
     ptrdiff_t ipar; 
     ptrdiff_t ighost;
     int rank;
+    ptrdiff_t * reason; /* relative offset causing the ghost */
     int ReductionAttributes;
     size_t elsize;
 } PMGhostData;
@@ -140,6 +152,8 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     }
     return total;
 }
+void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
+void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 
 void pm_append_ghosts(PMGhostData * pgd);
 void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
@@ -154,7 +168,9 @@ void pm_store_read(PMStore * p, char * datasource);
 void pm_store_write(PMStore * p, char * datasource);
 void pm_store_destroy(PMStore * p);
 
-void pm_store_init(PMStore * p, size_t np_upper);
-void pm_store_init_bare(PMStore * p, size_t np_upper);
+void pm_store_init(PMStore * p);
+void pm_store_alloc(PMStore * p, size_t np_upper);
+void pm_store_alloc_bare(PMStore * p, size_t np_upper);
 void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
 void pm_store_wrap(PMStore * p, double BoxSize[3]);
+

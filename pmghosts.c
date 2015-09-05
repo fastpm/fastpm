@@ -31,7 +31,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
         pm->iface.get_position(ppd->pdata, i, pos);
 
         /* probe neighbours */
-        double j[3];
+        ptrdiff_t j[3];
         int ranks[1000];
         int used = 0;
         ppd->ipar = i;
@@ -53,6 +53,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
                 ranks[used++] = rank;
                 ppd->ighost = ighost;
                 ppd->rank = rank;
+                ppd->reason = j;
                 iter_func(pm, ppd);
                 ighost ++;
             } 
@@ -65,6 +66,13 @@ static void count_ghosts(PM * pm, PMGhostData * ppd) {
 }
 
 static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
+    double pos[3];
+    pm->iface.get_position(ppd->pdata, ppd->ipar, pos);
+
+    msg_aprintf(debug, "Making a ghost for particle %td (%g %g %g) to rank %d for %td %td %td\n", 
+            ppd->ipar, 
+            pos[0], pos[1], pos[2],
+            ppd->rank, ppd->reason[0], ppd->reason[1], ppd->reason[2]);
     pm->iface.pack(ppd->pdata, ppd->ipar, 
         (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, ppd->attributes);
 }

@@ -21,7 +21,7 @@
 
 #define WORKSIZE 100000
 
-static double Norm;
+static double PowerNorm;
 static int NPowerTable;
 static double Omega, OmegaLambda;
 
@@ -47,7 +47,7 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
   if(myrank == 0) {
     read_power_table_camb(filename);
-    Norm= normalize_power(a_init, sigma8);
+    PowerNorm= normalize_power(a_init, sigma8);
   }
 
   msg_printf(normal, "Powerspecectrum file: %s\n", filename);
@@ -58,7 +58,7 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
   MPI_Bcast(PowerTable, NPowerTable*sizeof(struct pow_table), MPI_BYTE, 0,
 	    MPI_COMM_WORLD);
-  MPI_Bcast(&Norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&PowerNorm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 }
 
@@ -67,7 +67,7 @@ void read_power_table_camb(const char filename[])
   //char buf[500];
   double k, p;
   double fac= 1.0/(2.0*M_PI*M_PI);
-  Norm= 1.0;
+  PowerNorm= 1.0;
 
   FILE* fp= fopen(filename, "r");
   if(!fp)
@@ -105,7 +105,7 @@ void read_power_table_camb(const char filename[])
   fclose(fp);
 }
 
-double PowerSpec_(double k, void * data) {
+double PowerSpecWithData(double k, void * data) {
     return PowerSpec(k);
 }
 double normalize_power(const double a_init, const double sigma8)
@@ -113,7 +113,7 @@ double normalize_power(const double a_init, const double sigma8)
   // Assume that input power spectrum already has a proper sigma8
   const double R8 = 8.0; // 8 Mpc
 
-  double res = TopHatSigma2(R8, PowerSpec_, NULL); 
+  double res = TopHatSigma2(R8, PowerSpecWithData, NULL); 
   double sigma8_input= sqrt(res);
 
   msg_printf(info, "Input power spectrum sigma8 %f\n", sigma8_input);
@@ -166,9 +166,9 @@ double PowerSpec(const double k)
 
   const double Delta2 = pow(10.0, logD);
 
-  double P = Norm * Delta2 / (4.0*M_PI*k*k*k);
+  double P = PowerNorm * Delta2 / (4.0*M_PI*k*k*k);
 
-  //printf("%le %le\n", k, P);
+  // printf("%le %le\n", k, P);
 
   return P;
 }
