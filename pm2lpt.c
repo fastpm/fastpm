@@ -12,7 +12,7 @@
 #include "pm2lpt.h"
 #include "msg.h"
 
-#define PM_2LPT_LOAD_NOISE_K
+//#define PM_2LPT_LOAD_NOISE_K
 //#define PM_2LPT_LOAD_DIGRAD
 #define PM_2LPT_DUMP
 
@@ -27,9 +27,13 @@ static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
 }
 
 static void apply_za_transfer(PM * pm, int dir) {
+
+//    memcpy(pm->workspace, pm->canvas, pm->allocsize * sizeof(pm->canvas[0]));
+//    msg_printf(debug, "Disabled ZA");
+//    return ;
     ptrdiff_t ind;
     ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
+    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
         double k[3];
         double k2;
         k2 = index_to_k2(pm, i, k);
@@ -54,7 +58,7 @@ static void apply_za_transfer(PM * pm, int dir) {
 static void apply_2lpt_transfer(PM * pm, int dir1, int dir2) {
     ptrdiff_t ind;
     ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
+    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
         double k[3];
         double k2;
         k2 = index_to_k2(pm, i, k);
@@ -83,7 +87,7 @@ static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
     ptrdiff_t ptrmax = 0;
     ptrdiff_t i[3] = {0};
     ptrdiff_t ptr = 0;
-    for(ind = 0; ind < pm->allocsize; ind ++, pm_inc_i_index(pm, i)){
+    for(ind = 0; ind < pm->IRegion.total; ind ++, pm_inc_i_index(pm, i)){
         uint64_t id;
         /* avoid the padded region */
         if(i[2] >= pm->IRegion.size[2]) continue;
@@ -105,7 +109,13 @@ static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
         ptr ++;
     }
     if(ptrmax + 1 != p->np) {
-        msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td\n", ptrmax + 1, p->np);
+        msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td, allocsize=%td, shape=(%td %td %td)\n", 
+            ptrmax + 1, p->np, pm->allocsize, 
+            pm->IRegion.size[0],
+            pm->IRegion.size[1],
+            pm->IRegion.size[2]
+
+            );
     }
 }
 
@@ -114,21 +124,21 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
     int d;
 
     msg_printf(info, "Filling initial white noise field in x-space.\n");
-
     gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
 
     gsl_rng_set(random_generator, seed * pm->NTask + pm->ThisTask);
+    ptrdiff_t i[3] = {0};
 
     /* first fill in x-space, then transform to ensure conjugates;
      * this means no zoomins! */
-    for(ind = 0; ind < pm->allocsize; ind += 2) {
+    for(ind = 0; ind < pm->IRegion.total; ind += 2) {
         double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
         double ampl;
         do
             ampl = gsl_rng_uniform(random_generator);
         while(ampl == 0.0);
 
-        ampl = -log(ampl);
+        ampl = sqrt(-log(ampl));
         /* ensure the fourier space is a normal distribution */
         ampl /= sqrt(pm->Norm);
         /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
@@ -137,6 +147,33 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
         pm->workspace[ind] = ampl * sin(phase);
         pm->workspace[ind + 1] = ampl * cos(phase);
     }
+    
+    gsl_rng_set(random_generator, seed);
+    for(i[0] = 0; i[0] < pm->Nmesh[0]; i[0]++)
+    for(i[1] = 0; i[1] < pm->Nmesh[1]; i[1]++)
+    for(i[2] = 0; i[2] < pm->Nmesh[2]; i[2]++) {
+        double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
+        double ampl;
+        do
+            ampl = gsl_rng_uniform(random_generator);
+        while(ampl == 0.0);
+        ptrdiff_t ii[3];
+        ptrdiff_t ind = 0;
+        for(d = 0; d < 3; d ++) {
+            if(i[d] < pm->IRegion.start[d]) goto next;
+            if(i[d] >= pm->IRegion.start[d] + pm->IRegion.size[d]) goto next;
+            ii[d] = i[d] - pm->IRegion.start[d];
+            ind += ii[d] * pm->IRegion.strides[d];
+        }
+        ampl = sqrt(-log(ampl));
+        ampl /= sqrt(pm->Norm);
+
+        ampl *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
+        pm->workspace[ind] = ampl * sin(phase);
+        next:
+        continue;
+    }
+
 #ifdef PM_2LPT_DUMP
     fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("noise-r.f4", "w"));
 #endif
@@ -149,24 +186,24 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
 #ifdef PM_2LPT_DUMP
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("noise-k.f4", "w"));
 #endif
-
     msg_printf(info, "Inducing correlation to the white noise.\n");
     msg_printf(debug, "Volume = %g.\n", pm->Volume);
 
-    ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
+    i[0] = i[1] = i[2] = 0;
+    for(ind = 0; ind < pm->ORegion.total *2 ; ind += 2, pm_inc_o_index(pm, i)) {
         double k[3];
         double knorm = 0;
         double k2 = index_to_k2(pm, i, k);
         knorm = sqrt(k2);
         double f = sqrt(pk(knorm, pkdata));
-/*
-        msg_printf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
-                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
-*/
+
+//        msg_aprintf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
+//                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
+
         pm->canvas[ind + 0] *= f;
         pm->canvas[ind + 1] *= f;
     }
+
 #ifdef PM_2LPT_DUMP
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("overdensity-k.f4", "w"));
 #endif
@@ -210,7 +247,6 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX1 axis = %d\n", d);
         apply_za_transfer(&pm, d);
-
 #ifdef PM_2LPT_DUMP
         char * fnames[] = {"dx1-0.f4", "dx1-1.f4", "dx1-2.f4"};
         fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
@@ -241,7 +277,7 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     for(d = 0; d < 3; d++) {
         int d1 = D1[d];
         int d2 = D2[d];
-        for(i = 0; i < pm.allocsize; i ++) {
+        for(i = 0; i < pm.IRegion.total; i ++) {
             source[i] += field[d1][i] * field[d2][i];
         }    
     }
@@ -252,7 +288,7 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
         msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d1, d2);
         apply_2lpt_transfer(&pm, d1, d2);
         pm_c2r(&pm);
-        for(i = 0; i < pm.allocsize; i ++) {
+        for(i = 0; i < pm.IRegion.total; i ++) {
             source[i] -= pm.workspace[i] * pm.workspace[i];
         }
     } 
@@ -285,6 +321,7 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
             p->dx2[i][d] = pm_readout_one(&pm, p, i) / pm.Norm ;
+            p->dx2[i][d] = 0;
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }

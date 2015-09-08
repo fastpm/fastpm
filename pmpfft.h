@@ -75,6 +75,7 @@ typedef struct {
     ptrdiff_t start[3];
     ptrdiff_t size[3];
     ptrdiff_t strides[3]; 
+    ptrdiff_t total;
 } PMRegion;
 
 typedef struct {

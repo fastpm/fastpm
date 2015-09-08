@@ -54,8 +54,8 @@ static inline void pm_paint_pos_tuned(PM * pm, double pos[3], double weight) {
 
     I -= pm->IRegion.start[0];
     I1 -= pm->IRegion.start[0];
-    J -= pm->IRegion.start[0];
-    J1 -= pm->IRegion.start[0];
+    J -= pm->IRegion.start[1];
+    J1 -= pm->IRegion.start[1];
 
     if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
@@ -110,8 +110,8 @@ static inline double pm_readout_pos_tuned(PM * pm, double pos[3]) {
 
     I -= pm->IRegion.start[0];
     I1 -= pm->IRegion.start[0];
-    J -= pm->IRegion.start[0];
-    J1 -= pm->IRegion.start[0];
+    J -= pm->IRegion.start[1];
+    J1 -= pm->IRegion.start[1];
 
     double value = 0;
 
@@ -192,6 +192,7 @@ static double pm_readout_pos(PM * pm, double pos[3]) {
         ipos[d] = floor(gpos[d]);
         k[d][0] = 1 + ipos[d] - gpos[d];
         k[d][1] = gpos[d] - ipos[d];
+        ipos[d] -= pm->IRegion.start[d];
     }
     for(n = 0; n < 8; n ++) {
         float kernel = 1.0;
@@ -202,7 +203,7 @@ static double pm_readout_pos(PM * pm, double pos[3]) {
 
             kernel *= k[d][rel];
 
-            int targetpos = ipos[d] + rel - pm->IRegion.start[d];
+            int targetpos = ipos[d] + rel;
 
             while(targetpos >= pm->Nmesh[d]) {
                 targetpos -= pm->Nmesh[d];
@@ -229,13 +230,13 @@ void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
         pm_paint_pos_tuned(pm, pos, 1.0);
-//        pm_paint_pos(pm, pos, 1.0);
+ //       pm_paint_pos(pm, pos, 1.0);
     }
 }
 
 double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i) {
     double pos[3];
     pm->iface.get_position(pdata, i, pos);
- //   return pm_readout_pos(pm, pos);
+//    return pm_readout_pos(pm, pos);
     return pm_readout_pos_tuned(pm, pos);
 }

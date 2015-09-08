@@ -194,13 +194,14 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
             for(int j = 0; j < Nmesh; j++) {
                 gsl_rng_set(random_generator, seedtable[i * Nmesh + j]);
 
-                for(int k = 0; k < Nmesh / 2; k++) {
+                for(int k = 0; k <= Nmesh / 2; k++) {
                     double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
                     double ampl;
                     do
                         ampl = gsl_rng_uniform(random_generator);
                     while(ampl == 0.0);
 
+                    printf("%g\n", ampl);
                     if(i == Nmesh / 2 || j == Nmesh / 2 || k == Nmesh / 2)
                         continue;
                     if(i == 0 && j == 0 && k == 0)

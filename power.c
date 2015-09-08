@@ -50,14 +50,29 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
   msg_printf(normal, "Powerspecectrum file: %s\n", filename);
 
-  MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if(myrank != 0)
-    PowerTable = malloc(NPowerTable * sizeof(struct pow_table));
-
-  MPI_Bcast(PowerTable, NPowerTable*sizeof(struct pow_table), MPI_BYTE, 0,
-	    MPI_COMM_WORLD);
   MPI_Bcast(&PowerNorm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+  MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  /* This hack avoids a valgrind false positive with openmpi. 
+   * apparently bcast marks the memory invalid or something. I don't understand. 
+   * but if we copy the memory from bcast later on Power() won't complain.*/
+  void * PowerTableTmp;
+  if(myrank != 0) {
+    PowerTableTmp = calloc(NPowerTable, sizeof(struct pow_table));
+    PowerTable = PowerTableTmp;
+  }
+
+  MPI_Datatype type;
+  MPI_Type_contiguous(sizeof(struct pow_table), MPI_BYTE, &type);
+  MPI_Type_commit(&type);
+  MPI_Bcast(&PowerTable[0], NPowerTable, type, 0, MPI_COMM_WORLD);
+  MPI_Type_free(&type);
+  if(myrank != 0) {
+      PowerTable = calloc(NPowerTable, sizeof(struct pow_table));
+      memcpy(PowerTable, PowerTableTmp, NPowerTable * sizeof(struct pow_table));
+      free(PowerTableTmp);
+  }
 }
 
 void read_power_table_camb(const char filename[])

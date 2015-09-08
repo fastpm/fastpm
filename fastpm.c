@@ -58,7 +58,7 @@ static void vpm_init(Parameters * prr, PMIFace * iface, MPI_Comm comm) {
             .Nmesh = (int)(prr->nc * vpm[i].pm_nc_factor),
             .BoxSize = prr->boxsize,
             .NprocX = 0, /* 0 for auto, 1 for slabs */
-            .transposed = 1,
+            .transposed = 0,
         };
         pm_pfft_init(&vpm[i].pm, &pminit, iface, comm);
     }
@@ -129,6 +129,8 @@ int main(int argc, char ** argv) {
 
     int istep;
     int nsteps = stepping_get_nsteps();
+
+    snps_interp(&snps, prr.time_step[0], prr.time_step[0]);
 
     for (istep = 0; istep <= nsteps; istep++) {
         double a_v, a_x, a_v1, a_x1;
@@ -213,14 +215,14 @@ static void apply_force_kernel(PM * pm, int dir) {
     } 
     
     ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->allocsize; 
+    for(ind = 0; ind < pm->ORegion.total * 2; 
         ind += 2, pm_inc_o_index(pm, i)
     ) {
-        double k_finite = fac[dir][i[dir]].k_finite;
+        double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
         double kk_finite = 0;
         double kk = 0;
         for(d = 0; d < 3; d++) {
-            kk_finite += fac[d][i[d]].kk_finite;
+            kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
 //            kk += fac[d][i[d]].kk;
         }
         /* - i k[d] / k2 */
@@ -231,6 +233,8 @@ static void apply_force_kernel(PM * pm, int dir) {
             pm->workspace[ind + 0] = 0;
             pm->workspace[ind + 1] = 0;
         }
+//        pm->workspace[ind + 0] = pm->canvas[ind + 0];
+ //       pm->workspace[ind + 1] = pm->canvas[ind + 1];
     }
 }
 
@@ -292,7 +296,9 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
 
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname2[d], "w"));
 
+
         timer_start("readout");
+
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
             p->acc[i][d] = pm_readout_one(pm, p, i) * (density_factor / pm->Norm);
         }
@@ -379,7 +385,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
 
         if(param->snapshot_filename) {
             sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
-            write_runpb_snapshot(param, &snapshot, filebase);
+            write_runpb_snapshot(param, &snapshot, aout, filebase);
         }
         timer_stop("write");
 

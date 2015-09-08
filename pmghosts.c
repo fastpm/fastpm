@@ -30,7 +30,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
         int d;
         int ipos[3];
         for(d = 0; d < 3; d ++) {
-            ipos[d] = pos[d] * pm->InvCellSize[d];
+            ipos[d] = floor(pos[d] * pm->InvCellSize[d]);
         }
 
         /* probe neighbours */
@@ -44,7 +44,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
             int npos[3];
             int d;
             for(d = 0; d < 3; d ++) {
-                npos[d] = pos[d] + j[d];
+                npos[d] = ipos[d] + j[d];
             }
             rank = pm_ipos_to_rank(pm, npos);
             if(LIKELY(rank == pm->ThisTask))  continue;
@@ -71,17 +71,19 @@ static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
     double pos[3];
     pm->iface.get_position(ppd->pdata, ppd->ipar, pos);
 
+    int ighost = ppd->Osend[ppd->rank] + ppd->Nsend[ppd->rank];
+    pm->iface.pack(ppd->pdata, ppd->ipar, 
+        (char*) ppd->send_buffer + ighost * ppd->elsize, ppd->attributes);
+
+    ppd->ighost_to_ipar[ighost] = ppd->ipar;
+#if 0
     msg_aprintf(debug, "Making a ghost for particle %td (%g %g %g) to rank %d for %td %td %td\n", 
             ppd->ipar, 
             pos[0], pos[1], pos[2],
             ppd->rank, ppd->reason[0], ppd->reason[1], ppd->reason[2]);
 
-    int ighost = ppd->Osend[ppd->rank] + ppd->Nsend[ppd->rank];
-
-    pm->iface.pack(ppd->pdata, ppd->ipar, 
-        (char*) ppd->send_buffer + ighost * ppd->elsize, ppd->attributes);
-
-    ppd->ighost_to_ipar[ighost] == ppd->ipar;
+    msg_aprintf(debug, "Connecting Ghost %d to Particle %td\n", ighost, ppd->ipar);
+#endif
     ppd->Nsend[ppd->rank] ++;
 }
 
@@ -115,7 +117,9 @@ void pm_append_ghosts(PMGhostData * ppd) {
 
     /* exchange */
     MPI_Alltoall(ppd->Nsend, 1, MPI_INT, ppd->Nrecv, 1, MPI_INT, pm->Comm2D);
-
+    for(i = 0; i < pm->NTask; i ++) {
+        msg_aprintf(debug, "Sending %d ghosts to %td\n", ppd->Nsend[i], i);
+    }
     Nrecv = cumsum(ppd->Orecv, ppd->Nrecv, pm->NTask);
     
     ppd->recv_buffer = malloc(Nrecv * ppd->elsize);
@@ -141,7 +145,6 @@ void pm_append_ghosts(PMGhostData * ppd) {
     }
     free(ppd->recv_buffer);
     free(ppd->send_buffer);
-
 }
 
 void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {

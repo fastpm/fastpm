@@ -8,6 +8,7 @@
 #include <signal.h>
 
 #include "pmpfft.h"
+#include "msg.h"
 
 static MPI_Datatype MPI_PTRDIFF = NULL;
 
@@ -97,27 +98,49 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 pm->ORegion.size, pm->ORegion.start);
 
 
+
+    msg_aprintf(debug, "IRegion : %td %td %td + %td %td %td\n",
+        pm->IRegion.start[0],
+        pm->IRegion.start[1],
+        pm->IRegion.start[2],
+        pm->IRegion.size[0],
+        pm->IRegion.size[1],
+        pm->IRegion.size[2]
+    );
+
+    msg_aprintf(debug, "ORegion : %td %td %td + %td %td %td\n",
+        pm->ORegion.start[0],
+        pm->ORegion.start[1],
+        pm->ORegion.start[2],
+        pm->ORegion.size[0],
+        pm->ORegion.size[1],
+        pm->ORegion.size[2]
+    );
     /* Set up strides for IRegion (real) and ORegion(complex) */
 
     /* Note that we need to fix up the padded size of the real data;
      * and transpose with strides , */
 
-    pm->IRegion.size[2] = pm->Nmesh[2];
 
     pm->IRegion.strides[2] = 1;
-    pm->IRegion.strides[1] = 2* (pm->Nmesh[2] / 2 + 1); /* padded */
+    pm->IRegion.strides[1] = pm->IRegion.size[2];
     pm->IRegion.strides[0] = pm->IRegion.size[1] * pm->IRegion.strides[1];
+    pm->IRegion.total = pm->IRegion.size[0] * pm->IRegion.strides[0];
+
+    pm->IRegion.size[2] = pm->Nmesh[2];
 
     if(pm->init.transposed) {
         /* transposed, y, z, x */
         pm->ORegion.strides[0] = 1;
         pm->ORegion.strides[2] = pm->ORegion.size[0];
         pm->ORegion.strides[1] = pm->ORegion.size[2] * pm->ORegion.strides[2];
+        pm->ORegion.total = pm->ORegion.size[1] * pm->ORegion.strides[1];
     } else {
         /* non-transposed */
         pm->ORegion.strides[2] = 1;
         pm->ORegion.strides[1] = pm->ORegion.size[2];
         pm->ORegion.strides[0] = pm->ORegion.size[1] * pm->ORegion.strides[1];
+        pm->ORegion.total = pm->ORegion.size[0] * pm->ORegion.strides[0];
     }
 
     for(d = 0; d < 2; d ++) {

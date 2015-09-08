@@ -1,4 +1,4 @@
-OPTIMIZE = -O3 -g
+OPTIMIZE = -O0 -g
 CPPFLAGS += -I depends/install/include
 LDFLAGS += -L depends/install/lib
 
