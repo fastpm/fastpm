@@ -6,7 +6,7 @@ CPPFLAGS += -I lua
 LDFLAGS += -L lua
 
 SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
-		readparams.c msg.c power.c pmsteps.c pmtimer.c
+		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
 
 
 fastpm: $(SOURCES:%.c=.objs/%.o)

@@ -24,6 +24,18 @@ static int to_rank(PMStore * pdata, ptrdiff_t i, void * data);
 static double sinc_unnormed(double x);
 
 typedef struct {
+    Parameters * param;
+    PMStore * p;
+    int nout;
+    double * aout;
+    int iout;
+} SNPS;
+
+static int snps_interp(SNPS * snps, double a_x, double a_v);
+static void snps_init(SNPS * snps, Parameters * prr, PMStore * p);
+static void snps_start(SNPS * snps);
+
+typedef struct {
     PM pm;
     double a_start;
     int pm_nc_factor;
@@ -107,10 +119,17 @@ int main(int argc, char ** argv) {
 
     stepping_set_initial(prr.time_step[0], &pdata, shift);
 
+    SNPS snps;
+
+    snps_init(&snps, &prr, &pdata);
+
+    snps_start(&snps);
+
     timer_set_category(STEPPING);
 
     int istep;
     int nsteps = stepping_get_nsteps();
+
     for (istep = 0; istep <= nsteps; istep++) {
         double a_v, a_x, a_v1, a_x1;
 
@@ -125,8 +144,6 @@ int main(int argc, char ** argv) {
         pm_store_decompose(&pdata, to_rank, pm, comm);
         timer_stop("comm");
 
-        fread(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("qrpm-x.f8x3", "r"));
-
         if(prr.force_mode & FORCE_MODE_PM) {
             calculate_forces(&pdata, pm, pow(vpm.pm_nc_factor, 3)); 
         }
@@ -135,13 +152,21 @@ int main(int argc, char ** argv) {
         fwrite(pdata.id, sizeof(pdata.id[0]), pdata.np, fopen("id.i8", "w"));
         fwrite(pdata.acc, sizeof(pdata.acc[0]), pdata.np, fopen("acc.f4x3", "w"));
 
-        timer_start("evolve");  
-        // Leap-frog "kick" -- velocities updated
-        stepping_kick(&pdata, a_v, a_v1, a_x);
+        if(snps_interp(&snps, a_x, a_v)) break;
 
+        // Leap-frog "kick" -- velocities updated
+
+        timer_start("evolve");  
+        stepping_kick(&pdata, a_v, a_v1, a_x);
+        timer_stop("evolve");  
+
+        if(snps_interp(&snps, a_x, a_v1)) break;
+        
         // Leap-frog "drift" -- positions updated
+        timer_start("evolve");  
         stepping_drift(&pdata, a_x, a_x1, a_v1);
         timer_stop("evolve");  
+
     }
     timer_print();
     pfft_cleanup();
@@ -265,7 +290,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
 
         timer_start("readout");
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
-            p->acc[i][d] = pm_readout_one(pm, p, i);
+            p->acc[i][d] = pm_readout_one(pm, p, i) / pm->Norm;
         }
         timer_stop("readout");
 
@@ -313,3 +338,77 @@ static double sinc_unnormed(double x) {
     }
 }
 
+static int
+snps_interp(SNPS * snps, double a_x, double a_v)
+{
+    char filebase[1024];    
+    PMStore * p = snps->p;
+    Parameters * param = snps->param;
+    PMStore snapshot;
+    double BoxSize[3] = {param->boxsize, param->boxsize, param->boxsize};
+
+    timer_set_category(SNP);
+    while(snps->iout < snps->nout && (
+        /* after a kick */
+        (a_x < snps->aout[snps->iout] && snps->aout[snps->iout] <= a_v)
+        ||
+        /* after a drift */
+        (a_x >= snps->aout[snps->iout] && snps->aout[snps->iout] >= a_v)
+        )) {
+
+        pm_store_init(&snapshot);
+
+        pm_store_alloc_bare(&snapshot, p->np_upper);
+
+        msg_printf(verbose, "Taking a snapshot...\n");
+
+        double aout = snps->aout[snps->iout];
+        int isnp= snps->iout+1;
+
+        stepping_set_snapshot(aout, a_x, a_v, p, &snapshot);
+
+        timer_start("comm");
+        pm_store_wrap(&snapshot, BoxSize);
+        timer_stop("comm");
+
+        timer_start("write");
+
+        if(param->snapshot_filename) {
+            sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
+            write_runpb_snapshot(param, &snapshot, filebase);
+        }
+        timer_stop("write");
+
+        const double rho_crit = 27.7455;
+        const double M0 = param->omega_m*rho_crit*pow(param->boxsize / param->nc, 3.0);
+        msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
+
+        const double z_out= 1.0/aout - 1.0;
+
+        msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
+                isnp, z_out, aout);
+
+        snps->iout ++;
+        pm_store_destroy(&snapshot);
+    }
+    timer_set_category(STEPPING);
+    return (snps->iout == snps->nout);
+}
+static void snps_init(SNPS * snps, Parameters * prr, PMStore * p) {
+    snps->iout = 0;
+    snps->nout = prr->n_zout;
+    snps->param = prr;
+    snps->p = p;
+
+    snps->aout = malloc(sizeof(double)*snps->nout);
+    int i;
+    for(i=0; i<snps->nout; i++) {
+        snps->aout[i] = (double)(1.0/(1 + prr->zout[i]));
+        msg_printf(verbose, "zout[%d]= %lf, aout= %f\n", 
+                i, prr->zout[i], snps->aout[i]);
+    }
+}
+
+static void snps_start(SNPS * snps) {
+    snps->iout = 0;
+}
