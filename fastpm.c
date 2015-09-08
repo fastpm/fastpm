@@ -224,8 +224,8 @@ static void apply_force_kernel(PM * pm, double density_factor, int dir) {
         }
         /* - i k[d] / k2 */
         if(kk > 0) {
-            pm->workspace[i2 + 0] =   pm->canvas[i2 + 1] * (k_finite / kk_finite);
-            pm->workspace[i2 + 1] = - pm->canvas[i2 + 0] * (k_finite / kk_finite);
+            pm->workspace[i2 + 0] =   pm->canvas[i2 + 1] * (k_finite / kk_finite * density_factor);
+            pm->workspace[i2 + 1] = - pm->canvas[i2 + 0] * (k_finite / kk_finite * density_factor);
         } else {
             pm->workspace[i2 + 0] = 0;
             pm->workspace[i2 + 1] = 0;
@@ -249,7 +249,10 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
     timer_stop("ghosts1");
 
     timer_start("paint");    
+    /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
+     * it is less than the density (a cell is smaller than the mean seperation between particles. */
     pm_paint(pm, p, p->np + pgd.nghosts);
+    
     timer_stop("paint");    
 
     fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("density.f4", "w"));
