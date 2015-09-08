@@ -188,7 +188,7 @@ static double diff_kernel(double w) {
      * */
     return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
 }
-static void apply_force_kernel(PM * pm, double density_factor, int dir) {
+static void apply_force_kernel(PM * pm, int dir) {
     ptrdiff_t ind;
     int d;
 
@@ -211,24 +211,25 @@ static void apply_force_kernel(PM * pm, double density_factor, int dir) {
             fac[d][ind].kk = k * k;
         }
     } 
-    for(ind  = 0; ind < pm->allocsize / 2; ind ++) {
-        ptrdiff_t i[3];
-        pm_unravel_o_index(pm, ind, i);
-        ptrdiff_t i2 = ind * 2;
+    
+    ptrdiff_t i[3] = {0};
+    for(ind = 0; ind < pm->allocsize; 
+        ind += 2, pm_inc_o_index(pm, i)
+    ) {
         double k_finite = fac[dir][i[dir]].k_finite;
         double kk_finite = 0;
         double kk = 0;
         for(d = 0; d < 3; d++) {
             kk_finite += fac[d][i[d]].kk_finite;
-            kk += fac[d][i[d]].kk;
+//            kk += fac[d][i[d]].kk;
         }
         /* - i k[d] / k2 */
-        if(kk > 0) {
-            pm->workspace[i2 + 0] =   pm->canvas[i2 + 1] * (k_finite / kk_finite * density_factor);
-            pm->workspace[i2 + 1] = - pm->canvas[i2 + 0] * (k_finite / kk_finite * density_factor);
+        if(LIKELY(kk_finite > 0)) {
+            pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite / kk_finite);
+            pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite / kk_finite);
         } else {
-            pm->workspace[i2 + 0] = 0;
-            pm->workspace[i2 + 1] = 0;
+            pm->workspace[ind + 0] = 0;
+            pm->workspace[ind + 1] = 0;
         }
     }
 }
@@ -268,7 +269,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Y};
     for(d = 0; d < 3; d ++) {
         timer_start("transfer");
-        apply_force_kernel(pm, density_factor, d);
+        apply_force_kernel(pm, d);
         timer_stop("transfer");
 
         char * fname[] = {
@@ -293,7 +294,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
 
         timer_start("readout");
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
-            p->acc[i][d] = pm_readout_one(pm, p, i) / pm->Norm;
+            p->acc[i][d] = pm_readout_one(pm, p, i) * (density_factor / pm->Norm);
         }
         timer_stop("readout");
 

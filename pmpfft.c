@@ -69,24 +69,23 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->Nproc[0] = Nx;
     pm->Nproc[1] = Ny;
 
-    pm->Nmesh[0] = init->Nmesh;
-    pm->Nmesh[1] = init->Nmesh;
-    pm->Nmesh[2] = init->Nmesh;
+    int d;
 
-    pm->BoxSize[0] = init->BoxSize;
-    pm->BoxSize[1] = init->BoxSize;
-    pm->BoxSize[2] = init->BoxSize;
+    pm->Norm = 1.0;
+    pm->Volume = 1.0;
+    for(d = 0; d < 3; d ++) {
+        pm->Nmesh[d] = init->Nmesh;
+        pm->BoxSize[d] = init->BoxSize;
 
-    pm->Below[0] = 0;
-    pm->Below[1] = 0;
-    pm->Below[2] = 0;
+        pm->Below[d] = 0;
+        pm->Above[d] = 1;
 
-    pm->Above[0] = 1;
-    pm->Above[1] = 1;
-    pm->Above[2] = 1;
+        pm->CellSize[d] = pm->BoxSize[d] / pm->Nmesh[d];
+        pm->InvCellSize[d] = 1.0 / pm->CellSize[d]; 
+        pm->Norm *= pm->Nmesh[d];
+        pm->Volume *= pm->BoxSize[d];
+    }
 
-    pm->Norm = ((double) pm->Nmesh[0]) * pm->Nmesh[1] * pm->Nmesh[2];
-    pm->Volume = ((double) pm->BoxSize[0]) * pm->BoxSize[1] * pm->BoxSize[2];
 
     pfft_create_procmesh(2, comm, pm->Nproc, &pm->Comm2D);
     pm->allocsize = 2 * pfft_local_size_dft_r2c(
@@ -120,7 +119,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         pm->ORegion.strides[1] = pm->ORegion.size[2];
         pm->ORegion.strides[0] = pm->ORegion.size[1] * pm->ORegion.strides[1];
     }
-    int d;
+
     for(d = 0; d < 2; d ++) {
         MPI_Comm projected;
         int remain_dims[2] = {0, 0};
@@ -201,14 +200,25 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 int pm_pos_to_rank(PM * pm, double pos[3]) {
     int d;
     int rank2d[2];
+    int ipos[3];
     for(d = 0; d < 2; d ++) {
-        int ipos = floor(pos[d] / pm->BoxSize[d] * pm->Nmesh[d]);
-        while(ipos < 0) ipos += pm->Nmesh[d];
-        while(ipos >= pm->Nmesh[d]) ipos -= pm->Nmesh[d];
+        ipos[d] = floor(pos[d] * pm->InvCellSize[d]);
+    }
+    return pm_ipos_to_rank(pm, ipos);
+}
+
+int pm_ipos_to_rank(PM * pm, int i[3]) {
+    int d;
+    int rank2d[2];
+    for(d = 0; d < 2; d ++) {
+        int ipos = i[d];
+        while(UNLIKELY(ipos < 0)) ipos += pm->Nmesh[d];
+        while(UNLIKELY(ipos >= pm->Nmesh[d])) ipos -= pm->Nmesh[d];
         rank2d[d] = pm->Grid.MeshtoCart[d][ipos];
     }
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
 }
+
 void pm_start(PM * pm) {
     pm->canvas = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
     pm->workspace = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
@@ -229,6 +239,10 @@ void pm_c2r(PM * pm) {
 }
 
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
+    /*
+     * using pm_unravel_o_index function is slower than pm_inc_o_index, thus it is only used
+     * during dev to test pm_inc_o_index.
+     * */
     ptrdiff_t tmp = ind;
     if(pm->init.transposed) {
         /* y, z, x*/
@@ -245,6 +259,30 @@ void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
         i[2] = tmp;
     }
 }
+void pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
+    if(pm->init.transposed) {
+        i[0] ++;
+        if(UNLIKELY(i[0] == pm->ORegion.size[0])) {
+            i[0] = 0;
+            i[2] ++;
+            if(UNLIKELY(i[2] == pm->ORegion.size[2])) {
+                i[2] = 0;
+                i[1] ++;
+            }
+        }
+    } else {
+        i[2] ++;
+        if(UNLIKELY(i[2] == pm->ORegion.size[2])) {
+            i[2] = 0;
+            i[1] ++;
+            if(UNLIKELY(i[1] == pm->ORegion.size[1])) {
+                i[1] = 0;
+                i[0] ++;
+            }
+        }
+    }
+}
+
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
     ptrdiff_t tmp = ind;
     i[0] = tmp / pm->IRegion.strides[0];
@@ -252,4 +290,16 @@ void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
     i[1] = tmp / pm->IRegion.strides[1];
     tmp %= pm->IRegion.strides[1];
     i[2] = tmp;
+}
+
+void pm_inc_i_index(PM * pm, ptrdiff_t i[3]) {
+    i[2] ++;
+    if(UNLIKELY(i[2] == pm->IRegion.strides[1])) { /* the padding !*/
+        i[2] = 0;
+        i[1] ++;
+        if(UNLIKELY(i[1] == pm->IRegion.size[1])) {
+            i[1] = 0;
+            i[0] ++;
+        }
+    }
 }

@@ -28,27 +28,24 @@ static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
 
 static void apply_za_transfer(PM * pm, int dir) {
     ptrdiff_t ind;
-
-    for(ind = 0; ind < pm->allocsize / 2; ind ++) {
-        ptrdiff_t i[3];
+    ptrdiff_t i[3] = {0};
+    for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
         double k[3];
         double k2;
-        pm_unravel_o_index(pm, ind, i);
         k2 = index_to_k2(pm, i, k);
-        ptrdiff_t i2 = ind * 2;
         /* i k[d] / k2 */
         if(k2 > 0) {
-            pm->workspace[i2 + 0] = - pm->canvas[i2 + 1] * (k[dir] / k2);
-            pm->workspace[i2 + 1] =   pm->canvas[i2 + 0] * (k[dir] / k2);
+            pm->workspace[ind + 0] = - pm->canvas[ind + 1] * (k[dir] / k2);
+            pm->workspace[ind + 1] =   pm->canvas[ind + 0] * (k[dir] / k2);
         } else {
-            pm->workspace[i2 + 0] = 0;
-            pm->workspace[i2 + 1] = 0;
+            pm->workspace[ind + 0] = 0;
+            pm->workspace[ind + 1] = 0;
         }
 #if 0
         if(dir == 0)
             msg_printf(debug, "%ld %ld %ld %ld %g %g %g %g,%g->%g,%g\n", ind, i[0], i[1], i[2], k[0], k[1], k[2],
-            pm->canvas[i2][0], pm->canvas[i2][1],
-            pm->workspace[i2][0], pm->workspace[i2][1]
+            pm->canvas[ind][0], pm->canvas[ind][1],
+            pm->workspace[ind][0], pm->workspace[ind][1]
             );
 #endif
     }
@@ -56,19 +53,17 @@ static void apply_za_transfer(PM * pm, int dir) {
 
 static void apply_2lpt_transfer(PM * pm, int dir1, int dir2) {
     ptrdiff_t ind;
-    for(ind = 0; ind < pm->allocsize / 2; ind ++) {
-        ptrdiff_t i[3];
+    ptrdiff_t i[3] = {0};
+    for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
         double k[3];
         double k2;
-        pm_unravel_o_index(pm, ind, i);
         k2 = index_to_k2(pm, i, k);
-        ptrdiff_t i2 = ind * 2;
         if(k2 > 0) {
-            pm->workspace[i2 + 0] = pm->canvas[i2 + 0] * (-k[dir1] * k[dir2] / k2);
-            pm->workspace[i2 + 1] = pm->canvas[i2 + 1] * (-k[dir1] * k[dir2] / k2);
+            pm->workspace[ind + 0] = pm->canvas[ind + 0] * (-k[dir1] * k[dir2] / k2);
+            pm->workspace[ind + 1] = pm->canvas[ind + 1] * (-k[dir1] * k[dir2] / k2);
         } else {
-            pm->workspace[i2 + 0] = 0;
-            pm->workspace[i2 + 1] = 0;
+            pm->workspace[ind + 0] = 0;
+            pm->workspace[ind + 1] = 0;
         }
     }
 }
@@ -76,7 +71,6 @@ static void apply_2lpt_transfer(PM * pm, int dir1, int dir2) {
 static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
     /* fill pdata with a uniform grid, respecting domain given by pm */
     
-    ptrdiff_t i[3];
     ptrdiff_t ind;
     int d;
     p->np = 1;
@@ -87,17 +81,15 @@ static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
         msg_abort(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
     }
     ptrdiff_t ptrmax = 0;
-    for(ind = 0; ind < pm->allocsize; ind ++){
-        ptrdiff_t ptr;
+    ptrdiff_t i[3] = {0};
+    ptrdiff_t ptr = 0;
+    for(ind = 0; ind < pm->allocsize; ind ++, pm_inc_i_index(pm, i)){
         uint64_t id;
-        pm_unravel_i_index(pm, ind, i);
         /* avoid the padded region */
         if(i[2] >= pm->IRegion.size[2]) continue;
 
-        ptr = 0;
         id = 0;
         for(d = 0; d < 3; d ++) {
-            ptr = ptr * pm->IRegion.size[d] + i[d];
             id = id * pm->Nmesh[d] + i[d] + pm->IRegion.start[d];
         }
 //        msg_aprintf(debug, "Creating particle at offset %td i = %td %td %td\n", ptr, i[0], i[1], i[2]);
@@ -110,6 +102,7 @@ static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
             p->id[ptr]  = id;
         }
         if(ptr > ptrmax) ptrmax = ptr;
+        ptr ++;
     }
     if(ptrmax + 1 != p->np) {
         msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td\n", ptrmax + 1, p->np);
@@ -159,12 +152,11 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
 
     msg_printf(info, "Inducing correlation to the white noise.\n");
     msg_printf(debug, "Volume = %g.\n", pm->Volume);
-    /* Watch out: PFFT_TRANSPOSED_OUT is y, x, z */
-    for(ind = 0; ind < pm->allocsize / 2; ind ++) {
-        ptrdiff_t i[3];
+
+    ptrdiff_t i[3] = {0};
+    for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
         double k[3];
         double knorm = 0;
-        pm_unravel_o_index(pm, ind, i);
         double k2 = index_to_k2(pm, i, k);
         knorm = sqrt(k2);
         double f = sqrt(pk(knorm, pkdata));
@@ -172,8 +164,8 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
         msg_printf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
                 ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
 */
-        pm->canvas[2 * ind + 0] *= f;
-        pm->canvas[2 * ind + 1] *= f;
+        pm->canvas[ind + 0] *= f;
+        pm->canvas[ind + 1] *= f;
     }
 #ifdef PM_2LPT_DUMP
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("overdensity-k.f4", "w"));

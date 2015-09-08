@@ -105,6 +105,8 @@ typedef struct {
     double * MeshtoK[3];
     double Norm;
     double Volume;
+    double CellSize[3];
+    double InvCellSize[3];
 } PM;
 
 
@@ -138,6 +140,7 @@ typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
 void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
 int pm_pos_to_rank(PM * pm, double pos[3]);
+int pm_ipos_to_rank(PM * pm, int i[3]);
 
 static inline size_t cumsum(int * out, int * in, size_t nitems) {
     size_t total = 0;
@@ -153,7 +156,9 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     return total;
 }
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
+void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
+void pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
 
 void pm_append_ghosts(PMGhostData * pgd);
 void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
@@ -174,3 +179,5 @@ void pm_store_alloc_bare(PMStore * p, size_t np_upper);
 void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
 void pm_store_wrap(PMStore * p, double BoxSize[3]);
 
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)

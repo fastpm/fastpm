@@ -23,13 +23,15 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
     ptrdiff_t ighost = 0;
     double CellSize[3];
     int d;
-    for(d = 0; d < 3; d ++) {
-        CellSize[d] = pm->BoxSize[d] / pm->Nmesh[d];
-    }
     for (i = 0; i < ppd->np; i ++) {
         double pos[3];
         int rank;
         pm->iface.get_position(ppd->pdata, i, pos);
+        int d;
+        int ipos[3];
+        for(d = 0; d < 3; d ++) {
+            ipos[d] = pos[d] * pm->InvCellSize[d];
+        }
 
         /* probe neighbours */
         ptrdiff_t j[3];
@@ -39,18 +41,18 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
         for(j[2] = pm->Below[2]; j[2] <= pm->Above[2]; j[2] ++)
         for(j[0] = pm->Below[0]; j[0] <= pm->Above[0]; j[0] ++)
         for(j[1] = pm->Below[1]; j[1] <= pm->Above[1]; j[1] ++) {
-            double npos[3];
+            int npos[3];
             int d;
             for(d = 0; d < 3; d ++) {
-                npos[d] = pos[d] + j[d] * CellSize[d];
+                npos[d] = pos[d] + j[d];
             }
-            rank = pm_pos_to_rank(pm, npos);
-            if(rank == pm->ThisTask)  continue;
+            rank = pm_ipos_to_rank(pm, npos);
+            if(LIKELY(rank == pm->ThisTask))  continue;
             int ptr;
             for(ptr = 0; ptr < used; ptr++) {
                 if(rank == ranks[ptr]) break;
             } 
-            if(ptr == used) {
+            if(UNLIKELY(ptr == used)) {
                 ranks[used++] = rank;
                 ppd->rank = rank;
                 ppd->reason = j;
