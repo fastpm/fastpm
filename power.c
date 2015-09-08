@@ -32,8 +32,6 @@ static struct pow_table
 
 void read_power_table_camb(const char filename[]);
 double normalize_power(const double a_init, const double sigma8);
-//double GrowthFactor(double astart, double aend);
-
 
 void power_init(const char filename[], const double a_init, const double sigma8, const double omega_m, const double omega_lambda)
 {
@@ -125,14 +123,7 @@ double normalize_power(const double a_init, const double sigma8)
     msg_printf(info, "Input sigma8 %f is far from target sigma8 %f; correction applied\n",
 	      sigma8_input, sigma8);
 
-  //double Dplus = GrowthFactor(a_init, 1.0);
-  //msg_printf("Growth factor correction %f\n", 1.0/Dplus);
-  //msg_printf("sigma8_initial %f\n", sigma8/res/Dplus);
-     
   return sigma8 * sigma8/ res;
-  //return sigma8 * sigma8 / res / (Dplus*Dplus); **
-  //return 1.0/(Dplus*Dplus);
-  return 1.0;
 }
 
 double PowerSpec(const double k)
@@ -193,38 +184,6 @@ double sigma2_int(double k, void *param)
   x = 4 * M_PI * k * k * w * w * func(k, data);
 
   return x;
-}
-
-double growth_int(double a, void *param)
-{
-  return pow(a / (Omega + (1 - Omega - OmegaLambda) * a + OmegaLambda * a * a * a), 1.5);
-}
-
-double growth(double a)
-{
-  double hubble_a;
-
-  hubble_a = sqrt(Omega / (a * a * a) + (1 - Omega - OmegaLambda) / (a * a) + OmegaLambda);
-
-  double result, abserr;
-  gsl_integration_workspace *workspace;
-  gsl_function F;
-
-  workspace = gsl_integration_workspace_alloc(WORKSIZE);
-
-  F.function = &growth_int;
-
-  gsl_integration_qag(&F, 0, a, 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41, 
-		      workspace, &result, &abserr);
-
-  gsl_integration_workspace_free(workspace);
-
-  return hubble_a * result;
-}
-
-double GrowthFactor(double astart, double aend)
-{
-  return growth(aend) / growth(astart);
 }
 
 double TopHatSigma2(double R, double (*func)(double, void*), void * param) {

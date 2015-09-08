@@ -13,6 +13,7 @@ void pm_destroy_ghosts(PMGhostData * ppd) {
     free(ppd->Osend);
     free(ppd->Nrecv);
     free(ppd->Orecv);
+    free(ppd->ighost_to_ipar);
 }
 
 static void pm_iter_ghosts(PM * pm, PMGhostData * ppd, 
@@ -51,7 +52,6 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
             } 
             if(ptr == used) {
                 ranks[used++] = rank;
-                ppd->ighost = ighost;
                 ppd->rank = rank;
                 ppd->reason = j;
                 iter_func(pm, ppd);
@@ -73,8 +73,14 @@ static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
             ppd->ipar, 
             pos[0], pos[1], pos[2],
             ppd->rank, ppd->reason[0], ppd->reason[1], ppd->reason[2]);
+
+    int ighost = ppd->Osend[ppd->rank] + ppd->Nsend[ppd->rank];
+
     pm->iface.pack(ppd->pdata, ppd->ipar, 
-        (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, ppd->attributes);
+        (char*) ppd->send_buffer + ighost * ppd->elsize, ppd->attributes);
+
+    ppd->ighost_to_ipar[ighost] == ppd->ipar;
+    ppd->Nsend[ppd->rank] ++;
 }
 
 void pm_append_ghosts(PMGhostData * ppd) {
@@ -97,7 +103,11 @@ void pm_append_ghosts(PMGhostData * ppd) {
 
     Nsend = cumsum(ppd->Osend, ppd->Nsend, pm->NTask);
 
+    ppd->ighost_to_ipar = malloc(Nsend * sizeof(int));
+
     ppd->send_buffer = malloc(Nsend * ppd->elsize);
+
+    memset(ppd->Nsend, 0, sizeof(ppd->Nsend[0]) * pm->NTask);
 
     pm_iter_ghosts(pm, ppd, build_ghost_buffer);
 
@@ -132,12 +142,6 @@ void pm_append_ghosts(PMGhostData * ppd) {
 
 }
 
-static void reduce_ghosts(PM * pm, PMGhostData * ppd) {
-    pm->iface.reduce(ppd->pdata, ppd->ipar, 
-        (char*) ppd->send_buffer + ppd->ighost * ppd->elsize, 
-        ppd->ReductionAttributes);
-}
-
 void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
     PM * pm = ppd->pm;
     size_t Nsend = cumsum(NULL, ppd->Nsend, pm->NTask);
@@ -164,5 +168,12 @@ void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
     MPI_Type_free(&GHOST_TYPE);
 
     /* now reduce the attributes. */
-    pm_iter_ghosts(pm, ppd, reduce_ghosts);
+    int ighost;
+    for(ighost = 0; ighost < Nsend; ighost ++) {
+        pm->iface.reduce(ppd->pdata, ppd->ighost_to_ipar[ighost], 
+            (char*) ppd->send_buffer + ighost * ppd->elsize, 
+            ppd->ReductionAttributes);
+    }
+    free(ppd->send_buffer);
+    free(ppd->recv_buffer);
 }

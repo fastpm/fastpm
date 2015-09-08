@@ -70,8 +70,6 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     if(flags != 0) {
         msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
-        raise(SIGTRAP);
-        MPI_Abort(MPI_COMM_WORLD, -1);
     }
 }
 static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
@@ -101,7 +99,10 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
 }
 
 static void * malloczero(size_t s) {
-    return calloc(s, 1);
+    return pfft_malloc(s);
+}
+static void myfree(void * p) {
+    pfft_free(p);
 }
 
 void pm_store_alloc_bare(PMStore * p, size_t np_upper) {
@@ -119,7 +120,7 @@ void pm_store_alloc_bare(PMStore * p, size_t np_upper) {
 void pm_store_init(PMStore * p) {
     memset(p, 0, sizeof(p[0]));
     p->iface.malloc = malloczero;
-    p->iface.free = free;
+    p->iface.free = myfree;
     p->iface.pack = pack;
     p->iface.unpack = unpack;
     p->iface.reduce = reduce;

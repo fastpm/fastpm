@@ -61,6 +61,7 @@ typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
     int NprocX;
+    int transposed;
 } PMInit;
 
 typedef struct {
@@ -104,7 +105,6 @@ typedef struct {
     double * MeshtoK[3];
     double Norm;
     double Volume;
-    int transposed;
 } PM;
 
 
@@ -126,7 +126,7 @@ typedef struct {
 
     /* iterator status */
     ptrdiff_t ipar; 
-    ptrdiff_t ighost;
+    int * ighost_to_ipar;
     int rank;
     ptrdiff_t * reason; /* relative offset causing the ghost */
     int ReductionAttributes;

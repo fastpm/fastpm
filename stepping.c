@@ -30,11 +30,14 @@
 #include "stepping.h"
 #include "timer.h"
 
-static double Om= -1.0f;
+#define WORKSIZE 100000
+static double Omega= -1.0f;
+static double OmegaLambda= -1.0f;
 static double nLPT= -2.5f;
 static int stdDA = 0; // velocity growth model
 static int martinKick = 0;
 
+double GrowthFactor(double astart, double aend);
 double growthD(double a);
 double growthD2(double a);
 double Sphi(double ai, double af, double aRef);
@@ -64,7 +67,8 @@ void stepping_init(Parameters * param) {
     FORCE_MODE = param->force_mode;
     NSTEPS = param->n_time_step;
     stdDA = param->cola_stdda;
-    Om = param->omega_m;
+    Omega = param->omega_m;
+    OmegaLambda = 1 - param->omega_m;
 
 //    double a_final= param->a_final;
 //    double a_init = param->a_init;
@@ -133,23 +137,22 @@ void stepping_kick(Particles* p,
         /* ZA and 2LPT sims no kicks */
         return;
     }
-    timer_start(evolve);  
     msg_printf(normal, "Kick %g -> %g\n", ai, af);
 
-    double Om143= pow(Om/(Om + (1 - Om)*ac*ac*ac), 1.0/143.0);
+    double Om143= pow(Omega/(Omega + (1 - Omega)*ac*ac*ac), 1.0/143.0);
     double dda= Sphi(ai, af, ac) * stepping_boost;
     double growth1=growthD(ac);
 
     msg_printf(normal, "growth factor %g dda=%g\n", growth1, dda);
 
-    double q2=1.5*Om*growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    double q1=1.5*Om*growth1;
+    double q2=1.5*Omega*growth1*growth1*(1.0 + 7.0/3.0*Om143);
+    double q1=1.5*Omega*growth1;
 
     double Om_;
     if (martinKick)
-        Om_ = Om/ (Om + (1 - Om) *ac * ac *ac);
+        Om_ = Omega/ (Omega + (1 - Omega) *ac * ac *ac);
     else
-        Om_ = Om;
+        Om_ = Omega;
 
     int np = p->np_local;
     float (*f)[3] = p->force;
@@ -176,14 +179,12 @@ void stepping_kick(Particles* p,
     }
 
     //velocity is now at a= avel1
-    timer_stop(evolve);  
 }
 
 void stepping_drift(Particles* p,
         double ai, double af, double ac)
     /*a_x, apos1, a_v */
 {
-    timer_start(evolve);
     int np= p->np_local;
 
 
@@ -219,12 +220,43 @@ void stepping_drift(Particles* p,
         }
     }
 
-    timer_stop(evolve);
+}
+
+double growth_int(double a, void *param)
+{
+  return pow(a / (Omega + (1 - Omega - OmegaLambda) * a + OmegaLambda * a * a * a), 1.5);
+}
+
+double growth(double a)
+{
+  double hubble_a;
+
+  hubble_a = sqrt(Omega / (a * a * a) + (1 - Omega - OmegaLambda) / (a * a) + OmegaLambda);
+
+  double result, abserr;
+  gsl_integration_workspace *workspace;
+  gsl_function F;
+
+  workspace = gsl_integration_workspace_alloc(WORKSIZE);
+
+  F.function = &growth_int;
+
+  gsl_integration_qag(&F, 0, a, 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41, 
+		      workspace, &result, &abserr);
+
+  gsl_integration_workspace_free(workspace);
+
+  return hubble_a * result;
+}
+
+double GrowthFactor(double astart, double aend)
+{
+  return growth(aend) / growth(astart);
 }
 
 double growthDtemp(double a){
     // Decided to use the analytic expression for LCDM. More transparent if I change this to numerical integration?
-    double x=-Om/(Om - 1.0)/(a*a*a);
+    double x=-Omega/(Omega - 1.0)/(a*a*a);
 
 
     double hyperP=0,hyperM=0;
@@ -257,9 +289,9 @@ double growthDtemp(double a){
 
 
     if (a > 0.2) 
-        return sqrt(1.0 + (-1.0 + pow(a,-3))*Om)*(3.4494794123063873799*pow(-1.0 + 1.0/Om,0.666666666666666666666666666) + (hyperP*(4*pow(a,3)*(-1.0 + Om) - Om) - 7.0*pow(a,3)*hyperM*(-1.0 + Om))/(pow(a,5)*(-1.0+ Om) - pow(a,2)*Om));
+        return sqrt(1.0 + (-1.0 + pow(a,-3))*Omega)*(3.4494794123063873799*pow(-1.0 + 1.0/Omega,0.666666666666666666666666666) + (hyperP*(4*pow(a,3)*(-1.0 + Omega) - Omega) - 7.0*pow(a,3)*hyperM*(-1.0 + Omega))/(pow(a,5)*(-1.0+ Omega) - pow(a,2)*Omega));
 
-    return (a*pow(1 - Om,1.5)*(1291467969*pow(a,12)*pow(-1 + Om,4) + 1956769650*pow(a,9)*pow(-1 + Om,3)*Om + 8000000000*pow(a,3)*(-1 + Om)*pow(Om,3) + 37490640625*pow(Om,4)))/(1.5625e10*pow(Om,5));    
+    return (a*pow(1 - Omega,1.5)*(1291467969*pow(a,12)*pow(-1 + Omega,4) + 1956769650*pow(a,9)*pow(-1 + Omega,3)*Omega + 8000000000*pow(a,3)*(-1 + Omega)*pow(Omega,3) + 37490640625*pow(Omega,4)))/(1.5625e10*pow(Omega,5));    
 }
 
 double growthD(double a) { // growth factor for LCDM
@@ -268,7 +300,7 @@ double growthD(double a) { // growth factor for LCDM
 
 
 double Qfactor(double a) { // Q\equiv a^3 H(a)/H0.
-    return sqrt(Om/(a*a*a)+1.0-Om)*a*a*a;
+    return sqrt(Omega/(a*a*a)+1.0-Omega)*a*a*a;
 }
 
 
@@ -276,7 +308,7 @@ double Qfactor(double a) { // Q\equiv a^3 H(a)/H0.
 
 double growthD2temp(double a){
     double d= growthD(a);
-    double omega=Om/(Om + (1.0 - Om)*a*a*a);
+    double omega=Omega/(Omega + (1.0 - Omega)*a*a*a);
     return d*d*pow(omega, -1.0/143.);
 }
 
@@ -287,19 +319,19 @@ double growthD2(double a) {// Second order growth factor
 
 double growthD2v(double a){ // explanation is in main()
     double d2= growthD2(a);
-    double omega=Om/(Om + (1.0 - Om)*a*a*a);
+    double omega=Omega/(Omega + (1.0 - Omega)*a*a*a);
     return Qfactor(a)*(d2/a)*2.0*pow(omega, 6.0/11.);
 }
 
 double decayD(double a){ // D_{-}, the decaying mode
-    return sqrt(Om/(a*a*a)+1.0-Om);
+    return sqrt(Omega/(a*a*a)+1.0-Omega);
 }
 
 double DprimeQ(double a,double nGrowth)
 { // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Qfactor(a)
     double nDecay=0.0;// not interested in decay modes in this code.
-    double Nn=6.0*pow(1.0 - Om,1.5)/growthDtemp(1.0);
-    return (pow(decayD(a),-1.0 + nDecay)*pow(growthD(a),-1.0 + nGrowth)*(nGrowth*Nn- (3.0*(nDecay + nGrowth)*Om*growthD(a))/(2.*a)));  
+    double Nn=6.0*pow(1.0 - Omega,1.5)/growthDtemp(1.0);
+    return (pow(decayD(a),-1.0 + nDecay)*pow(growthD(a),-1.0 + nGrowth)*(nGrowth*Nn- (3.0*(nDecay + nGrowth)*Omega*growthD(a))/(2.*a)));  
 }
 
 
@@ -460,7 +492,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
 
     float (*f)[3] = p->force;
 
-    Om = po->omega_m; assert(Om >= 0.0f);
+    Omega = po->omega_m; assert(Omega >= 0.0f);
 
     msg_printf(verbose, "Setting up snapshot at a= %g (z=%g) <- %g %g.\n", aout, 1.0f/aout-1, a_x, a_v);
 
@@ -471,7 +503,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     float A=   a_x;
     float AF=  aout;
 
-    float Om143= pow(Om/(Om + (1 - Om)*A*A*A), 1.0/143.0);
+    float Om143= pow(Omega/(Omega + (1 - Omega)*A*A*A), 1.0/143.0);
     float dda= Sphi(AI, AF, A) * stepping_boost;
     float growth1=growthD(A);
 
@@ -479,8 +511,8 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     //msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growth1, A);
     msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growthD(AF), AF);
 
-    float q1=1.5*Om*growth1;
-    float q2=1.5*Om*growth1*growth1*(1.0 + 7.0/3.0*Om143);
+    float q1=1.5*Omega*growth1;
+    float q2=1.5*Omega*growth1*growth1*(1.0 + 7.0/3.0*Om143);
 
     float Dv=DprimeQ(aout, 1.0); // dD_{za}/dy
     float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
@@ -512,7 +544,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     for(int i=0; i<np; i++) {
         for(int d = 0; d < 3; d ++) {
             // Kick + adding back 2LPT velocity + convert to km/s
-            float ax= -1.5*Om*f[i][0];
+            float ax= -1.5*Omega*f[i][0];
             switch(FORCE_MODE) {
                 case FORCE_MODE_COLA:
                     ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;

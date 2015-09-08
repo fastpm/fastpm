@@ -9,13 +9,12 @@
 #include <gsl/gsl_rng.h>
 
 #include "pmpfft.h"
+#include "pm2lpt.h"
 #include "msg.h"
 
 #define PM_2LPT_LOAD_NOISE_K
 //#define PM_2LPT_LOAD_DIGRAD
-//#define PM_2LPT_DUMP
-
-typedef double (*pkfunc)(double k, void * data);
+#define PM_2LPT_DUMP
 
 static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
     int d;
@@ -142,11 +141,11 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
         /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
          * forget where it is from. */
         ampl *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
-        pm->canvas[ind] = ampl * sin(phase);
-        pm->canvas[ind + 1] = ampl * cos(phase);
+        pm->workspace[ind] = ampl * sin(phase);
+        pm->workspace[ind + 1] = ampl * cos(phase);
     }
 #ifdef PM_2LPT_DUMP
-    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("noise-r.f4", "w"));
+    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("noise-r.f4", "w"));
 #endif
     msg_printf(info, "Transforming to fourier space .\n");
     pm_r2c(pm);
@@ -180,16 +179,18 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("overdensity-k.f4", "w"));
 #endif
 }
-void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, void * pkdata) {
+
+void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, void * pkdata, MPI_Comm comm) {
     PM pm;
 
     PMInit pminit = {
         .Nmesh = Ngrid,
         .BoxSize = BoxSize,
         .NprocX = 0, /* 0 for auto, 1 for slabs */
+        .transposed = 0,
     };
 
-    pm_pfft_init(&pm, &pminit, &p->iface, MPI_COMM_WORLD);
+    pm_pfft_init(&pm, &pminit, &p->iface, comm);
 
     pm_2lpt_fill_pdata(p, &pm);
     
@@ -263,13 +264,13 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
             source[i] -= pm.workspace[i] * pm.workspace[i];
         }
     } 
-    memcpy(pm.canvas, source, pm.allocsize * sizeof(pm.canvas[0]));
+    memcpy(pm.workspace, source, pm.allocsize * sizeof(pm.canvas[0]));
 
 #ifdef PM_2LPT_DUMP
-    fwrite(pm.canvas, sizeof(pm.canvas[0]), pm.allocsize, fopen("digrad.f4", "w"));
+    fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen("digrad.f4", "w"));
 #endif
 #ifdef PM_2LPT_LOAD_DIGRAD
-    fread(pm.canvas, sizeof(pm.canvas[0]), pm.allocsize, fopen("input-digrad.f4", "r"));
+    fread(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen("input-digrad.f4", "r"));
 #endif
     pm_r2c(&pm);
 
@@ -291,7 +292,7 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
         pm_c2r(&pm);
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
-            p->dx2[i][d] = 3.0 / 7.0 * pm_readout_one(&pm, p, i) / pm.Norm ;
+            p->dx2[i][d] = pm_readout_one(&pm, p, i) / pm.Norm ;
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }

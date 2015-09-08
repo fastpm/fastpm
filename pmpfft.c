@@ -45,7 +45,6 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
     pm->init = *init;
     pm->iface = *iface;
-    pm->transposed = 0;
 
     /* initialize the domain */    
     MPI_Comm_rank(comm, &pm->ThisTask);
@@ -93,7 +92,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->allocsize = 2 * pfft_local_size_dft_r2c(
                 3, pm->Nmesh, pm->Comm2D, 
                           0
-                        | (pm->transposed?PFFT_TRANSPOSED_OUT:0)
+                        | (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
                         | PFFT_PADDED_R2C, 
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
@@ -110,12 +109,15 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->IRegion.strides[1] = 2* (pm->Nmesh[2] / 2 + 1); /* padded */
     pm->IRegion.strides[0] = pm->IRegion.size[1] * pm->IRegion.strides[1];
 
-    pm->ORegion.strides[2] = 1;
-    if(pm->transposed) {
-        pm->ORegion.strides[0] = pm->Nmesh[2] / 2 + 1; /* transposed */
-        pm->ORegion.strides[1] = pm->ORegion.size[0] * pm->ORegion.strides[0];
+    if(pm->init.transposed) {
+        /* transposed, y, z, x */
+        pm->ORegion.strides[0] = 1;
+        pm->ORegion.strides[2] = pm->ORegion.size[0];
+        pm->ORegion.strides[1] = pm->ORegion.size[2] * pm->ORegion.strides[2];
     } else {
-        pm->ORegion.strides[1] = pm->Nmesh[2] / 2 + 1; /* non-transposed */
+        /* non-transposed */
+        pm->ORegion.strides[2] = 1;
+        pm->ORegion.strides[1] = pm->ORegion.size[2];
         pm->ORegion.strides[0] = pm->ORegion.size[1] * pm->ORegion.strides[1];
     }
     int d;
@@ -155,26 +157,33 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     }
 
     pm->canvas = pm->iface.malloc(pm->allocsize * sizeof(pm->canvas[0]));
+    pm->workspace = pm->iface.malloc(pm->allocsize * sizeof(pm->workspace[0]));
 
-    int r2cflags = PFFT_PADDED_R2C 
-            | (pm->transposed?PFFT_TRANSPOSED_OUT:0)
-            | PFFT_ESTIMATE | PFFT_DESTROY_INPUT;
-    int c2rflags = PFFT_PADDED_C2R 
-            | (pm->transposed?PFFT_TRANSPOSED_IN:0)
-            | PFFT_ESTIMATE | PFFT_DESTROY_INPUT;
+    unsigned int r2cflags = PFFT_PADDED_R2C 
+            | (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
+            | PFFT_ESTIMATE 
+            //| PFFT_MEASURE
+            | PFFT_DESTROY_INPUT;
+    unsigned int c2rflags = PFFT_PADDED_C2R 
+            | (pm->init.transposed?PFFT_TRANSPOSED_IN:0)
+            | PFFT_ESTIMATE 
+            //| PFFT_MEASURE
+            | PFFT_DESTROY_INPUT;
 
     pm->r2c = (pfft_plan) plan_dft_r2c(
-            3, pm->Nmesh, (void*) pm->canvas, (void*) pm->canvas, 
+            3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
             pm->Comm2D,
             PFFT_FORWARD, r2cflags);
 
     pm->c2r = (pfft_plan) plan_dft_c2r(
-            3, pm->Nmesh, (void*) pm->canvas, (void*) pm->canvas, 
+            3, pm->Nmesh, (void*) pm->workspace, (void*) pm->workspace, 
             pm->Comm2D,
             PFFT_BACKWARD, c2rflags);
 
     pm->iface.free(pm->canvas);
+    pm->iface.free(pm->workspace);
     pm->canvas = NULL;
+    pm->workspace = NULL;
 
     for(d = 0; d < 3; d++) {
         pm->MeshtoK[d] = malloc(pm->Nmesh[d] * sizeof(double));
@@ -212,7 +221,7 @@ void pm_stop(PM * pm) {
 }
 
 void pm_r2c(PM * pm) {
-    execute_dft_r2c((plan) pm->r2c, pm->canvas, (void*)pm->canvas);
+    execute_dft_r2c((plan) pm->r2c, pm->workspace, (void*)pm->canvas);
 }
 
 void pm_c2r(PM * pm) {
@@ -221,12 +230,13 @@ void pm_c2r(PM * pm) {
 
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
     ptrdiff_t tmp = ind;
-    if(pm->transposed) {
+    if(pm->init.transposed) {
+        /* y, z, x*/
         i[1] = tmp / pm->ORegion.strides[1];
         tmp %= pm->ORegion.strides[1];
-        i[0] = tmp / pm->ORegion.strides[0];
-        tmp %= pm->ORegion.strides[0];
-        i[2] = tmp;
+        i[2] = tmp / pm->ORegion.strides[2];
+        tmp %= pm->ORegion.strides[2];
+        i[0] = tmp;
     } else {
         i[0] = tmp / pm->ORegion.strides[0];
         tmp %= pm->ORegion.strides[0];
