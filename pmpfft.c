@@ -98,7 +98,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 pm->ORegion.size, pm->ORegion.start);
 
 
-
+#if 0
     msg_aprintf(debug, "IRegion : %td %td %td + %td %td %td\n",
         pm->IRegion.start[0],
         pm->IRegion.start[1],
@@ -117,7 +117,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         pm->ORegion.size[2]
     );
     /* Set up strides for IRegion (real) and ORegion(complex) */
-
+#endif
     /* Note that we need to fix up the padded size of the real data;
      * and transpose with strides , */
 

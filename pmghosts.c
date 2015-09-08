@@ -117,9 +117,7 @@ void pm_append_ghosts(PMGhostData * ppd) {
 
     /* exchange */
     MPI_Alltoall(ppd->Nsend, 1, MPI_INT, ppd->Nrecv, 1, MPI_INT, pm->Comm2D);
-    for(i = 0; i < pm->NTask; i ++) {
-        msg_aprintf(debug, "Sending %d ghosts to %td\n", ppd->Nsend[i], i);
-    }
+
     Nrecv = cumsum(ppd->Orecv, ppd->Nrecv, pm->NTask);
     
     ppd->recv_buffer = malloc(Nrecv * ppd->elsize);

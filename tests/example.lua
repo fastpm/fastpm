@@ -6,7 +6,7 @@
 --boxsize = 1380.0
 
 -- For Testing
-nc = 8
+nc = 64
 boxsize = 128.0
 
 -- Broken, always use 1
@@ -14,7 +14,7 @@ nrealization= 1
 
 -------- Time Sequence ----
 -- Uniform time steps in a
-ntimestep= 1
+ntimestep= 10
 a_init = 0.5
 a_final= 1.0
 -- Alternatively, specify the steps manually
