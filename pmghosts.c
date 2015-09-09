@@ -131,7 +131,7 @@ void pm_append_ghosts(PMGhostData * ppd) {
     MPI_Datatype GHOST_TYPE;
     MPI_Type_contiguous(ppd->elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
-    MPI_Alltoallv(ppd->send_buffer, ppd->Nsend, ppd->Osend, GHOST_TYPE,
+    MPI_Alltoallv_sparse(ppd->send_buffer, ppd->Nsend, ppd->Osend, GHOST_TYPE,
                   ppd->recv_buffer, ppd->Nrecv, ppd->Orecv, GHOST_TYPE,
                     pm->Comm2D);
     MPI_Type_free(&GHOST_TYPE);
@@ -165,7 +165,7 @@ void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
     MPI_Datatype GHOST_TYPE;
     MPI_Type_contiguous(ppd->elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
-    MPI_Alltoallv(ppd->recv_buffer, ppd->Nrecv, ppd->Orecv, GHOST_TYPE,
+    MPI_Alltoallv_sparse(ppd->recv_buffer, ppd->Nrecv, ppd->Orecv, GHOST_TYPE,
                   ppd->send_buffer, ppd->Nsend, ppd->Osend, GHOST_TYPE,
                     pm->Comm2D);
     MPI_Type_free(&GHOST_TYPE);

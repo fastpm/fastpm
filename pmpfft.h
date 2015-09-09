@@ -182,3 +182,8 @@ void pm_store_wrap(PMStore * p, double BoxSize[3]);
 
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
+
+int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
+        MPI_Datatype sendtype, void *recvbuf, int *recvcnts,
+        int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
+

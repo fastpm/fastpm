@@ -236,7 +236,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     MPI_Datatype PTYPE;
     MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
     MPI_Type_commit(&PTYPE);
-    MPI_Alltoallv(
+    MPI_Alltoallv_sparse(
             send_buffer, sendcount, sendoffset, PTYPE,
             recv_buffer, recvcount, recvoffset, PTYPE,
             comm);
