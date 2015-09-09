@@ -250,6 +250,9 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 
     p->iface.free(recv_buffer);
     p->iface.free(send_buffer);
+    free(recvcount);
+    free(recvoffset);
+    free(sendoffset);
     free(offsets);
     free(count);
 }

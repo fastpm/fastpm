@@ -159,6 +159,7 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
     if(j >= pm->ORegion.size[1]) abort();
     return table[d1][d2][i * pm->ORegion.size[1] + j];
 }
+
 static void 
 pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata) 
 {
@@ -292,19 +293,61 @@ pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
 }
 
 static void 
-pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) 
+pm_2lpt_induce_correlation(PM * pm, int seed, pkfunc pk, void * pkdata) {
+#ifdef PM_2LPT_DUMP
+    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("noise-r.f4", "w"));
+#endif
+    msg_printf(info, "Transforming to fourier space .\n");
+    pm_r2c(pm);
+
+
+#ifdef PM_2LPT_LOAD_NOISE_K
+    fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("input-noise-k.f4", "r"));
+#endif
+#ifdef PM_2LPT_DUMP
+    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("noise-k.f4", "w"));
+#endif
+    msg_printf(info, "Inducing correlation to the white noise.\n");
+    msg_printf(debug, "Volume = %g.\n", pm->Volume);
+
+    ptrdiff_t i[3] = {0};
+    ptrdiff_t ind;
+    for(ind = 0; ind < pm->ORegion.total *2 ; ind += 2, pm_inc_o_index(pm, i)) {
+        double k[3];
+        double knorm = 0;
+        double k2 = index_to_k2(pm, i, k);
+        knorm = sqrt(k2);
+        double f = sqrt(pk(knorm, pkdata));
+
+//        msg_aprintf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
+//                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
+
+        pm->canvas[ind + 0] *= f;
+        pm->canvas[ind + 1] *= f;
+    }
+
+#ifdef PM_2LPT_DUMP
+    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("overdensity-k.f4", "w"));
+#endif
+}
+
+
+static void 
+pm_2lpt_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
     int d;
 
-    msg_printf(info, "Filling initial white noise field in x-space.\n");
     gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
 
-    gsl_rng_set(random_generator, seed * pm->NTask + pm->ThisTask);
-    ptrdiff_t i[3] = {0};
+    /* set uncorrelated seeds */
+    gsl_rng_set(random_generator, seed);
+    for(d = 0; d < pm->ThisTask * 8; d++) {
+        seed = 0x7fffffff * gsl_rng_uniform(random_generator); 
+    }
 
-    /* first fill in x-space, then transform to ensure conjugates;
-     * this means no zoomins! */
+    gsl_rng_set(random_generator, seed);
+
     for(ind = 0; ind < pm->IRegion.total; ind += 2) {
         double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
         double ampl;
@@ -321,8 +364,19 @@ pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata)
         pm->workspace[ind] = ampl * sin(phase);
         pm->workspace[ind + 1] = ampl * cos(phase);
     }
-    
+    pm_2lpt_induce_correlation(pm, seed, pk, pkdata);
+}
+
+static void 
+pm_2lpt_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata) 
+{    
+    ptrdiff_t i[3] = {0};
+    ptrdiff_t ind;
+    int d;
+    gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+
     gsl_rng_set(random_generator, seed);
+
     for(i[0] = 0; i[0] < pm->Nmesh[0]; i[0]++)
     for(i[1] = 0; i[1] < pm->Nmesh[1]; i[1]++)
     for(i[2] = 0; i[2] < pm->Nmesh[2]; i[2]++) {
@@ -347,40 +401,8 @@ pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata)
         next:
         continue;
     }
-
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("noise-r.f4", "w"));
-#endif
-    msg_printf(info, "Transforming to fourier space .\n");
-    pm_r2c(pm);
-
-#ifdef PM_2LPT_LOAD_NOISE_K
-    fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("input-noise-k.f4", "r"));
-#endif
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("noise-k.f4", "w"));
-#endif
-    msg_printf(info, "Inducing correlation to the white noise.\n");
-    msg_printf(debug, "Volume = %g.\n", pm->Volume);
-
-    i[0] = i[1] = i[2] = 0;
-    for(ind = 0; ind < pm->ORegion.total *2 ; ind += 2, pm_inc_o_index(pm, i)) {
-        double k[3];
-        double knorm = 0;
-        double k2 = index_to_k2(pm, i, k);
-        knorm = sqrt(k2);
-        double f = sqrt(pk(knorm, pkdata));
-
-//        msg_aprintf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
-//                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
-
-        pm->canvas[ind + 0] *= f;
-        pm->canvas[ind + 1] *= f;
-    }
-
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("overdensity-k.f4", "w"));
-#endif
+    pm_2lpt_induce_correlation(pm, seed, pk, pkdata);
+    gsl_rng_free(random_generator);
 }
 
 void 
@@ -412,8 +434,8 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
 
     pm_start(&pm);
     
-    pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
-//    pm_2lpt_fill_gaussian(&pm, seed, pk, pkdata);
+//    pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
+    pm_2lpt_fill_gaussian_slow(&pm, seed, pk, pkdata);
 
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
@@ -532,5 +554,8 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
     fwrite(p->dx1, sizeof(p->dx1[0]), p->np, fopen("dx1.f4x3", "w"));
     fwrite(p->dx2, sizeof(p->dx2[0]), p->np, fopen("dx2.f4x3", "w"));
 #endif
+
+    pm_destroy_ghosts(&pgd);
+    pm_stop(&pm);
 }
 

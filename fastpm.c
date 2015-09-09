@@ -170,6 +170,7 @@ int main(int argc, char ** argv) {
         timer_stop("evolve");  
 
     }
+    pm_store_destroy(&pdata);
     timer_print();
     pfft_cleanup();
     MPI_Finalize();
