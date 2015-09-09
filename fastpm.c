@@ -149,11 +149,12 @@ int main(int argc, char ** argv) {
         if(prr.force_mode & FORCE_MODE_PM) {
             calculate_forces(&pdata, pm, pow(vpm.pm_nc_factor, 3)); 
         }
+#if 0
         fwrite(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("x.f8x3", "w"));
         fwrite(pdata.v, sizeof(pdata.v[0]), pdata.np, fopen("v.f4x3", "w"));
         fwrite(pdata.id, sizeof(pdata.id[0]), pdata.np, fopen("id.i8", "w"));
         fwrite(pdata.acc, sizeof(pdata.acc[0]), pdata.np, fopen("acc.f4x3", "w"));
-
+#endif
         if(snps_interp(&snps, a_x, a_v)) break;
 
         // Leap-frog "kick" -- velocities updated
@@ -261,13 +262,16 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
     
     timer_stop("paint");    
 
+#if 0
     fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("density.f4", "w"));
-
+#endif
     timer_start("fft");
     pm_r2c(pm);
     timer_stop("fft");
 
+#if 0
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("density-k.f4", "w"));
+#endif
 
     int d;
     ptrdiff_t i;
@@ -277,6 +281,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
         apply_force_kernel(pm, d);
         timer_stop("transfer");
 
+#if 0
         char * fname[] = {
                 "acc-0.f4",
                 "acc-1.f4",
@@ -284,11 +289,12 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
             };
 
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname[d], "w"));
-
+#endif
         timer_start("fft");
         pm_c2r(pm);
         timer_stop("fft");
 
+#if 0
         char * fname2[] = {
                 "accr-0.f4",
                 "accr-1.f4",
@@ -296,6 +302,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
             };
 
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname2[d], "w"));
+#endif
 
 
         timer_start("readout");

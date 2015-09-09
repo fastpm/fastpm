@@ -219,11 +219,12 @@ int main(int argc, char* argv[])
                         real_bb, linear_bb, real_bb / linear_bb, step_boost);
                 }
             }
+#if 0
             fwrite(particles->x, sizeof(particles->x[0]), particles->np_local, fopen("qrpm-x.f4x3", "w"));
             fwrite(particles->v, sizeof(particles->v[0]), particles->np_local, fopen("qrpm-v.f4x3", "w"));
             fwrite(particles->id, sizeof(particles->id[0]), particles->np_local, fopen("qrpm-id.i8", "w"));
             fwrite(particles->force, sizeof(particles->force[0]), particles->np_local, fopen("qrpm-acc.f4x3", "w"));
-
+#endif
             while(iout < nout && a_v <= aout[iout] && aout[iout] <= a_x) {
                 // Time to write output
                 snapshot_time(&param, aout[iout], iout, a_x, a_v, particles, snapshot);
