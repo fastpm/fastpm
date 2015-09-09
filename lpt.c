@@ -194,7 +194,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
             for(int j = 0; j < Nmesh; j++) {
                 gsl_rng_set(random_generator, seedtable[i * Nmesh + j]);
 
-                for(int k = 0; k <= Nmesh / 2; k++) {
+                for(int k = 0; k < Nmesh / 2; k++) {
                     double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
                     double ampl;
                     do
@@ -239,10 +239,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
 
                     double p_of_k = PowerSpec(kmag);
 
-                    //ampl = exp(-1.0);
-                    //phase = M_PI;
                     p_of_k *= -log(ampl);
-                    ampl = fac * sqrt(-log(ampl));
 
                     double delta = fac * sqrt(p_of_k); // / Dplus;	
                     // Displacement is extrapolated to a=1
@@ -257,14 +254,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                                     + k][1] =
                                     kvec[axes] / kmag2 * delta * cos(phase);
                             }
-                            cdigrad[0][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
-                                + k][0] = ampl * cos(phase);
-                            cdigrad[0][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
-                                + k][1] = ampl * sin(phase);
-                            cdigrad[1][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
-                                + k][0] = delta * cos(phase);
-                            cdigrad[1][((i - Local_x_start) * Nmesh + j) * (Nmesh / 2 + 1)
-                                + k][1] = delta * sin(phase);
                     }
                     else { // k=0 plane needs special treatment
                         if(i == 0) {
@@ -289,25 +278,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                                             (Nmesh / 2 + 1) + k][1] =
                                             -kvec[axes] / kmag2 * delta * cos(phase);
                                     }
-                                    cdigrad[0][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][0] = ampl * cos(phase);
-                                    cdigrad[0][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][1] = ampl * sin(phase);
-
-                                    cdigrad[0][((i - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][0] = ampl * cos(phase);
-                                    cdigrad[0][((i - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][1] = - ampl * sin(phase);
-
-                                    cdigrad[1][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][0] = delta * cos(phase);
-                                    cdigrad[1][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][1] = delta * sin(phase);
-
-                                    cdigrad[1][((i - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][0] = delta * cos(phase);
-                                    cdigrad[1][((i - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][1] = - delta * sin(phase);
                                 }
                             }
                         }
@@ -331,14 +301,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                                             (Nmesh / 2 + 1) + k][1] =
                                             kvec[axes] / kmag2 * delta * cos(phase);
                                     }
-                                    cdigrad[0][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][0] = ampl * cos(phase);
-                                    cdigrad[0][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][1] = ampl * sin(phase);
-                                    cdigrad[1][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][0] = delta * cos(phase);
-                                    cdigrad[1][((i - Local_x_start) * Nmesh + j) * 
-                                        (Nmesh / 2 + 1) + k][1] = delta * sin(phase);
 
                                 if(ii >= Local_x_start && ii < (Local_x_start + Local_nx))
                                     for(int axes = 0; axes < 3; axes++) {
@@ -349,14 +311,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                                             (Nmesh / 2 + 1) + k][1] = 
                                             -kvec[axes] / kmag2 * delta * cos(phase);
                                     }
-                                    cdigrad[0][((ii - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][0] = ampl * cos(phase);
-                                    cdigrad[0][((ii - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][1] = -ampl * sin(phase);
-                                    cdigrad[1][((ii - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][0] = delta * cos(phase);
-                                    cdigrad[1][((ii - Local_x_start) * Nmesh + jj) * 
-                                        (Nmesh / 2 + 1) + k][1] = -delta * sin(phase);
                             }
                         }
                     }
@@ -365,11 +319,7 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
         }
     }
 
-    fwrite(cdigrad[0], 2 * sizeof(float), total_size, fopen("input-noise-k.f4", "w"));
-    fwrite(cdigrad[1], 2 * sizeof(float), total_size, fopen("qrpm-delta-k.f4", "w"));
-    fwrite(cdisp[0], 2 * sizeof(float), total_size, fopen("qrpm-dx1-0.f4", "w"));
-    fwrite(cdisp[1], 2 * sizeof(float), total_size, fopen("qrpm-dx1-1.f4", "w"));
-    fwrite(cdisp[2], 2 * sizeof(float), total_size, fopen("qrpm-dx1-2.f4", "w"));
+
     //
     // 2nd order LPT
     //
@@ -439,8 +389,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
             }
         }
     }
-
-    fwrite(digrad[3], 2 * sizeof(float), total_size, fopen("input-digrad.f4", "w"));
 
     msg_printf(verbose, "Fourier transforming second order source...\n");
 
@@ -514,9 +462,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
         }
     }
 
-    fwrite(cdisp2[0], 2 * sizeof(float), total_size, fopen("qrpm-dx2-0.f4", "w"));
-    fwrite(cdisp2[1], 2 * sizeof(float), total_size, fopen("qrpm-dx2-1.f4", "w"));
-    fwrite(cdisp2[2], 2 * sizeof(float), total_size, fopen("qrpm-dx2-2.f4", "w"));
     // Now, both cdisp, and cdisp2 have the ZA and 2nd order displacements
 
     for(int axes = 0; axes < 3; axes++) {  
@@ -532,8 +477,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     const float dx= Box/Nmesh;
     const float Dplus = 1.0/GrowthFactor(InitTime, 1.0);
     float maxdisp= 0.0f;
-    double dx1disp = 0.0f;
-    double dx2disp = 0.0f;
 
     double nmesh3_inv= 1.0/pow((double)Nmesh, 3.0);
     int64_t id= (int64_t) Local_x_start*Nmesh*Nmesh + 1;
@@ -577,16 +520,13 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                     float dis_mag= fabsf(dis*Dplus - 3.0/7.0*D20*dis2*D2);
                     if(dis_mag > maxdisp)
                         maxdisp= dis_mag;
-                    dx1disp += dis * dis;
-                    dx2disp += dis2 * dis2;
                 }
                 p->id[ip] = id++;
                 ip++;
             }
         }
     }
-    fwrite(p->dx1, sizeof(p->dx1[0]), ip, fopen("qrpm-dx1.f4x3", "w"));
-    fwrite(p->dx2, sizeof(p->dx2[0]), ip, fopen("qrpm-dx2.f4x3", "w"));
+
     gsl_rng_free(random_generator);
 
     float max_disp_glob;
@@ -596,10 +536,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
     msg_printf(verbose, 
             "Maximum displacement: %f, in units of the part-spacing= %f\n",
             max_disp_glob, max_disp_glob / dx);
-
-    msg_printf(verbose, 
-            "Dis1 disp: %g, dis2 disp %g\n",
-            sqrt(dx1disp / ip / 3), sqrt(dx2disp / ip / 3));
 
     p->np_local= Local_nx*Nmesh*Nmesh;
 
