@@ -1,11 +1,16 @@
 
 CC=mpicc
 OPTIMIZE = -O0 -g
-CPPFLAGS += -I depends/install/include
-LDFLAGS += -L depends/install/lib
 
 CPPFLAGS += -I lua
 LDFLAGS += -L lua
+
+GSL_DIR   ?= #e.g. /Users/jkoda/Research/opt/gcc/gsl
+
+DIR_PATH = $(GSL_DIR) depends/install
+
+CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
+LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
 		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
