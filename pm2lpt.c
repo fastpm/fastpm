@@ -434,8 +434,8 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
 
     pm_start(&pm);
     
-//    pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
-    pm_2lpt_fill_gaussian_slow(&pm, seed, pk, pkdata);
+    pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
+//    pm_2lpt_fill_gaussian_slow(&pm, seed, pk, pkdata);
 
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
