@@ -446,7 +446,6 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
             p->dx2[i][d] = pm_readout_one(&pm, p, i) / pm.Norm ;
-            p->dx2[i][d] = 0;
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }
