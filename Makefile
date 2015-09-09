@@ -11,7 +11,7 @@ SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
 		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
 
 PFFTLIB = depends/install/lib/libpfft.a
-fastpm: $(SOURCES:%.c=.objs/%.o) $(PFFTLIB)
+fastpm: $(PFFTLIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
 			$(LDFLAGS) -llua -lgsl \
 			-lpfft -lfftw3_mpi -lfftw3 \
