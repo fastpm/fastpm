@@ -206,33 +206,32 @@ pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
             /* always pull the gaussian from the lower quadrant plane for k = 0
              * plane*/
             int hermitian = 0;
-            if(i == 0) {
-                int jj = (j > pm->Nmesh[1] / 2)? j - pm->Nmesh[1]: j;
-                if(jj != j) {
-                    jj = - jj;
-                    hermitian = 1; 
-                }
-                unsigned int seed = GETSEED(pm, seedtable, i, j, 0, j > pm->Nmesh[1] / 2);
-                gsl_rng_set(random_generator0, seed);
-            } else {
-                int ii = (i > pm->Nmesh[0] / 2)? i - pm->Nmesh[0] : i;
-                if(i != ii) {
-                    ii = - ii;
-                    int jj = j!= 0?(pm->Nmesh[1] - j):0;
-                    hermitian = 1;
-                    unsigned int seed = GETSEED(pm, seedtable, i, j, 
-                            i > pm->Nmesh[0] / 2, j!=0);
+            int d1 = 0, d2 = 0;
 
-                    gsl_rng_set(random_generator0, seed);
+            if(i == 0) {
+                if(j > pm->Nmesh[1] / 2) {
+                    hermitian = 1; 
+                    d2 = 1;
+                } 
+            } else {
+                if(i > pm->Nmesh[0] / 2) {
+                    hermitian = 1;
+                    d1 = 1;
+                    d2 = j != 0;
                 }  else {
-                    unsigned int seed = GETSEED(pm, seedtable, i, j, 0, 0);
-                    gsl_rng_set(random_generator0, seed);
+                    /* no transpose */
+                    d1 = d2 = 0;
                 }
             } 
 
-            unsigned int seed = GETSEED(pm, seedtable, i, j, 0, 0);
+            unsigned int seed;
+            seed = GETSEED(pm, seedtable, i, j, d1, d2);
+            gsl_rng_set(random_generator0, seed);
+
+            seed = GETSEED(pm, seedtable, i, j, 0, 0);
             gsl_rng_set(random_generator1, seed);
 
+            /* this black magic matches two generators. */
             double skip = gsl_rng_uniform(random_generator1);
             do skip = gsl_rng_uniform(random_generator1);
             while(skip == 0);
