@@ -19,6 +19,7 @@
 static double 
 index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
 {
+    /* convert (rel) integer to k values. */
     int d;
     double k2 = 0;
     for(d = 0; d < 3 ; d++) {
@@ -31,10 +32,7 @@ index_to_k2(PM * pm, ptrdiff_t i[3], double k[3])
 static void 
 apply_za_transfer(PM * pm, int dir) 
 {
-
-//    memcpy(pm->workspace, pm->canvas, pm->allocsize * sizeof(pm->canvas[0]));
-//    msg_printf(debug, "Disabled ZA");
-//    return ;
+    /* apply za transfer function i k / k2 from canvas -> workspace */
     ptrdiff_t ind;
     ptrdiff_t i[3] = {0};
     for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
@@ -62,6 +60,7 @@ apply_za_transfer(PM * pm, int dir)
 static void 
 apply_2lpt_transfer(PM * pm, int dir1, int dir2) 
 {
+    /* apply 2lpt transfer function - k k / k2 from canvas -> workspace */
     ptrdiff_t ind;
     ptrdiff_t i[3] = {0};
     for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
@@ -126,35 +125,60 @@ pm_2lpt_fill_pdata(PMStore * p, PM * pm)
             );
     }
 }
-
 inline void 
-SETSEED(PM * pm, unsigned int * table, int i, int j, gsl_rng * rng) 
+SETSEED(PM * pm, unsigned int * table[2][2], int i, int j, gsl_rng * rng) 
 { 
     unsigned int seed = 0x7fffffff * gsl_rng_uniform(rng); 
-    table[(i) * pm->Nmesh[1] + (j)] = seed;
+
+    int ii[2] = {i, pm->Nmesh[0] - i};
+    int jj[2] = {j, pm->Nmesh[1] - j};
+    int d1, d2;
+    for(d1 = 0; d1 < 2; d1++) {
+        ii[d1] -= pm->ORegion.start[0];
+        jj[d1] -= pm->ORegion.start[1];
+    }
+    for(d1 = 0; d1 < 2; d1++)
+    for(d2 = 0; d2 < 2; d2++) {
+        if( ii[d1] >= 0 && 
+            ii[d1] < pm->ORegion.size[0] &&
+            jj[d2] >= 0 &&
+            jj[d2] < pm->ORegion.size[1]
+        ) {
+            table[d1][d2][ii[d1] * pm->ORegion.size[1] + jj[d2]] = seed;
+        }
+    }
 }
 inline unsigned int 
-GETSEED(PM * pm, unsigned int * table, int i, int j) 
+GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2) 
 {
-    return table[i * pm->Nmesh[1] + j];
+    i -= pm->ORegion.start[0];
+    j -= pm->ORegion.start[1];
+    if(i < 0) abort();
+    if(j < 0) abort();
+    if(i >= pm->ORegion.size[0]) abort();
+    if(j >= pm->ORegion.size[1]) abort();
+    return table[d1][d2][i * pm->ORegion.size[1] + j];
 }
 static void 
 pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata) 
 {
+    /* Fill gaussian with gadget scheme */
     ptrdiff_t ind;
     int d;
+    int i, j, k;
 
     memset(pm->canvas, 0, sizeof(pm->canvas[0]) * pm->allocsize);
 
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_ranlxd1);
     gsl_rng_set(rng, seed);
 
-    unsigned int * seedtable = malloc(sizeof(int) * pm->Nmesh[0] * pm->Nmesh[1]);
+    unsigned int * seedtable[2][2];
+    for(i = 0; i < 2; i ++)
+    for(j = 0; j < 2; j ++) {
+            seedtable[i][j] = calloc(pm->ORegion.size[0] * pm->ORegion.size[1], sizeof(int));
+    }
 
-    {
-    int i, j;
-    for(i = 0; i < pm->Nmesh[0] / 2; i++)
-    {
+    for(i = 0; i < pm->Nmesh[0] / 2; i++) {
         for(j = 0; j < i; j++) SETSEED(pm, seedtable, i, j, rng);
         for(j = 0; j < i + 1; j++) SETSEED(pm, seedtable, j, i, rng);
         for(j = 0; j < i; j++) SETSEED(pm, seedtable, pm->Nmesh[0] - 1 - i, j, rng);
@@ -164,13 +188,11 @@ pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
         for(j = 0; j < i; j++) SETSEED(pm, seedtable, pm->Nmesh[0] - 1 - i, pm->Nmesh[1] - 1 - j, rng);
         for(j = 0; j < i + 1; j++) SETSEED(pm, seedtable, pm->Nmesh[1] - 1 - j, pm->Nmesh[0] - 1 - i, rng);
     }
-    }
     gsl_rng_free(rng);
 
     double fac = sqrt(pow(2 * M_PI, 3) / pm->Volume);
 
     ptrdiff_t irel[3];
-    int i, j, k;
     for(i = pm->ORegion.start[0]; 
         i < pm->ORegion.start[0] + pm->ORegion.size[0]; 
         i ++) {
@@ -190,20 +212,26 @@ pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
                     jj = - jj;
                     hermitian = 1; 
                 }
-                gsl_rng_set(random_generator0, GETSEED(pm, seedtable, i, jj));
+                unsigned int seed = GETSEED(pm, seedtable, i, j, 0, j > pm->Nmesh[1] / 2);
+                gsl_rng_set(random_generator0, seed);
             } else {
                 int ii = (i > pm->Nmesh[0] / 2)? i - pm->Nmesh[0] : i;
                 if(i != ii) {
                     ii = - ii;
                     int jj = j!= 0?(pm->Nmesh[1] - j):0;
                     hermitian = 1;
-                    gsl_rng_set(random_generator0, GETSEED(pm, seedtable, ii, jj));
+                    unsigned int seed = GETSEED(pm, seedtable, i, j, 
+                            i > pm->Nmesh[0] / 2, j!=0);
+
+                    gsl_rng_set(random_generator0, seed);
                 }  else {
-                    gsl_rng_set(random_generator0, GETSEED(pm, seedtable, i, j));
+                    unsigned int seed = GETSEED(pm, seedtable, i, j, 0, 0);
+                    gsl_rng_set(random_generator0, seed);
                 }
             } 
 
-            gsl_rng_set(random_generator1, GETSEED(pm, seedtable, i, j));
+            unsigned int seed = GETSEED(pm, seedtable, i, j, 0, 0);
+            gsl_rng_set(random_generator1, seed);
 
             double skip = gsl_rng_uniform(random_generator1);
             do skip = gsl_rng_uniform(random_generator1);
@@ -253,7 +281,10 @@ pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
         gsl_rng_free(random_generator0);
         gsl_rng_free(random_generator1);
     }
-    free(seedtable);
+    for(i = 0; i < 2; i ++)
+    for(j = 0; j < 2; j ++) {
+        free(seedtable[i][j]);
+    }
 /*
     char * fn[1000];
     sprintf(fn, "canvas.dump.f4.%d", pm->ThisTask);
