@@ -16,7 +16,9 @@
 //#define PM_2LPT_LOAD_DIGRAD
 //#define PM_2LPT_DUMP
 
-static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
+static double 
+index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
+{
     int d;
     double k2 = 0;
     for(d = 0; d < 3 ; d++) {
@@ -26,7 +28,9 @@ static double index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) {
     return k2;
 }
 
-static void apply_za_transfer(PM * pm, int dir) {
+static void 
+apply_za_transfer(PM * pm, int dir) 
+{
 
 //    memcpy(pm->workspace, pm->canvas, pm->allocsize * sizeof(pm->canvas[0]));
 //    msg_printf(debug, "Disabled ZA");
@@ -55,7 +59,9 @@ static void apply_za_transfer(PM * pm, int dir) {
     }
 }
 
-static void apply_2lpt_transfer(PM * pm, int dir1, int dir2) {
+static void 
+apply_2lpt_transfer(PM * pm, int dir1, int dir2) 
+{
     ptrdiff_t ind;
     ptrdiff_t i[3] = {0};
     for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
@@ -72,7 +78,9 @@ static void apply_2lpt_transfer(PM * pm, int dir1, int dir2) {
     }
 }
 
-static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
+static void 
+pm_2lpt_fill_pdata(PMStore * p, PM * pm) 
+{
     /* fill pdata with a uniform grid, respecting domain given by pm */
     
     ptrdiff_t ind;
@@ -119,14 +127,20 @@ static void pm_2lpt_fill_pdata(PMStore * p, PM * pm) {
     }
 }
 
-inline void SETSEED(PM * pm, unsigned int * table, int i, int j, gsl_rng * rng) { \
-    unsigned int seed = 0x7fffffff * gsl_rng_uniform(rng); \
+inline void 
+SETSEED(PM * pm, unsigned int * table, int i, int j, gsl_rng * rng) 
+{ 
+    unsigned int seed = 0x7fffffff * gsl_rng_uniform(rng); 
     table[(i) * pm->Nmesh[1] + (j)] = seed;
 }
-inline unsigned int GETSEED(PM * pm, unsigned int * table, int i, int j) {
+inline unsigned int 
+GETSEED(PM * pm, unsigned int * table, int i, int j) 
+{
     return table[i * pm->Nmesh[1] + j];
 }
-static void pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata) {
+static void 
+pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata) 
+{
     ptrdiff_t ind;
     int d;
 
@@ -246,7 +260,10 @@ static void pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pk
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->ORegion.total * 2, fopen(fn, "w"));
 */
 }
-static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
+
+static void 
+pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) 
+{
     ptrdiff_t ind;
     int d;
 
@@ -336,7 +353,10 @@ static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
 #endif
 }
 
-void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, void * pkdata, MPI_Comm comm) {
+void 
+pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, 
+        int seed, void * pkdata, MPI_Comm comm) 
+{
     PM pm;
 
     PMInit pminit = {
