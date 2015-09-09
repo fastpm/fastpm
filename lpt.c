@@ -201,7 +201,6 @@ int lpt_set_displacement(const double InitTime, const double omega_m, const int 
                         ampl = gsl_rng_uniform(random_generator);
                     while(ampl == 0.0);
 
-                    printf("%g\n", ampl);
                     if(i == Nmesh / 2 || j == Nmesh / 2 || k == Nmesh / 2)
                         continue;
                     if(i == 0 && j == 0 && k == 0)

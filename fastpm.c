@@ -58,7 +58,7 @@ static void vpm_init(Parameters * prr, PMIFace * iface, MPI_Comm comm) {
             .Nmesh = (int)(prr->nc * vpm[i].pm_nc_factor),
             .BoxSize = prr->boxsize,
             .NprocX = 0, /* 0 for auto, 1 for slabs */
-            .transposed = 0,
+            .transposed = 1,
         };
         pm_pfft_init(&vpm[i].pm, &pminit, iface, comm);
     }
