@@ -155,75 +155,73 @@ static void pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pk
 
     double fac = sqrt(pow(2 * M_PI, 3) / pm->Volume);
 
-    ptrdiff_t i[3];
     ptrdiff_t irel[3];
-    for(i[0] = pm->ORegion.start[0]; 
-        i[0] < pm->ORegion.start[0] + pm->ORegion.size[0]; 
-        i[0] ++) {
+    int i, j, k;
+    for(i = pm->ORegion.start[0]; 
+        i < pm->ORegion.start[0] + pm->ORegion.size[0]; 
+        i ++) {
 
         gsl_rng * random_generator0 = gsl_rng_alloc(gsl_rng_ranlxd1);
         gsl_rng * random_generator1 = gsl_rng_alloc(gsl_rng_ranlxd1);
 
-        for(i[1] = pm->ORegion.start[1]; 
-            i[1] < pm->ORegion.start[1] + pm->ORegion.size[1]; 
-            i[1] ++) {
+        for(j = pm->ORegion.start[1]; 
+            j < pm->ORegion.start[1] + pm->ORegion.size[1]; 
+            j ++) {
             /* always pull the gaussian from the lower quadrant plane for k = 0
              * plane*/
             int hermitian = 0;
-            if(i[0] == 0) {
-                int jj = (i[1] > pm->Nmesh[1] / 2)? i[1] - pm->Nmesh[1]: i[1];
-                if(jj != i[1]) {
+            if(i == 0) {
+                int jj = (j > pm->Nmesh[1] / 2)? j - pm->Nmesh[1]: j;
+                if(jj != j) {
                     jj = - jj;
                     hermitian = 1; 
                 }
-                gsl_rng_set(random_generator0, GETSEED(pm, seedtable, i[0], jj));
+                gsl_rng_set(random_generator0, GETSEED(pm, seedtable, i, jj));
             } else {
-                int ii = (i[0] > pm->Nmesh[0] / 2)? i[0] - pm->Nmesh[0] : i[0];
-                if(i[0] != ii) {
+                int ii = (i > pm->Nmesh[0] / 2)? i - pm->Nmesh[0] : i;
+                if(i != ii) {
                     ii = - ii;
-                    int jj = i[1]!= 0?(pm->Nmesh[1] - i[1]):0;
+                    int jj = j!= 0?(pm->Nmesh[1] - j):0;
                     hermitian = 1;
                     gsl_rng_set(random_generator0, GETSEED(pm, seedtable, ii, jj));
                 }  else {
-                    gsl_rng_set(random_generator0, GETSEED(pm, seedtable, i[0], i[1]));
+                    gsl_rng_set(random_generator0, GETSEED(pm, seedtable, i, j));
                 }
             } 
 
-            gsl_rng_set(random_generator1, GETSEED(pm, seedtable, i[0], i[1]));
+            gsl_rng_set(random_generator1, GETSEED(pm, seedtable, i, j));
 
-            /* two skips to maintains consistency of generators in lower quandrant */
             double skip = gsl_rng_uniform(random_generator1);
-            skip = gsl_rng_uniform(random_generator1);
+            do skip = gsl_rng_uniform(random_generator1);
+            while(skip == 0);
 
-            for(i[2] = 0; i[2] <= pm->Nmesh[2] / 2; i[2] ++) {
+            for(k = 0; k <= pm->Nmesh[2] / 2; k ++) {
+                gsl_rng * random_generator = k?random_generator1:random_generator0;
                 /* on k = 0 plane, we use the lower quadrant generator, 
                  * then hermit transform the result if it is nessessary */
-                gsl_rng * random_generator = i[2]?random_generator1:random_generator0;
-                hermitian *= i[2]==0;
-
                 double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
                 double ampl = 0;
                 do ampl = gsl_rng_uniform(random_generator); while(ampl == 0);
 
+                ptrdiff_t iabs[3] = {i, j, k};
                 ptrdiff_t ip = 0;
                 for(d = 0; d < 3; d ++) {
-                    irel[d] = i[d] - pm->ORegion.start[d];
+                    irel[d] = iabs[d] - pm->ORegion.start[d];
                     ip += pm->ORegion.strides[d] * irel[d];
                 }
-
 
                 if(irel[2] < 0) continue;
                 if(irel[2] >= pm->ORegion.size[2]) continue;
 
-                double k[3];
-                double k2 = index_to_k2(pm, irel, k);
+                double tmp[3];
+                double k2 = index_to_k2(pm, irel, tmp);
                 double kmag = sqrt(k2);
                 double p_of_k = - log(ampl);
 
                 for(d = 0; d < 3; d ++) {
-                    if(i[d] == pm->Nmesh[d] / 2) p_of_k = 0;
+                    if(iabs[d] == pm->Nmesh[d] / 2) p_of_k = 0;
                 } 
-                if(i[0] == i[1] == i[2] == 0) {
+                if(iabs[0] == 0 && iabs[1] == 0 && iabs[2] == 0) {
                     p_of_k = 0;
                 }
             
@@ -233,7 +231,7 @@ static void pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pk
                 pm->canvas[2 * ip + 0] = delta * cos(phase);
                 pm->canvas[2 * ip + 1] = delta * sin(phase);
 
-                if(hermitian) {
+                if(hermitian && k == 0) {
                     pm->canvas[2 * ip + 1] *= -1;
                 }
             }
@@ -242,7 +240,11 @@ static void pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pk
         gsl_rng_free(random_generator1);
     }
     free(seedtable);
-
+/*
+    char * fn[1000];
+    sprintf(fn, "canvas.dump.f4.%d", pm->ThisTask);
+    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->ORegion.total * 2, fopen(fn, "w"));
+*/
 }
 static void pm_2lpt_fill_gaussian(PM * pm, int seed, pkfunc pk, void * pkdata) {
     ptrdiff_t ind;
@@ -361,6 +363,7 @@ void pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, int seed, v
     pm_start(&pm);
     
     pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
+//    pm_2lpt_fill_gaussian(&pm, seed, pk, pkdata);
 
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
