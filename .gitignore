@@ -11,3 +11,5 @@ original
 bak
 version.h
 tests/*/*.txt
+depends/tmp*
+depends/install
