@@ -109,7 +109,11 @@ int main(int argc, char ** argv) {
 
     timer_set_category(LPT);
 
-    pm_2lpt_main(&pdata, prr.nc, prr.boxsize, PowerSpecWithData, prr.random_seed, NULL, comm);
+    if(prr.readic_filename) {
+        read_runpb_ic(&prr, prr.time_step[0], &pdata);
+    } else {
+        pm_2lpt_main(&pdata, prr.nc, prr.boxsize, PowerSpecWithData, prr.random_seed, NULL, comm);
+    }
 
     double shift[3] = {
         prr.boxsize / prr.nc * 0.5,

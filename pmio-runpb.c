@@ -14,7 +14,6 @@
 #include "power.h"
 #include "pmpfft.h"
 #include "msg.h"
-#include "heap.h"
 
 extern double GrowthFactor(double astart, double aend);
 extern double Qfactor(double aa);
@@ -232,7 +231,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
             dx1[d] = (v[d] - disp * (2 * f2)) / (f1 - 2 * f2) / DplusIC;
             dx2[d] = (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
             /* evolve to a_init with 2lpt */
-            double tmp = opos + dx1[d] * Dplus + dx2[d] * (D20 * D2);
+            double tmp = opos; // + dx1[d] * Dplus + dx2[d] * (D20 * D2);
             x[d] = tmp * param->boxsize;
             while(x[d] < 0.0) x[d] += param->boxsize;
             while(x[d] >= param->boxsize) x[d] -= param->boxsize;
