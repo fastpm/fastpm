@@ -1,5 +1,7 @@
 
 CC=mpicc
+DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM $(CPPFLAGS)
+
 OPTIMIZE = -O0 -g
 
 CPPFLAGS += -I lua
@@ -26,7 +28,11 @@ fastpm: $(PFFTLIB) $(SOURCES:%.c=.objs/%.o)
 $(PFFTLIB): depends/install_pfft.sh
 	# FIXME: some configure flags may not work. 
 	# shall we adopt autotools?
-	MPICC=$(CC) sh depends/install_pfft.sh $(PWD)/depends/install
+	@if ! [ -f $(PFFTLIB) ]; then \
+		MPICC=$(CC) sh depends/install_pfft.sh $(PWD)/depends/install; \
+	else \
+		touch $(PFFTLIB); \
+	fi;
 	
 -include $(SOURCES:%.c=.deps/%.d)
 
@@ -36,10 +42,7 @@ $(PFFTLIB): depends/install_pfft.sh
 
 .deps/%.d : %.c
 	@if ! [ -d .deps ]; then mkdir .deps; fi
-	@if $(CC) -M $(CPPFLAGS) -o - $< > $@.tmp ; then \
-		(echo -n .objs/; cat $@.tmp ;) > $@ ; \
-	fi;
-	@rm $@.tmp
+	@$(DEPCMD) -o $@ $<
 
 clean:
 	rm -rf .objs
