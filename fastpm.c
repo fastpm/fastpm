@@ -14,6 +14,9 @@
 #include "msg.h"
 #include "power.h"
 #include "pmtimer.h"
+#include "readparams.h"
+
+#include <getopt.h>
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
@@ -22,6 +25,11 @@ static void rungdb(const char* fmt, ...);
 static void calculate_forces(PMStore * p, PM * pm, double density_factor);
 static int to_rank(PMStore * pdata, ptrdiff_t i, void * data);
 static double sinc_unnormed(double x);
+
+/* command-line arguments */
+static int UseFFTW;
+static char * ParamFileName;
+static int NprocY;
 
 typedef struct {
     Parameters * param;
@@ -57,8 +65,9 @@ static void vpm_init(Parameters * prr, PMIFace * iface, MPI_Comm comm) {
         PMInit pminit = {
             .Nmesh = (int)(prr->nc * vpm[i].pm_nc_factor),
             .BoxSize = prr->boxsize,
-            .NprocX = 0, /* 0 for auto, 1 for slabs */
+            .NprocY = NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
+            .use_fftw = UseFFTW,
         };
         pm_pfft_init(&vpm[i].pm, &pminit, iface, comm);
     }
@@ -73,12 +82,52 @@ static VPM vpm_find(double a) {
     return vpm[i-1];
 }
 
+static void parse_args(int argc, char ** argv) {
+    char opt;
+    extern int optind;
+    extern char * optarg;
+    UseFFTW = 0;
+    ParamFileName = NULL;
+    NprocY = 0;    
+    while ((opt = getopt(argc, argv, "h?y:f")) != -1) {
+        switch(opt) {
+            case 'y':
+                NprocY = atoi(optarg);
+            break;
+            case 'f':
+                UseFFTW = 1;
+            break;
+            case 'h':
+            case '?':
+            default:
+                goto usage;
+            break;
+        }
+    }
+    if(optind >= argc) {
+        goto usage;
+    }
+
+    ParamFileName = argv[optind];
+    return;
+
+usage:
+    msg_printf(-1, "Usage: fastpm [-f] [-y NprocY] paramfile\n"
+    "-f Use FFTW \n"
+    "-y Set the number of processes in the 2D mesh\n"
+);
+    MPI_Finalize();
+    exit(1);
+}
+
 int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
     msg_init();
     msg_set_loglevel(verbose);
+    
+    parse_args(argc, argv);
 
     Parameters prr;
     PMStore pdata;
@@ -86,7 +135,7 @@ int main(int argc, char ** argv) {
 
     timer_set_category(INIT);
 
-    read_parameters(argc, argv, &prr);
+    read_parameters(ParamFileName, &prr);
 
     stepping_init(&prr);
 

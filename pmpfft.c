@@ -9,6 +9,8 @@
 
 #include "pmpfft.h"
 #include "msg.h"
+#include <fftw3.h>
+#include <fftw3-mpi.h>
 
 static MPI_Datatype MPI_PTRDIFF = NULL;
 
@@ -17,14 +19,20 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define plan_dft_c2r pfft_plan_dft_c2r
     #define execute_dft_r2c pfft_execute_dft_r2c
     #define execute_dft_c2r pfft_execute_dft_c2r
-    typedef pfft_plan plan;
+    #define plan_dft_r2c_fftw fftw_mpi_plan_dft_r2c
+    #define plan_dft_c2r_fftw fftw_mpi_plan_dft_c2r
+    #define execute_dft_r2c_fftw fftw_mpi_execute_dft_r2c
+    #define execute_dft_c2r_fftw fftw_mpi_execute_dft_c2r
     #define _pfft_init pfft_init
 #elif FFT_PRECISION == 32
     #define plan_dft_r2c pfftf_plan_dft_r2c
     #define plan_dft_c2r pfftf_plan_dft_c2r
+    #define plan_dft_r2c_fftw fftwf_mpi_plan_dft_r2c
+    #define plan_dft_c2r_fftw fftwf_mpi_plan_dft_c2r
     #define execute_dft_r2c pfftf_execute_dft_r2c
     #define execute_dft_c2r pfftf_execute_dft_c2r
-    typedef pfftf_plan plan;
+    #define execute_dft_r2c_fftw fftwf_mpi_execute_dft_r2c
+    #define execute_dft_c2r_fftw fftwf_mpi_execute_dft_c2r
     #define _pfft_init pfftf_init
 #endif
 
@@ -40,6 +48,47 @@ static void module_init() {
     }
 }
 
+static size_t fftw_local_size_dft_r2c(int nrnk, ptrdiff_t * n, MPI_Comm comm,
+                        int flags, 
+                        ptrdiff_t * isize, ptrdiff_t * istart,
+                        ptrdiff_t * osize, ptrdiff_t * ostart
+                        ) {
+    size_t allocsize;
+    ptrdiff_t n2[nrnk];
+    int i;
+    for(i = 0; i < nrnk; i++ ) {
+        n2[i] = n[i];
+    }
+    /* r2c is always padded !*/
+    n2[nrnk - 1] = n[nrnk - 1] / 2 + 1;
+
+    /* translate to a compatible interface with PFFT */
+    for(i = 0; i < nrnk; i ++ ){
+        istart[i] = 0;
+        ostart[i] = 0;
+        isize[i] = n2[i];
+        if(i == nrnk - 1) {
+            /* real input */
+            isize[i] *= 2;
+        }
+        osize[i] = n2[i];
+    }
+
+    if(FFTW_MPI_TRANSPOSED_OUT & flags) {
+        allocsize = fftw_mpi_local_size_transposed(
+                3, n2, comm, 
+                &isize[0], &istart[0],
+                &osize[1], &ostart[1]);
+    } else {
+        allocsize = fftw_mpi_local_size(
+                3, n2, comm, 
+                &isize[0], &istart[0]);
+        osize[0] = isize[0];
+        osize[1] = isize[1];
+    }
+    return allocsize;
+}
+
 void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
     module_init();
@@ -51,25 +100,31 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     MPI_Comm_rank(comm, &pm->ThisTask);
     MPI_Comm_size(comm, &pm->NTask);
 
-    int Nx = init->NprocX;
-    int Ny;
-    if(Nx <= 0) {
-        Nx = 1;
-        Ny = pm->NTask;
-        for(; Nx * Nx < pm->NTask; Nx ++) continue;
-        for(; Nx >= 1; Nx--) {
-            if (pm->NTask % Nx == 0) break;
-            continue;
+    int Ny = init->NprocY;
+    int Nx;
+    if(Ny <= 0) {
+        Ny = 1;
+        Nx = pm->NTask;
+        if(!init->use_fftw) {
+            for(; Ny * Ny < pm->NTask; Ny ++) continue;
+            for(; Ny >= 1; Ny--) {
+                if (pm->NTask % Ny == 0) break;
+                continue;
+            }
         }
     } else {
-        if(pm->NTask % Nx != 0) {
-            msg_abort(-1, "NprocX(%d) and NTask(%d) is incompatible\n", Nx, pm->NTask);
+        if(pm->NTask % Ny != 0) {
+            msg_abort(-1, "NprocY(%d) and NTask(%d) is incompatible\n", Ny, pm->NTask);
         }
     }
-    Ny = pm->NTask / Nx;
+    Nx = pm->NTask / Ny;
     pm->Nproc[0] = Nx;
     pm->Nproc[1] = Ny;
-
+    if(init->use_fftw) {
+        if(Ny != 1) {
+            msg_abort(-1, "FFTW requires Ny == 1; Ny = %d\n", Ny);
+        }
+    }
     int d;
 
     pm->Norm = 1.0;
@@ -89,15 +144,22 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
 
     pfft_create_procmesh(2, comm, pm->Nproc, &pm->Comm2D);
-    pm->allocsize = 2 * pfft_local_size_dft_r2c(
+
+    if(init->use_fftw) {
+        pm->allocsize = 2 * fftw_local_size_dft_r2c(
                 3, pm->Nmesh, pm->Comm2D, 
-                          0
-                        | (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
-                        | PFFT_PADDED_R2C, 
+                (pm->init.transposed?FFTW_MPI_TRANSPOSED_OUT:0),
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
-
-
+    } else {
+        pm->allocsize = 2 * pfft_local_size_dft_r2c(
+                3, pm->Nmesh, pm->Comm2D, 
+                (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
+                | PFFT_PADDED_R2C, 
+                pm->IRegion.size, pm->IRegion.start,
+                pm->ORegion.size, pm->ORegion.start);
+    }
+    msg_printf(info, "ProcMesh : %d %d\n", pm->Nproc[0], pm->Nproc[1]);
 #if 0
     msg_aprintf(debug, "IRegion : %td %td %td + %td %td %td\n",
         pm->IRegion.start[0],
@@ -127,14 +189,24 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->IRegion.strides[0] = pm->IRegion.size[1] * pm->IRegion.strides[1];
     pm->IRegion.total = pm->IRegion.size[0] * pm->IRegion.strides[0];
 
+    /* remove padding from the view */
     pm->IRegion.size[2] = pm->Nmesh[2];
 
     if(pm->init.transposed) {
-        /* transposed, y, z, x */
-        pm->ORegion.strides[0] = 1;
-        pm->ORegion.strides[2] = pm->ORegion.size[0];
-        pm->ORegion.strides[1] = pm->ORegion.size[2] * pm->ORegion.strides[2];
-        pm->ORegion.total = pm->ORegion.size[1] * pm->ORegion.strides[1];
+        if(pm->init.use_fftw) {
+            /* FFTW transposed, y, x, z */
+            pm->ORegion.strides[2] = 1;
+            pm->ORegion.strides[0] = pm->ORegion.size[2];
+            pm->ORegion.strides[1] = pm->ORegion.size[0] * pm->ORegion.strides[0];
+            pm->ORegion.total = pm->ORegion.size[1] * pm->ORegion.strides[1];
+
+        } else {
+            /* PFFT transposed, y, z, x */
+            pm->ORegion.strides[0] = 1;
+            pm->ORegion.strides[2] = pm->ORegion.size[0];
+            pm->ORegion.strides[1] = pm->ORegion.size[2] * pm->ORegion.strides[2];
+            pm->ORegion.total = pm->ORegion.size[1] * pm->ORegion.strides[1];
+        }
     } else {
         /* non-transposed */
         pm->ORegion.strides[2] = 1;
@@ -181,26 +253,43 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->canvas = pm->iface.malloc(pm->allocsize * sizeof(pm->canvas[0]));
     pm->workspace = pm->iface.malloc(pm->allocsize * sizeof(pm->workspace[0]));
 
-    unsigned int r2cflags = PFFT_PADDED_R2C 
-            | (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
-            | PFFT_ESTIMATE 
-            //| PFFT_MEASURE
-            | PFFT_DESTROY_INPUT;
-    unsigned int c2rflags = PFFT_PADDED_C2R 
-            | (pm->init.transposed?PFFT_TRANSPOSED_IN:0)
-            | PFFT_ESTIMATE 
-            //| PFFT_MEASURE
-            | PFFT_DESTROY_INPUT;
-
-    pm->r2c = (pfft_plan) plan_dft_r2c(
-            3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
-            pm->Comm2D,
-            PFFT_FORWARD, r2cflags);
-
-    pm->c2r = (pfft_plan) plan_dft_c2r(
-            3, pm->Nmesh, (void*) pm->workspace, (void*) pm->workspace, 
-            pm->Comm2D,
-            PFFT_BACKWARD, c2rflags);
+    if(pm->init.use_fftw) {
+        pm->r2c = plan_dft_r2c_fftw(
+                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
+                pm->Comm2D, 
+                (pm->init.transposed?FFTW_MPI_TRANSPOSED_OUT:0)
+                | FFTW_ESTIMATE 
+                | FFTW_DESTROY_INPUT
+                );
+        pm->c2r = plan_dft_c2r_fftw(
+                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
+                pm->Comm2D, 
+                (pm->init.transposed?FFTW_MPI_TRANSPOSED_IN:0)
+                | FFTW_ESTIMATE 
+                | FFTW_DESTROY_INPUT
+                );
+    } else {
+        pm->r2c = plan_dft_r2c(
+                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
+                pm->Comm2D,
+                PFFT_FORWARD, 
+                (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
+                | PFFT_PADDED_R2C 
+                | PFFT_ESTIMATE 
+                //| PFFT_MEASURE
+                | PFFT_DESTROY_INPUT
+                );
+        pm->c2r = plan_dft_c2r(
+                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->workspace, 
+                pm->Comm2D,
+                PFFT_BACKWARD, 
+                (pm->init.transposed?PFFT_TRANSPOSED_IN:0)
+                | PFFT_PADDED_C2R 
+                | PFFT_ESTIMATE 
+                //| PFFT_MEASURE
+                | PFFT_DESTROY_INPUT
+                );
+    }
 
     pm->iface.free(pm->canvas);
     pm->iface.free(pm->workspace);
@@ -254,12 +343,25 @@ void pm_stop(PM * pm) {
 }
 
 void pm_r2c(PM * pm) {
-    execute_dft_r2c((plan) pm->r2c, pm->workspace, (void*)pm->canvas);
+    if(pm->init.use_fftw) {
+        execute_dft_r2c_fftw(pm->r2c, pm->workspace, (void*)pm->canvas);
+    } else {
+        execute_dft_r2c(pm->r2c, pm->workspace, (void*)pm->canvas);
+    }
 }
 
 void pm_c2r(PM * pm) {
-    execute_dft_c2r((plan) pm->c2r, (void*) pm->workspace, pm->workspace);
+    if(pm->init.use_fftw) {
+        execute_dft_c2r_fftw(pm->c2r, (void*) pm->workspace, pm->workspace);
+    } else {
+        execute_dft_c2r(pm->c2r, (void*) pm->workspace, pm->workspace);
+    }
 }
+
+#define unravel(ind, i, d0, d1, d2, strides) \
+i[d0] = ind / strides[d0]; ind %= strides[d0]; \
+i[d1] = ind / strides[d1]; ind %= strides[d1]; \
+i[d2] = ind
 
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
     /*
@@ -268,54 +370,49 @@ void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
      * */
     ptrdiff_t tmp = ind;
     if(pm->init.transposed) {
-        /* y, z, x*/
-        i[1] = tmp / pm->ORegion.strides[1];
-        tmp %= pm->ORegion.strides[1];
-        i[2] = tmp / pm->ORegion.strides[2];
-        tmp %= pm->ORegion.strides[2];
-        i[0] = tmp;
-    } else {
-        i[0] = tmp / pm->ORegion.strides[0];
-        tmp %= pm->ORegion.strides[0];
-        i[1] = tmp / pm->ORegion.strides[1];
-        tmp %= pm->ORegion.strides[1];
-        i[2] = tmp;
-    }
-}
-void pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
-    if(pm->init.transposed) {
-        i[0] ++;
-        if(UNLIKELY(i[0] == pm->ORegion.size[0])) {
-            i[0] = 0;
-            i[2] ++;
-            if(UNLIKELY(i[2] == pm->ORegion.size[2])) {
-                i[2] = 0;
-                i[1] ++;
-            }
+        if(pm->init.use_fftw) {
+            /* y, x, z*/
+            unravel(tmp, i, 1, 0, 2, pm->ORegion.strides);
+        } else {
+            /* y, z, x*/
+            unravel(tmp, i, 1, 2, 0, pm->ORegion.strides);
         }
     } else {
-        i[2] ++;
-        if(UNLIKELY(i[2] == pm->ORegion.size[2])) {
-            i[2] = 0;
-            i[1] ++;
-            if(UNLIKELY(i[1] == pm->ORegion.size[1])) {
-                i[1] = 0;
-                i[0] ++;
-            }
-        }
+        unravel(tmp, i, 0, 1, 2, pm->ORegion.strides);
     }
 }
-
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
     ptrdiff_t tmp = ind;
-    i[0] = tmp / pm->IRegion.strides[0];
-    tmp %= pm->IRegion.strides[0];
-    i[1] = tmp / pm->IRegion.strides[1];
-    tmp %= pm->IRegion.strides[1];
-    i[2] = tmp;
+    unravel(tmp, i, 0, 1, 2, pm->IRegion.strides);
+}
+
+#define inc(i, d0, d1, d2, size) \
+            i[d2] ++; \
+            if(UNLIKELY(i[d2] == size[d2])) { \
+                i[d2] = 0; i[d1] ++; \
+                if(UNLIKELY(i[d1] == size[d1])) { \
+                    i[d1] = 0; \
+                    i[d0] ++; \
+                } \
+            }
+
+void pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
+    if(pm->init.transposed) {
+        if(pm->init.use_fftw) {
+            /* y, x, z */
+            inc(i, 1, 0, 2, pm->ORegion.size);
+        } else {
+            /* y, z, x */
+            inc(i, 1, 2, 0, pm->ORegion.size);
+        }
+    } else {
+        /* x, y, z*/
+        inc(i, 0, 1, 2, pm->ORegion.size);
+    }
 }
 
 void pm_inc_i_index(PM * pm, ptrdiff_t i[3]) {
+    /* can't use the macro because of the padding */
     i[2] ++;
     if(UNLIKELY(i[2] == pm->IRegion.strides[1])) { /* the padding !*/
         i[2] = 0;

@@ -139,13 +139,8 @@ static int read_parameter_file(const char filename[], Parameters * param);
 static void bcast_string(char** string);
 static void bcast_array(void ** parray, size_t elsize, int* len);
 
-int read_parameters(int argc, char * argv[], Parameters * param)
+int read_parameters(char * filename, Parameters * param)
 {
-    if(argc < 2)
-        msg_abort(1, "Error: Parameter file not specified. cola_code param.lua\n");
-
-    char const * const filename = argv[argc-1];
-
     //int myrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
     if(ThisTask == 0) {

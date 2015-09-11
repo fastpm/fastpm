@@ -60,8 +60,9 @@ typedef struct {
 typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
-    int NprocX;
+    int NprocY;
     int transposed;
+    int use_fftw;
 } PMInit;
 
 typedef struct {
@@ -84,8 +85,8 @@ typedef struct {
     int NTask;
     int ThisTask;
 
-    pfft_plan r2c;   /* Forward r2c plan */
-    pfft_plan c2r;   /* Bacward c2r plan */
+    void * r2c;   /* Forward r2c plan */
+    void * c2r;   /* Bacward c2r plan */
 
     int Nproc[2];
     MPI_Comm Comm2D;

@@ -53,7 +53,4 @@ typedef struct {
 #define TIME_STEP_A 1
 #define TIME_STEP_GROWTH 2
 
-int read_parameters(const int argc, char * argv[], 
-        Parameters * param);
-
 #endif

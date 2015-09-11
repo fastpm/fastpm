@@ -414,8 +414,9 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
     PMInit pminit = {
         .Nmesh = Ngrid,
         .BoxSize = BoxSize,
-        .NprocX = 0, /* 0 for auto, 1 for slabs */
+        .NprocY = 0, /* 0 for auto, 1 for slabs */
         .transposed = 0,
+        .use_fftw = 0,
     };
 
     pm_pfft_init(&pm, &pminit, &p->iface, comm);
