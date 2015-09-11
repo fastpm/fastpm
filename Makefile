@@ -29,7 +29,7 @@ $(PFFTLIB): depends/install_pfft.sh
 	# FIXME: some configure flags may not work. 
 	# shall we adopt autotools?
 	@if ! [ -f $(PFFTLIB) ]; then \
-		MPICC=$(CC) sh depends/install_pfft.sh $(PWD)/depends/install; \
+		MPICC=$(CC) sh depends/install_pfft.sh $(PWD)/depends/install | tail;\
 	else \
 		touch $(PFFTLIB); \
 	fi;
@@ -42,7 +42,9 @@ $(PFFTLIB): depends/install_pfft.sh
 
 .deps/%.d : %.c
 	@if ! [ -d .deps ]; then mkdir .deps; fi
-	@$(DEPCMD) -o $@ $<
+	@if ! $(DEPCMD) -o $@ $< ; then \
+		rm $@; \
+	fi;
 
 clean:
 	rm -rf .objs

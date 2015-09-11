@@ -7,14 +7,7 @@ LOGFILE="build.log"
 
 # bash check if directory exists
 if [ -d $TMP ]; then
-        echo "Directory $TMP already exists. Delete it? (y/n)"
-	answer='y'
-	if [ ${answer} = "y" ]; then
-		rm -rf $TMP
-	else
-		echo "Program aborted."
-		exit 1
-	fi
+    rm -rf $TMP
 fi
 
 mkdir $TMP 
