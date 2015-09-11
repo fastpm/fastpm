@@ -18,12 +18,17 @@ SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
 		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
 
 PFFTLIB = depends/install/lib/libpfft.a
-fastpm: $(PFFTLIB) $(SOURCES:%.c=.objs/%.o) 
+LUALIB = lua/liblua.a
+
+fastpm: $(PFFTLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
 			$(LDFLAGS) -llua -lgsl \
 			-lpfft -lfftw3_mpi -lfftw3 \
 			-lpfftf -lfftw3f_mpi -lfftw3f \
 			-lm 
+
+$(LUALIB): lua/Makefile
+	(cd lua; CC="$(CC)" make generic)
 
 $(PFFTLIB): depends/install_pfft.sh
 	# FIXME: some configure flags may not work. 
