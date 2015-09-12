@@ -22,7 +22,7 @@ LUALIB = lua/liblua.a
 
 fastpm: $(PFFTLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
-			$(LDFLAGS) -llua -lgsl \
+			$(LDFLAGS) -llua -lgsl -lgslcblas \
 			-lpfft -lfftw3_mpi -lfftw3 \
 			-lpfftf -lfftw3f_mpi -lfftw3f \
 			-lm 
