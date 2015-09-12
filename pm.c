@@ -243,6 +243,7 @@ void PtoMesh(float (*Px)[3], int np, float* const density)
         }
     }
     msg_printf(verbose, "CIC density assignment finished.\n");
+    fwrite(density, sizeof(density[0]), 2 * total_size, fopen("qrpm-density.f4", "w"));
 }
 
 static double sinc_unnormed(double x) {
@@ -259,6 +260,7 @@ void compute_density_k(float * density, fftwf_complex * density_k)
     // FFT density(x) mesh -> density(k)
     fftwf_mpi_execute_dft_r2c(r2c_outplace_plan, (float*) density, density_k);
 
+    fwrite(density_k, sizeof(density_k[0]), total_size, fopen("qrpm-density-k.f4", "w"));
     // copy density(k) in fftdata to density_k
 
     /* the CIC deconvolution kernel is
@@ -408,11 +410,26 @@ void compute_force_mesh(const int axes, fftwf_complex * fftdata, fftwf_complex *
     }
     timer_stop(force_mesh);
 
+    char * fname[] = {
+            "qrpm-acc-0.f4",
+            "qrpm-acc-1.f4",
+            "qrpm-acc-2.f4",
+        };
+    fwrite(fftdata, sizeof(fftdata[0]), total_size, fopen(fname[axes], "w"));
+
 
     timer_start(fft);
+   
     // Force(k) -> Force(x)
     fftwf_mpi_execute_dft_c2r(c2r_inplace_plan, fftdata, (float*) fftdata);
     timer_stop(fft);
+
+    char * fname2[] = {
+            "qrpm-accr-0.f4",
+            "qrpm-accr-1.f4",
+            "qrpm-accr-2.f4",
+        };
+    fwrite(fftdata, sizeof(fftdata[0]), total_size, fopen(fname2[axes], "w"));
 
 #if 0
     This will dump force into files
@@ -516,7 +533,6 @@ void pm_calculate_forces(Particles* particles)
     for(int axes=0; axes<3; axes++) {
         // density(k) -> f(x_i) [fftdata]
         compute_force_mesh(axes, fftdata, density_k);
-
         timer_start(pforce);
         force_at_particle_locations(particles->x, np_plus_buffer, axes,
                 (float*) fftdata, particles->force);

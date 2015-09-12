@@ -1,92 +1,56 @@
-#
-# qrpm
-#   
 
-# Define CC=cc
-# Define OPENMP to enable MPI+OpenMP hybrid parallelization
-# OPENMP  = -fopenmp # -openmp for Intel, -fopenmp for gcc
+CC=mpicc
+DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM $(CPPFLAGS)
 
-CC      = mpicc 
-WOPT    ?= -Wall
-CFLAGS  := -std=c99 -O3 -g $(WOPT)
-LIBS    := -lm
+OPTIMIZE = -O0 -g
 
+CPPFLAGS += -I lua
+LDFLAGS += -L lua
 
-# Compile options
-
-
-# Define paths of FFTW3 & GSL libraries if necessary.
-
-FFTW3_DIR ?= #e.g. /Users/jkoda/Research/opt/gcc/fftw3
 GSL_DIR   ?= #e.g. /Users/jkoda/Research/opt/gcc/gsl
 
-DIR_PATH = $(FFTW3_DIR) $(GSL_DIR) 
+DIR_PATH = $(GSL_DIR) depends/install
 
-CFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
-LIBS   += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
-LIBS += -Llua
-CFLAGS += -Ilua
+CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
+LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-EXEC = qrpm # halo
-all: $(EXEC)
+SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
+		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
 
-OBJS := main.o
-OBJS += read_param_lua.o lpt.o msg.o power.o
-OBJS += pm.o stepping.o 
-OBJS += readrunpb.o
-OBJS += domain.o
-OBJS += timer.o 
-OBJS += heap.o
-OBJS += mond.o
+PFFTLIB = depends/install/lib/libpfft.a
+LUALIB = lua/liblua.a
 
-LIBS += -ldl 
-LIBS += -lgsl -lgslcblas
-LIBS += -lfftw3f_mpi -lfftw3f
-LIBS += -lm
+fastpm: $(PFFTLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
+	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
+			$(LDFLAGS) -llua -lgsl -lgslcblas \
+			-lpfft -lfftw3_mpi -lfftw3 \
+			-lpfftf -lfftw3f_mpi -lfftw3f \
+			-lm 
 
-lua/liblua.a: lua/Makefile
+$(LUALIB): lua/Makefile
 	(cd lua; CC="$(CC)" make generic)
 
-ifdef OPENMP
-  LIBS += -lfftw3f_omp
-  #LIBS += -lfftw3f_threads       # for thread parallelization instead of omp
-endif
-
-qrpm: $(OBJS) lua/liblua.a
-	$(CC) $(CFLAGS) $(OBJS) -llua $(LIBS) -o $@
-
-.c.o:
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(PFFTLIB): depends/install_pfft.sh
+	# FIXME: some configure flags may not work. 
+	# shall we adopt autotools?
+	@if ! [ -f $(PFFTLIB) ]; then \
+		MPICC=$(CC) sh depends/install_pfft.sh $(PWD)/depends/install | tail;\
+	else \
+		touch $(PFFTLIB); \
+	fi;
 	
-main.o: main.c parameters.h lpt.h particle.h msg.h power.h pm.h \
-  stepping.h write.h timer.h mond.h version.h
-mond.o : mond.h parameters.h msg.h pm.h
-domain.o: domain.c domain.h msort.c permute.c
-stepping.o: stepping.c particle.h msg.h stepping.h timer.h
-comm.o: comm.c msg.h
-heap.o: heap.c heap.h msg.h
-kd_original.o: kd_original.c kd.h
-lpt.o: lpt.c msg.h power.h particle.h
-lpt_original.o: lpt_original.c
-msg.o: msg.c msg.h
-pm.o: pm.c pm.h particle.h msg.h timer.h
-pm_debug.o: pm_debug.c pm.h particle.h msg.h timer.h
-pm_original.o: pm_original.c stuff.h
-power.o: power.c msg.h
-read_param_lua.o: read_param_lua.c parameters.h msg.h
-temp.o: temp.c msg.h particle.h
-timer.o: timer.c msg.h timer.h
-version.h:
-	(echo "#define FPM_VERSION \\"; \
-        git log -1 | sed -e 's;$$;\\n"\\;' -e 's;^;";'; \
-        echo \"\") > version.h
+-include $(SOURCES:%.c=.deps/%.d)
 
-.PHONY: clean run dependence version.h
-clean :
-	rm -f $(EXEC) $(OBJS) $(OBJS2) move_min.?
+.objs/%.o : %.c
+	@if ! [ -d .objs ]; then mkdir .objs; fi
+	$(CC) $(OPTIMIZE) -c $(CPPFLAGS) -o $@ $<
 
-run:
-	mpirun -n 2 ./qrpm param.lua
+.deps/%.d : %.c
+	@if ! [ -d .deps ]; then mkdir .deps; fi
+	@if ! $(DEPCMD) -o $@ $< ; then \
+		rm $@; \
+	fi;
 
-dependence:
-	gcc -MM -MG *.c
+clean:
+	rm -rf .objs
+	rm -rf .deps

@@ -18,31 +18,28 @@
 #include <math.h>
 #include <assert.h>
 #include <mpi.h>
-
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_sf_hyperg.h> 
 #include <gsl/gsl_errno.h>
 
-#include "particle.h"
+#include "pmpfft.h"
 #include "parameters.h"
 #include "msg.h"
-#include "stepping.h"
-#include "timer.h"
+#include "pmsteps.h"
 
-#define WORKSIZE 100000
 static double Omega= -1.0f;
 static double OmegaLambda= -1.0f;
 static double nLPT= -2.5f;
 static int stdDA = 0; // velocity growth model
 static int martinKick = 0;
 
-double GrowthFactor(double astart, double aend);
 double growthD(double a);
 double growthD2(double a);
 double Sphi(double ai, double af, double aRef);
 double Sq(double ai, double af, double aRef);
 double Qfactor(double a);
+double GrowthFactor(double astart, double aend);
 static int FORCE_MODE;
 static int NSTEPS;
 static double *A_X;
@@ -68,7 +65,7 @@ void stepping_init(Parameters * param) {
     NSTEPS = param->n_time_step;
     stdDA = param->cola_stdda;
     Omega = param->omega_m;
-    OmegaLambda = 1 - param->omega_m;
+    OmegaLambda = 1.0 - param->omega_m;
 
 //    double a_final= param->a_final;
 //    double a_init = param->a_init;
@@ -84,14 +81,14 @@ void stepping_init(Parameters * param) {
         /* one extra item in the end; to avoid an if conditioni in main loop */
         A_X = (double*) calloc(NSTEPS + 2, sizeof(double));
         A_V = (double*) calloc(NSTEPS + 2, sizeof(double));
-
-        for (int i = 0;i<=param->n_time_step-1;++i){
+        int i;
+        for (i = 0;i<=param->n_time_step-1;++i){
             A_X[i] = param->time_step[i];
         }
 
         A_V[0] = A_X[0];
 
-        for (int i = 1;i<=param->n_time_step-1;++i){
+        for (i = 1;i<=param->n_time_step-1;++i){
             A_V[i] = (A_X[i]+A_X[i-1])/2;
         }
     }
@@ -100,12 +97,13 @@ void stepping_init(Parameters * param) {
     A_V[NSTEPS+1] = 1.0;
     A_V[NSTEPS] = 1.0;
     msg_printf(normal, "Drift points: \n");
-    for(int i = 0; i < NSTEPS + 2; i ++) {
+    int i;
+    for(i = 0; i < NSTEPS + 2; i ++) {
         msg_printf(normal, "%g, ", A_X[i]);
     }
     msg_printf(normal, "\n");
     msg_printf(normal, "Kick points: \n");
-    for(int i = 0; i < NSTEPS + 2; i ++) {
+    for(i = 0; i < NSTEPS + 2; i ++) {
         msg_printf(normal, "%g, ", A_V[i]);
     }
     msg_printf(normal, "\n");
@@ -128,7 +126,7 @@ void stepping_get_times(int istep,
 // Leap frog time integration
 // ** Total momentum adjustment dropped
 
-void stepping_kick(Particles* p,
+void stepping_kick(PMStore * p,
         double ai, double af, double ac)
     /* a_v     avel1     a_x*/
 {
@@ -154,18 +152,19 @@ void stepping_kick(Particles* p,
     else
         Om_ = Omega;
 
-    int np = p->np_local;
-    float (*f)[3] = p->force;
+    int np = p->np;
 
     // Kick using acceleration at a= ac
     // Assume forces at a=ac is in particles->force
 
+    int i;
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
 #endif
-    for(int i=0; i<np; i++) {
-        for(int d = 0; d < 3; d++) {
-            float ax= -1.5*Om_*f[i][d];
+    for(i=0; i<np; i++) {
+        int d;
+        for(d = 0; d < 3; d++) {
+            float ax= -1.5*Om_* p->acc[i][d];
             switch(FORCE_MODE) {
                 case FORCE_MODE_COLA:
                     ax -= (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
@@ -181,11 +180,11 @@ void stepping_kick(Particles* p,
     //velocity is now at a= avel1
 }
 
-void stepping_drift(Particles* p,
+void stepping_drift(PMStore * p,
         double ai, double af, double ac)
     /*a_x, apos1, a_v */
 {
-    int np= p->np_local;
+    int np= p->np;
 
 
     double dyyy=Sq(ai, af, ac);
@@ -198,12 +197,14 @@ void stepping_drift(Particles* p,
 
     dyyy *= stepping_boost;
 
+    int i;
     // Drift
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)
 #endif
-    for(int i=0; i<np; i++) {
-        for(int d = 0; d < 3; d ++) {
+    for(i=0; i<np; i++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
             if(FORCE_MODE & FORCE_MODE_PM) {
                 p->x[i][d] += p->v[i][d]*dyyy;
             }
@@ -220,38 +221,6 @@ void stepping_drift(Particles* p,
         }
     }
 
-}
-
-double growth_int(double a, void *param)
-{
-  return pow(a / (Omega + (1 - Omega - OmegaLambda) * a + OmegaLambda * a * a * a), 1.5);
-}
-
-double growth(double a)
-{
-  double hubble_a;
-
-  hubble_a = sqrt(Omega / (a * a * a) + (1 - Omega - OmegaLambda) / (a * a) + OmegaLambda);
-
-  double result, abserr;
-  gsl_integration_workspace *workspace;
-  gsl_function F;
-
-  workspace = gsl_integration_workspace_alloc(WORKSIZE);
-
-  F.function = &growth_int;
-
-  gsl_integration_qag(&F, 0, a, 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41, 
-		      workspace, &result, &abserr);
-
-  gsl_integration_workspace_free(workspace);
-
-  return hubble_a * result;
-}
-
-double GrowthFactor(double astart, double aend)
-{
-  return growth(aend) / growth(astart);
 }
 
 double growthDtemp(double a){
@@ -442,35 +411,35 @@ double Sphi(double ai, double af, double aRef) {
 
 
 // Interpolate position and velocity for snapshot at a=aout
-void stepping_set_initial(double aout, Particles * p)
+void stepping_set_initial(double aout, PMStore * p, double shift[3])
 {
-    timer_start(interp);
-
-    int np= p->np_local;
+    int np= p->np;
 
     msg_printf(verbose, "Setting up inital snapshot at a= %g (z=%g).\n", aout, 1.0f/aout-1);
 
-    //float vfac=A/Qfactor(A); // RSD /h Mpc unit
-    float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
+    const float Dplus = 1.0/GrowthFactor(aout, 1.0);
 
-    //float AI=  particles->a_v;
-    //float A=   particles->a_x;
-    //float AF=  aout;
+    const double omega=Omega/(Omega + (1.0 - Omega)*aout*aout*aout);
+    const double D2 = Dplus*Dplus*pow(omega/Omega, -1.0/143.0);
+    const double D20 = pow(Omega, -1.0/143.0);
+    
 
     float Dv=DprimeQ(aout, 1.0); // dD_{za}/dy
     float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
 
-    //float da1= growthD(AF);
-    //float da2= growthD2(AF);
-
-    //msg_printf(debug, "initial growth factor %e %e\n", da1, da2);
-    msg_printf(debug, "initial velocity factor %5.3f %e %e\n", aout, vfac*Dv, vfac*Dv2);
-
+    int i;
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)  
 #endif
-    for(int i=0; i<np; i++) {
-        for(int d = 0; d < 3; d ++) {
+    for(i=0; i<np; i++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            /* Use the more accurate 2LPT dx2 term */
+            p->dx2[i][d] *= 3.0 / 7.0 * D20;
+
+            p->x[i][d] += Dplus * p->dx1[i][d] + D2 * p->dx2[i][d];
+            p->x[i][d] += shift[d];
+
             if(FORCE_MODE != FORCE_MODE_PM) {
                 // for COLA and COLA1, v cancels out such that the initial
                 // is zero
@@ -480,19 +449,13 @@ void stepping_set_initial(double aout, Particles * p)
             }
         }
     }
-    timer_stop(interp);
 }
 
 // Interpolate position and velocity for snapshot at a=aout
 void stepping_set_snapshot(double aout, double a_x, double a_v, 
-        Particles * p, Particles* po)
+        PMStore * p, PMStore * po)
 {
-    timer_start(interp);
-    int np= p->np_local;
-
-    float (*f)[3] = p->force;
-
-    Omega = po->omega_m; assert(Omega >= 0.0f);
+    int np= p->np;
 
     msg_printf(verbose, "Setting up snapshot at a= %g (z=%g) <- %g %g.\n", aout, 1.0f/aout-1, a_x, a_v);
 
@@ -538,13 +501,15 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     float da1= growthD(AF) - growthD(A);    // change in D_{1lpt}
     float da2= growthD2(AF) - growthD2(A);  // change in D_{2lpt}
 
+    int i;
 #ifdef _OPENMP
 #pragma omp parallel for default(shared)  
 #endif
-    for(int i=0; i<np; i++) {
-        for(int d = 0; d < 3; d ++) {
+    for(i=0; i<np; i++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
             // Kick + adding back 2LPT velocity + convert to km/s
-            float ax= -1.5*Omega*f[i][0];
+            float ax= -1.5*Omega*p->acc[i][0];
             switch(FORCE_MODE) {
                 case FORCE_MODE_COLA:
                     ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;
@@ -585,9 +550,40 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
         po->id[i] = p->id[i];
     }
 
-    po->np_local= np;
-    po->a= aout;
-    po->qfactor = Qfactor(aout);
-    timer_stop(interp);
+    po->np = np;
+}
+
+double growth_int(double a, void *param)
+{
+    return pow(a / (Omega + (1 - Omega - OmegaLambda) * a + OmegaLambda * a * a * a), 1.5);
+}
+
+
+double growth(double a)
+{
+    int WORKSIZE = 100000;
+    double hubble_a;
+
+    hubble_a = sqrt(Omega / (a * a * a) + (1 - Omega - OmegaLambda) / (a * a) + OmegaLambda);
+
+    double result, abserr;
+    gsl_integration_workspace *workspace;
+    gsl_function F;
+
+    workspace = gsl_integration_workspace_alloc(WORKSIZE);
+
+    F.function = &growth_int;
+
+    gsl_integration_qag(&F, 0, a, 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41, 
+            workspace, &result, &abserr);
+
+    gsl_integration_workspace_free(workspace);
+
+    return hubble_a * result;
+}
+
+double GrowthFactor(double astart, double aend)
+{
+    return growth(aend) / growth(astart);
 }
 

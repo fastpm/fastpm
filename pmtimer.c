@@ -3,24 +3,37 @@
  * 
  * from Jun Koda's PM framework utilities.
  *****/
+#include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
 #include "msg.h"
-#include "timer.h"
+#include "pmtimer.h"
 
 #define nCategory 4
 #define nSubCategory 15
 
 static const char * CatName[]= {"Init", "2LPT", "Stepping", "Snapshot"};
-static const char * SubName[]= {"", "fft", "assign", "powerspectrum", "force_mesh", "pforce", "check", "comm", "evolve", "write", "kd_build", "kd_link", "interpolate", "global", "smalldata"};
-
-//static const int nCategory= 4;
-//static const int nSubCategory= 4;
 
 static int initialized= 0;
 static enum Category Cat;
 static double Time[nCategory][nSubCategory], tBegin[nCategory][nSubCategory];
-//double Time[4][4], tBegin[4][4];
+static char * Name[nCategory][nSubCategory];
 
+static int timer_find(const char * sub) {
+    int isub;
+    for(isub = 0; isub < nSubCategory; isub ++) {
+        if(Name[Cat][isub] == NULL) {
+            Name[Cat][isub] = strdup(sub);
+            break;
+        }
+        if(!strcmp(Name[Cat][isub], sub)) break;
+    }
+    if(isub == nSubCategory) {
+        msg_abort(-1, "Too many sub timers. Increase nSubCategory in pmtimer.c and recompile.");
+    }
+    return isub;
+    
+}
 
 static double now()
 {
@@ -39,7 +52,10 @@ void timer_init()
         for(j=0; j<nSubCategory; j++) {
             Time[i][j]= 0.0;
             tBegin[i][j]= 0.0;
+            Name[i][j] = NULL;
         }
+        Cat = i;
+        timer_find("total");
     }
 
     initialized= 1;
@@ -50,22 +66,24 @@ void timer_set_category(enum Category new_cat)
     double nw= now();
 
     if(initialized)
-        Time[Cat][all] += nw - tBegin[Cat][all];
+        Time[Cat][0] += nw - tBegin[Cat][0];
     else 
         timer_init();
 
     Cat= new_cat;
-    tBegin[Cat][all]= nw;
+    tBegin[Cat][0]= nw;
 }
 
-void timer_start(enum SubCategory sub)
+void timer_start(const char * sub)
 {
-    tBegin[Cat][sub]= now();
+    int isub = timer_find(sub);
+    tBegin[Cat][isub]= now();
 }
 
-void timer_stop(enum SubCategory sub)
+void timer_stop(const char * sub)
 {
-    Time[Cat][sub] += now() - tBegin[Cat][sub];
+    int isub = timer_find(sub);
+    Time[Cat][isub] += now() - tBegin[Cat][isub];
 }
 
 void timer_print()
@@ -81,9 +99,9 @@ void timer_print()
                 CatName[icat], Time[icat][0], 100.0*Time[icat][0]/total);
 
         for(isub=1; isub<nSubCategory; isub++) {
-            if(Time[icat][isub] > 0.0)
+            if(Time[icat][isub] > 0.0 && Name[icat][isub] != NULL )
                 msg_printf(info, "  %-14s %7.2f   %4.1f%%\n", 
-                        SubName[isub], Time[icat][isub], 100*Time[icat][isub]/total);
+                        Name[icat][isub], Time[icat][isub], 100*Time[icat][isub]/total);
         }
     }
     msg_printf(info, "----------------------------------\n");

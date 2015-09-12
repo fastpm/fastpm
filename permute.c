@@ -26,15 +26,27 @@ static void permute(void * data, int np, size_t elsize, int * ind){
         /* this works too when the ring is of length 1. */
 
         /* mov the old item at i to temp1 to bootstrap the shuffling */
+        if (i >= np || i < 0) {
+            abort();
+        }
         memcpy(temp1, &q[i * elsize], elsize);
 
         /* loop till we are back to the head of the ring */
 
         int ii = i;
         for(j = ind[ii]; j != i; ii = j, j = ind[j]) {
+            if (j >= np || j < 0) {
+                abort();
+            }
+            if (ii >= np || ii < 0) {
+                abort();
+            }
             memcpy(&q[ii * elsize], &q[j * elsize], elsize);
             /* now j contains the correct item */;
             done[ii >> 3] |= 1 << (ii & 7);
+        }
+        if (ii >= np || ii < 0) {
+            abort();
         }
         /* now move the saved item to the end of the ring */
         memcpy(&q[ii * elsize], temp1, elsize);
