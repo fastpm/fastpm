@@ -24,6 +24,6 @@ install:
 script:
     - pushd tests
     - sh runtest.sh
-    - test -f example-output/powerspec-1.0000.txt
+#    - test -f example-output/powerspec-1.0000.txt
     - test -f example-output/snp00100_1.0000.bin.00
     - popd
