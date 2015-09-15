@@ -291,8 +291,8 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 );
     }
 
-    pm->iface.free(pm->canvas);
     pm->iface.free(pm->workspace);
+    pm->iface.free(pm->canvas);
     pm->canvas = NULL;
     pm->workspace = NULL;
 
@@ -336,8 +336,8 @@ void pm_start(PM * pm) {
     pm->workspace = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
 }
 void pm_stop(PM * pm) {
-    pm->iface.free(pm->canvas);
     pm->iface.free(pm->workspace);
+    pm->iface.free(pm->canvas);
     pm->canvas = NULL;
     pm->workspace = NULL;
 }

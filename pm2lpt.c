@@ -431,9 +431,9 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         .attributes = PACK_POS,
     };
 
-    pm_append_ghosts(&pgd);
-
     pm_start(&pm);
+
+    pm_append_ghosts(&pgd);
     
     pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
 //    pm_2lpt_fill_gaussian_slow(&pm, seed, pk, pkdata);

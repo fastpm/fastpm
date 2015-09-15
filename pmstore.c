@@ -2,6 +2,7 @@
 #include "pmpfft.h"
 #include "permute.c"
 #include "msort.c"
+#include "msg.h"
 #include <signal.h>
 
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
@@ -97,11 +98,34 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
         msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
+static struct {
+    void * p;
+    size_t s;
+} AllocTable[128];
+size_t used_bytes = 0;
 
+int NAllocTable = 0;
 static void * malloczero(size_t s) {
-    return pfft_malloc(s);
+    used_bytes += s;
+    void * p = pfft_malloc(s);
+    AllocTable[NAllocTable].s = s;
+    AllocTable[NAllocTable].p = p;
+    NAllocTable ++;
+    return p;
 }
+
 static void myfree(void * p) {
+    static size_t max_used_bytes = 0;
+    if(used_bytes > max_used_bytes) {
+        max_used_bytes = used_bytes;
+        msg_printf(info, "Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
+    }
+    NAllocTable --;
+    if(AllocTable[NAllocTable].p != p) {
+        msg_abort(-1, "Allocation and Free is mismatched.\n");
+    }
+    size_t s = AllocTable[NAllocTable].s;
+    used_bytes -= s;
     pfft_free(p);
 }
 
@@ -136,12 +160,13 @@ void pm_store_alloc(PMStore * p, size_t np_upper) {
 };
 
 void pm_store_destroy(PMStore * p) {
-    p->iface.free(p->x);
-    p->iface.free(p->v);
-    p->iface.free(p->id);
-    if(p->acc) p->iface.free(p->acc);
-    if(p->dx1) p->iface.free(p->dx1);
     if(p->dx2) p->iface.free(p->dx2);
+    if(p->dx1) p->iface.free(p->dx1);
+    if(p->acc) p->iface.free(p->acc);
+    p->iface.free(p->id);
+    p->iface.free(p->v);
+    p->iface.free(p->x);
+    msg_printf(info, "Remainging allocation %td bytes, %d chunks\n", used_bytes, NAllocTable);
 }
 
 void pm_store_read(PMStore * p, char * datasource) {
