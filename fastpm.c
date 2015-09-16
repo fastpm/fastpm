@@ -6,6 +6,7 @@
 #include <math.h>
 #include <mpi.h>
 #include <signal.h>
+#include <omp.h>
 
 #include "pmpfft.h"
 #include "pm2lpt.h"
@@ -15,7 +16,6 @@
 #include "power.h"
 #include "pmtimer.h"
 #include "readparams.h"
-
 #include <getopt.h>
 
 #define MAX(a, b) (a)>(b)?(a):(b)
@@ -269,27 +269,39 @@ static void apply_force_kernel(PM * pm, int dir) {
         }
     } 
     
-    ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->ORegion.total * 2; 
-        ind += 2, pm_inc_o_index(pm, i)
-    ) {
-        double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
-        double kk_finite = 0;
-        double kk = 0;
-        for(d = 0; d < 3; d++) {
-            kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
-//            kk += fac[d][i[d]].kk;
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+
+        int nth = omp_get_num_threads();
+        int ith = omp_get_thread_num();
+        ptrdiff_t start = ith * pm->ORegion.total / nth * 2;
+        ptrdiff_t end = (ith + 1) * pm->ORegion.total / nth * 2;
+        ptrdiff_t i[3] = {0};
+
+        pm_unravel_o_index(pm, start / 2, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double kk_finite = 0;
+            double kk = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+    //            kk += fac[d][i[d]].kk;
+            }
+            /* - i k[d] / k2 */
+            if(LIKELY(kk_finite > 0)) {
+                pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite / kk_finite);
+                pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite / kk_finite);
+            } else {
+                pm->workspace[ind + 0] = 0;
+                pm->workspace[ind + 1] = 0;
+            }
+    //        pm->workspace[ind + 0] = pm->canvas[ind + 0];
+     //       pm->workspace[ind + 1] = pm->canvas[ind + 1];
+            pm_inc_o_index(pm, i);
         }
-        /* - i k[d] / k2 */
-        if(LIKELY(kk_finite > 0)) {
-            pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite / kk_finite);
-            pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite / kk_finite);
-        } else {
-            pm->workspace[ind + 0] = 0;
-            pm->workspace[ind + 1] = 0;
-        }
-//        pm->workspace[ind + 0] = pm->canvas[ind + 0];
- //       pm->workspace[ind + 1] = pm->canvas[ind + 1];
     }
 }
 
@@ -360,6 +372,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
 
         timer_start("readout");
 
+#pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
             p->acc[i][d] = pm_readout_one(pm, p, i) * (density_factor / pm->Norm);
         }

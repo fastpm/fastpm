@@ -34,8 +34,10 @@ apply_za_transfer(PM * pm, int dir)
 {
     /* apply za transfer function i k / k2 from canvas -> workspace */
     ptrdiff_t ind;
+
     ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
+
+    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2) {
         double k[3];
         double k2;
         k2 = index_to_k2(pm, i, k);
@@ -47,6 +49,8 @@ apply_za_transfer(PM * pm, int dir)
             pm->workspace[ind + 0] = 0;
             pm->workspace[ind + 1] = 0;
         }
+        pm_inc_o_index(pm, i);
+
 #if 0
         if(dir == 0)
             msg_printf(debug, "%ld %ld %ld %ld %g %g %g %g,%g->%g,%g\n", ind, i[0], i[1], i[2], k[0], k[1], k[2],
@@ -63,7 +67,7 @@ apply_2lpt_transfer(PM * pm, int dir1, int dir2)
     /* apply 2lpt transfer function - k k / k2 from canvas -> workspace */
     ptrdiff_t ind;
     ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2, pm_inc_o_index(pm, i)) {
+    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2) {
         double k[3];
         double k2;
         k2 = index_to_k2(pm, i, k);
@@ -74,6 +78,7 @@ apply_2lpt_transfer(PM * pm, int dir1, int dir2)
             pm->workspace[ind + 0] = 0;
             pm->workspace[ind + 1] = 0;
         }
+        pm_inc_o_index(pm, i);
     }
 }
 
@@ -453,6 +458,7 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
 #endif
         pm_c2r(&pm);
+#pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             p->dx1[i][d] = pm_readout_one(&pm, p, i);
         }
@@ -478,6 +484,7 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
     for(d = 0; d < 3; d++) {
         int d1 = D1[d];
         int d2 = D2[d];
+#pragma omp parallel for
         for(i = 0; i < pm.IRegion.total; i ++) {
             source[i] += field[d1][i] * field[d2][i];
         }    
@@ -489,6 +496,7 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d1, d2);
         apply_2lpt_transfer(&pm, d1, d2);
         pm_c2r(&pm);
+#pragma omp parallel for
         for(i = 0; i < pm.IRegion.total; i ++) {
             source[i] -= pm.workspace[i] * pm.workspace[i];
         }
@@ -519,6 +527,8 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
 #endif
         pm_c2r(&pm);
+
+#pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
             p->dx2[i][d] = pm_readout_one(&pm, p, i) / pm.Norm ;
@@ -528,7 +538,9 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
     double dx1disp[3] = {0};
     double dx2disp[3] = {0};
 
+#pragma omp parallel for
     for(i = 0; i < p->np; i ++) {
+        int d;
         for(d =0; d < 3; d++) {
             dx1disp[d] += p->dx1[i][d] * p->dx1[i][d];
             dx2disp[d] += p->dx2[i][d] * p->dx2[i][d];

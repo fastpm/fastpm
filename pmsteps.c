@@ -158,9 +158,7 @@ void stepping_kick(PMStore * p,
     // Assume forces at a=ac is in particles->force
 
     int i;
-#ifdef _OPENMP
-#pragma omp parallel for default(shared)
-#endif
+#pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d++) {
@@ -199,9 +197,7 @@ void stepping_drift(PMStore * p,
 
     int i;
     // Drift
-#ifdef _OPENMP
-#pragma omp parallel for default(shared)
-#endif
+#pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
@@ -428,9 +424,7 @@ void stepping_set_initial(double aout, PMStore * p, double shift[3])
     float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
 
     int i;
-#ifdef _OPENMP
-#pragma omp parallel for default(shared)  
-#endif
+#pragma omp parallel for 
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
@@ -502,9 +496,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     float da2= growthD2(AF) - growthD2(A);  // change in D_{2lpt}
 
     int i;
-#ifdef _OPENMP
-#pragma omp parallel for default(shared)  
-#endif
+#pragma omp parallel for 
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {

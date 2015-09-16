@@ -20,10 +20,8 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
     pm_iter_ghosts_func iter_func) {
 
     ptrdiff_t i;
-    ptrdiff_t ighost = 0;
-    double CellSize[3];
-    int d;
     for (i = 0; i < ppd->np; i ++) {
+        PMGhostData localppd = *ppd;
         double pos[3];
         int rank;
         pm->iface.get_position(ppd->pdata, i, pos);
@@ -37,7 +35,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
         ptrdiff_t j[3];
         int ranks[1000];
         int used = 0;
-        ppd->ipar = i;
+        localppd.ipar = i;
         for(j[2] = pm->Below[2]; j[2] <= pm->Above[2]; j[2] ++)
         for(j[0] = pm->Below[0]; j[0] <= pm->Above[0]; j[0] ++)
         for(j[1] = pm->Below[1]; j[1] <= pm->Above[1]; j[1] ++) {
@@ -54,16 +52,16 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
             } 
             if(UNLIKELY(ptr == used)) {
                 ranks[used++] = rank;
-                ppd->rank = rank;
-                ppd->reason = j;
-                iter_func(pm, ppd);
-                ighost ++;
+                localppd.rank = rank;
+                localppd.reason = j;
+                iter_func(pm, &localppd);
             } 
         }
     }
 }
 
 static void count_ghosts(PM * pm, PMGhostData * ppd) {
+//#pragma omp atomic
     ppd->Nsend[ppd->rank] ++;
 }
 
@@ -71,7 +69,14 @@ static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
     double pos[3];
     pm->iface.get_position(ppd->pdata, ppd->ipar, pos);
 
-    int ighost = ppd->Osend[ppd->rank] + ppd->Nsend[ppd->rank];
+    int ighost;
+    int offset; 
+
+//#pragma omp atomic capture
+    offset = ppd->Nsend[ppd->rank] ++;
+
+    ighost = ppd->Osend[ppd->rank] + offset;
+
     pm->iface.pack(ppd->pdata, ppd->ipar, 
         (char*) ppd->send_buffer + ighost * ppd->elsize, ppd->attributes);
 
@@ -84,7 +89,6 @@ static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
 
     msg_aprintf(debug, "Connecting Ghost %d to Particle %td\n", ighost, ppd->ipar);
 #endif
-    ppd->Nsend[ppd->rank] ++;
 }
 
 void pm_append_ghosts(PMGhostData * ppd) {
@@ -136,6 +140,7 @@ void pm_append_ghosts(PMGhostData * ppd) {
                     pm->Comm2D);
     MPI_Type_free(&GHOST_TYPE);
 
+#pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
         pm->iface.unpack(ppd->pdata, ppd->np + i, 
                 (char*) ppd->recv_buffer + i * ppd->elsize, 
@@ -156,6 +161,7 @@ void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
     ppd->send_buffer = pm->iface.malloc(Nsend * ppd->elsize);
     ppd->ReductionAttributes = attributes;
 
+#pragma omp parallel for
     for(i = 0; i < ppd->nghosts; i ++) {
         pm->iface.pack(ppd->pdata, i + ppd->np, 
             (char*) ppd->recv_buffer + i * ppd->elsize, 
@@ -172,6 +178,7 @@ void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
 
     /* now reduce the attributes. */
     int ighost;
+#pragma omp parallel for
     for(ighost = 0; ighost < Nsend; ighost ++) {
         pm->iface.reduce(ppd->pdata, ppd->ighost_to_ipar[ighost], 
             (char*) ppd->send_buffer + ighost * ppd->elsize, 

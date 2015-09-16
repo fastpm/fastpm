@@ -20,14 +20,14 @@ cd $TMP
 
 cd pfft-$PFFT_VERSION
 
-./configure --enable-debug --prefix=$PREFIX --disable-shared --enable-static  \
+./configure --prefix=$PREFIX --disable-shared --enable-static  \
 --disable-fortran --disable-doc --enable-mpi --enable-sse2 --enable-avx --enable-openmp \
 2>&1 | tee $LOGFILE
 
 make -j 4 2>&1 | tee $LOGFILE
 make install 2>&1 | tee $LOGFILE
 
-./configure --enable-debug --prefix=$PREFIX --enable-single --disable-shared --enable-static  \
+./configure --prefix=$PREFIX --enable-single --disable-shared --enable-static  \
 --disable-fortran --disable-doc --enable-mpi --enable-sse --enable-avx --enable-openmp \
 2>&1 | tee $LOGFILE
 

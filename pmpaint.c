@@ -13,9 +13,7 @@
 static inline double WRtPlus(real_t * const d, 
         const int i, const int j, const int k, const double f, PM * pm)
 {
-#ifdef _OPENMP
 #pragma omp atomic
-#endif
     d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] += f;
     return f;
 }
@@ -171,6 +169,7 @@ static inline void pm_paint_pos(PM * pm, double pos[3], double weight) {
             if(targetpos < 0 || targetpos >= pm->IRegion.size[d]) 
                 goto outside;
         }
+#pragma omp atomic
         pm->workspace[ind] += weight * kernel;
 
     outside:
@@ -226,6 +225,7 @@ outside:
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
     ptrdiff_t i;
     memset(pm->workspace, 0, sizeof(pm->workspace[0]) * pm->allocsize);
+#pragma parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
