@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 PREFIX="$1"
-PFFT_VERSION=1.0.8-alpha-fftw3
+PFFT_VERSION=1.0.8-alpha1-fftw3
 TMP="tmp-pfft-$PFFT_VERSION"
 LOGFILE="build.log"
 
@@ -21,14 +21,14 @@ cd $TMP
 cd pfft-$PFFT_VERSION
 
 ./configure --enable-debug --prefix=$PREFIX --disable-shared --enable-static  \
---disable-fortran --disable-doc --enable-mpi --enable-sse2 --enable-avx \
+--disable-fortran --disable-doc --enable-mpi --enable-sse2 --enable-avx --enable-openmp \
 2>&1 | tee $LOGFILE
 
 make -j 4 2>&1 | tee $LOGFILE
 make install 2>&1 | tee $LOGFILE
 
 ./configure --enable-debug --prefix=$PREFIX --enable-single --disable-shared --enable-static  \
---disable-fortran --disable-doc --enable-mpi --enable-sse --enable-avx \
+--disable-fortran --disable-doc --enable-mpi --enable-sse --enable-avx --enable-openmp \
 2>&1 | tee $LOGFILE
 
 make -j 4 2>&1 | tee $LOGFILE

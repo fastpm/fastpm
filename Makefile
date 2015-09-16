@@ -2,7 +2,7 @@
 CC=mpicc
 DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM $(CPPFLAGS)
 
-OPTIMIZE = -O0 -g
+OPTIMIZE = -O0 -g -fopenmp
 
 CPPFLAGS += -I lua
 LDFLAGS += -L lua
@@ -17,14 +17,14 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
 		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
 
-PFFTLIB = depends/install/lib/libpfft.a
+PFFTLIB = depends/install/lib/libpfft_omp.a
 LUALIB = lua/liblua.a
 
 fastpm: $(PFFTLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
 			$(LDFLAGS) -llua -lgsl -lgslcblas \
-			-lpfft -lfftw3_mpi -lfftw3 \
-			-lpfftf -lfftw3f_mpi -lfftw3f \
+			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
+			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
 
 $(LUALIB): lua/Makefile
