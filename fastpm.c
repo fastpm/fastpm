@@ -442,12 +442,14 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         pm_store_wrap(&snapshot, BoxSize);
         timer_stop("comm");
 
+        MPI_Barrier(MPI_COMM_WORLD);
         timer_start("write");
 
         if(param->snapshot_filename) {
             sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
             write_runpb_snapshot(param, &snapshot, aout, filebase);
         }
+        MPI_Barrier(MPI_COMM_WORLD);
         timer_stop("write");
 
         const double rho_crit = 27.7455;
