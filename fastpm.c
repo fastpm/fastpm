@@ -21,16 +21,17 @@
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
 
-static void rungdb(const char* fmt, ...);
-static void calculate_forces(PMStore * p, PM * pm, double density_factor);
-static int to_rank(PMStore * pdata, ptrdiff_t i, void * data);
-static double sinc_unnormed(double x);
+static void 
+rungdb(const char* fmt, ...);
 
 /* command-line arguments */
 static int UseFFTW;
 static char * ParamFileName;
 static int NprocY;
+static void 
+parse_args(int argc, char ** argv);
 
+/* Snapshots */
 typedef struct {
     Parameters * param;
     PMStore * p;
@@ -39,9 +40,14 @@ typedef struct {
     int iout;
 } SNPS;
 
-static int snps_interp(SNPS * snps, double a_x, double a_v);
-static void snps_init(SNPS * snps, Parameters * prr, PMStore * p);
-static void snps_start(SNPS * snps);
+static int 
+snps_interp(SNPS * snps, double a_x, double a_v);
+static void 
+snps_init(SNPS * snps, Parameters * prr, PMStore * p);
+static void 
+snps_start(SNPS * snps);
+
+/* Variable Particle Mesh */
 
 typedef struct {
     PM pm;
@@ -51,74 +57,19 @@ typedef struct {
 
 static VPM vpm[2];
     
-static void vpm_init(Parameters * prr, PMIFace * iface, MPI_Comm comm) {
-    /* plan for the variable PMs */
-    int i;
-    for (i = 0; i < 2; i ++) {
-        if (i == 0) {
-            vpm[i].pm_nc_factor = prr->pm_nc_factor1;
-            vpm[i].a_start = 0;
-        } else {
-            vpm[i].pm_nc_factor = prr->pm_nc_factor2;
-            vpm[i].a_start = prr->change_pm;
-        }
-        PMInit pminit = {
-            .Nmesh = (int)(prr->nc * vpm[i].pm_nc_factor),
-            .BoxSize = prr->boxsize,
-            .NprocY = NprocY, /* 0 for auto, 1 for slabs */
-            .transposed = 1,
-            .use_fftw = UseFFTW,
-        };
-        pm_pfft_init(&vpm[i].pm, &pminit, iface, comm);
-    }
-}
+static void 
+vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm);
 
-static VPM vpm_find(double a) {
-    /* find the PM object for force calculation at time a*/
-    int i;
-    for (i = 0; i < 2; i ++) {
-        if(vpm[i].a_start > a) break;
-    }
-    return vpm[i-1];
-}
+static VPM 
+vpm_find(double a);
 
-static void parse_args(int argc, char ** argv) {
-    char opt;
-    extern int optind;
-    extern char * optarg;
-    UseFFTW = 0;
-    ParamFileName = NULL;
-    NprocY = 0;    
-    while ((opt = getopt(argc, argv, "h?y:f")) != -1) {
-        switch(opt) {
-            case 'y':
-                NprocY = atoi(optarg);
-            break;
-            case 'f':
-                UseFFTW = 1;
-            break;
-            case 'h':
-            case '?':
-            default:
-                goto usage;
-            break;
-        }
-    }
-    if(optind >= argc) {
-        goto usage;
-    }
-
-    ParamFileName = argv[optind];
-    return;
-
-usage:
-    msg_printf(-1, "Usage: fastpm [-f] [-y NprocY] paramfile\n"
-    "-f Use FFTW \n"
-    "-y Set the number of processes in the 2D mesh\n"
-);
-    MPI_Finalize();
-    exit(1);
-}
+/* Useful stuff */
+static void 
+calculate_forces(PMStore * p, PM * pm, double density_factor);
+static int 
+to_rank(void * pdata, ptrdiff_t i, void * data);
+static double 
+sinc_unnormed(double x);
 
 int main(int argc, char ** argv) {
 
@@ -139,10 +90,11 @@ int main(int argc, char ** argv) {
 
     stepping_init(&prr);
 
-    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm comm = MPI_COMM_WORLD; /* eventually we will pass comm around. */
 
-    int NTask;
+    int NTask; 
     MPI_Comm_size(comm, &NTask);
+
     power_init(prr.power_spectrum_filename, 
             prr.time_step[0], 
             prr.sigma8, 
@@ -188,18 +140,23 @@ int main(int argc, char ** argv) {
     for (istep = 0; istep <= nsteps; istep++) {
         double a_v, a_x, a_v1, a_x1;
 
+        /* begining and ending of drift(x) and kick(v)*/
         stepping_get_times(istep,
             &a_x, &a_x1, &a_v, &a_v1);
 
+        /* Find the Particle Mesh to use for this time step */
         VPM vpm = vpm_find(a_x);
         PM * pm = &vpm.pm;
 
+        /* apply periodic boundary and move particles to the correct rank */
         timer_start("comm");
         pm_store_wrap(&pdata, pm->BoxSize);
         pm_store_decompose(&pdata, to_rank, pm, comm);
         timer_stop("comm");
 
+        /* Calculate PM forces, only if needed. */
         if(prr.force_mode & FORCE_MODE_PM) {
+            /* watch out: boost the density since mesh is finer than grid */
             calculate_forces(&pdata, pm, pow(vpm.pm_nc_factor, 3)); 
         }
 #if 0
@@ -208,6 +165,7 @@ int main(int argc, char ** argv) {
         fwrite(pdata.id, sizeof(pdata.id[0]), pdata.np, fopen("id.i8", "w"));
         fwrite(pdata.acc, sizeof(pdata.acc[0]), pdata.np, fopen("acc.f4x3", "w"));
 #endif
+        /* take snapshots if needed, before the kick */
         if(snps_interp(&snps, a_x, a_v)) break;
 
         // Leap-frog "kick" -- velocities updated
@@ -216,6 +174,7 @@ int main(int argc, char ** argv) {
         stepping_kick(&pdata, a_v, a_v1, a_x);
         timer_stop("evolve");  
 
+        /* take snapshots if needed, before the drift */
         if(snps_interp(&snps, a_x, a_v1)) break;
         
         // Leap-frog "drift" -- positions updated
@@ -223,21 +182,29 @@ int main(int argc, char ** argv) {
         stepping_drift(&pdata, a_x, a_x1, a_v1);
         timer_stop("evolve");  
 
+        /* no need to check for snapshots here, it will be checked next loop.  */
     }
+
     pm_store_destroy(&pdata);
     timer_print();
     pfft_cleanup();
     MPI_Finalize();
 }
 
-static int to_rank(PMStore * pdata, ptrdiff_t i, void * data) {
+static int 
+to_rank(void * pdata, ptrdiff_t i, void * data) 
+{
+    PMStore * p = (PMStore *) pdata;
     PM * pm = (PM*) data;
     double pos[3];
-    pdata->iface.get_position(pdata, i, pos);
+    p->iface.get_position(p, i, pos);
     return pm_pos_to_rank(pm, pos);
 }
-static double diff_kernel(double w) {
-    /* order N = 1 */
+
+static double 
+diff_kernel(double w) 
+{
+    /* order N = 1 super lanzcos kernel */
     /* 
      * This is the same as GADGET-2 but in fourier space: 
      * see gadget-2 paper and Hamming's book.
@@ -245,18 +212,28 @@ static double diff_kernel(double w) {
      * */
     return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
 }
-static void apply_force_kernel(PM * pm, int dir) {
-    ptrdiff_t ind;
-    int d;
 
-    struct {
-        float k_finite; /* i k, finite */
-        float kk_finite; /* k ** 2, on a mesh */
-        float kk;  /* k ** 2 */
-    } * fac[3];
-    
+
+typedef struct {
+    float k_finite; /* i k, finite */
+    float kk_finite; /* k ** 2, on a mesh */
+    float kk;  /* k ** 2 */
+    float extra;  /* any temporary variable that can be useful. */
+} KFactors;
+
+static void 
+create_k_factors(PM * pm, KFactors * fac[3]) 
+{ 
+    /* This function populates fac with precalculated values that
+     * are useful for force calculation. 
+     * e.g. k**2 and the finite differentiation kernels. 
+     * precalculating them means in the true kernel we only need a 
+     * table look up. watch out for the offset ORegion.start
+     * */
+    int d;
+    ptrdiff_t ind;
     for(d = 0; d < 3; d++) {
-        fac[d] = alloca(sizeof(fac[0][0]) * pm->Nmesh[d]);
+        fac[d] = malloc(sizeof(fac[0][0]) * pm->Nmesh[d]);
         double CellSize = pm->BoxSize[d] / pm->Nmesh[d];
         for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
             float k = pm->MeshtoK[d][ind];
@@ -268,30 +245,70 @@ static void apply_force_kernel(PM * pm, int dir) {
             fac[d][ind].kk = k * k;
         }
     } 
-    
-#pragma omp parallel 
-    {
-        ptrdiff_t ind;
+}
 
-        int nth = omp_get_num_threads();
-        int ith = omp_get_thread_num();
-        ptrdiff_t start = ith * pm->ORegion.total / nth * 2;
-        ptrdiff_t end = (ith + 1) * pm->ORegion.total / nth * 2;
-        ptrdiff_t i[3] = {0};
+static void 
+destroy_k_factors(PM * pm, KFactors * fac[3]) 
+{
+    int d;
+    for(d = 0; d < 3; d ++) {
+        free(fac[d]);
+    }
+}
+
+static void 
+prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
+{ 
+    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
+     *
+     * i is in units of complex numbers.
+     *
+     * We call pm_unravel_o_index to set the initial i[] for each threads,
+     * then rely on pm_inc_o_index to increment i, because the former is 
+     * much slower than pm_inc_o_index and would eliminate threading advantage.
+     *
+     * */
+    int nth = omp_get_num_threads();
+    int ith = omp_get_thread_num();
+
+    *start = ith * pm->ORegion.total / nth * 2;
+    *end = (ith + 1) * pm->ORegion.total / nth * 2;
+
+    /* do not unravel if we are not looping at all. 
+     * This fixes a FPE when
+     * the rank has ORegion.total == 0 
+     * -- with PFFT the last transposed dimension
+     * on some ranks will be 0 */
+    if(*end > *start) 
+        pm_unravel_o_index(pm, *start / 2, i);
 
 #if 0
         msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
-            start, end,
+            *start, *end,
             pm->ORegion.strides[0],
             pm->ORegion.strides[1],
             pm->ORegion.strides[2]
             );
 #endif
-        /* do not unravel if we are not looping at all. This fixes a FPE when
-         * the rank has ORegion.total == 0 (with PFFT the last transposed dimension
-         * on some ranks will be 0 for most cases) */
-        if(end > start) 
-            pm_unravel_o_index(pm, start / 2, i);
+
+}
+
+static void 
+apply_force_kernel(PM * pm, int dir) 
+{
+    /* This is the force in fourier space. - i k[dir] / k2 */
+
+    KFactors * fac[3];
+
+    create_k_factors(pm, fac);
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        prepare_omp_loop(pm, &start, &end, i);
 
         for(ind = start; ind < end; ind += 2) {
             int d;
@@ -300,7 +317,6 @@ static void apply_force_kernel(PM * pm, int dir) {
             double kk = 0;
             for(d = 0; d < 3; d++) {
                 kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
-    //            kk += fac[d][i[d]].kk;
             }
             /* - i k[d] / k2 */
             if(LIKELY(kk_finite > 0)) {
@@ -315,9 +331,62 @@ static void apply_force_kernel(PM * pm, int dir) {
             pm_inc_o_index(pm, i);
         }
     }
+    destroy_k_factors(pm, fac);
+}
+
+static void 
+smooth_density(PM * pm, double r_s) 
+{
+    /* 
+     *  This function smooth density by scale r_s. There could be a factor of sqrt(2)
+     *  It is not used. */
+
+    KFactors * fac[3];
+
+    create_k_factors(pm, fac);
+    {
+        /* fill in the extra 'smoothing kernels' we will take the product */
+        ptrdiff_t ind;
+        int d;
+        for(d = 0; d < 3; d++)
+        for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
+            fac[d][ind].extra = exp(-0.5 * fac[d][ind].kk * r_s * r_s);
+        }
+    }
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double smth = 1.;
+            double kk = 0.;
+            for(d = 0; d < 3; d++) {
+                smth *= fac[d][i[d] + pm->ORegion.start[d]].extra;
+                kk += fac[d][i[d] + pm->ORegion.start[d]].kk;
+            }
+            /* - i k[d] / k2 */
+            if(LIKELY(kk> 0)) {
+                pm->workspace[ind + 0] = pm->canvas[ind + 0] * smth;
+                pm->workspace[ind + 1] = pm->canvas[ind + 1] * smth;
+            } else {
+                pm->workspace[ind + 0] = 0;
+                pm->workspace[ind + 1] = 0;
+            }
+            pm_inc_o_index(pm, i);
+        }
+    }
+
+    destroy_k_factors(pm, fac);
 }
 
 static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
+    /* calculate the forces save them to p->acc */
 
     PMGhostData pgd = {
         .pm = pm,
@@ -333,8 +402,11 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
     timer_stop("ghosts1");
 
     timer_start("paint");    
+
     /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
-     * it is less than the density (a cell is smaller than the mean seperation between particles. */
+     * it is less than the density (a cell is smaller than the mean seperation between particles. 
+     * we compensate this later at readout by density_factor.
+     * */
     pm_paint(pm, p, p->np + pgd.nghosts);
     
     timer_stop("paint");    
@@ -359,12 +431,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
         timer_stop("transfer");
 
 #if 0
-        char * fname[] = {
-                "acc-0.f4",
-                "acc-1.f4",
-                "acc-2.f4",
-            };
-
+        char * fname[] = { "acc-0.f4", "acc-1.f4", "acc-2.f4", };
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname[d], "w"));
 #endif
         timer_start("fft");
@@ -372,12 +439,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
         timer_stop("fft");
 
 #if 0
-        char * fname2[] = {
-                "accr-0.f4",
-                "accr-1.f4",
-                "accr-2.f4",
-            };
-
+        char * fname2[] = { "accr-0.f4", "accr-1.f4", "accr-2.f4", };
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname2[d], "w"));
 #endif
 
@@ -386,6 +448,7 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
 
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
+            /* compensate the density is less than the true density */
             p->acc[i][d] = pm_readout_one(pm, p, i) * (density_factor / pm->Norm);
         }
         timer_stop("readout");
@@ -437,6 +500,8 @@ static double sinc_unnormed(double x) {
 static int
 snps_interp(SNPS * snps, double a_x, double a_v)
 {
+    /* interpolate and write snapshots, assuming snps->p 
+     * is at time a_x and a_v. */
     char filebase[1024];    
     PMStore * p = snps->p;
     Parameters * param = snps->param;
@@ -444,6 +509,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
     double BoxSize[3] = {param->boxsize, param->boxsize, param->boxsize};
 
     timer_set_category(SNP);
+
     while(snps->iout < snps->nout && (
         /* after a kick */
         (a_x < snps->aout[snps->iout] && snps->aout[snps->iout] <= a_v)
@@ -492,7 +558,10 @@ snps_interp(SNPS * snps, double a_x, double a_v)
     timer_set_category(STEPPING);
     return (snps->iout == snps->nout);
 }
-static void snps_init(SNPS * snps, Parameters * prr, PMStore * p) {
+
+static void 
+snps_init(SNPS * snps, Parameters * prr, PMStore * p) 
+{
     snps->iout = 0;
     snps->nout = prr->n_zout;
     snps->param = prr;
@@ -507,6 +576,88 @@ static void snps_init(SNPS * snps, Parameters * prr, PMStore * p) {
     }
 }
 
-static void snps_start(SNPS * snps) {
+static void 
+snps_start(SNPS * snps) 
+{
     snps->iout = 0;
 }
+
+static void 
+vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm) 
+{
+    /* plan for the variable PMs; keep in mind we do variable
+     * mesh size (PM resolution). We plan them at the begining of the run
+     * in theory we can use some really weird PM resolution as function
+     * of time, but the parameter files / API need to support this.
+     * */
+    int i;
+    for (i = 0; i < 2; i ++) {
+        if (i == 0) {
+            vpm[i].pm_nc_factor = prr->pm_nc_factor1;
+            vpm[i].a_start = 0;
+        } else {
+            vpm[i].pm_nc_factor = prr->pm_nc_factor2;
+            vpm[i].a_start = prr->change_pm;
+        }
+        PMInit pminit = {
+            .Nmesh = (int)(prr->nc * vpm[i].pm_nc_factor),
+            .BoxSize = prr->boxsize,
+            .NprocY = NprocY, /* 0 for auto, 1 for slabs */
+            .transposed = 1,
+            .use_fftw = UseFFTW,
+        };
+        pm_pfft_init(&vpm[i].pm, &pminit, iface, comm);
+    }
+}
+
+static VPM 
+vpm_find(double a) 
+{
+    /* find the PM object for force calculation at time a*/
+    int i;
+    for (i = 0; i < 2; i ++) {
+        if(vpm[i].a_start > a) break;
+    }
+    return vpm[i-1];
+}
+
+static void 
+parse_args(int argc, char ** argv) 
+{
+    char opt;
+    extern int optind;
+    extern char * optarg;
+    UseFFTW = 0;
+    ParamFileName = NULL;
+    NprocY = 0;    
+    while ((opt = getopt(argc, argv, "h?y:f")) != -1) {
+        switch(opt) {
+            case 'y':
+                NprocY = atoi(optarg);
+            break;
+            case 'f':
+                UseFFTW = 1;
+            break;
+            case 'h':
+            case '?':
+            default:
+                goto usage;
+            break;
+        }
+    }
+    if(optind >= argc) {
+        goto usage;
+    }
+
+    ParamFileName = argv[optind];
+    return;
+
+usage:
+    msg_printf(-1, "Usage: fastpm [-f] [-y NprocY] paramfile\n"
+    "-f Use FFTW \n"
+    "-y Set the number of processes in the 2D mesh\n"
+);
+    MPI_Finalize();
+    exit(1);
+}
+
