@@ -6,6 +6,7 @@
 #include <math.h>
 #include <mpi.h>
 #include <signal.h>
+#include <omp.h>
 
 #include "pmpfft.h"
 #include "msg.h"
@@ -24,7 +25,6 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define execute_dft_r2c_fftw fftw_mpi_execute_dft_r2c
     #define execute_dft_c2r_fftw fftw_mpi_execute_dft_c2r
     #define _pfft_init pfft_init
-    #define nthreads pfft_get_nthreads
 #elif FFT_PRECISION == 32
     #define plan_dft_r2c pfftf_plan_dft_r2c
     #define plan_dft_c2r pfftf_plan_dft_c2r
@@ -35,7 +35,6 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define execute_dft_r2c_fftw fftwf_mpi_execute_dft_r2c
     #define execute_dft_c2r_fftw fftwf_mpi_execute_dft_c2r
     #define _pfft_init pfftf_init
-    #define nthreads pfftf_get_nthreads
 #endif
 
 static void module_init() {
@@ -161,7 +160,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
     }
-    msg_printf(info, "ProcMesh : %d %d x %d Threads\n", pm->Nproc[0], pm->Nproc[1], nthreads());
+    msg_printf(info, "ProcMesh : %d x %d ( %d Threads)\n", pm->Nproc[0], pm->Nproc[1], omp_get_max_threads());
 #if 0
     msg_aprintf(debug, "IRegion : %td %td %td + %td %td %td\n",
         pm->IRegion.start[0],
@@ -278,6 +277,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
                 | PFFT_PADDED_R2C 
                 | PFFT_ESTIMATE 
+                | PFFT_TUNE
                 //| PFFT_MEASURE
                 | PFFT_DESTROY_INPUT
                 );
@@ -289,6 +289,7 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 | PFFT_PADDED_C2R 
                 | PFFT_ESTIMATE 
                 //| PFFT_MEASURE
+                | PFFT_TUNE
                 | PFFT_DESTROY_INPUT
                 );
     }

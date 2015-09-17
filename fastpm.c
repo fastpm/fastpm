@@ -279,7 +279,19 @@ static void apply_force_kernel(PM * pm, int dir) {
         ptrdiff_t end = (ith + 1) * pm->ORegion.total / nth * 2;
         ptrdiff_t i[3] = {0};
 
-        pm_unravel_o_index(pm, start / 2, i);
+#if 0
+        msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
+            start, end,
+            pm->ORegion.strides[0],
+            pm->ORegion.strides[1],
+            pm->ORegion.strides[2]
+            );
+#endif
+        /* do not unravel if we are not looping at all. This fixes a FPE when
+         * the rank has ORegion.total == 0 (with PFFT the last transposed dimension
+         * on some ranks will be 0 for most cases) */
+        if(end > start) 
+            pm_unravel_o_index(pm, start / 2, i);
 
         for(ind = start; ind < end; ind += 2) {
             int d;
