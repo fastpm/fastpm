@@ -12,7 +12,7 @@
 
 static int myrank= -1;
 static int Log_level;
-
+static double t0 = 0;
 static double now()
 {
     struct timeval tp;
@@ -26,6 +26,7 @@ static double now()
 // Initialize using msg_ functions.
 void msg_init()
 {
+    t0 = now();
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 }
 
@@ -36,7 +37,7 @@ void msg_set_loglevel(const enum LogLevel lv)
 
 static char * process(const char * fmt) {
     char buf[128];
-    sprintf(buf, "%08.5f : ", now());
+    sprintf(buf, "[ %012.04f ]: ", now() - t0);
     char * ret = malloc(strlen(fmt) + strlen(buf) + 1);
     strcpy(ret, buf);
     strcat(ret, fmt);
