@@ -63,9 +63,22 @@ vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm);
 static VPM 
 vpm_find(double a);
 
+typedef struct {
+    size_t size;
+    double *k;
+    double *p;
+    double *N;
+} PowerSpectrum;
+
+static void 
+power_spectrum_init(PowerSpectrum * ps, size_t size);
+
+static void 
+power_spectrum_destroy(PowerSpectrum * ps);
+
 /* Useful stuff */
 static void 
-calculate_forces(PMStore * p, PM * pm, double density_factor);
+do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 static double 
@@ -148,6 +161,8 @@ int main(int argc, char ** argv) {
         VPM vpm = vpm_find(a_x);
         PM * pm = &vpm.pm;
 
+        PowerSpectrum ps;
+
         /* apply periodic boundary and move particles to the correct rank */
         timer_start("comm");
         pm_store_wrap(&pdata, pm->BoxSize);
@@ -155,10 +170,16 @@ int main(int argc, char ** argv) {
         timer_stop("comm");
 
         /* Calculate PM forces, only if needed. */
+        power_spectrum_init(&ps, pm->Nmesh[0] / 2);
+
         if(prr.force_mode & FORCE_MODE_PM) {
             /* watch out: boost the density since mesh is finer than grid */
-            calculate_forces(&pdata, pm, pow(vpm.pm_nc_factor, 3)); 
+            do_pm(&prr, &pdata, &vpm, &ps);
         }
+        if(prr.measure_power_spectrum_filename) {
+            //write_power_spectrum(a_x, &ps);
+        }
+        power_spectrum_destroy(&ps);
 #if 0
         fwrite(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("x.f8x3", "w"));
         fwrite(pdata.v, sizeof(pdata.v[0]), pdata.np, fopen("v.f4x3", "w"));
@@ -218,6 +239,7 @@ typedef struct {
     float k_finite; /* i k, finite */
     float kk_finite; /* k ** 2, on a mesh */
     float kk;  /* k ** 2 */
+    float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/
     float extra;  /* any temporary variable that can be useful. */
 } KFactors;
 
@@ -243,6 +265,8 @@ create_k_factors(PM * pm, KFactors * fac[3])
             fac[d][ind].k_finite = 1 / CellSize * diff_kernel(w);
             fac[d][ind].kk_finite = k * k * ff * ff;
             fac[d][ind].kk = k * k;
+            double tmp = sin(0.5 * k * CellSize);
+            fac[d][ind].cic = 1 - 2. / 3 * tmp * tmp;
         }
     } 
 }
@@ -384,9 +408,70 @@ smooth_density(PM * pm, double r_s)
 
     destroy_k_factors(pm, fac);
 }
+static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps) {
+    KFactors * fac[3];
 
-static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
-    /* calculate the forces save them to p->acc */
+    create_k_factors(pm, fac);
+
+    memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
+    memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
+    memset(ps->N, 0, sizeof(ps->N[0]) * ps->size);
+
+    double k0 = 2 * M_PI / pm->BoxSize[0];
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double kk = 0.;
+            double cic = 1.0;
+            for(d = 0; d < 3; d++) {
+                kk += fac[d][i[d] + pm->ORegion.start[d]].kk;
+                cic *= fac[d][i[d] + pm->ORegion.start[d]].cic;
+            }
+
+            double real = pm->canvas[ind + 0];
+            double imag = pm->canvas[ind + 1];
+            double value = real * real + imag * imag;
+            double k = sqrt(kk);
+            ptrdiff_t bin = floor(k / k0);
+            if(bin >= 0 && bin < ps->size) {
+                int w = 2;
+                if(i[2] == 0) w = 1;
+                ps->N[bin] += w;
+                ps->p[bin] += w * value; /// cic;
+                ps->k[bin] += w * k;
+            }
+            pm_inc_o_index(pm, i);
+        }
+    }
+
+
+    MPI_Allreduce(MPI_IN_PLACE, ps->p, ps->size, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, ps->N, ps->size, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, ps->k, ps->size, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+
+    ptrdiff_t ind;
+    for(ind = 0; ind < ps->size; ind++) {
+        ps->k[ind] /= ps->N[ind];
+        ps->p[ind] /= ps->N[ind];
+        ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm);
+    }
+
+    destroy_k_factors(pm, fac);
+}
+
+static void 
+do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps)
+{
+    PM * pm = &vpm->pm;
+    double density_factor =  pow(vpm->pm_nc_factor, 3); 
 
     PMGhostData pgd = {
         .pm = pm,
@@ -418,9 +503,16 @@ static void calculate_forces(PMStore * p, PM * pm, double density_factor) {
     pm_r2c(pm);
     timer_stop("fft");
 
+    timer_start("power");
+    calculate_powerspectrum(pm, ps);
+    timer_stop("power");
+    
 #if 0
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("density-k.f4", "w"));
 #endif
+    /* calculate the power spectrum */
+
+    /* calculate the forces save them to p->acc */
 
     int d;
     ptrdiff_t i;
@@ -620,6 +712,22 @@ vpm_find(double a)
     }
     return vpm[i-1];
 }
+
+static void 
+power_spectrum_init(PowerSpectrum * ps, size_t size) 
+{
+    ps->size = size;
+    ps->k = malloc(sizeof(ps->k[0]) * size);
+    ps->p = malloc(sizeof(ps->p[0]) * size);
+    ps->N = malloc(sizeof(ps->N[0]) * size);
+}
+static void 
+power_spectrum_destroy(PowerSpectrum * ps) {
+    free(ps->N);
+    free(ps->p);
+    free(ps->k);
+}
+
 
 static void 
 parse_args(int argc, char ** argv) 
