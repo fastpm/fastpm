@@ -180,6 +180,9 @@ static int read_parameter_file(const char filename[], Parameters * param)
     for i=1,N1 do \
         r[i] = 1.0 * (e - start) * (i - 1) / N + start \
     end \
+    if endpoint then \
+        r[N1] = e \
+    end \
     return r \
 end \
 function logspace(start, e, N, endpoint) \

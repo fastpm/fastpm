@@ -611,7 +611,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
 
     while(snps->iout < snps->nout && (
         /* after a kick */
-        (a_x < snps->aout[snps->iout] && snps->aout[snps->iout] <= a_v)
+        (a_x < snps->aout[snps->iout] && snps->aout[snps->iout] < a_v)
         ||
         /* after a drift */
         (a_x >= snps->aout[snps->iout] && snps->aout[snps->iout] >= a_v)
