@@ -76,6 +76,9 @@ power_spectrum_init(PowerSpectrum * ps, size_t size);
 static void 
 power_spectrum_destroy(PowerSpectrum * ps);
 
+static void
+write_power_spectrum(PowerSpectrum * ps, char * basename, int random_seed, double aout) ;
+
 /* Useful stuff */
 static void 
 do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps);
@@ -177,7 +180,8 @@ int main(int argc, char ** argv) {
             do_pm(&prr, &pdata, &vpm, &ps);
         }
         if(prr.measure_power_spectrum_filename) {
-            //write_power_spectrum(a_x, &ps);
+            if(pm->ThisTask == 0)
+                write_power_spectrum(&ps, prr.measure_power_spectrum_filename, prr.random_seed, a_x);
         }
         power_spectrum_destroy(&ps);
 #if 0
@@ -408,7 +412,7 @@ smooth_density(PM * pm, double r_s)
 
     destroy_k_factors(pm, fac);
 }
-static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps) {
+static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor) {
     KFactors * fac[3];
 
     create_k_factors(pm, fac);
@@ -461,7 +465,7 @@ static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps) {
     for(ind = 0; ind < ps->size; ind++) {
         ps->k[ind] /= ps->N[ind];
         ps->p[ind] /= ps->N[ind];
-        ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm);
+        ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm) * (density_factor * density_factor);
     }
 
     destroy_k_factors(pm, fac);
@@ -504,7 +508,7 @@ do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps)
     timer_stop("fft");
 
     timer_start("power");
-    calculate_powerspectrum(pm, ps);
+    calculate_powerspectrum(pm, ps, density_factor);
     timer_stop("power");
     
 #if 0
@@ -726,6 +730,20 @@ power_spectrum_destroy(PowerSpectrum * ps) {
     free(ps->N);
     free(ps->p);
     free(ps->k);
+}
+
+static void
+write_power_spectrum(PowerSpectrum * ps, char * basename, int random_seed, double aout) 
+{
+    char * buf[1024];
+    sprintf(buf, "%s%05d_%0.04f.txt", basename, random_seed, aout);
+    FILE * fp = fopen(buf, "w");
+    int i;
+    fprintf(fp, "# k p N \n");
+    for(i = 0; i < ps->size; i ++) {
+        fprintf(fp, "%g %g %g\n", ps->k[i], ps->p[i], ps->N[i]);
+    }
+    fclose(fp);
 }
 
 
