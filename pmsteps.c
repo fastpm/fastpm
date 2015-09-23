@@ -89,7 +89,7 @@ void stepping_init(Parameters * param) {
         A_V[0] = A_X[0];
 
         for (i = 1;i<=param->n_time_step-1;++i){
-            A_V[i] = (A_X[i]+A_X[i-1])/2;
+            A_V[i] = exp((log(A_X[i])+log(A_X[i-1]))/2);
         }
     }
     A_X[NSTEPS+1] = 1.0;
