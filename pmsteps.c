@@ -96,17 +96,21 @@ void stepping_init(Parameters * param) {
     A_X[NSTEPS] = 1.0;
     A_V[NSTEPS+1] = 1.0;
     A_V[NSTEPS] = 1.0;
-    msg_printf(normal, "Drift points: \n");
+    char * buf = malloc(24 * (NSTEPS + 2));
+    char * p;
     int i;
-    for(i = 0; i < NSTEPS + 2; i ++) {
-        msg_printf(normal, "%g, ", A_X[i]);
+    msg_printf(normal, "Drift: \n");
+    for(p = buf, i = 0; i < NSTEPS + 2; i ++) {
+        sprintf(p, "%6.4f ", A_X[i]);
+        p += strlen(p);
     }
-    msg_printf(normal, "\n");
-    msg_printf(normal, "Kick points: \n");
-    for(i = 0; i < NSTEPS + 2; i ++) {
-        msg_printf(normal, "%g, ", A_V[i]);
+    msg_printf(normal, "%s\n", buf);
+    msg_printf(normal, " Kick: \n");
+    for(p = buf, i = 0; i < NSTEPS + 2; i ++) {
+        sprintf(p, "%6.4f ", A_V[i]);
+        p += strlen(p);
     }
-    msg_printf(normal, "\n");
+    msg_printf(normal, "%s\n", buf);
 }
 
 int stepping_get_nsteps() {
@@ -135,7 +139,7 @@ void stepping_kick(PMStore * p,
         /* ZA and 2LPT sims no kicks */
         return;
     }
-    msg_printf(normal, "Kick %g -> %g\n", ai, af);
+    msg_printf(normal, "Kick %6.4f -> %6.4f\n", ai, af);
 
     double Om143= pow(Omega/(Omega + (1 - Omega)*ac*ac*ac), 1.0/143.0);
     double dda= Sphi(ai, af, ac) * stepping_boost;
@@ -190,7 +194,7 @@ void stepping_drift(PMStore * p,
     double da1= growthD(af) - growthD(ai);    // change in D_1lpt
     double da2= growthD2(af) - growthD2(ai);  // change in D_2lpt
 
-    msg_printf(normal, "Drift %g -> %g\n", ai, af);
+    msg_printf(normal, "Drift %6.4f -> %6.4f\n", ai, af);
     msg_printf(normal, "dyyy = %g \n", dyyy);
 
     dyyy *= stepping_boost;
@@ -355,7 +359,7 @@ double Sq(double ai, double af, double aRef) {
 
     gsl_integration_workspace_free (w);
 
-    msg_printf(verbose, "time = %g, std drift =%g, non std drift = %g \n",
+    msg_printf(verbose, "time = %6.4f, std drift =%g, non std drift = %g \n",
         aRef, resultstd, result2);
 
     if (stdDA == 0)
@@ -395,7 +399,7 @@ double Sphi(double ai, double af, double aRef) {
 
     gsl_integration_workspace_free (w);
 
-    msg_printf(verbose, "time = %g, std kick = %g, non std kick = %g\n",
+    msg_printf(verbose, "time = %6.4f, std kick = %g, non std kick = %g\n",
             aRef, resultstd, result);
 
     if (stdDA == 0) {
@@ -411,7 +415,7 @@ void stepping_set_initial(double aout, PMStore * p, double shift[3])
 {
     int np= p->np;
 
-    msg_printf(verbose, "Setting up inital snapshot at a= %g (z=%g).\n", aout, 1.0f/aout-1);
+    msg_printf(verbose, "Setting up inital snapshot at a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
 
     const float Dplus = 1.0/GrowthFactor(aout, 1.0);
 
@@ -451,7 +455,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
 {
     int np= p->np;
 
-    msg_printf(verbose, "Setting up snapshot at a= %g (z=%g) <- %g %g.\n", aout, 1.0f/aout-1, a_x, a_v);
+    msg_printf(verbose, "Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
     //float vfac=A/Qfactor(A); // RSD /h Mpc unit
     float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
