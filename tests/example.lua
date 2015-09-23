@@ -14,8 +14,8 @@ nrealization= 2
 
 -------- Time Sequence ----
 -- Uniform time steps in a
-ntimestep= 10
-a_init = 0.1
+ntimestep= 39
+a_init = 0.025
 a_final= 1.0
 -- Alternatively, specify the steps manually
 --time_step = {0.1, 0.5, 1.0}
