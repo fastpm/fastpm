@@ -169,8 +169,35 @@ int read_parameters(char * filename, Parameters * param)
 
 static int read_parameter_file(const char filename[], Parameters * param)
 {
+    static char * preface = 
+" function linspace(start, e, N, endpoint) \
+    local r = {} \
+    N1 = N \
+    if endpoint then \
+        N = N - 1 \
+    end \
+ \
+    for i=1,N1 do \
+        r[i] = 1.0 * (e - start) * (i - 1) / N + start \
+    end \
+    return r \
+end \
+function logspace(start, e, N, endpoint) \
+    local r \
+    r = linspace(start, e, N, endpoint) \
+    for i, j in pairs(r) do \
+        r[i] = math.pow(10, j) \
+    end \
+    return r \
+end \
+";
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
+
+    if(luaL_loadstring(L, preface) || lua_pcall(L, 0, 0, 0)) {
+        fprintf(stderr, "%s", lua_tostring(L, -1));
+        return -1;
+    }
 
     if(luaL_loadfile(L, filename) || lua_pcall(L, 0, 0, 0)) {
         fprintf(stderr, "%s", lua_tostring(L, -1));

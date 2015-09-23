@@ -13,12 +13,10 @@ boxsize = 1280.0
 nrealization= 2
 
 -------- Time Sequence ----
--- Uniform time steps in a
-ntimestep= 39
-a_init = 0.025
-a_final= 1.0
--- Alternatively, specify the steps manually
---time_step = {0.1, 0.5, 1.0}
+-- linspace: Uniform time steps in a
+-- time_step = linspace(0.025, 1.0, 39)
+-- logspace: Uniform time steps in loga
+time_step = logspace(-2, 0, 80)
 
 output_redshifts= {1.0, 0.0}  -- redshifts of output
 
