@@ -736,7 +736,7 @@ power_spectrum_destroy(PowerSpectrum * ps) {
 static void
 write_power_spectrum(PowerSpectrum * ps, char * basename, int random_seed, double aout) 
 {
-    char * buf[1024];
+    char buf[1024];
     sprintf(buf, "%s%05d_%0.04f.txt", basename, random_seed, aout);
     FILE * fp = fopen(buf, "w");
     int i;
