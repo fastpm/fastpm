@@ -159,6 +159,8 @@ int read_parameters(char * filename, Parameters * param)
     bcast_string(&param->readic_filename);
 
     bcast_array((void**)&param->zout,   sizeof(double), &param->n_zout);
+    bcast_array((void**)&param->pm_nc_factor,   sizeof(int), &param->n_pm_nc_factor);
+    bcast_array((void**)&param->change_pm,   sizeof(double), &param->n_change_pm);
     bcast_array((void**)&param->time_step,   sizeof(double), &param->n_time_step);
     bcast_array((void**)&param->pm_mond_parameters,   sizeof(double), &param->n_pm_mond_parameters);
 
@@ -203,9 +205,11 @@ static int read_parameter_file(const char filename[], Parameters * param)
     param->h = read_number(L, "h");
     param->sigma8 = read_number(L, "sigma8");
 
-    param->pm_nc_factor1 = read_integer(L, "pm_nc_factor1");
-    param->pm_nc_factor2 = read_integer(L, "pm_nc_factor2");
-    param->change_pm = read_number(L, "change_pm");
+    param->pm_nc_factor = read_array_integer(L, "pm_nc_factor", &param->n_pm_nc_factor);
+    param->change_pm = read_array_number(L, "change_pm", &param->n_change_pm);
+    if(param->n_change_pm != param->n_pm_nc_factor) {
+        msg_abort(1001, "Error: length of change_pm and pm_nc_factor mismatch.");
+    }
     param->np_alloc_factor = read_number(L, "np_alloc_factor");
     param->loglevel = read_integer(L, "loglevel");
 

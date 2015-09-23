@@ -10,7 +10,7 @@ nc = 128
 boxsize = 1280.0
 
 -- Broken, always use 1
-nrealization= 1
+nrealization= 2
 
 -------- Time Sequence ----
 -- Uniform time steps in a
@@ -43,9 +43,9 @@ smoothing = 2.0 -- Unused
 diff_order = 1
 enforce_broadband = true
 
-pm_nc_factor1= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
-change_pm = 0.5            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
-pm_nc_factor2= 2            -- Particle Mesh grid pm_nc_factor*nc per dimension after a > change_pm
+pm_nc_factor = {1,   2,   3, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
+change_pm =    {0, 0.2, 0.5, }            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
+
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 loglevel=0                 -- 0=verbose increase value to reduce output msgs
 

@@ -55,8 +55,9 @@ typedef struct {
     int pm_nc_factor;
 } VPM;
 
-static VPM vpm[2];
-    
+static VPM * _vpm;
+static int n_vpm;    
+
 static void 
 vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm);
 
@@ -163,6 +164,7 @@ int main(int argc, char ** argv) {
         /* Find the Particle Mesh to use for this time step */
         VPM vpm = vpm_find(a_x);
         PM * pm = &vpm.pm;
+        msg_printf(debug, "Using PM of size %td\n", pm->init.Nmesh);
 
         PowerSpectrum ps;
 
@@ -686,23 +688,22 @@ vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm)
      * in theory we can use some really weird PM resolution as function
      * of time, but the parameter files / API need to support this.
      * */
+    n_vpm = prr->n_pm_nc_factor;
+    _vpm = malloc(sizeof(_vpm[0]) * prr->n_pm_nc_factor);
     int i;
-    for (i = 0; i < 2; i ++) {
-        if (i == 0) {
-            vpm[i].pm_nc_factor = prr->pm_nc_factor1;
-            vpm[i].a_start = 0;
-        } else {
-            vpm[i].pm_nc_factor = prr->pm_nc_factor2;
-            vpm[i].a_start = prr->change_pm;
-        }
+    for (i = 0; i < prr->n_pm_nc_factor; i ++) {
+        _vpm[i].pm_nc_factor = prr->pm_nc_factor[i];
+        _vpm[i].a_start = prr->change_pm[i];
+
         PMInit pminit = {
-            .Nmesh = (int)(prr->nc * vpm[i].pm_nc_factor),
+            .Nmesh = (int)(prr->nc * _vpm[i].pm_nc_factor),
             .BoxSize = prr->boxsize,
             .NprocY = NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
             .use_fftw = UseFFTW,
         };
-        pm_pfft_init(&vpm[i].pm, &pminit, iface, comm);
+        pm_pfft_init(&_vpm[i].pm, &pminit, iface, comm);
+        msg_printf(debug, "PM initialized for Nmesh = %td at a %5.4g \n", pminit.Nmesh, prr->change_pm[i]);
     }
 }
 
@@ -711,10 +712,10 @@ vpm_find(double a)
 {
     /* find the PM object for force calculation at time a*/
     int i;
-    for (i = 0; i < 2; i ++) {
-        if(vpm[i].a_start > a) break;
+    for (i = 0; i < n_vpm; i ++) {
+        if(_vpm[i].a_start > a) break;
     }
-    return vpm[i-1];
+    return _vpm[i-1];
 }
 
 static void 

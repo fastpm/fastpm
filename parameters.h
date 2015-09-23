@@ -3,9 +3,12 @@
 
 typedef struct {
     size_t nc;
-    int pm_nc_factor1;
-    int pm_nc_factor2;
-    float change_pm;
+    
+    /* when to switch pm size, and to what */
+    int * pm_nc_factor;
+    double * change_pm;
+    int n_pm_nc_factor;
+    int n_change_pm;
 
     double np_alloc_factor;
 
