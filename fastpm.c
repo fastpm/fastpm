@@ -78,7 +78,7 @@ static void
 power_spectrum_destroy(PowerSpectrum * ps);
 
 static void
-write_power_spectrum(PowerSpectrum * ps, char * basename, int random_seed, double aout) ;
+write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
 
 /* Useful stuff */
 static void 
@@ -183,7 +183,8 @@ int main(int argc, char ** argv) {
         }
         if(prr.measure_power_spectrum_filename) {
             if(pm->ThisTask == 0)
-                write_power_spectrum(&ps, prr.measure_power_spectrum_filename, prr.random_seed, a_x);
+                write_power_spectrum(&ps, pm, ((double)prr.nc * prr.nc * prr.nc), 
+                    prr.measure_power_spectrum_filename, prr.random_seed, a_x);
         }
         power_spectrum_destroy(&ps);
 #if 0
@@ -734,7 +735,7 @@ power_spectrum_destroy(PowerSpectrum * ps) {
 }
 
 static void
-write_power_spectrum(PowerSpectrum * ps, char * basename, int random_seed, double aout) 
+write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout) 
 {
     char buf[1024];
     sprintf(buf, "%s%05d_%0.04f.txt", basename, random_seed, aout);
@@ -744,6 +745,14 @@ write_power_spectrum(PowerSpectrum * ps, char * basename, int random_seed, doubl
     for(i = 0; i < ps->size; i ++) {
         fprintf(fp, "%g %g %g\n", ps->k[i], ps->p[i], ps->N[i]);
     }
+    fprintf(fp, "# metadata 7\n");
+    fprintf(fp, "# volume %g float64\n", pm->Volume);
+    fprintf(fp, "# shotnoise %g float64\n", pm->Volume / ntotal);
+    fprintf(fp, "# N1 %g int\n", ntotal);
+    fprintf(fp, "# N2 %g int\n", ntotal);
+    fprintf(fp, "# Lz %g float64\n", pm->BoxSize[2]);
+    fprintf(fp, "# Lx %g float64\n", pm->BoxSize[0]);
+    fprintf(fp, "# Ly %g float64\n", pm->BoxSize[1]);
     fclose(fp);
 }
 
