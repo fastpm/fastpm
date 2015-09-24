@@ -64,7 +64,7 @@ void msg_aprintf(const enum LogLevel msg_level, const char *fmt, ...)
 
         va_start(argp, fmt);
         char * newfmt = process(fmt);
-        vfprintf(stdout, fmt, argp);
+        vfprintf(stdout, newfmt, argp);
         free(newfmt);
         fflush(stdout);
         va_end(argp);

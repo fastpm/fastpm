@@ -63,7 +63,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
         if (Nfile == 0) {
             msg_abort(0030, "No snapshot files were found.\n");
         }
-        printf("Total number of files is %d", Nfile);
+        msg_printf(info, "Total number of files is %d\n", Nfile);
 
         MPI_Bcast(&Nfile, 1, MPI_INT, 0, MPI_COMM_WORLD);
         NperFile = malloc(sizeof(int) * Nfile);
@@ -80,9 +80,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
             }
             fread(&header, sizeof(FileHeader), 1, fp);
             aa = header.aa;
-            printf("reading from file %s", buf);
-            printf(" npart=%d", header.npart);
-            printf(" aa=%g \n", header.aa);
+            msg_aprintf(info, "reading from file %s npart=%d aa=%g \n", buf, header.npart, header.aa);
             NperFile[i] = header.npart;
             Ntot += header.npart;        
             fclose(fp);
@@ -125,7 +123,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
         if(myend <= 0) continue;
         if(mystart >= NperFile[i]) continue;
 
-        printf("Task %d reading at %d \n", ThisTask, offset);
+        //printf("Task %d reading at %d \n", ThisTask, offset);
 
         /* cut to this file */
         if(myend > NperFile[i]) {
@@ -244,10 +242,8 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
             dx2[d] *= param->boxsize;
 
             v[d] = 0.0;
-            for(d =0; d < 3; d++) {
-                dx1disp[d] += dx1[d] * dx1[d];
-                dx2disp[d] += dx2[d] * dx2[d];
-            } 
+            dx1disp[d] += dx1[d] * dx1[d];
+            dx2disp[d] += dx2[d] * dx2[d];
         }
         
     }
