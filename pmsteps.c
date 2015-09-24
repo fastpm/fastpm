@@ -16,6 +16,7 @@
  */
 
 #include <math.h>
+#include <string.h>
 #include <assert.h>
 #include <mpi.h>
 #include <gsl/gsl_integration.h>
