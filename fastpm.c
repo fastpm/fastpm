@@ -7,6 +7,8 @@
 #include <mpi.h>
 #include <signal.h>
 #include <omp.h>
+#include <limits.h>
+#include <sys/stat.h>
 
 #include "pmpfft.h"
 #include "pm2lpt.h"
@@ -30,6 +32,9 @@ static char * ParamFileName;
 static int NprocY;
 static void 
 parse_args(int argc, char ** argv);
+
+static void 
+ensure_dir(char * path);
 
 /* Snapshots */
 typedef struct {
@@ -183,6 +188,7 @@ int main(int argc, char ** argv) {
         }
         if(prr.measure_power_spectrum_filename) {
             if(pm->ThisTask == 0)
+                ensure_dir(prr.measure_power_spectrum_filename);
                 write_power_spectrum(&ps, pm, ((double)prr.nc * prr.nc * prr.nc), 
                     prr.measure_power_spectrum_filename, prr.random_seed, a_x);
         }
@@ -636,6 +642,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         timer_start("write");
 
         if(param->snapshot_filename) {
+            ensure_dir(param->snapshot_filename);
             sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
             write_runpb_snapshot(param, &snapshot, aout, filebase);
         }
@@ -795,5 +802,41 @@ usage:
 );
     MPI_Finalize();
     exit(1);
+}
+static void 
+_mkdir(const char *dir) 
+{
+        char * tmp = strdup(dir);
+        char *p = NULL;
+        size_t len;
+
+        len = strlen(tmp);
+        if(tmp[len - 1] == '/')
+                tmp[len - 1] = 0;
+        for(p = tmp + 1; *p; p++)
+                if(*p == '/') {
+                        *p = 0;
+                        mkdir(tmp, S_IRWXU);
+                        *p = '/';
+                }
+        mkdir(tmp, S_IRWXU);
+        free(tmp);
+}
+static void 
+ensure_dir(char * path) 
+{
+    int i = strlen(path);
+    char * dup = strdup(path);
+    char * p;
+    for(p = i + dup; p >= dup && *p != '/'; p --) {
+        continue;
+    }
+    /* plain file name in current directory */
+    if(p < dup) return;
+    
+    /* p == '/', so set it to NULL, dup is the dirname */
+    *p = 0;
+    _mkdir(dup);
+    free(dup);
 }
 
