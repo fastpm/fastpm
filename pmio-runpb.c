@@ -5,11 +5,15 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stddef.h>
 #include <mpi.h>
 #include <glob.h>
 #include <math.h>
 #include <alloca.h>
+#include <limits.h>
+#include <sys/stat.h>
+
 #include "parameters.h"
 #include "power.h"
 #include "pmpfft.h"
@@ -17,7 +21,38 @@
 
 extern double GrowthFactor(double astart, double aend);
 extern double Qfactor(double aa);
+static void _mkdir(const char *dir) {
+        char * tmp = strdup(dir);
+        char *p = NULL;
+        size_t len;
 
+        len = strlen(tmp);
+        if(tmp[len - 1] == '/')
+                tmp[len - 1] = 0;
+        for(p = tmp + 1; *p; p++)
+                if(*p == '/') {
+                        *p = 0;
+                        mkdir(tmp, S_IRWXU);
+                        *p = '/';
+                }
+        mkdir(tmp, S_IRWXU);
+        free(tmp);
+}
+static void ensure_dir(char * path) {
+    int i = strlen(path);
+    char * dup = strdup(path);
+    char * p;
+    for(p = i + dup; p >= dup && *p != '/'; p --) {
+        continue;
+    }
+    /* plain file name in current directory */
+    if(p < dup) return;
+    
+    /* p == '/', so set it to NULL, dup is the dirname */
+    *p = 0;
+    _mkdir(dup);
+    free(dup);
+}
 #define FILENAME  "%s.%02d"
 
 typedef struct {
@@ -315,7 +350,6 @@ static void write_mine(char * filebase,
         header.eps =  0.1 / pow(Ntot, 1./3);
 
         sprintf(buf, FILENAME, filebase, i);
-
         FILE * fp = fopen(buf, "r+");
         /* skip these */
         fwrite(&eflag, sizeof(int), 1, fp);
@@ -416,6 +450,11 @@ int write_runpb_snapshot(Parameters * param, PMStore * p, double aa,
 
     size_t start = NcumTask[ThisTask];
     size_t end   = NcumTask[ThisTask + 1];
+
+    if(ThisTask == 0)    
+        ensure_dir(filebase);
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     for(i = 0; i < Nfile; i ++) {
         char buf[1024];
