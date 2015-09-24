@@ -210,8 +210,8 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
 
     /* RUN PB ic global shifting */
     const double offset0 = 0.5 * 1.0 / param->nc;
-    double dx1max = 0;
-    double dx2max = 0;
+    double dx1disp[3] = {0};
+    double dx2disp[3] = {0};
     int ip;
     for(ip = 0; ip < offset; ip ++) {
         double * x = p->x[ip];
@@ -229,8 +229,8 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
             if(disp < -0.5) disp += 1.0;
             if(disp > 0.5) disp -= 1.0;
             dx1[d] = (v[d] - disp * (2 * f2)) / (f1 - 2 * f2) / DplusIC;
-            dx2[d] = (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
-            /* evolve to a_init with 2lpt */
+            /* this ensures  = x0 + dx1 + 3/7 dx2; we shift the positioni in pmsteps.c  */
+            dx2[d] = 7. / 3 * (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
             double tmp = opos; // + dx1[d] * Dplus + dx2[d] * (D20 * D2);
             x[d] = tmp * param->boxsize;
             while(x[d] < 0.0) x[d] += param->boxsize;
@@ -243,16 +243,30 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
             }
             dx2[d] *= param->boxsize;
 
-            if(fabs(dx1[d]) > dx1max) dx1max = fabs(dx1[d]);
-            if(fabs(dx2[d]) > dx2max) dx2max = fabs(dx2[d]);
             v[d] = 0.0;
+            for(d =0; d < 3; d++) {
+                dx1disp[d] += dx1[d] * dx1[d];
+                dx2disp[d] += dx2[d] * dx2[d];
+            } 
         }
         
     }
-    double dx1maxg, dx2maxg;
-    MPI_Allreduce(&dx1max, &dx1maxg, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&dx2max, &dx2maxg, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    msg_printf(verbose, "dx1 max = %g, dx2 max = %g", dx1maxg, dx2maxg);
+    int d;
+    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    for(d =0; d < 3; d++) {
+        dx1disp[d] /= Ntot;
+        dx1disp[d] = sqrt(dx1disp[d]);
+        dx2disp[d] /= Ntot;
+        dx2disp[d] = sqrt(dx2disp[d]);
+    }
+    msg_printf(info, "dx1 disp : %g %g %g %g\n", 
+            dx1disp[0], dx1disp[1], dx1disp[2],
+            (dx1disp[0] + dx1disp[1] + dx1disp[2]) / 3.0);
+    msg_printf(info, "dx2 disp : %g %g %g %g\n", 
+            dx2disp[0], dx2disp[1], dx2disp[2],
+            (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
+
     free(NcumFile);
     free(NperFile);
     free(scratch);
