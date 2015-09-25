@@ -816,10 +816,10 @@ _mkdir(const char *dir)
         for(p = tmp + 1; *p; p++)
                 if(*p == '/') {
                         *p = 0;
-                        mkdir(tmp, S_IRWXU);
+                        mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
                         *p = '/';
                 }
-        mkdir(tmp, S_IRWXU);
+        mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
         free(tmp);
 }
 static void 
