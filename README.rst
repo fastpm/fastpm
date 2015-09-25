@@ -8,40 +8,38 @@ fastPM
 A simple Particle Mesh (fastPM) solver for N-body cosmological simulations.
 The code is indented to study the formation of large scale structure.
 
-fastPM solves the gravity Possion equation with an augumented particle mesh 
-that is 2x to 3x of the particle grid. 
+fastPM solves the gravity Possion equation with an variable augumented particle mesh.
 
-2 parallel fourier transform backends are
-supported, slab-based FFTW and pencil-based PFFT. 
-The PFFT backend enables fastPM to scale to hundred thousand MPI ranks, allows
+2 parallel fourier transform backends are supported, slab-based FFTW and pencil-based PFFT. 
+
+- The PFFT backend enables fastPM to scale to hundred thousand MPI ranks, allows
 runs with significantly more than 2048**3 particles. 
-The FFTW backend allows one to run smaller simulations (<= 2048**3 particles on 1024 ranks
+
+- The FFTW backend allows one to run smaller simulations (<= 2048**3 particles on 1024 ranks
 more efficiently.
 
-fastPM supports plain PM (correctly implemented) and Comoving-Lagranian (COLA)
-solvers. Several optimizations in fastPM allows one to use arbitrary differential kernel 
-in fastPM at little additional cost.
+fastPM supports plain PM and Comoving-Lagranian (COLA) solvers. The finite differentiation kernel
+in fastPM is the 4 point low-noise super-lanzcos kernel. A discrete laplacian operator is used to solve
+Poisson's equation.
 
 The post analysis chain is nbodykit [3]_, consisting tools for calculating 
 power spectrum and identifying haloes and subhalos.
 
-fastPM is extremely efficient, with 80% of wall time spent 
-in Fast Fourier Transform.
+The Particle Mesh solver and 2LPT initial condition generator are written from scratch.
 
-To solver a 8 billion particle system over the 13.7 billion years
-of the Universe (from z=9 to z=0), it takes
+The following files in fastPM are originally from cola_halo [4] by Jun Koda:
 
-- 20 steps,
-- on 1024 cores,
-- 30 minutes.
+- msg.c :  Provides logging infrastructure
 
-The infrastrcture code in cola_halo [4]_ by Dr. Jun Koda have greatly helped
-us to speed up the development. 
+- pmtimer.c : Provides time profiling
 
-This code is based on publicly avaiable codes ([1]_, [2]_)
-and previously privated codes (QPM by Martin White), modified and redistributed 
+- pmsteps.c : COLA stepping
+
+- power.c : Cosmology functions
+
+fastPM is based on publicly avaiable codes ([1]_, [2]_)
+and previously privated codes (QPM and ic_2lpt by Martin White), modified and redistributed 
 under GPLv3.
-
 
 .. [1] http://cosmo.nyu.edu/roman/2LPT/
 .. [2] https://bitbucket.org/tassev/colacode/
@@ -53,7 +51,7 @@ Installation
 
 First gsl. Most super-computing have these already installed.
 
-FFTW and PFFT are bundled and installed 
+FFTW and PFFT are bundled and installed .
 
 .. code::
 
@@ -76,6 +74,4 @@ Examples
 --------
 
 Refer to tests/example.lua and tests/runtest.sh
-
-
 
