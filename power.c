@@ -33,6 +33,7 @@ static struct pow_table
 
 void read_power_table_camb(const char filename[]);
 double normalize_power(const double a_init, const double sigma8);
+double TopHatSigma2(double R, double (*func)(double, void*), void*);
 
 void power_init(const char filename[], const double a_init, const double sigma8, const double omega_m, const double omega_lambda)
 {
@@ -122,6 +123,10 @@ void read_power_table_camb(const char filename[])
 double PowerSpecWithData(double k, void * data) {
     return PowerSpec(k);
 }
+double Sigma2(double R) {
+    return TopHatSigma2(R, PowerSpecWithData, NULL); 
+}
+
 double normalize_power(const double a_init, const double sigma8)
 {
     // Assume that input power spectrum already has a proper sigma8

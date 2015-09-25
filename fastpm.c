@@ -69,6 +69,9 @@ vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm);
 static VPM 
 vpm_find(double a);
 
+static double
+vpm_estimate_alloc_factor(double failure_rate);
+
 typedef struct {
     size_t size;
     double *k;
@@ -92,6 +95,8 @@ static int
 to_rank(void * pdata, ptrdiff_t i, void * data);
 static double 
 sinc_unnormed(double x);
+static double 
+estimate_alloc_factor(double Volume, int NTask, double failure_rate);
 
 int main(int argc, char ** argv) {
 
@@ -123,12 +128,17 @@ int main(int argc, char ** argv) {
             prr.omega_m, 
             1 - prr.omega_m);
 
-    
     pm_store_init(&pdata);
 
-    pm_store_alloc(&pdata, 1.0 * prr.nc * prr.nc * prr.nc / NTask * prr.np_alloc_factor);
-
     vpm_init(&prr, &pdata.iface, comm);
+
+    double alloc_factor = vpm_estimate_alloc_factor(1e-5);
+    if(prr.np_alloc_factor > alloc_factor) {
+        alloc_factor = prr.np_alloc_factor;
+    }
+    msg_printf(info, "Using alloc factor of %g\n", alloc_factor);
+
+    pm_store_alloc(&pdata, 1.0 * pow(prr.nc, 3) / NTask * alloc_factor);
 
     timer_set_category(LPT);
 
@@ -178,6 +188,15 @@ int main(int argc, char ** argv) {
         pm_store_wrap(&pdata, pm->BoxSize);
         pm_store_decompose(&pdata, to_rank, pm, comm);
         timer_stop("comm");
+
+        size_t np_max;
+        size_t np_min;
+        double np_mean = pow(prr.nc, 3) / NTask;
+        MPI_Allreduce(&pdata.np, &np_max, 1, MPI_LONG, MPI_MAX, comm);
+        MPI_Allreduce(&pdata.np, &np_min, 1, MPI_LONG, MPI_MIN, comm);
+
+        msg_printf(info, "Load imbalance is - %g / + %g\n",
+            np_min / np_mean, np_max / np_mean);
 
         /* Calculate PM forces, only if needed. */
         power_spectrum_init(&ps, pm->Nmesh[0] / 2);
@@ -714,7 +733,24 @@ vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm)
         msg_printf(debug, "PM initialized for Nmesh = %td at a %5.4g \n", pminit.Nmesh, prr->change_pm[i]);
     }
 }
+static double
+vpm_estimate_alloc_factor(double failure_rate) 
+{
+    double factor = 1.0;
+    int i;
+    for(i = 0; i < n_vpm; i ++) {
+        PM * pm = &_vpm[i].pm;
+        double Volume = pm->Volume / pm->NTask;
 
+        /* Correct for the surface area */
+        Volume += 2 * pm->Volume / pm->Nmesh[0] * pm->Nproc[0];
+        Volume += 2 * pm->Volume / pm->Nmesh[1] * pm->Nproc[1];
+
+        double factor1 = estimate_alloc_factor(Volume, pm->NTask, failure_rate);
+        if(factor1 > factor) factor = factor1;
+    }
+    return factor;
+}
 static VPM 
 vpm_find(double a) 
 {
@@ -840,3 +876,27 @@ ensure_dir(char * path)
     free(dup);
 }
 
+static double 
+estimate_alloc_factor(double Volume, int NTask, double failure_rate)
+{
+
+    double R = pow(4 * M_PI / 3 * Volume, 0.3333);
+    double sigma = sqrt(Sigma2(R));
+    double factor = 1.001;
+    double probfail;
+    while (1) {
+        double x = (factor - 1.0);
+        probfail = erfc(x / (1.414) / sigma);
+        /* 1 - (1 - p) ** k == - [ exp(log(1-p) * k) - 1];
+         * Because p is small, at large cores directly calculating (1-p)**k
+         * can be very inaccurate. */
+
+        probfail = - expm1(log1p(-probfail) * NTask);
+
+        if (probfail < failure_rate) break;
+        factor *= 1.01;
+    }
+    msg_printf(info, "Sigma %g AllocFactor %g Overrun probability %g\n", sigma, factor, probfail); 
+
+    return factor;
+}
