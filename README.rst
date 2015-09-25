@@ -22,8 +22,10 @@ fastPM supports plain PM and Comoving-Lagranian (COLA) solvers. The finite diffe
 in fastPM is the 4 point low-noise super-lanzcos kernel. A discrete laplacian operator is used to solve
 Poisson's equation.
 
-The post analysis chain is nbodykit [3]_, consisting tools for calculating 
-power spectrum and identifying haloes and subhalos.
+The IO format of fastPM is identical to TPM by Martin White.  
+The post analysis chain nbodykit [3]_ natively support these formats. nbodykit [3]_ provides
+ tools for calculating 2 point functions, making QPM mocks, and identifying Friend-of-Friend 
+haloes and calculating spherical overdensity properties of subhalos.
 
 The Particle Mesh solver and 2LPT initial condition generator are written from scratch.
 
