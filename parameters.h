@@ -39,6 +39,8 @@ typedef struct {
 
     double * time_step; int n_time_step;
     int enforce_broadband;
+    int UseFFTW;
+    int NprocY;
 } Parameters;
 
 #define PM_MOND_NONE 0

@@ -17,21 +17,12 @@
 #include "msg.h"
 #include "power.h"
 #include "pmtimer.h"
-#include "readparams.h"
-#include <getopt.h>
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
 
 static void 
 rungdb(const char* fmt, ...);
-
-/* command-line arguments */
-static int UseFFTW;
-static char * ParamFileName;
-static int NprocY;
-static void 
-parse_args(int argc, char ** argv);
 
 static void 
 ensure_dir(char * path);
@@ -98,26 +89,6 @@ static double
 sinc_unnormed(double x);
 static double 
 estimate_alloc_factor(double Volume, int NTask, double failure_rate);
-
-int fastpm(Parameters * prr, MPI_Comm comm);
-
-int main(int argc, char ** argv) {
-
-    MPI_Init(&argc, &argv);
-
-    parse_args(argc, argv);
-
-    Parameters prr;
-
-    read_parameters(ParamFileName, &prr);
-
-    MPI_Comm comm = MPI_COMM_WORLD; 
-
-    fastpm(&prr, comm);
-
-    pfft_cleanup();
-    MPI_Finalize();
-}
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
 
@@ -739,9 +710,9 @@ vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm)
         PMInit pminit = {
             .Nmesh = (int)(prr->nc * _vpm[i].pm_nc_factor),
             .BoxSize = prr->boxsize,
-            .NprocY = NprocY, /* 0 for auto, 1 for slabs */
+            .NprocY = prr->NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
-            .use_fftw = UseFFTW,
+            .use_fftw = prr->UseFFTW,
         };
         pm_pfft_init(&_vpm[i].pm, &pminit, iface, comm);
         msg_printf(debug, "PM initialized for Nmesh = %td at a %5.4g \n", pminit.Nmesh, prr->change_pm[i]);
@@ -814,45 +785,6 @@ write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename
 }
 
 
-static void 
-parse_args(int argc, char ** argv) 
-{
-    char opt;
-    extern int optind;
-    extern char * optarg;
-    UseFFTW = 0;
-    ParamFileName = NULL;
-    NprocY = 0;    
-    while ((opt = getopt(argc, argv, "h?y:f")) != -1) {
-        switch(opt) {
-            case 'y':
-                NprocY = atoi(optarg);
-            break;
-            case 'f':
-                UseFFTW = 1;
-            break;
-            case 'h':
-            case '?':
-            default:
-                goto usage;
-            break;
-        }
-    }
-    if(optind >= argc) {
-        goto usage;
-    }
-
-    ParamFileName = argv[optind];
-    return;
-
-usage:
-    msg_printf(-1, "Usage: fastpm [-f] [-y NprocY] paramfile\n"
-    "-f Use FFTW \n"
-    "-y Set the number of processes in the 2D mesh\n"
-);
-    MPI_Finalize();
-    exit(1);
-}
 static void 
 _mkdir(const char *dir) 
 {
