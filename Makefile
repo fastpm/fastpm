@@ -18,9 +18,13 @@ SOURCES = fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
 		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
+PFFTFLIB = depends/install/lib/libpfftf_omp.a
+PFFT_VERSION=1.0.8-alpha1-fftw3
+PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx
+
 LUALIB = lua/liblua.a
 
-fastpm: $(PFFTLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
+fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
 			$(LDFLAGS) -llua -lgsl -lgslcblas \
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
@@ -30,15 +34,6 @@ fastpm: $(PFFTLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o)
 $(LUALIB): lua/Makefile
 	(cd lua; CC="$(CC)" make generic)
 
-$(PFFTLIB): depends/install_pfft.sh
-	# FIXME: some configure flags may not work. 
-	# shall we adopt autotools?
-	@if ! [ -f $(PFFTLIB) ]; then \
-		MPICC=$(CC) sh depends/install_pfft.sh $(PWD)/depends/install | tail;\
-	else \
-		touch $(PFFTLIB); \
-	fi;
-	
 -include $(SOURCES:%.c=.deps/%.d)
 
 .objs/%.o : %.c
@@ -54,3 +49,38 @@ $(PFFTLIB): depends/install_pfft.sh
 clean:
 	rm -rf .objs
 	rm -rf .deps
+
+PFFT_CONFIGURE = $(abspath depends/src/pfft-$(PFFT_VERSION)/configure)
+PFFT_CONFIGURE_FLAGS_SINGLE = $(subst --enable-sse2, --enable-sse, $(PFFT_CONFIGURE_FLAGS))
+PFFTSRC = pfft-$(PFFT_VERSION).tar.gz 
+
+$(PFFTCONFIGURE): $(PFFTSRC)
+	mkdir -p depends/src ;
+	gzip -dc $(PFFTSRC) | tar xf - -C depends/src ;
+
+$(PFFTLIB): $(PFFTCONFIGURE)
+	mkdir -p depends/double;
+	(cd depends/double; \
+	$(PFFT_CONFIGURE) --prefix=$(abspath depends/install) --disable-shared --enable-static  \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) --enable-openmp MPICC=$(CC) \
+	2>&1 ; \
+	make -j 4 2>&1 ; \
+	make install 2>&1; \
+	) > pfft-double.log
+
+$(PFFTFLIB): $(PFFTCONFIGURE)
+	mkdir -p depends/single;
+	(cd depends/single; \
+	$(PFFT_CONFIGURE) --prefix=$(abspath depends/install) --enable-single --disable-shared --enable-static  \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) --enable-openmp MPICC=$(CC) \
+	2>&1 ; \
+       	make -j 4 2>&1 ; \
+	make install 2>&1; \
+	) > pfft-single.log
+	
+
+$(PFFTSRC): 
+	if ! [ -f $@ ]; then \
+	    wget https://github.com/rainwoodman/pfft/releases/download/$(PFFT_VERSION)/pfft-$(PFFT_VERSION).tar.gz -O $@ ; \
+	fi;	
+
