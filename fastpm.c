@@ -99,68 +99,81 @@ sinc_unnormed(double x);
 static double 
 estimate_alloc_factor(double Volume, int NTask, double failure_rate);
 
+int fastpm(Parameters * prr, MPI_Comm comm);
+
 int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
-    MPI_Comm comm = MPI_COMM_WORLD; /* eventually we will pass comm around. */
+    parse_args(argc, argv);
+
+    Parameters prr;
+
+    read_parameters(ParamFileName, &prr);
+
+    MPI_Comm comm = MPI_COMM_WORLD; 
+
+    fastpm(&prr, comm);
+
+    pfft_cleanup();
+    MPI_Finalize();
+}
+
+int fastpm(Parameters * prr, MPI_Comm comm) {
 
     msg_init(comm);
     msg_set_loglevel(verbose);
     
-    parse_args(argc, argv);
 
-    Parameters prr;
     PMStore pdata;
     PM pm;
 
     timer_set_category(INIT);
 
-    read_parameters(ParamFileName, &prr);
 
-    stepping_init(&prr);
+    stepping_init(prr);
 
 
     int NTask; 
     MPI_Comm_size(comm, &NTask);
 
-    power_init(prr.power_spectrum_filename, 
-            prr.time_step[0], 
-            prr.sigma8, 
-            prr.omega_m, 
-            1 - prr.omega_m, comm);
+    power_init(prr->power_spectrum_filename, 
+            prr->time_step[0], 
+            prr->sigma8, 
+            prr->omega_m, 
+            1 - prr->omega_m, comm);
 
     pm_store_init(&pdata);
 
-    vpm_init(&prr, &pdata.iface, comm);
+    vpm_init(prr, &pdata.iface, comm);
 
     double alloc_factor = vpm_estimate_alloc_factor(1e-5);
-    if(prr.np_alloc_factor > alloc_factor) {
-        alloc_factor = prr.np_alloc_factor;
+    if(prr->np_alloc_factor > alloc_factor) {
+        alloc_factor = prr->np_alloc_factor;
     }
     msg_printf(info, "Using alloc factor of %g\n", alloc_factor);
 
-    pm_store_alloc(&pdata, 1.0 * pow(prr.nc, 3) / NTask * alloc_factor);
+    pm_store_alloc(&pdata, 1.0 * pow(prr->nc, 3) / NTask * alloc_factor);
 
     timer_set_category(LPT);
 
-    if(prr.readic_filename) {
-        read_runpb_ic(&prr, prr.time_step[0], &pdata, comm);
+    if(prr->readic_filename) {
+        read_runpb_ic(prr, prr->time_step[0], &pdata, comm);
     } else {
-        pm_2lpt_main(&pdata, prr.nc, prr.boxsize, PowerSpecWithData, prr.random_seed, NULL, comm);
+        pm_2lpt_main(&pdata, prr->nc, prr->boxsize, PowerSpecWithData, prr->random_seed, NULL, comm);
     }
 
     double shift[3] = {
-        prr.boxsize / prr.nc * 0.5,
-        prr.boxsize / prr.nc * 0.5,
-        prr.boxsize / prr.nc * 0.5,
+        prr->boxsize / prr->nc * 0.5,
+        prr->boxsize / prr->nc * 0.5,
+        prr->boxsize / prr->nc * 0.5,
         };
 
-    stepping_set_initial(prr.time_step[0], &pdata, shift);
+    stepping_set_initial(prr->time_step[0], &pdata, shift);
 
     SNPS snps;
 
-    snps_init(&snps, &prr, &pdata, comm);
+    snps_init(&snps, prr, &pdata, comm);
 
     snps_start(&snps);
 
@@ -169,7 +182,7 @@ int main(int argc, char ** argv) {
     int istep;
     int nsteps = stepping_get_nsteps();
 
-    snps_interp(&snps, prr.time_step[0], prr.time_step[0]);
+    snps_interp(&snps, prr->time_step[0], prr->time_step[0]);
 
     for (istep = 0; istep <= nsteps; istep++) {
         double a_v, a_x, a_v1, a_x1;
@@ -193,7 +206,7 @@ int main(int argc, char ** argv) {
 
         size_t np_max;
         size_t np_min;
-        double np_mean = pow(prr.nc, 3) / NTask;
+        double np_mean = pow(prr->nc, 3) / NTask;
         MPI_Allreduce(&pdata.np, &np_max, 1, MPI_LONG, MPI_MAX, comm);
         MPI_Allreduce(&pdata.np, &np_min, 1, MPI_LONG, MPI_MIN, comm);
 
@@ -203,15 +216,15 @@ int main(int argc, char ** argv) {
         /* Calculate PM forces, only if needed. */
         power_spectrum_init(&ps, pm->Nmesh[0] / 2);
 
-        if(prr.force_mode & FORCE_MODE_PM) {
+        if(prr->force_mode & FORCE_MODE_PM) {
             /* watch out: boost the density since mesh is finer than grid */
-            do_pm(&prr, &pdata, &vpm, &ps);
+            do_pm(prr, &pdata, &vpm, &ps);
         }
-        if(prr.measure_power_spectrum_filename) {
+        if(prr->measure_power_spectrum_filename) {
             if(pm->ThisTask == 0)
-                ensure_dir(prr.measure_power_spectrum_filename);
-                write_power_spectrum(&ps, pm, ((double)prr.nc * prr.nc * prr.nc), 
-                    prr.measure_power_spectrum_filename, prr.random_seed, a_x);
+                ensure_dir(prr->measure_power_spectrum_filename);
+                write_power_spectrum(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
+                    prr->measure_power_spectrum_filename, prr->random_seed, a_x);
         }
         power_spectrum_destroy(&ps);
 #if 0
@@ -242,8 +255,6 @@ int main(int argc, char ** argv) {
 
     pm_store_destroy(&pdata);
     timer_print();
-    pfft_cleanup();
-    MPI_Finalize();
 }
 
 static int 
