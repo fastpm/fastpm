@@ -102,7 +102,9 @@ int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
-    msg_init();
+    MPI_Comm comm = MPI_COMM_WORLD; /* eventually we will pass comm around. */
+
+    msg_init(comm);
     msg_set_loglevel(verbose);
     
     parse_args(argc, argv);
@@ -117,7 +119,6 @@ int main(int argc, char ** argv) {
 
     stepping_init(&prr);
 
-    MPI_Comm comm = MPI_COMM_WORLD; /* eventually we will pass comm around. */
 
     int NTask; 
     MPI_Comm_size(comm, &NTask);

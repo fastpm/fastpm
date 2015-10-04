@@ -23,11 +23,13 @@ static double now()
     return (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6;
 }
 
+static MPI_Comm WORLD;
 // Initialize using msg_ functions.
-void msg_init()
+void msg_init(MPI_Comm MyWORLD)
 {
     t0 = now();
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    WORLD = MyWORLD;
+    MPI_Comm_rank(WORLD, &myrank);
 }
 
 void msg_set_loglevel(const enum LogLevel lv)
@@ -83,6 +85,6 @@ void msg_abort(const int errret, const char *fmt, ...)
     va_end(argp);
 
     abort();
-    MPI_Abort(MPI_COMM_WORLD, errret);
+    MPI_Abort(WORLD, errret);
 }  
 
