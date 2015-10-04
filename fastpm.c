@@ -126,7 +126,7 @@ int main(int argc, char ** argv) {
             prr.time_step[0], 
             prr.sigma8, 
             prr.omega_m, 
-            1 - prr.omega_m);
+            1 - prr.omega_m, comm);
 
     pm_store_init(&pdata);
 

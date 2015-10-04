@@ -35,7 +35,8 @@ void read_power_table_camb(const char filename[]);
 double normalize_power(const double a_init, const double sigma8);
 double TopHatSigma2(double R, double (*func)(double, void*), void*);
 
-void power_init(const char filename[], const double a_init, const double sigma8, const double omega_m, const double omega_lambda)
+void power_init(const char filename[], const double a_init, const double sigma8, const double omega_m, const double omega_lambda,
+            MPI_Comm comm)
 {
     // CAMB matter power spectrum filename
     Omega= omega_m;
@@ -43,7 +44,7 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
     if(filename == NULL) return;
     int myrank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    MPI_Comm_rank(comm, &myrank);
 
     if(myrank == 0) {
         read_power_table_camb(filename);
@@ -52,9 +53,9 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
     msg_printf(normal, "Powerspecectrum file: %s\n", filename);
 
-    MPI_Bcast(&PowerNorm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&PowerNorm, 1, MPI_DOUBLE, 0, comm);
 
-    MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, comm);
 
     /* This hack avoids a valgrind false positive with openmpi. 
      * apparently bcast marks the memory invalid or something. I don't understand. 
@@ -68,7 +69,7 @@ void power_init(const char filename[], const double a_init, const double sigma8,
     MPI_Datatype type;
     MPI_Type_contiguous(sizeof(struct pow_table), MPI_BYTE, &type);
     MPI_Type_commit(&type);
-    MPI_Bcast(&PowerTable[0], NPowerTable, type, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&PowerTable[0], NPowerTable, type, 0, comm);
     MPI_Type_free(&type);
     if(myrank != 0) {
         PowerTable = calloc(NPowerTable, sizeof(struct pow_table));
