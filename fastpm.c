@@ -145,7 +145,7 @@ int main(int argc, char ** argv) {
     timer_set_category(LPT);
 
     if(prr.readic_filename) {
-        read_runpb_ic(&prr, prr.time_step[0], &pdata);
+        read_runpb_ic(&prr, prr.time_step[0], &pdata, comm);
     } else {
         pm_2lpt_main(&pdata, prr.nc, prr.boxsize, PowerSpecWithData, prr.random_seed, NULL, comm);
     }
@@ -665,7 +665,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         if(param->snapshot_filename) {
             ensure_dir(param->snapshot_filename);
             sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
-            write_runpb_snapshot(param, &snapshot, aout, filebase);
+            write_runpb_snapshot(param, &snapshot, aout, filebase, snps->comm);
         }
         MPI_Barrier(snps->comm);
         timer_stop("write");

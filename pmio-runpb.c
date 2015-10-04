@@ -29,11 +29,11 @@ typedef struct {
   float eps;            /* Gravitational softening    */
 } FileHeader;
 
-int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
+int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm) {
     int ThisTask;
     int NTask;
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
 
     size_t scratch_bytes = 32 * 1024 * 1024;
     void * scratch = malloc(scratch_bytes);
@@ -66,7 +66,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
         }
         msg_printf(info, "Total number of files is %d\n", Nfile);
 
-        MPI_Bcast(&Nfile, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&Nfile, 1, MPI_INT, 0, comm);
         NperFile = malloc(sizeof(int) * Nfile);
 
         for(i = 0; i < Nfile; i ++) {
@@ -89,16 +89,16 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
         if (Ntot != param->nc * param->nc * param->nc) {
             msg_abort(0030, "Number of p does not match nc\n");
         }
-        MPI_Bcast(NperFile, Nfile, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&Ntot, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&aa, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(NperFile, Nfile, MPI_INT, 0, comm);
+        MPI_Bcast(&Ntot, 1, MPI_LONG_LONG, 0, comm);
+        MPI_Bcast(&aa, 1, MPI_DOUBLE, 0, comm);
     } else {
         /* other ranks receive */
-        MPI_Bcast(&Nfile, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&Nfile, 1, MPI_INT, 0, comm);
         NperFile = malloc(sizeof(int) * Nfile);
-        MPI_Bcast(NperFile, Nfile, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&Ntot, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&aa, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(NperFile, Nfile, MPI_INT, 0, comm);
+        MPI_Bcast(&Ntot, 1, MPI_LONG_LONG, 0, comm);
+        MPI_Bcast(&aa, 1, MPI_DOUBLE, 0, comm);
     }
 
     NcumFile = malloc(sizeof(size_t) * Nfile);
@@ -249,8 +249,8 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p) {
         
     }
     int d;
-    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, comm);
     for(d =0; d < 3; d++) {
         dx1disp[d] /= Ntot;
         dx1disp[d] = sqrt(dx1disp[d]);
@@ -377,19 +377,19 @@ static void write_mine(char * filebase,
 }
 
 int write_runpb_snapshot(Parameters * param, PMStore * p, double aa,
-        char * filebase){
+        char * filebase, MPI_Comm comm){
     int ThisTask;
     int NTask;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
 
     int np = p->np;
     int i;
     int * NperTask = alloca(sizeof(int) * NTask);
     size_t * NcumTask = alloca(sizeof(size_t) * (NTask + 1));
 
-    MPI_Allgather(&np, 1, MPI_INT, NperTask, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&np, 1, MPI_INT, NperTask, 1, MPI_INT, comm);
 
     NcumTask[0] = 0;
     for(i = 1; i <= NTask; i ++) {
@@ -425,7 +425,7 @@ int write_runpb_snapshot(Parameters * param, PMStore * p, double aa,
             fclose(fp);
         }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     write_mine(filebase, p, aa, param->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
     return 0;
