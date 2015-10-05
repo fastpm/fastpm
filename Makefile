@@ -66,7 +66,7 @@ $(PFFTLIB): $(PFFT_CONFIGURE)
 	2>&1 ; \
 	make -j 4 2>&1 ; \
 	make install 2>&1; \
-	) | tee pfft-double.log
+	) | tee pfft-double.log | tail
 
 $(PFFTFLIB): $(PFFT_CONFIGURE)
 	mkdir -p depends/single;
@@ -76,7 +76,7 @@ $(PFFTFLIB): $(PFFT_CONFIGURE)
 	2>&1 ; \
        	make -j 4 2>&1 ; \
 	make install 2>&1; \
-	) | tee pfft-single.log
+	) | tee pfft-single.log | tail
 	
 
 $(PFFTSRC): 
