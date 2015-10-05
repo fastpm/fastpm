@@ -54,11 +54,11 @@ PFFT_CONFIGURE = $(abspath depends/src/pfft-$(PFFT_VERSION)/configure)
 PFFT_CONFIGURE_FLAGS_SINGLE = $(subst --enable-sse2, --enable-sse, $(PFFT_CONFIGURE_FLAGS))
 PFFTSRC = pfft-$(PFFT_VERSION).tar.gz 
 
-$(PFFTCONFIGURE): $(PFFTSRC)
+$(PFFT_CONFIGURE): $(PFFTSRC)
 	mkdir -p depends/src ;
 	gzip -dc $(PFFTSRC) | tar xf - -C depends/src ;
 
-$(PFFTLIB): $(PFFTCONFIGURE)
+$(PFFTLIB): $(PFFT_CONFIGURE)
 	mkdir -p depends/double;
 	(cd depends/double; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath depends/install) --disable-shared --enable-static  \
@@ -68,7 +68,7 @@ $(PFFTLIB): $(PFFTCONFIGURE)
 	make install 2>&1; \
 	) | tee pfft-double.log
 
-$(PFFTFLIB): $(PFFTCONFIGURE)
+$(PFFTFLIB): $(PFFT_CONFIGURE)
 	mkdir -p depends/single;
 	(cd depends/single; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath depends/install) --enable-single --disable-shared --enable-static  \
