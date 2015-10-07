@@ -165,7 +165,7 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
     return table[d1][d2][i * pm->ORegion.size[1] + j];
 }
 
-static void 
+void 
 pm_2lpt_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata) 
 {
     /* Fill gaussian with gadget scheme */
@@ -337,7 +337,7 @@ pm_2lpt_induce_correlation(PM * pm, int seed, pkfunc pk, void * pkdata) {
 }
 
 
-static void 
+void 
 pm_2lpt_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
@@ -372,7 +372,7 @@ pm_2lpt_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
     pm_2lpt_induce_correlation(pm, seed, pk, pkdata);
 }
 
-static void 
+void 
 pm_2lpt_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata) 
 {    
     ptrdiff_t i[3] = {0};
@@ -409,13 +409,12 @@ pm_2lpt_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata)
     pm_2lpt_induce_correlation(pm, seed, pk, pkdata);
     gsl_rng_free(random_generator);
 }
+            
+typedef void (*pm_delta_k_function)(PM * pm, int seed, pkfunc pk, void * pkdata);
 
 void 
-pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk, 
-        int seed, void * pkdata, MPI_Comm comm) 
+pm_2lpt_init(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm) 
 {
-    PM pm;
-
     PMInit pminit = {
         .Nmesh = Ngrid,
         .BoxSize = BoxSize,
@@ -424,25 +423,26 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         .use_fftw = 0,
     };
 
-    pm_pfft_init(&pm, &pminit, &p->iface, comm);
+    pm_init(pm, &pminit, &p->iface, comm);
 
-    pm_2lpt_fill_pdata(p, &pm);
-    
+    pm_2lpt_fill_pdata(p, pm);
+
+}
+
+void 
+pm_2lpt_main(PM * pm, PMStore * p, MPI_Comm comm) 
+{
+
     PMGhostData pgd = {
-        .pm = &pm,
+        .pm = pm,
         .pdata = p,
         .np = p->np,
         .np_upper = p->np_upper,
         .attributes = PACK_POS,
     };
 
-    pm_start(&pm);
-
     pm_append_ghosts(&pgd);
     
-    pm_2lpt_fill_gaussian_gadget(&pm, seed, pk, pkdata);
-//    pm_2lpt_fill_gaussian_slow(&pm, seed, pk, pkdata);
-
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
     int D1[] = {1, 2, 0};
@@ -452,40 +452,40 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
 
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX1 axis = %d\n", d);
-        apply_za_transfer(&pm, d);
+        apply_za_transfer(pm, d);
 #ifdef PM_2LPT_DUMP
         char * fnames[] = {"dx1-0.f4", "dx1-1.f4", "dx1-2.f4"};
-        fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
+        fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fnames[d], "w"));
 #endif
-        pm_c2r(&pm);
+        pm_c2r(pm);
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
-            p->dx1[i][d] = pm_readout_one(&pm, p, i);
+            p->dx1[i][d] = pm_readout_one(pm, p, i);
         }
         pm_reduce_ghosts(&pgd, DX1[d]);
     } 
 
     real_t * source;
-    source = (real_t*) p->iface.malloc(pm.allocsize * sizeof(source[0]));
+    source = (real_t*) p->iface.malloc(pm->allocsize * sizeof(source[0]));
 
-    memset(source, 0, sizeof(source[0]) * pm.allocsize);
+    memset(source, 0, sizeof(source[0]) * pm->allocsize);
 
     real_t * field[3];
     for(d = 0; d < 3; d++ )
-        field[d] = p->iface.malloc(pm.allocsize * sizeof(field[d][0]));
+        field[d] = p->iface.malloc(pm->allocsize * sizeof(field[d][0]));
 
     for(d = 0; d< 3; d++) {
         msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d, d);
-        apply_2lpt_transfer(&pm, d, d);
-        pm_c2r(&pm);
-        memcpy(field[d], pm.workspace, pm.allocsize * sizeof(field[d][0]));
+        apply_2lpt_transfer(pm, d, d);
+        pm_c2r(pm);
+        memcpy(field[d], pm->workspace, pm->allocsize * sizeof(field[d][0]));
     }
 
     for(d = 0; d < 3; d++) {
         int d1 = D1[d];
         int d2 = D2[d];
 #pragma omp parallel for
-        for(i = 0; i < pm.IRegion.total; i ++) {
+        for(i = 0; i < pm->IRegion.total; i ++) {
             source[i] += field[d1][i] * field[d2][i];
         }    
     }
@@ -494,22 +494,22 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         int d1 = D1[d];
         int d2 = D2[d];
         msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d1, d2);
-        apply_2lpt_transfer(&pm, d1, d2);
-        pm_c2r(&pm);
+        apply_2lpt_transfer(pm, d1, d2);
+        pm_c2r(pm);
 #pragma omp parallel for
-        for(i = 0; i < pm.IRegion.total; i ++) {
-            source[i] -= pm.workspace[i] * pm.workspace[i];
+        for(i = 0; i < pm->IRegion.total; i ++) {
+            source[i] -= pm->workspace[i] * pm->workspace[i];
         }
     } 
-    memcpy(pm.workspace, source, pm.allocsize * sizeof(pm.canvas[0]));
+    memcpy(pm->workspace, source, pm->allocsize * sizeof(pm->canvas[0]));
 
 #ifdef PM_2LPT_DUMP
-    fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen("digrad.f4", "w"));
+    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("digrad.f4", "w"));
 #endif
 #ifdef PM_2LPT_LOAD_DIGRAD
-    fread(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen("input-digrad.f4", "r"));
+    fread(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("input-digrad.f4", "r"));
 #endif
-    pm_r2c(&pm);
+    pm_r2c(pm);
 
     for(d = 2; d >=0; d-- )
         p->iface.free(field[d]);
@@ -521,17 +521,17 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
          * We absorb some the negative factor in za transfer to below;
          *
          * */
-        apply_za_transfer(&pm, d);
+        apply_za_transfer(pm, d);
 #ifdef PM_2LPT_DUMP
         char * fnames[] = {"dx2-0.f4", "dx2-1.f4", "dx2-2.f4"};
-        fwrite(pm.workspace, sizeof(pm.workspace[0]), pm.allocsize, fopen(fnames[d], "w"));
+        fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fnames[d], "w"));
 #endif
-        pm_c2r(&pm);
+        pm_c2r(pm);
 
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
-            p->dx2[i][d] = pm_readout_one(&pm, p, i) / pm.Norm ;
+            p->dx2[i][d] = pm_readout_one(pm, p, i) / pm->Norm ;
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }
@@ -547,9 +547,9 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
         } 
     }
     uint64_t Ntot = p->np;
-    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, pm.Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, pm.Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, &Ntot,   1, MPI_LONG,  MPI_SUM, pm.Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, &Ntot,   1, MPI_LONG,  MPI_SUM, pm->Comm2D);
     for(d =0; d < 3; d++) {
         dx1disp[d] /= Ntot;
         dx1disp[d] = sqrt(dx1disp[d]);
@@ -569,6 +569,5 @@ pm_2lpt_main(PMStore * p, int Ngrid, double BoxSize, pkfunc pk,
 #endif
 
     pm_destroy_ghosts(&pgd);
-    pm_stop(&pm);
 }
 

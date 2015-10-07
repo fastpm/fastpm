@@ -131,7 +131,17 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     if(prr->readic_filename) {
         read_runpb_ic(prr, prr->time_step[0], &pdata, comm);
     } else {
-        pm_2lpt_main(&pdata, prr->nc, prr->boxsize, PowerSpecWithData, prr->random_seed, NULL, comm);
+        PM pm;
+
+        pm_2lpt_init(&pm, &pdata, prr->nc, prr->boxsize, comm);
+
+        pm_start(&pm);
+
+        pm_2lpt_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
+
+        pm_2lpt_main(&pm, &pdata, comm);
+
+        pm_destroy(&pm);
     }
 
     double shift[3] = {
@@ -714,7 +724,7 @@ vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm)
             .transposed = 1,
             .use_fftw = prr->UseFFTW,
         };
-        pm_pfft_init(&_vpm[i].pm, &pminit, iface, comm);
+        pm_init(&_vpm[i].pm, &pminit, iface, comm);
         msg_printf(debug, "PM initialized for Nmesh = %td at a %5.4g \n", pminit.Nmesh, prr->change_pm[i]);
     }
 }

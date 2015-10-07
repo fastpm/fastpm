@@ -25,6 +25,9 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define execute_dft_r2c_fftw fftw_mpi_execute_dft_r2c
     #define execute_dft_c2r_fftw fftw_mpi_execute_dft_c2r
     #define _pfft_init pfft_init
+    #define destroy_plan pfft_destroy_plan
+    #define destroy_plan_fftw fftw_destroy_plan
+
 #elif FFT_PRECISION == 32
     #define plan_dft_r2c pfftf_plan_dft_r2c
     #define plan_dft_c2r pfftf_plan_dft_c2r
@@ -35,6 +38,8 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define execute_dft_r2c_fftw fftwf_mpi_execute_dft_r2c
     #define execute_dft_c2r_fftw fftwf_mpi_execute_dft_c2r
     #define _pfft_init pfftf_init
+    #define destroy_plan pfftf_destroy_plan
+    #define destroy_plan_fftw fftwf_destroy_plan
 #endif
 
 static void module_init() {
@@ -90,7 +95,7 @@ static size_t fftw_local_size_dft_r2c(int nrnk, ptrdiff_t * n, MPI_Comm comm,
     return allocsize;
 }
 
-void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
+void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 
     module_init();
 
@@ -312,6 +317,24 @@ void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     }
 }
 
+void 
+pm_destroy(PM * pm) 
+{
+    pm_stop(pm);
+    int d;
+    if(pm->init.use_fftw) {
+        destroy_plan_fftw(pm->r2c);
+        destroy_plan_fftw(pm->c2r);
+    } else {
+        destroy_plan(pm->r2c);
+        destroy_plan(pm->c2r);
+    }
+    for(d = 0; d < 3; d++) {
+        free(pm->MeshtoK[d]);
+    }
+}   
+
+
 int pm_pos_to_rank(PM * pm, double pos[3]) {
     int d;
     int rank2d[2];
@@ -334,13 +357,21 @@ int pm_ipos_to_rank(PM * pm, int i[3]) {
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
 }
 
-void pm_start(PM * pm) {
+void 
+pm_start(PM * pm) 
+{
     pm->canvas = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
     pm->workspace = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
 }
-void pm_stop(PM * pm) {
-    pm->iface.free(pm->workspace);
-    pm->iface.free(pm->canvas);
+
+void 
+pm_stop(PM * pm) 
+{
+    if(pm->workspace)
+        pm->iface.free(pm->workspace);
+    if(pm->canvas && pm->canvas != pm->workspace)
+        pm->iface.free(pm->canvas);
+
     pm->canvas = NULL;
     pm->workspace = NULL;
 }

@@ -140,7 +140,11 @@ typedef struct {
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
 
-void pm_pfft_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
+void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
+void pm_destroy(PM * pm);
+void pm_start(PM * pm);
+void pm_stop(PM * pm);
+
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
 
