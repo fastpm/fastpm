@@ -31,7 +31,7 @@ static double growth(double a, Cosmology c)
     F.function = &growth_int;
     F.params = (double[]) {c.OmegaM, c.OmegaLambda};
 
-    gsl_integration_qag(&F, 0, a, 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41, 
+    gsl_integration_qag(&F, 0, a, 0, 1.0e-9, WORKSIZE, GSL_INTEG_GAUSS41, 
             workspace, &result, &abserr);
 
     gsl_integration_workspace_free(workspace);
@@ -85,7 +85,8 @@ static double growthDtemp(double a, Cosmology c){
 
 
 static double growthD(double a, Cosmology c) { // growth factor for LCDM
-    return growthDtemp(a, c)/growthDtemp(1.0, c);
+    return growth(a, c) / growth(1.0, c);
+//    return growthDtemp(a, c)/growthDtemp(1.0, c);
 }
 
 
@@ -107,8 +108,7 @@ double DprimeQ(double a, double nGrowth, Cosmology c)
 double 
 GrowthFactor(double a, Cosmology c)
 {
-    return growthD(a, c);
-//    return growth(a, c) / growth(1.0, c);
+    return 1.0 / growthD(a, c);
 }
 
 double GrowthFactor2(double a, Cosmology c) {// Second order growth factor
