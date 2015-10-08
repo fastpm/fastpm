@@ -297,16 +297,20 @@ pm_2lpt_set_initial(double aout, PMStore * p, double shift[3], double Omega)
     int np= p->np;
 
     msg_printf(verbose, "Setting up inital snapshot at a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
+    Cosmology c = {
+            .OmegaM = Omega,
+            .OmegaLambda = 1 - Omega,
+        };
 
-    const float Dplus = 1.0/GrowthFactor(aout, 1.0, Omega, 1 - Omega);
+    const float Dplus = 1.0/GrowthFactor(aout, c);
 
     const double omega=Omega/(Omega + (1.0 - Omega)*aout*aout*aout);
     const double D2 = Dplus*Dplus*pow(omega/Omega, -1.0/143.0);
     const double D20 = pow(Omega, -1.0/143.0);
     
 
-    float Dv=DprimeQ(aout, 1.0); // dD_{za}/dy
-    float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
+    float Dv=DprimeQ(aout, 1.0, c); // dD_{za}/dy
+    float Dv2=GrowthFactor2v(aout, c);   // dD_{2lpt}/dy
 
     int i;
 #pragma omp parallel for 

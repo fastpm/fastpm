@@ -1,8 +1,17 @@
+typedef struct {
+    double OmegaM;
+    double OmegaLambda;
+} Cosmology;
 
 double 
-GrowthFactor(double astart, double aend, double Omega, double OmegaLambda);
+GrowthFactor(double a, Cosmology c);
 
-static inline double Qfactor(double a, double Omega, double OmegaLambda) { // Q\equiv a^3 H(a)/H0.
-    return sqrt(Omega/(a*a*a)+OmegaLambda)*a*a*a;
-}
+double 
+GrowthFactor2(double a, Cosmology c);
+
+double
+GrowthFactor2v(double a, Cosmology c);
+
+double DprimeQ(double a, double nGrowth, Cosmology c);
+double Qfactor(double a, Cosmology c);
 

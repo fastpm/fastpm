@@ -195,10 +195,15 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
     if(offset != p->np) {
         msg_abort(0030, "mismatch %d != %d\n", offset, p->np);
     }
+
+    Cosmology c = {
+        .OmegaM = param->omega_m,
+        .OmegaLambda = 1.0 - param->omega_m,
+    };
     const double Omega_m = param->omega_m;
     const double omega=Omega_m/(Omega_m + (1.0 - Omega_m)*aa*aa*aa);
-    const float DplusIC = 1.0/GrowthFactor(aa, 1.0, Omega_m, 1 - Omega_m);
-    const float Dplus = 1.0/GrowthFactor(a_init, 1.0, Omega_m, 1 - Omega_m);
+    const float DplusIC = 1.0/GrowthFactor(aa, c);
+    const float Dplus = 1.0/GrowthFactor(a_init, c);
     const double D2= Dplus*Dplus*pow(omega/Omega_m, -1.0/143.0);
     const double D20= pow(Omega_m, -1.0/143.0);
     const double f1 = pow(omega, (4./7));
@@ -270,7 +275,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
 }
 
 static void write_mine(char * filebase, 
-            PMStore * p, double aa, double Omega, double boxsize, size_t Ntot,
+            PMStore * p, double aa, Cosmology c, double boxsize, size_t Ntot,
             size_t * NcumFile, int * NperFile, int Nfile, 
             ptrdiff_t start, ptrdiff_t end) {
     size_t scratch_bytes = 32 * 1024 * 1024;
@@ -280,7 +285,7 @@ static void write_mine(char * filebase,
     int64_t * lscratch = (int64_t *) scratch;
 
     double vfac = 100. / aa;
-    double RSD = aa / Qfactor(aa, Omega, 1 - Omega) / vfac;
+    double RSD = aa / Qfactor(aa, c) / vfac;
 
 
     size_t chunksize = scratch_bytes;
@@ -426,7 +431,11 @@ int write_runpb_snapshot(Parameters * param, PMStore * p, double aa,
     }
     MPI_Barrier(comm);
 
-    write_mine(filebase, p, aa, param->omega_m, param->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
+    Cosmology c = {
+        .OmegaM = param->omega_m,
+        .OmegaLambda = 1.0 - param->omega_m,
+    };
+    write_mine(filebase, p, aa, c, param->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
     return 0;
 }
 
