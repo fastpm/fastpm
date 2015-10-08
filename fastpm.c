@@ -441,6 +441,7 @@ smooth_density(PM * pm, double r_s)
 
     destroy_k_factors(pm, fac);
 }
+
 static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor) {
     KFactors * fac[3];
 
