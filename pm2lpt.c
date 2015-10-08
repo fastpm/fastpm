@@ -6,8 +6,8 @@
 #include <math.h>
 #include <mpi.h>
 #include <signal.h>
-#include <gsl/gsl_rng.h>
 
+#include "cosmology.h"
 #include "pmpfft.h"
 #include "pm2lpt.h"
 #include "msg.h"
@@ -288,5 +288,39 @@ pm_2lpt_main(PM * pm, PMStore * p, MPI_Comm comm)
 #endif
 
     pm_destroy_ghosts(&pgd);
+}
+
+// Interpolate position and velocity for snapshot at a=aout
+void 
+pm_2lpt_set_initial(double aout, PMStore * p, double shift[3], double Omega)
+{
+    int np= p->np;
+
+    msg_printf(verbose, "Setting up inital snapshot at a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
+
+    const float Dplus = 1.0/GrowthFactor(aout, 1.0, Omega, 1 - Omega);
+
+    const double omega=Omega/(Omega + (1.0 - Omega)*aout*aout*aout);
+    const double D2 = Dplus*Dplus*pow(omega/Omega, -1.0/143.0);
+    const double D20 = pow(Omega, -1.0/143.0);
+    
+
+    float Dv=DprimeQ(aout, 1.0); // dD_{za}/dy
+    float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
+
+    int i;
+#pragma omp parallel for 
+    for(i=0; i<np; i++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            /* Use the more accurate 2LPT dx2 term */
+            p->dx2[i][d] *= 3.0 / 7.0 * D20;
+
+            p->x[i][d] += Dplus * p->dx1[i][d] + D2 * p->dx2[i][d];
+            p->x[i][d] += shift[d];
+
+            p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
+        }
+    }
 }
 

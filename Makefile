@@ -15,9 +15,9 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 SOURCES = main.c fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c pmic.c \
-		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
-LIBSOURCES = pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
-		msg.c pmsteps.c pmtimer.c 
+		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c cosmology.c
+LIBSOURCES = libfastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
+		msg.c pmsteps.c pmtimer.c cosmology.c
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
 PFFTFLIB = depends/install/lib/libpfftf_omp.a
@@ -37,6 +37,7 @@ fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o)
 testlib : testlib.c libfastpm.a
 	$(CC) $(OPTIMIZE) $(CPPFLAGS) -o $@ testlib.c libfastpm.a \
 			$(LDFLAGS) \
+			-lgsl -lgslcblas \
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 

@@ -159,6 +159,15 @@ void pm_store_alloc(PMStore * p, size_t np_upper) {
     p->dx2 = p->iface.malloc(sizeof(p->dx2[0]) * np_upper);
 };
 
+size_t 
+pm_store_alloc_evenly(PMStore * p, size_t np_total, double alloc_factor, MPI_Comm comm) 
+{
+    /* allocate for np_total cross all */
+    int NTask;
+    MPI_Comm_size(comm, &NTask);
+    pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * 2));
+}
+
 void pm_store_destroy(PMStore * p) {
     if(p->dx2) p->iface.free(p->dx2);
     if(p->dx1) p->iface.free(p->dx1);

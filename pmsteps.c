@@ -28,6 +28,7 @@
 #include "parameters.h"
 #include "msg.h"
 #include "pmsteps.h"
+#include "cosmology.h"
 
 static double Omega= -1.0f;
 static double OmegaLambda= -1.0f;
@@ -39,8 +40,6 @@ double growthD(double a);
 double growthD2(double a);
 double Sphi(double ai, double af, double aRef);
 double Sq(double ai, double af, double aRef);
-double Qfactor(double a);
-double GrowthFactor(double astart, double aend);
 static int FORCE_MODE;
 static int NSTEPS;
 static double *A_X;
@@ -269,13 +268,6 @@ double growthD(double a) { // growth factor for LCDM
 }
 
 
-double Qfactor(double a) { // Q\equiv a^3 H(a)/H0.
-    return sqrt(Omega/(a*a*a)+1.0-Omega)*a*a*a;
-}
-
-
-
-
 double growthD2temp(double a){
     double d= growthD(a);
     double omega=Omega/(Omega + (1.0 - Omega)*a*a*a);
@@ -290,7 +282,7 @@ double growthD2(double a) {// Second order growth factor
 double growthD2v(double a){ // explanation is in main()
     double d2= growthD2(a);
     double omega=Omega/(Omega + (1.0 - Omega)*a*a*a);
-    return Qfactor(a)*(d2/a)*2.0*pow(omega, 6.0/11.);
+    return Qfactor(a, Omega, OmegaLambda)*(d2/a)*2.0*pow(omega, 6.0/11.);
 }
 
 double decayD(double a){ // D_{-}, the decaying mode
@@ -315,19 +307,19 @@ double gpQ(double a) {
 }
 
 double stddriftfunc (double a, void * params) {
-    return 1.0/Qfactor(a);
+    return 1.0/Qfactor(a, Omega, OmegaLambda);
 }
 
 double nonstddriftfunc (double a, void * params) {
-    return gpQ(a)/Qfactor(a); 
+    return gpQ(a)/Qfactor(a, Omega, OmegaLambda); 
 }
 
 double stdkickfunc (double a, void * params) {
-    return a/Qfactor(a);
+    return a/Qfactor(a, Omega, OmegaLambda);
 }
 
 double martinkickfunc (double a, void * params) {
-    return Qfactor(a) / (a*a);
+    return Qfactor(a, Omega, OmegaLambda) / (a*a);
 }
 
 /*     
@@ -379,7 +371,7 @@ double Sphi(double ai, double af, double aRef) {
 
     /* Qfactor is a**2 da / dt */
     result = (gpQ(af) - gpQ(ai)) * aRef 
-        / (Qfactor(aRef) * DERgpQ(aRef));
+        / (Qfactor(aRef, Omega, OmegaLambda) * DERgpQ(aRef));
 
     gsl_integration_workspace * w 
         = gsl_integration_workspace_alloc (5000);
@@ -410,45 +402,6 @@ double Sphi(double ai, double af, double aRef) {
     }
 }
 
-
-// Interpolate position and velocity for snapshot at a=aout
-void stepping_set_initial(double aout, PMStore * p, double shift[3])
-{
-    int np= p->np;
-
-    msg_printf(verbose, "Setting up inital snapshot at a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
-
-    const float Dplus = 1.0/GrowthFactor(aout, 1.0);
-
-    const double omega=Omega/(Omega + (1.0 - Omega)*aout*aout*aout);
-    const double D2 = Dplus*Dplus*pow(omega/Omega, -1.0/143.0);
-    const double D20 = pow(Omega, -1.0/143.0);
-    
-
-    float Dv=DprimeQ(aout, 1.0); // dD_{za}/dy
-    float Dv2=growthD2v(aout);   // dD_{2lpt}/dy
-
-    int i;
-#pragma omp parallel for 
-    for(i=0; i<np; i++) {
-        int d;
-        for(d = 0; d < 3; d ++) {
-            /* Use the more accurate 2LPT dx2 term */
-            p->dx2[i][d] *= 3.0 / 7.0 * D20;
-
-            p->x[i][d] += Dplus * p->dx1[i][d] + D2 * p->dx2[i][d];
-            p->x[i][d] += shift[d];
-
-            if(FORCE_MODE != FORCE_MODE_PM) {
-                // for COLA and COLA1, v cancels out such that the initial
-                // is zero
-                p->v[i][d] = 0;
-            } else {
-                p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
-            }
-        }
-    }
-}
 
 // Interpolate position and velocity for snapshot at a=aout
 void stepping_set_snapshot(double aout, double a_x, double a_v, 
@@ -494,7 +447,7 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
        */
 
     msg_printf(debug, "velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
-    msg_printf(debug, "RSD factor %e\n", aout/Qfactor(aout)/vfac);
+    msg_printf(debug, "RSD factor %e\n", aout/Qfactor(aout, Omega, OmegaLambda)/vfac);
 
 
     float da1= growthD(AF) - growthD(A);    // change in D_{1lpt}
@@ -548,39 +501,5 @@ void stepping_set_snapshot(double aout, double a_x, double a_v,
     }
 
     po->np = np;
-}
-
-double growth_int(double a, void *param)
-{
-    return pow(a / (Omega + (1 - Omega - OmegaLambda) * a + OmegaLambda * a * a * a), 1.5);
-}
-
-
-double growth(double a)
-{
-    int WORKSIZE = 100000;
-    double hubble_a;
-
-    hubble_a = sqrt(Omega / (a * a * a) + (1 - Omega - OmegaLambda) / (a * a) + OmegaLambda);
-
-    double result, abserr;
-    gsl_integration_workspace *workspace;
-    gsl_function F;
-
-    workspace = gsl_integration_workspace_alloc(WORKSIZE);
-
-    F.function = &growth_int;
-
-    gsl_integration_qag(&F, 0, a, 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41, 
-            workspace, &result, &abserr);
-
-    gsl_integration_workspace_free(workspace);
-
-    return hubble_a * result;
-}
-
-double GrowthFactor(double astart, double aend)
-{
-    return growth(aend) / growth(astart);
 }
 

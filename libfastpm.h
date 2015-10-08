@@ -1,4 +1,5 @@
 #include "pmpfft.h"
 #include "pm2lpt.h"
-#include "pmtimer.h"
-#include "msg.h"
+
+int 
+fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm);

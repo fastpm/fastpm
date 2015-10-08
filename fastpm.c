@@ -125,7 +125,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     }
     msg_printf(info, "Using alloc factor of %g\n", alloc_factor);
 
-    pm_store_alloc(&pdata, 1.0 * pow(prr->nc, 3) / NTask * alloc_factor);
+    pm_store_alloc_evenly(&pdata, pow(prr->nc, 3), alloc_factor, comm);
 
     timer_set_category(LPT);
 
@@ -151,7 +151,13 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         prr->boxsize / prr->nc * 0.5,
         };
 
-    stepping_set_initial(prr->time_step[0], &pdata, shift);
+
+    pm_2lpt_set_initial(prr->time_step[0], &pdata, shift, prr->omega_m);
+
+    if(prr->force_mode != FORCE_MODE_PM) {
+        /* for COLA and COLA1, v cancels out such that the initial is zero */
+        memset(pdata.v, 0, sizeof(pdata.v[0]) * pdata.np);
+    }
 
     SNPS snps;
 

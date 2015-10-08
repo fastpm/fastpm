@@ -182,6 +182,9 @@ void pm_store_destroy(PMStore * p);
 void pm_store_init(PMStore * p);
 void pm_store_alloc(PMStore * p, size_t np_upper);
 void pm_store_alloc_bare(PMStore * p, size_t np_upper);
+
+size_t 
+pm_store_alloc_evenly(PMStore * p, size_t np_total, double alloc_factor, MPI_Comm comm);
 void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
 void pm_store_wrap(PMStore * p, double BoxSize[3]);
 
