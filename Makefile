@@ -71,6 +71,7 @@ PFFTSRC = pfft-$(PFFT_VERSION).tar.gz
 $(PFFT_CONFIGURE): $(PFFTSRC)
 	mkdir -p depends/src ;
 	gzip -dc $(PFFTSRC) | tar xf - -C depends/src ;
+	touch $@
 
 $(PFFTLIB): $(PFFT_CONFIGURE)
 	mkdir -p depends/double;
@@ -94,7 +95,5 @@ $(PFFTFLIB): $(PFFT_CONFIGURE)
 	
 
 $(PFFTSRC): 
-	if ! [ -f $@ ]; then \
-	    wget https://github.com/rainwoodman/pfft/releases/download/$(PFFT_VERSION)/pfft-$(PFFT_VERSION).tar.gz -O $@ ; \
-	fi;	
+	wget https://github.com/rainwoodman/pfft/releases/download/$(PFFT_VERSION)/pfft-$(PFFT_VERSION).tar.gz -O $@ ; \
 
