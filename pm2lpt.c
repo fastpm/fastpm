@@ -261,7 +261,9 @@ pm_2lpt_main(PM * pm, PMStore * p, MPI_Comm comm)
     for(i = 0; i < p->np; i ++) {
         int d;
         for(d =0; d < 3; d++) {
+#pragma omp atomic
             dx1disp[d] += p->dx1[i][d] * p->dx1[i][d];
+#pragma omp atomic
             dx2disp[d] += p->dx2[i][d] * p->dx2[i][d];
         } 
     }
