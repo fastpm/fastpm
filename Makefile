@@ -26,7 +26,7 @@ PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx
 
 LUALIB = lua/liblua.a
 
-all: fastpm libfastpm.a
+all: fastpm libfastpm.a testlib
 
 fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
@@ -34,6 +34,13 @@ fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o)
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
+testlib : testlib.c libfastpm.a
+	$(CC) $(OPTIMIZE) $(CPPFLAGS) -o $@ testlib.c libfastpm.a \
+			$(LDFLAGS) \
+			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
+			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
+			-lm 
+
 libfastpm.a : $(PFFTLIB) $(PFFTFLIB) $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 
 
