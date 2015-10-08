@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 
 #include "pmpfft.h"
+#include "pmic.h"
 #include "pm2lpt.h"
 #include "parameters.h"
 #include "pmsteps.h"
@@ -137,7 +138,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_start(&pm);
 
-        pm_2lpt_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
+        pm_ic_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
 
         pm_2lpt_main(&pm, &pdata, comm);
 

@@ -14,8 +14,10 @@ DIR_PATH = $(GSL_DIR) depends/install
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-SOURCES = main.c fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
+SOURCES = main.c fastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c pmic.c \
 		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c
+LIBSOURCES = pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c \
+		msg.c pmsteps.c pmtimer.c 
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
 PFFTFLIB = depends/install/lib/libpfftf_omp.a
@@ -24,12 +26,16 @@ PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx
 
 LUALIB = lua/liblua.a
 
+all: fastpm libfastpm.a
+
 fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
 	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
 			$(LDFLAGS) -llua -lgsl -lgslcblas \
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
+libfastpm.a : $(PFFTLIB) $(PFFTFLIB) $(LIBSOURCES:%.c=.objs/%.o)
+	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 
 
 $(LUALIB): lua/Makefile
 	(cd lua; CC="$(CC)" make generic)
