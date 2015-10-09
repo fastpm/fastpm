@@ -108,7 +108,7 @@ double DprimeQ(double a, double nGrowth, Cosmology c)
 double 
 GrowthFactor(double a, Cosmology c)
 {
-    return 1.0 / growthD(a, c);
+    return growthD(a, c);
 }
 
 double GrowthFactor2(double a, Cosmology c) {// Second order growth factor
