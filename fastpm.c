@@ -503,6 +503,7 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
         .np = p->np,
         .np_upper = p->np_upper,
         .attributes = PACK_POS,
+        .nghosts = 0,
     };
     pm_start(pm);
 
