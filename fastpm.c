@@ -217,7 +217,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         // Leap-frog "kick" -- velocities updated
 
         timer_start("evolve");  
-        stepping_kick(&pdata, a_v, a_v1, a_x);
+        stepping_kick(&pdata, &pdata, a_v, a_v1, a_x);
         timer_stop("evolve");  
 
         /* take snapshots if needed, before the drift */
@@ -225,7 +225,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         
         // Leap-frog "drift" -- positions updated
         timer_start("evolve");  
-        stepping_drift(&pdata, a_x, a_x1, a_v1);
+        stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1);
         timer_stop("evolve");  
 
         /* no need to check for snapshots here, it will be checked next loop.  */
@@ -644,7 +644,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         double aout = snps->aout[snps->iout];
         int isnp= snps->iout+1;
 
-        stepping_set_snapshot(aout, a_x, a_v, p, &snapshot);
+        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v);
 
         timer_start("comm");
         pm_store_wrap(&snapshot, BoxSize);

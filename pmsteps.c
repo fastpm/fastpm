@@ -127,9 +127,10 @@ void stepping_get_times(int istep,
 // Leap frog time integration
 // ** Total momentum adjustment dropped
 
-void stepping_kick(PMStore * p,
-        double ai, double af, double ac)
-    /* a_v     avel1     a_x*/
+void 
+stepping_kick(PMStore * pi, PMStore * po,
+              double ai, double af, double ac)
+                /* a_v     avel1     a_x*/
 {
     if(FORCE_MODE == FORCE_MODE_ZA
     || FORCE_MODE == FORCE_MODE_2LPT) {
@@ -153,7 +154,7 @@ void stepping_kick(PMStore * p,
     else
         Om_ = c.OmegaM;
 
-    int np = p->np;
+    int np = pi->np;
 
     // Kick using acceleration at a= ac
     // Assume forces at a=ac is in particles->force
@@ -163,27 +164,28 @@ void stepping_kick(PMStore * p,
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d++) {
-            float ax= -1.5*Om_* p->acc[i][d];
+            float ax= -1.5*Om_* pi->acc[i][d];
             switch(FORCE_MODE) {
                 case FORCE_MODE_COLA:
-                    ax -= (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
+                    ax -= (pi->dx1[i][d]*q1 + pi->dx2[i][d]*q2);
                 break;
                 case FORCE_MODE_COLA1:
-                    ax -= (p->dx1[i][d]*q1);
+                    ax -= (pi->dx1[i][d]*q1);
                 break;
             }
-            p->v[i][d] += ax * dda;
+            po->v[i][d] = pi->v[i][d] + ax * dda;
         }
     }
 
     //velocity is now at a= avel1
 }
 
-void stepping_drift(PMStore * p,
-        double ai, double af, double ac)
-    /*a_x, apos1, a_v */
+void 
+stepping_drift(PMStore * pi, PMStore * po,
+               double ai, double af, double ac)
+              /*a_x, apos1, a_v */
 {
-    int np= p->np;
+    int np= pi->np;
 
 
     double dyyy=Sq(ai, af, ac);
@@ -203,16 +205,18 @@ void stepping_drift(PMStore * p,
         int d;
         for(d = 0; d < 3; d ++) {
             if(FORCE_MODE & FORCE_MODE_PM) {
-                p->x[i][d] += p->v[i][d]*dyyy;
+                po->x[i][d] = pi->x[i][d] + pi->v[i][d]*dyyy;
+            } else {
+                po->x[i][d] = 0;
             }
             switch(FORCE_MODE) {
                 case FORCE_MODE_2LPT:
                 case FORCE_MODE_COLA:
-                    p->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
+                    po->x[i][d] += pi->dx1[i][d]*da1 + pi->dx2[i][d]*da2;
                 break;
                 case FORCE_MODE_ZA:
                 case FORCE_MODE_COLA1:
-                    p->x[i][d] += p->dx1[i][d]*da1;
+                    po->x[i][d] += pi->dx1[i][d]*da1;
                 break;
             }
         }
@@ -326,99 +330,47 @@ double Sphi(double ai, double af, double aRef) {
 
 
 // Interpolate position and velocity for snapshot at a=aout
-void stepping_set_snapshot(double aout, double a_x, double a_v, 
-        PMStore * p, PMStore * po)
+void 
+stepping_set_snapshot(PMStore * p, PMStore * po,
+                double aout, double a_x, double a_v)
 {
     int np= p->np;
 
     msg_printf(verbose, "Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
-    //float vfac=A/Qfactor(A); // RSD /h Mpc unit
     float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
 
-    float AI=  a_v;
-    float A=   a_x;
-    float AF=  aout;
+    msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", GrowthFactor(aout, c), aout);
 
-    float Om143= pow(c.OmegaM/(c.OmegaM + (1 - c.OmegaM)*A*A*A), 1.0/143.0);
-    float dda= Sphi(AI, AF, A) * stepping_boost;
-    float growth1=GrowthFactor(A, c);
-
-    //msg_printf(normal, "set snapshot %f from %f %f\n", aout, AI, A);
-    //msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", growth1, A);
-    msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", GrowthFactor(AF, c), AF);
-
-    float q1=1.5*c.OmegaM*growth1;
-    float q2=1.5*c.OmegaM*growth1*growth1*(1.0 + 7.0/3.0*Om143);
-
-    float Dv=DprimeQ(aout, 1.0, c); // dD_{za}/dy
-    float Dv2=GrowthFactor2v(aout, c);   // dD_{2lpt}/dy
-
-
-    float AC= a_v;
-    float dyyy=Sq(A, AF, AC);
-
-    dyyy *= stepping_boost;
-
-    /*
-       if(AF < A) {
-       float dyyy_backward= Sq(aminus, aout, AC) - Sq(aminus, A, AC);
-       msg_printf(debug, "dyyy drift backward %f ->%f = %e %e\n", 
-       A, AF, dyyy, dyyy_backward);
-       }
-       */
+    double Dv=DprimeQ(aout, 1.0, c); // dD_{za}/dy
+    double Dv2=GrowthFactor2v(aout, c);   // dD_{2lpt}/dy
 
     msg_printf(debug, "velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
     msg_printf(debug, "RSD factor %e\n", aout/Qfactor(aout, c)/vfac);
 
+    stepping_kick(p, po, a_v, aout, a_x);
 
-    float da1= GrowthFactor(AF, c) - GrowthFactor(A, c);    // change in D_{1lpt}
-    float da2= GrowthFactor2(AF, c) - GrowthFactor2(A, c);  // change in D_{2lpt}
+    stepping_drift(p, po, a_x, aout, a_v);
 
     int i;
 #pragma omp parallel for 
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
-            // Kick + adding back 2LPT velocity + convert to km/s
-            float ax= -1.5*c.OmegaM*p->acc[i][0];
+            /* For cola, 
+             * add the lpt velocity to the residual velocity v*/
             switch(FORCE_MODE) {
                 case FORCE_MODE_COLA:
-                    ax -= p->dx1[i][0]*q1 + p->dx2[i][0]*q2;
-                    break;
-                case FORCE_MODE_COLA1:
-                    ax -= p->dx1[i][0]*q1;
-                    break;
-            } 
-            po->v[i][d] = vfac*(p->v[i][d] + ax*dda);
-
-            switch(FORCE_MODE) {
-                case FORCE_MODE_COLA:
-                    po->v[i][d] += vfac * (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
+                    po->v[i][d] += p->dx1[i][d]*Dv 
+                                 + p->dx2[i][d]*Dv2;
                 break;
                 case FORCE_MODE_COLA1:
-                    po->v[i][d] += vfac * (p->dx1[i][d]*Dv);
+                    po->v[i][d] += p->dx1[i][d]*Dv;
                 break;
             }
-
-            // Drift
-            po->x[i][d] = p->x[i][d]; 
-            if(FORCE_MODE & FORCE_MODE_PM) {
-                po->x[i][d] += p->v[i][d]*dyyy;
-
-            } 
-            switch(FORCE_MODE) {
-                case FORCE_MODE_COLA:
-                case FORCE_MODE_2LPT:
-                    po->x[i][d] += p->dx1[i][d]*da1 + p->dx2[i][d]*da2;
-                break; 
-                case FORCE_MODE_COLA1:
-                case FORCE_MODE_ZA:
-                    po->x[i][d] += p->dx1[i][d]*da1;
-                break;
-            }
-        }
-
+            /* convert the unit to km/s */
+            po->v[i][d] *= vfac;
+        }    
         po->id[i] = p->id[i];
     }
 
