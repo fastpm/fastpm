@@ -57,23 +57,31 @@ static inline void pm_paint_pos_tuned(PM * pm, double pos[3], double weight) {
 
     if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            WRtPlus(pm->workspace, I, J,  K,  T3*T1*T2W, pm);
-            WRtPlus(pm->workspace, I, J,  K1, D3*T1*T2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I, J,  K,  T3*T1*T2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I, J,  K1, D3*T1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            WRtPlus(pm->workspace, I, J1, K,  T3*T1*D2W, pm);
-            WRtPlus(pm->workspace, I, J1, K1, D3*T1*D2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I, J1, K,  T3*T1*D2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I, J1, K1, D3*T1*D2W, pm);
         }
     }
 
     if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            WRtPlus(pm->workspace, I1, J,  K,  T3*D1*T2W, pm);
-            WRtPlus(pm->workspace, I1, J,  K1, D3*D1*T2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I1, J,  K,  T3*D1*T2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I1, J,  K1, D3*D1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            WRtPlus(pm->workspace, I1, J1, K,  T3*D1*D2W, pm);
-            WRtPlus(pm->workspace, I1, J1, K1, D3*D1*D2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I1, J1, K,  T3*D1*D2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                WRtPlus(pm->workspace, I1, J1, K1, D3*D1*D2W, pm);
         }
     }
 }
@@ -115,23 +123,31 @@ static inline double pm_readout_pos_tuned(PM * pm, double pos[3]) {
 
     if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            value += REd(pm->workspace, I, J,  K,  T3*T1*T2W, pm);
-            value += REd(pm->workspace, I, J,  K1, D3*T1*T2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I, J,  K,  T3*T1*T2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I, J,  K1, D3*T1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            value += REd(pm->workspace, I, J1, K,  T3*T1*D2W, pm);
-            value += REd(pm->workspace, I, J1, K1, D3*T1*D2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I, J1, K,  T3*T1*D2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I, J1, K1, D3*T1*D2W, pm);
         }
     }
 
     if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            value += REd(pm->workspace, I1, J,  K,  T3*D1*T2W, pm);
-            value += REd(pm->workspace, I1, J,  K1, D3*D1*T2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I1, J,  K,  T3*D1*T2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I1, J,  K1, D3*D1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            value += REd(pm->workspace, I1, J1, K,  T3*D1*D2W, pm);
-            value += REd(pm->workspace, I1, J1, K1, D3*D1*D2W, pm);
+            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I1, J1, K,  T3*D1*D2W, pm);
+            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
+                value += REd(pm->workspace, I1, J1, K1, D3*D1*D2W, pm);
         }
     }
     return value;
