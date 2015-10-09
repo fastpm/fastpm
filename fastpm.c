@@ -541,7 +541,7 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
 
     int d;
     ptrdiff_t i;
-    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Y};
+    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
         timer_start("transfer");
         apply_force_kernel(pm, d);
