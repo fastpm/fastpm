@@ -198,6 +198,18 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             /* watch out: boost the density since mesh is finer than grid */
             do_pm(&pdata, vpm, &ps);
         }
+
+#if 0
+{
+        pdata.v = pdata.acc;
+        char filebase[1000];
+        sprintf(filebase, "%s%05d_%0.04f.bin", prr->snapshot_filename, prr->random_seed, 2.0);
+        write_runpb_snapshot(prr, &pdata, 1.0, filebase, MPI_COMM_WORLD);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Abort(MPI_COMM_WORLD, -10);
+}
+#endif
         if(prr->measure_power_spectrum_filename) {
             if(pm->ThisTask == 0)
                 ensure_dir(prr->measure_power_spectrum_filename);
@@ -373,8 +385,8 @@ apply_force_kernel(PM * pm, int dir)
                 pm->workspace[ind + 0] = 0;
                 pm->workspace[ind + 1] = 0;
             }
-    //        pm->workspace[ind + 0] = pm->canvas[ind + 0];
-     //       pm->workspace[ind + 1] = pm->canvas[ind + 1];
+//            pm->workspace[ind + 0] = pm->canvas[ind + 0];
+//            pm->workspace[ind + 1] = pm->canvas[ind + 1];
             pm_inc_o_index(pm, i);
         }
     }
@@ -521,9 +533,6 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
     
     timer_stop("paint");    
 
-#if 0
-    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("density.f4", "w"));
-#endif
     timer_start("fft");
     pm_r2c(pm);
     timer_stop("fft");
@@ -557,6 +566,14 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
         timer_stop("fft");
 
 #if 0
+{
+    char buf[1000];
+    sprintf(buf, "accr-%d.f4-rank-%d", d, pm->ThisTask);
+    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(buf, "w"));
+}
+#endif
+
+#if 0
         char * fname2[] = { "accr-0.f4", "accr-1.f4", "accr-2.f4", };
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname2[d], "w"));
 #endif
@@ -571,12 +588,22 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
         }
         timer_stop("readout");
 
+        double sum1 = 0;
+        for(i = 0; i < p->np; i ++) {
+            sum1 += p->acc[i][d];
+        }
+
         timer_start("ghosts2");
         pm_reduce_ghosts(&pgd, ACC[d]); 
         timer_stop("ghosts2");
+        double sum2 = 0;
+        for(i = 0; i < p->np; i ++) {
+            sum2 += p->acc[i][d];
+        }
     }
     pm_destroy_ghosts(&pgd);
     pm_stop(pm);
+
 }    
 
 static void rungdb(const char* fmt, ...){
