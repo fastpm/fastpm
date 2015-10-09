@@ -138,7 +138,7 @@ stepping_kick(PMStore * pi, PMStore * po,
     }
     msg_printf(normal, "Kick %6.4f -> %6.4f\n", ai, af);
 
-    double Om143 = pow(c.OmegaM/(c.OmegaM + (1 - c.OmegaM)*ac*ac*ac), 1.0/143.0);
+    double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double dda = Sphi(ai, af, ac, c) * stepping_boost;
     double growth1 = GrowthFactor(ac, c);
 
@@ -149,7 +149,7 @@ stepping_kick(PMStore * pi, PMStore * po,
 
     double omegam;
     if (martinKick)
-        omegam = c.OmegaM/ (c.OmegaM + (1 - c.OmegaM) *ac * ac *ac);
+        omegam = OmegaA(ac, c);
     else
         omegam = c.OmegaM;
 

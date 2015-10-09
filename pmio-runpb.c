@@ -200,12 +200,11 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
         .OmegaM = param->omega_m,
         .OmegaLambda = 1.0 - param->omega_m,
     };
-    const double Omega_m = param->omega_m;
-    const double omega=Omega_m/(Omega_m + (1.0 - Omega_m)*aa*aa*aa);
+    const double omega = OmegaA(aa, c);
     const float DplusIC = GrowthFactor(aa, c);
     const float Dplus = GrowthFactor(a_init, c);
-    const double D2= Dplus*Dplus*pow(omega/Omega_m, -1.0/143.0);
-    const double D20= pow(Omega_m, -1.0/143.0);
+    const double D2 = Dplus*Dplus*pow(omega/c.OmegaM, -1.0/143.0);
+    const double D20 = pow(c.OmegaM, -1.0/143.0);
     const double f1 = pow(omega, (4./7));
     const double f2 = pow(omega, (6./11));
 

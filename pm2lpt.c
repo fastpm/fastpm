@@ -306,7 +306,7 @@ pm_2lpt_set_initial(double aout, PMStore * p, double shift[3], double Omega)
 
     const float Dplus = GrowthFactor(aout, c);
 
-    const double omega=Omega/(Omega + (1.0 - Omega)*aout*aout*aout);
+    const double omega=OmegaA(aout, c);
     const double D2 = Dplus*Dplus*pow(omega/Omega, -1.0/143.0);
     const double D20 = pow(Omega, -1.0/143.0);
     
