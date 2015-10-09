@@ -3,10 +3,12 @@
 
 void 
 stepping_kick(PMStore * pi, PMStore * po,
-        double ai, double af, double ac);
+        double ai, double af, double ac,
+        double OmegaM);
 void 
 stepping_drift(PMStore * pi, PMStore * po,
-        double ai, double af, double ac);
+        double ai, double af, double ac,
+        double OmegaM);
 
 void stepping_set_boost(double boost);
 
@@ -19,7 +21,7 @@ stepping_get_times(int istep,
 
 void 
 stepping_set_snapshot(PMStore * pi, PMStore * po,
-                double aout, double a_x, double a_v);
+                double aout, double a_x, double a_v, double OmegaM);
 
 void stepping_init(Parameters * param);
 #endif
