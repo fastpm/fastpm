@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 
 #include "pmpfft.h"
+#include "vpm.h"
 #include "pmic.h"
 #include "pm2lpt.h"
 #include "parameters.h"
@@ -45,25 +46,7 @@ snps_init(SNPS * snps, Parameters * prr, PMStore * p, MPI_Comm comm);
 static void 
 snps_start(SNPS * snps);
 
-/* Variable Particle Mesh */
 
-typedef struct {
-    PM pm;
-    double a_start;
-    int pm_nc_factor;
-} VPM;
-
-static VPM * _vpm;
-static int n_vpm;    
-
-static void 
-vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm);
-
-static VPM 
-vpm_find(double a);
-
-static double
-vpm_estimate_alloc_factor(double failure_rate);
 
 typedef struct {
     size_t size;
@@ -83,7 +66,7 @@ write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename
 
 /* Useful stuff */
 static void 
-do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps);
+do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 static double 
@@ -93,21 +76,26 @@ estimate_alloc_factor(double Volume, int NTask, double failure_rate);
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
 
+    int NTask; 
+    MPI_Comm_size(comm, &NTask);
+
     msg_init(comm);
     msg_set_loglevel(verbose);
-    
 
     PMStore pdata;
     PM pm;
+    VPM * vpm_list;
+    PMInit baseinit = {
+            .Nmesh = prr->nc,
+            .BoxSize = prr->boxsize,
+            .NprocY = prr->NprocY, /* 0 for auto, 1 for slabs */
+            .transposed = 1,
+            .use_fftw = prr->UseFFTW,
+        };
 
     timer_set_category(INIT);
 
-
     stepping_init(prr);
-
-
-    int NTask; 
-    MPI_Comm_size(comm, &NTask);
 
     power_init(prr->power_spectrum_filename, 
             prr->time_step[0], 
@@ -117,15 +105,17 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     pm_store_init(&pdata);
 
-    vpm_init(prr, &pdata.iface, comm);
-
-    double alloc_factor = vpm_estimate_alloc_factor(1e-5);
-    if(prr->np_alloc_factor > alloc_factor) {
-        alloc_factor = prr->np_alloc_factor;
-    }
+    double alloc_factor;
+    alloc_factor = prr->np_alloc_factor;
     msg_printf(info, "Using alloc factor of %g\n", alloc_factor);
 
     pm_store_alloc_evenly(&pdata, pow(prr->nc, 3), alloc_factor, comm);
+
+    vpm_list = vpm_create(prr->n_pm_nc_factor, 
+                           prr->pm_nc_factor, 
+                           prr->change_pm,
+                           &baseinit, &pdata.iface, comm);
+
 
     timer_set_category(LPT);
 
@@ -180,8 +170,8 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             &a_x, &a_x1, &a_v, &a_v1);
 
         /* Find the Particle Mesh to use for this time step */
-        VPM vpm = vpm_find(a_x);
-        PM * pm = &vpm.pm;
+        VPM * vpm = vpm_find(vpm_list, a_x);
+        PM * pm = &vpm->pm;
         msg_printf(debug, "Using PM of size %td\n", pm->init.Nmesh);
 
         PowerSpectrum ps;
@@ -206,7 +196,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         if(prr->force_mode & FORCE_MODE_PM) {
             /* watch out: boost the density since mesh is finer than grid */
-            do_pm(prr, &pdata, &vpm, &ps);
+            do_pm(&pdata, vpm, &ps);
         }
         if(prr->measure_power_spectrum_filename) {
             if(pm->ThisTask == 0)
@@ -502,7 +492,7 @@ static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_
 }
 
 static void 
-do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps)
+do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
 {
     PM * pm = &vpm->pm;
     double density_factor =  pow(vpm->pm_nc_factor, 3); 
@@ -537,6 +527,8 @@ do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps)
     pm_r2c(pm);
     timer_stop("fft");
 
+    /* calculate the power spectrum */
+
     timer_start("power");
     calculate_powerspectrum(pm, ps, density_factor);
     timer_stop("power");
@@ -544,7 +536,6 @@ do_pm(Parameters * prr, PMStore * p, VPM * vpm, PowerSpectrum * ps)
 #if 0
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("density-k.f4", "w"));
 #endif
-    /* calculate the power spectrum */
 
     /* calculate the forces save them to p->acc */
 
@@ -710,60 +701,6 @@ snps_start(SNPS * snps)
     snps->iout = 0;
 }
 
-static void 
-vpm_init (Parameters * prr, PMIFace * iface, MPI_Comm comm) 
-{
-    /* plan for the variable PMs; keep in mind we do variable
-     * mesh size (PM resolution). We plan them at the begining of the run
-     * in theory we can use some really weird PM resolution as function
-     * of time, but the parameter files / API need to support this.
-     * */
-    n_vpm = prr->n_pm_nc_factor;
-    _vpm = malloc(sizeof(_vpm[0]) * prr->n_pm_nc_factor);
-    int i;
-    for (i = 0; i < prr->n_pm_nc_factor; i ++) {
-        _vpm[i].pm_nc_factor = prr->pm_nc_factor[i];
-        _vpm[i].a_start = prr->change_pm[i];
-
-        PMInit pminit = {
-            .Nmesh = (int)(prr->nc * _vpm[i].pm_nc_factor),
-            .BoxSize = prr->boxsize,
-            .NprocY = prr->NprocY, /* 0 for auto, 1 for slabs */
-            .transposed = 1,
-            .use_fftw = prr->UseFFTW,
-        };
-        pm_init(&_vpm[i].pm, &pminit, iface, comm);
-        msg_printf(debug, "PM initialized for Nmesh = %td at a %5.4g \n", pminit.Nmesh, prr->change_pm[i]);
-    }
-}
-static double
-vpm_estimate_alloc_factor(double failure_rate) 
-{
-    double factor = 1.0;
-    int i;
-    for(i = 0; i < n_vpm; i ++) {
-        PM * pm = &_vpm[i].pm;
-        double Volume = pm->Volume / pm->NTask;
-
-        /* Correct for the surface area */
-        Volume += 2 * pm->Volume / pm->Nmesh[0] * pm->Nproc[0];
-        Volume += 2 * pm->Volume / pm->Nmesh[1] * pm->Nproc[1];
-
-        double factor1 = estimate_alloc_factor(Volume, pm->NTask, failure_rate);
-        if(factor1 > factor) factor = factor1;
-    }
-    return factor;
-}
-static VPM 
-vpm_find(double a) 
-{
-    /* find the PM object for force calculation at time a*/
-    int i;
-    for (i = 0; i < n_vpm; i ++) {
-        if(_vpm[i].a_start > a) break;
-    }
-    return _vpm[i-1];
-}
 
 static void 
 power_spectrum_init(PowerSpectrum * ps, size_t size) 

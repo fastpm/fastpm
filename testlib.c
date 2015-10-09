@@ -1,32 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+
 #include "libfastpm.h"
-
-void run2lpt(PM * pm, PMStore * pdata, double a, double omega_m, 
-        real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) {
-
-    pm_start(pm);
-
-    memcpy(pm->canvas, deltak_0, sizeof(pm->canvas[0]) * pm->allocsize);
-
-    pm_2lpt_main(pm, pdata, comm);
-
-    /* pdata->dx1 and pdata->dx2 are s1 and s2 terms 
-     * S = D * dx1 + D2 * 3 / 7 * D20 * dx2; 
-     *
-     * See pmsteps.c 
-     * */
-
-    /* now shift particles to the correct locations. */
-    double shift[3] = {0, 0, 0};
-
-    pm_2lpt_set_initial(a, omega_m, pdata, shift);
-
-    fastpm_particle_to_mesh(pm, pdata);
-    pm_r2c(pm);
-
-    memcpy(deltak_1, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
-}
 
 int main(int argc, char * argv[]) {
 
@@ -51,14 +26,33 @@ int main(int argc, char * argv[]) {
     int mcmcstep;
 
     for(mcmcstep = 0; mcmcstep < 1; mcmcstep++) {
-        /* TODO: fill in the modes to canvas */
-        memset(deltak_0, 0, sizeof(deltak_0[0]) * pm->allocsize);
-        run2lpt(pm, pdata, 1.0, omega_m, deltak_0, deltak_1, comm);
+        /* Fill in some reasonable (EH PowerSpec) to the canvas */
+        struct fastpm_powerspec_eh_params eh = {
+            .Norm = 10000.0, /* FIXME: this is not any particular sigma8. */
+            .hubble_param = 0.7,
+            .omegam = 0.260,
+            .omegab = 0.044,
+        };
+        fastpm_fill_deltak(pm, deltak_0, 100, fastpm_powerspec_eh, &eh);
+        fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, deltak_0, deltak_1, comm);
+
+        /* example looping over ks */
+        ptrdiff_t ind;
+        ptrdiff_t i[3] = {0};
+
+        for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
+            int d;
+            double k[3];
+            for(d = 0; d < 3; d ++) {
+                k[d] = pm->MeshtoK[d][i[d] + pm->ORegion.start[d]];
+            }
+            deltak_1[ind + 0] = 0; /* real */
+            deltak_1[ind + 1] = 0; /* imag */
+        }
     }
+
     free(deltak_0);
     free(deltak_1);
-
-    pm_destroy(pm);
 
     MPI_Finalize();
     return 0;
