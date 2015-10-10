@@ -173,7 +173,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         VPM * vpm = vpm_find(vpm_list, a_x);
         PM * pm = &vpm->pm;
 
-        msg_printf(normal, "Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d \n", 
+        msg_printf(normal, "==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
                     istep, a_x, a_x1, a_v, a_v1, pm->init.Nmesh);
 
         PowerSpectrum ps;
@@ -235,7 +235,6 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         // Leap-frog "kick" -- velocities updated
 
         timer_start("evolve");  
-        msg_printf(normal, "Step %d Kick %6.4f -> %6.4f\n", istep, a_v, a_v1);
         stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m);
         timer_stop("evolve");  
 
@@ -244,7 +243,6 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         
         // Leap-frog "drift" -- positions updated
         timer_start("evolve");  
-        msg_printf(normal, "Step %d Drift %6.4f -> %6.4f\n", istep, a_x, a_x1);
         stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m);
         timer_stop("evolve");  
 
@@ -703,7 +701,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
 
         const double z_out= 1.0/aout - 1.0;
 
-        msg_printf(normal, "snapshot %d written z=%4.2f a=%5.3f\n", 
+        msg_printf(normal, "snapshot %d written z = %6.4f a = %6.4f\n", 
                 isnp, z_out, aout);
 
         snps->iout ++;

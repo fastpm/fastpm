@@ -16,6 +16,7 @@ nrealization= 2
 -- linspace: Uniform time steps in a
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
+-- time_step = linspace(0.01, 1.0, 10)
 time_step = logspace(-2, 0, 80)
 
 output_redshifts= {1.0, 0.0}  -- redshifts of output

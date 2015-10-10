@@ -68,23 +68,24 @@ void stepping_init(Parameters * param) {
         A_V = (double*) calloc(NSTEPS + 1, sizeof(double));
         A_V[0] = param->time_step[0];
         A_X[0] = param->time_step[0];
+        A_X[NSTEPS] = 1.0;
+        A_V[NSTEPS] = 1.0;
     } else {
         /* one extra item in the end; to avoid an if conditioni in main loop */
         A_X = (double*) calloc(NSTEPS + 1, sizeof(double));
         A_V = (double*) calloc(NSTEPS + 1, sizeof(double));
         int i;
-        for (i = 0;i<=param->n_time_step-1;++i){
+        for (i = 0; i <= NSTEPS - 1;i++){
             A_X[i] = param->time_step[i];
         }
+        A_X[NSTEPS] = 1.0;
 
         A_V[0] = A_X[0];
 
-        for (i = 1;i<=param->n_time_step-1;++i){
+        for (i = 1; i <= NSTEPS; i++){
             A_V[i] = exp((log(A_X[i])+log(A_X[i-1]))/2);
         }
     }
-    A_X[NSTEPS] = 1.0;
-    A_V[NSTEPS] = 1.0;
     char * buf = malloc(24 * (NSTEPS + 1));
     char * p;
     int i;
@@ -142,6 +143,7 @@ stepping_kick(PMStore * pi, PMStore * po,
     double dda = Sphi(ai, af, ac, c) * stepping_boost;
     double growth1 = GrowthFactor(ac, c);
 
+    msg_printf(normal, "Kick %6.4f -> %6.4f\n", ai, af);
     msg_printf(normal, "growth factor %g dda=%g\n", growth1, dda);
 
     double q2 = 1.5*c.OmegaM*growth1*growth1*(1.0 + 7.0/3.0*Om143);
@@ -196,6 +198,7 @@ stepping_drift(PMStore * pi, PMStore * po,
     double da1 = GrowthFactor(af, c) - GrowthFactor(ai, c);    // change in D_1lpt
     double da2 = GrowthFactor2(af, c) - GrowthFactor2(ai, c);  // change in D_2lpt
 
+    msg_printf(normal, "Drift %6.4f -> %6.4f\n", ai, af);
     msg_printf(normal, "dyyy = %g \n", dyyy);
 
 
@@ -281,7 +284,7 @@ double Sq(double ai, double af, double aRef, Cosmology c) {
 
     gsl_integration_workspace_free (w);
 
-    msg_printf(verbose, "time = %6.4f, std drift =%g, non std drift = %g \n",
+    msg_printf(verbose, "ref time = %6.4f, std drift =%g, non std drift = %g \n",
         aRef, resultstd, result);
 
     if (stdDA == 0)
@@ -320,7 +323,7 @@ double Sphi(double ai, double af, double aRef, Cosmology c) {
 
     gsl_integration_workspace_free (w);
 
-    msg_printf(verbose, "time = %6.4f, std kick = %g, non std kick = %g\n",
+    msg_printf(verbose, "ref time = %6.4f, std kick = %g, non std kick = %g\n",
             aRef, resultstd, result);
 
     if (stdDA == 0) {
