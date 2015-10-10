@@ -1,7 +1,5 @@
 #include <string.h>
 #include "pmpfft.h"
-#include "permute.c"
-#include "msort.c"
 #include "msg.h"
 #include <signal.h>
 
@@ -184,6 +182,16 @@ void pm_store_read(PMStore * p, char * datasource) {
 
 void pm_store_write(PMStore * p, char * datasource) {
     /* parse data soure and write */
+}
+
+static void permute(void * data, int np, size_t elsize, int * ind) {
+    void * tmp = malloc(elsize * np);
+    int i;
+    for(i = 0; i < np; i ++) {
+        memcpy(((char*) tmp) + i * elsize, ((char*) data) + ind[i] * elsize, elsize);
+    }
+    memcpy(data, tmp, np * elsize);
+    free(tmp);
 }
 
 static void pm_store_permute(PMStore * p, int * ind) {
