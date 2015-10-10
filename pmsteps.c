@@ -64,14 +64,14 @@ void stepping_init(Parameters * param) {
     if(param->force_mode == FORCE_MODE_2LPT ||
        param->force_mode == FORCE_MODE_ZA) {
         NSTEPS = 1;
-        A_X = (double*) calloc(NSTEPS + 2, sizeof(double));
-        A_V = (double*) calloc(NSTEPS + 2, sizeof(double));
-        A_V[1] = param->time_step[param->n_time_step-1];
-        A_X[1] = param->time_step[param->n_time_step-1];
+        A_X = (double*) calloc(NSTEPS + 1, sizeof(double));
+        A_V = (double*) calloc(NSTEPS + 1, sizeof(double));
+        A_V[0] = param->time_step[0];
+        A_X[0] = param->time_step[0];
     } else {
         /* one extra item in the end; to avoid an if conditioni in main loop */
-        A_X = (double*) calloc(NSTEPS + 2, sizeof(double));
-        A_V = (double*) calloc(NSTEPS + 2, sizeof(double));
+        A_X = (double*) calloc(NSTEPS + 1, sizeof(double));
+        A_V = (double*) calloc(NSTEPS + 1, sizeof(double));
         int i;
         for (i = 0;i<=param->n_time_step-1;++i){
             A_X[i] = param->time_step[i];
@@ -83,21 +83,19 @@ void stepping_init(Parameters * param) {
             A_V[i] = exp((log(A_X[i])+log(A_X[i-1]))/2);
         }
     }
-    A_X[NSTEPS+1] = 1.0;
     A_X[NSTEPS] = 1.0;
-    A_V[NSTEPS+1] = 1.0;
     A_V[NSTEPS] = 1.0;
-    char * buf = malloc(24 * (NSTEPS + 2));
+    char * buf = malloc(24 * (NSTEPS + 1));
     char * p;
     int i;
     msg_printf(normal, "Drift: \n");
-    for(p = buf, i = 0; i < NSTEPS + 2; i ++) {
+    for(p = buf, i = 0; i < NSTEPS + 1; i ++) {
         sprintf(p, "%6.4f ", A_X[i]);
         p += strlen(p);
     }
     msg_printf(normal, "%s\n", buf);
     msg_printf(normal, " Kick: \n");
-    for(p = buf, i = 0; i < NSTEPS + 2; i ++) {
+    for(p = buf, i = 0; i < NSTEPS + 1; i ++) {
         sprintf(p, "%6.4f ", A_V[i]);
         p += strlen(p);
     }
@@ -115,6 +113,9 @@ void stepping_get_times(int istep,
 
     *a_v = A_V[istep];
     *a_x = A_X[istep];
+    if(istep >= NSTEPS) {
+        istep = NSTEPS - 1;
+    }
     *a_v1= A_V[istep + 1];
     *a_x1= A_X[istep + 1];
 }
@@ -136,7 +137,6 @@ stepping_kick(PMStore * pi, PMStore * po,
         /* ZA and 2LPT sims no kicks */
         return;
     }
-    msg_printf(normal, "Kick %6.4f -> %6.4f\n", ai, af);
 
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double dda = Sphi(ai, af, ac, c) * stepping_boost;
@@ -196,7 +196,6 @@ stepping_drift(PMStore * pi, PMStore * po,
     double da1 = GrowthFactor(af, c) - GrowthFactor(ai, c);    // change in D_1lpt
     double da2 = GrowthFactor2(af, c) - GrowthFactor2(ai, c);  // change in D_2lpt
 
-    msg_printf(normal, "Drift %6.4f -> %6.4f\n", ai, af);
     msg_printf(normal, "dyyy = %g \n", dyyy);
 
 

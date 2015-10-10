@@ -172,7 +172,9 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         /* Find the Particle Mesh to use for this time step */
         VPM * vpm = vpm_find(vpm_list, a_x);
         PM * pm = &vpm->pm;
-        msg_printf(debug, "Using PM of size %td\n", pm->init.Nmesh);
+
+        msg_printf(normal, "Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d \n", 
+                    istep, a_x, a_x1, a_v, a_v1, pm->init.Nmesh);
 
         PowerSpectrum ps;
 
@@ -223,20 +225,26 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         fwrite(pdata.id, sizeof(pdata.id[0]), pdata.np, fopen("id.i8", "w"));
         fwrite(pdata.acc, sizeof(pdata.acc[0]), pdata.np, fopen("acc.f4x3", "w"));
 #endif
-        /* take snapshots if needed, before the kick */
-        if(snps_interp(&snps, a_x, a_v)) break;
 
+        /* take snapshots if needed, before the kick */
+        snps_interp(&snps, a_x, a_v);
+
+        /* never go beyond 1.0 */
+        if(a_x >= 1.0) break; 
+        
         // Leap-frog "kick" -- velocities updated
 
         timer_start("evolve");  
+        msg_printf(normal, "Step %d Kick %6.4f -> %6.4f\n", istep, a_v, a_v1);
         stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m);
         timer_stop("evolve");  
 
         /* take snapshots if needed, before the drift */
-        if(snps_interp(&snps, a_x, a_v1)) break;
+        snps_interp(&snps, a_x, a_v1);
         
         // Leap-frog "drift" -- positions updated
         timer_start("evolve");  
+        msg_printf(normal, "Step %d Drift %6.4f -> %6.4f\n", istep, a_x, a_x1);
         stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m);
         timer_stop("evolve");  
 
