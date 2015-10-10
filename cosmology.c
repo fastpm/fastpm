@@ -60,7 +60,7 @@ double OmegaA(double a, Cosmology c) {
 double DprimeQ(double a, double nGrowth, Cosmology c)
 { // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Qfactor(a)
     double nDecay = 0.0;// not interested in decay modes in this code.
-    double Nn = 1.0 / growth(a, c);
+    double Nn = 1.0 / growth(1.0, c);
     return (  pow(decayD(a, c), -1.0 + nDecay)
             * pow(growthD(a, c),-1.0 + nGrowth)
             * (nGrowth*Nn - (3.0*(nDecay + nGrowth)*c.OmegaM *growthD(a, c))/(2.*a)));  
