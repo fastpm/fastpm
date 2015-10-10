@@ -1,8 +1,10 @@
 
 CC=mpicc
+OPENMP = -fopenmp
 DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM $(CPPFLAGS)
 
-OPTIMIZE ?= -O0 -g -fopenmp
+OPTIMIZE ?= -O3 -g 
+OPTIMIZE += $(OPENMP)
 
 CPPFLAGS += -I lua
 LDFLAGS += -L lua
