@@ -89,6 +89,7 @@ void stepping_init(Parameters * param) {
     char * buf = malloc(24 * (NSTEPS + 1));
     char * p;
     int i;
+    msg_printf(normal, "%d steps: \n", NSTEPS);
     msg_printf(normal, "Drift: \n");
     for(p = buf, i = 0; i < NSTEPS + 1; i ++) {
         sprintf(p, "%6.4f ", A_X[i]);

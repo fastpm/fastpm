@@ -193,6 +193,18 @@ function logspace(start, e, N, endpoint) \
     end \
     return r \
 end \
+function blendspace(start, e, a1, a2) \
+    local r = {}\
+    a = start \
+    i = 1 \
+    while a < e do \
+        r[i] = a \
+        dlna = math.pow(math.pow(1/a1, 2) + math.pow(a/a2, 2), -0.5) \
+        a = math.exp(math.log(a) + dlna) \
+        i = i +1 \
+    end \
+    return r \
+end \
 ";
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
