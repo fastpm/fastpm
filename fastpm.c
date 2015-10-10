@@ -213,10 +213,11 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 }
 #endif
         if(prr->measure_power_spectrum_filename) {
-            if(pm->ThisTask == 0)
+            if(pm->ThisTask == 0) {
                 ensure_dir(prr->measure_power_spectrum_filename);
                 write_power_spectrum(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
                     prr->measure_power_spectrum_filename, prr->random_seed, a_x);
+            }
         }
         power_spectrum_destroy(&ps);
 #if 0
