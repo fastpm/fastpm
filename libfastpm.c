@@ -2,7 +2,6 @@
 #include <mpi.h>
 
 #include "libfastpm.h"
-#include "pmtimer.h"
 #include "msg.h"
 
 static int 
@@ -13,7 +12,6 @@ fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm)
 {
     msg_init(comm);
     msg_set_loglevel(verbose);
-    timer_init();
 
     pm_store_init(p);
 

@@ -18,7 +18,7 @@
 #include "pmsteps.h"
 #include "msg.h"
 #include "power.h"
-#include "pmtimer.h"
+#include "walltime.h"
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
@@ -77,9 +77,13 @@ estimate_alloc_factor(double Volume, int NTask, double failure_rate);
 int fastpm(Parameters * prr, MPI_Comm comm) {
 
     int NTask; 
+    int ThisTask;
     MPI_Comm_size(comm, &NTask);
-
+    MPI_Comm_rank(comm, &ThisTask);
+    struct ClockTable CT;
     msg_init(comm);
+    walltime_init(&CT);
+
     msg_set_loglevel(verbose);
 
     PMStore pdata;
@@ -92,8 +96,6 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             .transposed = 1,
             .use_fftw = prr->UseFFTW,
         };
-
-    timer_set_category(INIT);
 
     stepping_init(prr);
 
@@ -111,16 +113,18 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     pm_store_alloc_evenly(&pdata, pow(prr->nc, 3), alloc_factor, comm);
 
+    walltime_measure("/Init/Misc");
+
     vpm_list = vpm_create(prr->n_pm_nc_factor, 
                            prr->pm_nc_factor, 
                            prr->change_pm,
                            &baseinit, &pdata.iface, comm);
 
-
-    timer_set_category(LPT);
+    walltime_measure("/Init/Plan");
 
     if(prr->readic_filename) {
         read_runpb_ic(prr, prr->time_step[0], &pdata, comm);
+        walltime_measure("/Init/ReadIC");
     } else {
         PM pm;
 
@@ -133,6 +137,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         pm_2lpt_main(&pm, &pdata, comm);
 
         pm_destroy(&pm);
+        walltime_measure("/Init/2LPT");
     }
 
     double shift[3] = {
@@ -149,18 +154,20 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         memset(pdata.v, 0, sizeof(pdata.v[0]) * pdata.np);
     }
 
+    walltime_measure("/Init/Drift");
+
     SNPS snps;
 
     snps_init(&snps, prr, &pdata, comm);
 
     snps_start(&snps);
 
-    timer_set_category(STEPPING);
-
     int istep;
     int nsteps = stepping_get_nsteps();
 
     snps_interp(&snps, prr->time_step[0], prr->time_step[0]);
+
+    walltime_measure("/Init/Start");
 
     for (istep = 0; istep <= nsteps; istep++) {
         double a_v, a_x, a_v1, a_x1;
@@ -178,11 +185,13 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         PowerSpectrum ps;
 
+        walltime_measure("/Stepping/Start");
+
         /* apply periodic boundary and move particles to the correct rank */
-        timer_start("comm");
         pm_store_wrap(&pdata, pm->BoxSize);
+        walltime_measure("/Stepping/Periodic");
+
         pm_store_decompose(&pdata, to_rank, pm, comm);
-        timer_stop("comm");
 
         size_t np_max;
         size_t np_min;
@@ -192,6 +201,8 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         msg_printf(info, "Load imbalance is - %g / + %g\n",
             np_min / np_mean, np_max / np_mean);
+
+        walltime_measure("/Stepping/Decompose");
 
         /* Calculate PM forces, only if needed. */
         power_spectrum_init(&ps, pm->Nmesh[0] / 2);
@@ -220,6 +231,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             }
         }
         power_spectrum_destroy(&ps);
+        walltime_measure("/Stepping/PowerSpectrum");
 #if 0
         fwrite(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("x.f8x3", "w"));
         fwrite(pdata.v, sizeof(pdata.v[0]), pdata.np, fopen("v.f4x3", "w"));
@@ -235,23 +247,24 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         
         // Leap-frog "kick" -- velocities updated
 
-        timer_start("evolve");  
         stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m);
-        timer_stop("evolve");  
+        walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
         snps_interp(&snps, a_x, a_v1);
         
         // Leap-frog "drift" -- positions updated
-        timer_start("evolve");  
         stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m);
-        timer_stop("evolve");  
+        walltime_measure("/Stepping/drift");
 
         /* no need to check for snapshots here, it will be checked next loop.  */
     }
 
     pm_store_destroy(&pdata);
-    timer_print();
+
+    msg_printf(info, "Total Time\n");
+    walltime_summary(0, comm);
+    walltime_report(stdout, 0, comm);
 }
 
 static int 
@@ -526,29 +539,25 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
     };
     pm_start(pm);
 
-    timer_start("ghosts1");
-    pm_append_ghosts(&pgd);
-    timer_stop("ghosts1");
+    walltime_measure("/Force/Init");
 
-    timer_start("paint");    
+    pm_append_ghosts(&pgd);
+    walltime_measure("/Force/AppendGhosts");
 
     /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
      * it is less than the density (a cell is smaller than the mean seperation between particles. 
      * we compensate this later at readout by density_factor.
      * */
     pm_paint(pm, p, p->np + pgd.nghosts);
+    walltime_measure("/Force/Paint");
     
-    timer_stop("paint");    
-
-    timer_start("fft");
     pm_r2c(pm);
-    timer_stop("fft");
+    walltime_measure("/Force/FFT");
 
     /* calculate the power spectrum */
 
-    timer_start("power");
     calculate_powerspectrum(pm, ps, density_factor);
-    timer_stop("power");
+    walltime_measure("/Force/PowerSpectrum");
     
 #if 0
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("density-k.f4", "w"));
@@ -560,17 +569,15 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
     ptrdiff_t i;
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
-        timer_start("transfer");
         apply_force_kernel(pm, d);
-        timer_stop("transfer");
+        walltime_measure("/Force/Transfer");
 
 #if 0
         char * fname[] = { "acc-0.f4", "acc-1.f4", "acc-2.f4", };
         fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fname[d], "w"));
 #endif
-        timer_start("fft");
         pm_c2r(pm);
-        timer_stop("fft");
+        walltime_measure("/Force/FFT");
 
 #if 0
 {
@@ -586,30 +593,19 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
 #endif
 
 
-        timer_start("readout");
-
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
             /* compensate the density is less than the true density */
             p->acc[i][d] = pm_readout_one(pm, p, i) * (density_factor / pm->Norm);
         }
-        timer_stop("readout");
+        walltime_measure("/Force/Readout");
 
-        double sum1 = 0;
-        for(i = 0; i < p->np; i ++) {
-            sum1 += p->acc[i][d];
-        }
-
-        timer_start("ghosts2");
         pm_reduce_ghosts(&pgd, ACC[d]); 
-        timer_stop("ghosts2");
-        double sum2 = 0;
-        for(i = 0; i < p->np; i ++) {
-            sum2 += p->acc[i][d];
-        }
+        walltime_measure("/Force/ReduceGhosts");
     }
     pm_destroy_ghosts(&pgd);
     pm_stop(pm);
+    walltime_measure("/Force/Finish");
 
 }    
 
@@ -660,7 +656,6 @@ snps_interp(SNPS * snps, double a_x, double a_v)
     PMStore snapshot;
     double BoxSize[3] = {param->boxsize, param->boxsize, param->boxsize};
 
-    timer_set_category(SNP);
 
     while(snps->iout < snps->nout && (
         /* after a kick */
@@ -680,21 +675,20 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         int isnp= snps->iout+1;
 
         stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, param->omega_m);
+        walltime_measure("/Snapshot/KickDrift");
 
-        timer_start("comm");
         pm_store_wrap(&snapshot, BoxSize);
-        timer_stop("comm");
-
-        MPI_Barrier(snps->comm);
-        timer_start("write");
+        walltime_measure("/Snapshot/Periodic");
 
         if(param->snapshot_filename) {
             ensure_dir(param->snapshot_filename);
             sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
             write_runpb_snapshot(param, &snapshot, aout, filebase, snps->comm);
         }
+        walltime_measure("/Snapshot/IO");
+
         MPI_Barrier(snps->comm);
-        timer_stop("write");
+        walltime_measure("/Snapshot/Wait");
 
         const double rho_crit = 27.7455;
         const double M0 = param->omega_m*rho_crit*pow(param->boxsize / param->nc, 3.0);
@@ -708,7 +702,6 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         snps->iout ++;
         pm_store_destroy(&snapshot);
     }
-    timer_set_category(STEPPING);
     return (snps->iout == snps->nout);
 }
 

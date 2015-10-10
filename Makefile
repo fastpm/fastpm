@@ -17,9 +17,9 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 SOURCES = main.c fastpm.c vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c pmic.c \
-		readparams.c msg.c power.c pmsteps.c pmtimer.c pmio-runpb.c cosmology.c
+		readparams.c msg.c power.c pmsteps.c pmio-runpb.c cosmology.c walltime.c
 LIBSOURCES = libfastpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pm2lpt.c pmic.c \
-		msg.c pmsteps.c pmtimer.c cosmology.c
+		msg.c pmsteps.c cosmology.c
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
 PFFTFLIB = depends/install/lib/libpfftf_omp.a
