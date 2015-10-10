@@ -1,6 +1,6 @@
 /* libfastpm: */
 #include <mpi.h>
-
+#include <string.h>
 #include "libfastpm.h"
 #include "msg.h"
 

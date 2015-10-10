@@ -33,7 +33,7 @@ int main(int argc, char * argv[]) {
             .omegam = 0.260,
             .omegab = 0.044,
         };
-        fastpm_fill_deltak(pm, deltak_0, 100, fastpm_powerspec_eh, &eh);
+        fastpm_fill_deltak(pm, deltak_0, 100, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
         fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, deltak_0, deltak_1, comm);
 
         /* example looping over ks */
