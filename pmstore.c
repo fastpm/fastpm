@@ -258,6 +258,9 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     pm_store_permute(p, arg);
     walltime_measure("/Decompose/Permute");
 
+    MPI_Barrier(comm);
+    walltime_measure("/Decompose/Wait");
+
     p->iface.free(arg);
     p->iface.free(target);
 
