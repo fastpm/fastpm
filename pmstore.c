@@ -2,6 +2,7 @@
 #include "pmpfft.h"
 #include "msg.h"
 #include <signal.h>
+#include "walltime.h"
 
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
     PMStore * p = (PMStore *)pdata;
@@ -253,8 +254,9 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
         int offset = offsets[target[i]] ++;
         arg[offset] = i;
     }
-    
+    walltime_measure("/Decompose/Pre");
     pm_store_permute(p, arg);
+    walltime_measure("/Decompose/Permute");
 
     p->iface.free(arg);
     p->iface.free(target);
@@ -262,6 +264,8 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     MPI_Alltoall(sendcount, 1, MPI_INT, 
                  recvcount, 1, MPI_INT, 
                  comm);
+
+    walltime_measure("/Decompose/All1");
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
@@ -275,6 +279,8 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
         p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, p->iface.AllAttributes);
     }
 
+
+    walltime_measure("/Decompose/Pack");
     MPI_Datatype PTYPE;
     MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
     MPI_Type_commit(&PTYPE);
@@ -283,10 +289,12 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
             recv_buffer, recvcount, recvoffset, PTYPE,
             comm);
     MPI_Type_free(&PTYPE);
+    walltime_measure("/Decompose/All2");
     
     for(i = 0; i < Nrecv; i ++) {
         p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->iface.AllAttributes);
     }
+    walltime_measure("/Decompose/Unpack");
 
     p->np += Nrecv;
 
