@@ -231,6 +231,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             }
         }
         power_spectrum_destroy(&ps);
+        MPI_Barrier(comm);
         walltime_measure("/Stepping/PowerSpectrum");
 #if 0
         fwrite(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("x.f8x3", "w"));
@@ -607,6 +608,8 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
     pm_stop(pm);
     walltime_measure("/Force/Finish");
 
+    MPI_Barrier(pm->Comm2D);
+    walltime_measure("/Force/Wait");
 }    
 
 static void rungdb(const char* fmt, ...){
