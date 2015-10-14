@@ -96,7 +96,7 @@ void pm_append_ghosts(PMGhostData * ppd) {
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pm->iface.pack(NULL, 0, NULL, ppd->attributes);
+    size_t elsize = pm->iface.pack(ppd->pdata, 0, NULL, ppd->attributes);
 
     ppd->Nsend = calloc(pm->NTask, sizeof(int));
     ppd->Osend = calloc(pm->NTask, sizeof(int));
@@ -156,7 +156,7 @@ void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
     size_t Nrecv = cumsum(NULL, ppd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    ppd->elsize = pm->iface.pack(NULL, 0, NULL, attributes);
+    ppd->elsize = pm->iface.pack(ppd->pdata, 0, NULL, attributes);
     ppd->recv_buffer = pm->iface.malloc(Nrecv * ppd->elsize);
     ppd->send_buffer = pm->iface.malloc(Nsend * ppd->elsize);
     ppd->ReductionAttributes = attributes;

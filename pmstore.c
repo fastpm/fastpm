@@ -10,18 +10,23 @@ static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
     pos[1] = p->x[index][1];
     pos[2] = p->x[index][2];
 }
+
 static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
-        if(ptr) memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
-        s += sizeof(p->field[0]); \
-        flags &= ~f; \
+        if(p->field) { \
+            if(ptr) memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
+            s += sizeof(p->field[0]); \
+            flags &= ~f; \
+        } \
     }
     #define DISPATCHC(f, field, c) \
     if(HAS(flags, f)) { \
-        if(ptr) memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
-        s += sizeof(p->field[0][0]); \
-        flags &= ~f; \
+        if(p->field) { \
+            if(ptr) memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
+            s += sizeof(p->field[0][0]); \
+            flags &= ~f; \
+        } \
     }
 
     PMStore * p = (PMStore *)pdata;
@@ -58,9 +63,11 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
 
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
-        memcpy(&p->field[index], &ptr[s], sizeof(p->field[0])); \
-        s += sizeof(p->field[0]); \
-        flags &= ~f; \
+        if(p->field) { \
+            memcpy(&p->field[index], &ptr[s], sizeof(p->field[0])); \
+            s += sizeof(p->field[0]); \
+            flags &= ~f; \
+        } \
     }
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
@@ -78,11 +85,13 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
     char * ptr = (char*) buf;
 
     #define DISPATCHC(f, field, i) \
-        if(HAS(flags, f)) { \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
             p->field[index][i] += * ((typeof(p->field[index][i])*) &ptr[s]); \
             s += sizeof(p->field[index][i]); \
             flags &= ~f; \
-        }
+        } \
+    }
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
     DISPATCHC(PACK_ACC_Z, acc, 2);
@@ -272,7 +281,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = p->iface.pack(NULL, 0, NULL, p->iface.AllAttributes);
+    size_t elsize = p->iface.pack(p, 0, NULL, p->iface.AllAttributes);
 
     void * send_buffer = p->iface.malloc(elsize * Nsend);
     void * recv_buffer = p->iface.malloc(elsize * Nrecv);
