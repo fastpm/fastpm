@@ -136,6 +136,8 @@ fastpm_particle_to_mesh(PM * pm, PMStore * p)
         .np = p->np,
         .np_upper = p->np_upper,
         .attributes = PACK_POS,
+        .get_position = p->iface.get_position,
+        .nghosts = 0,
     };
 
     pm_append_ghosts(&pgd);

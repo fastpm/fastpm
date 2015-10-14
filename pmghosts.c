@@ -24,7 +24,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
         PMGhostData localppd = *ppd;
         double pos[3];
         int rank;
-        pm->iface.get_position(ppd->pdata, i, pos);
+        ppd->get_position(ppd->pdata, i, pos);
         int d;
         int ipos[3];
         for(d = 0; d < 3; d ++) {
@@ -67,7 +67,7 @@ static void count_ghosts(PM * pm, PMGhostData * ppd) {
 
 static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
     double pos[3];
-    pm->iface.get_position(ppd->pdata, ppd->ipar, pos);
+    ppd->get_position(ppd->pdata, ppd->ipar, pos);
 
     int ighost;
     int offset; 

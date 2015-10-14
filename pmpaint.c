@@ -22,7 +22,9 @@ static inline double REd(real_t const * const d, const int i, const int j, const
     return d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] * w;
 }
 
-static inline void pm_paint_pos_tuned(PM * pm, double pos[3], double weight) {
+static inline void 
+pm_paint_pos_tuned(PM * pm, double pos[3], double weight) 
+{
     double X=pos[0]*pm->InvCellSize[0];
     double Y=pos[1]*pm->InvCellSize[1];
     double Z=pos[2]*pm->InvCellSize[2];
@@ -86,7 +88,9 @@ static inline void pm_paint_pos_tuned(PM * pm, double pos[3], double weight) {
     }
 }
 
-static inline double pm_readout_pos_tuned(PM * pm, double pos[3]) {
+static inline double 
+pm_readout_pos_tuned(PM * pm, double pos[3]) 
+{
     double X=pos[0]*pm->InvCellSize[0];
     double Y=pos[1]*pm->InvCellSize[1];
     double Z=pos[2]*pm->InvCellSize[2];
@@ -153,7 +157,9 @@ static inline double pm_readout_pos_tuned(PM * pm, double pos[3]) {
     return value;
 }
 
-static inline void pm_paint_pos(PM * pm, double pos[3], double weight) {
+static inline void 
+pm_paint_pos_untuned(PM * pm, double pos[3], double weight) 
+{
     /* to pm->workspace */
     int n;
     double gpos[3];
@@ -194,7 +200,9 @@ static inline void pm_paint_pos(PM * pm, double pos[3], double weight) {
     return;
 }
 
-static double pm_readout_pos(PM * pm, double pos[3]) {
+static inline double 
+pm_readout_pos_untuned(PM * pm, double pos[3]) 
+{
     /* from pm->workspace */
     double value = 0;
     int n;
@@ -238,6 +246,18 @@ outside:
     return value;
 }
 
+void 
+pm_paint_pos(PM * pm, double pos[3], double weight) 
+{
+    pm_paint_pos_tuned(pm, pos, weight);
+}
+
+double
+pm_readout_pos(PM * pm, double pos[3]) 
+{
+    return pm_readout_pos_tuned(pm, pos);
+}
+
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
     ptrdiff_t i;
     memset(pm->workspace, 0, sizeof(pm->workspace[0]) * pm->allocsize);
@@ -246,13 +266,14 @@ void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
         pm_paint_pos_tuned(pm, pos, 1.0);
- //       pm_paint_pos(pm, pos, 1.0);
     }
 }
 
-double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i) {
+double
+pm_readout_one(PM * pm, PMStore * p, ptrdiff_t i) 
+{
     double pos[3];
-    pm->iface.get_position(pdata, i, pos);
-//    return pm_readout_pos(pm, pos);
+    p->iface.get_position(p, i, pos);    
     return pm_readout_pos_tuned(pm, pos);
 }
+

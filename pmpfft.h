@@ -124,6 +124,7 @@ typedef struct {
     size_t np_upper;
     size_t nghosts;
     int attributes;
+    void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
 
     /* private members */
     int * Nsend;
@@ -176,7 +177,9 @@ void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
 void pm_destroy_ghosts(PMGhostData * pgd);
 
 void pm_paint(PM * pm, void * pdata, ptrdiff_t size);
-double pm_readout_one(PM * pm, void * pdata, ptrdiff_t i);
+double pm_readout_pos(PM * pm, double pos[3]);
+void pm_paint_pos(PM * pm, double pos[3], double weight);
+double pm_readout_one(PM * pm, PMStore * p, ptrdiff_t i);
 
 typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 

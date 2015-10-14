@@ -539,6 +539,7 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
         .np_upper = p->np_upper,
         .attributes = PACK_POS,
         .nghosts = 0,
+        .get_position = p->iface.get_position,
     };
     pm_start(pm);
 
