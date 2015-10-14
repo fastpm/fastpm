@@ -88,6 +88,14 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
         shift[d] = 0.0; //pm->CellSize[d] * 0.5;
     }
 
+    int i;
+    /* copy the lagrangian coordinates. */
+    for(i = 0; i < pdata->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            pdata->q[i][d] = pdata->x[i][d] + shift[d];
+        }
+    }
+
     /* predict particle positions by 2lpt */
     pm_2lpt_set_initial(a, pdata, shift, omega_m);
 
@@ -102,7 +110,86 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
     pm_stop(pm);
 }
 
+static void 
+get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3]) 
+{
+    PMStore * p = (PMStore *)pdata;
+    pos[0] = p->q[index][0];
+    pos[1] = p->q[index][1];
+    pos[2] = p->q[index][2];
+}
 void 
+fastpm_derivative_2lpt(PM * pm, 
+        PMStore * p, /* Current position (x) saved in -> x */
+        real_t * rhod_k, real_t * Fk, MPI_Comm comm) 
+{
+    int d;
+    pm_start(pm);
+
+    PMGhostData pgd = {
+        .pm = pm,
+        .pdata = p,
+        .np = p->np,
+        .np_upper = p->np_upper,
+        .attributes = PACK_POS,
+        .get_position = p->iface.get_position,
+        .nghosts = 0,
+    };
+
+    pm_append_ghosts(&pgd);
+
+    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+
+    for(d = 0; d < 3; d ++) {
+        memcpy(pm->canvas, rhod_k, sizeof(pm->canvas[0]) * pm->allocsize);
+
+    //    fastpm_apply_diff_transfer(pm, d);
+
+        /* Canvas stores \Gamma(k) = -i k \rho_d */
+
+        pm_c2r(pm);
+        
+        int i;
+        /* acc stores \Gamma(x) := \Psi(q) */
+        for(i = 0; i < p->np + pgd.nghosts; i ++) {
+            p->acc[i][d] = pm_readout_one(pm, p, i);
+        }
+        pm_reduce_ghosts(&pgd, ACC[d]);
+    }
+
+    pm_destroy_ghosts(&pgd);
+
+    /* now we paint \Psi by the lagrangian position q */
+    pgd.get_position = get_lagrangian_position;
+    pgd.attributes = PACK_Q;
+
+    pm_append_ghosts(&pgd);
+
+    memset(pm->canvas, 0, sizeof(pm->canvas[0]) * pm->allocsize);
+    memset(Fk, 0, sizeof(Fk[0]) * pm->allocsize);
+
+    for(d = 0; d < 3; d ++) {
+        int i;
+        for(i = 0; i < p->np + pgd.nghosts; p ++) {
+            double pos[3];
+            get_lagrangian_position(p, i, pos);
+            pm_paint_pos(pm, pos, p->acc[i][d]);
+        }
+        pm_r2c(pm);
+    //    fastpm_apply_2lpt_derivative_transfer(pm, d);
+
+        /* add HMC force component to to Fk */
+        ptrdiff_t ind;
+        for(ind = 0; ind < pm->allocsize; ind ++) {
+            Fk[ind] += pm->workspace[ind];
+        }
+    }
+    pm_destroy_ghosts(&pgd);
+
+    pm_stop(pm);
+}
+
+void     
 fastpm_evolve_pm(PM * pm, PMStore * pdata, 
         double ainit, double afinal, int nsteps, double omega_m, 
         real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) 
