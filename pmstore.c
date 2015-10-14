@@ -37,6 +37,8 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ID, id)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
+    DISPATCH(PACK_Q, q)
+    DISPATCH(PACK_ACC, acc)
 
     /* components */
     DISPATCHC(PACK_ACC_X, acc, 0)
@@ -74,6 +76,8 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ID, id)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
+    DISPATCH(PACK_Q, q)
+    DISPATCH(PACK_ACC, acc)
     #undef DISPATCH
     if(flags != 0) {
         msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
@@ -137,18 +141,6 @@ static void myfree(void * p) {
     pfft_free(p);
 }
 
-void pm_store_alloc_bare(PMStore * p, size_t np_upper) {
-    pm_store_init(p);
-    p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
-    p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);
-    p->id = p->iface.malloc(sizeof(p->id[0]) * np_upper);
-    p->acc = NULL;
-    p->dx1 = NULL;
-    p->dx2 = NULL;
-    p->np = 0; 
-    p->np_upper = np_upper;
-};
-
 void pm_store_init(PMStore * p) {
     memset(p, 0, sizeof(p[0]));
     p->iface.malloc = malloczero;
@@ -157,23 +149,56 @@ void pm_store_init(PMStore * p) {
     p->iface.unpack = unpack;
     p->iface.reduce = reduce;
     p->iface.get_position = get_position;
-    p->iface.AllAttributes = PACK_ALL;
 }
-void pm_store_alloc(PMStore * p, size_t np_upper) {
-    pm_store_alloc_bare(p, np_upper);
+void pm_store_alloc(PMStore * p, size_t np_upper, int attributes) {
+    pm_store_init(p);
 
-    p->acc = p->iface.malloc(sizeof(p->acc[0]) * np_upper);
-    p->dx1 = p->iface.malloc(sizeof(p->dx1[0]) * np_upper);
-    p->dx2 = p->iface.malloc(sizeof(p->dx2[0]) * np_upper);
+    p->np = 0; 
+    p->np_upper = np_upper;
+    p->attributes = attributes;
+    if(attributes & PACK_POS)
+        p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
+    else
+        p->x = NULL;
+
+    if(attributes & PACK_Q)
+        p->q = p->iface.malloc(sizeof(p->q[0]) * np_upper);
+    else
+        p->q = NULL;
+
+    if(attributes & PACK_VEL)
+        p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);
+    else
+        p->v = NULL;
+
+    if(attributes & PACK_ID)
+        p->id = p->iface.malloc(sizeof(p->id[0]) * np_upper);
+    else
+        p->id = NULL;
+
+    if(attributes & PACK_ACC)
+        p->acc = p->iface.malloc(sizeof(p->acc[0]) * np_upper);
+    else
+        p->acc = NULL;
+
+    if(attributes & PACK_DX1)
+        p->dx1 = p->iface.malloc(sizeof(p->dx1[0]) * np_upper);
+    else
+        p->dx1 = NULL;
+
+    if(attributes & PACK_DX2)
+        p->dx2 = p->iface.malloc(sizeof(p->dx2[0]) * np_upper);
+    else
+        p->dx2 = NULL;
 };
 
 size_t 
-pm_store_alloc_evenly(PMStore * p, size_t np_total, double alloc_factor, MPI_Comm comm) 
+pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * 2));
+    pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * 2), attributes);
 }
 
 void pm_store_destroy(PMStore * p) {
@@ -281,14 +306,14 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = p->iface.pack(p, 0, NULL, p->iface.AllAttributes);
+    size_t elsize = p->iface.pack(p, 0, NULL, p->attributes);
 
     void * send_buffer = p->iface.malloc(elsize * Nsend);
     void * recv_buffer = p->iface.malloc(elsize * Nrecv);
 
     p->np -= Nsend;
     for(i = 0; i < Nsend; i ++) {
-        p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, p->iface.AllAttributes);
+        p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
     }
 
 
@@ -304,7 +329,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     walltime_measure("/Decompose/All2");
     
     for(i = 0; i < Nrecv; i ++) {
-        p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->iface.AllAttributes);
+        p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
     walltime_measure("/Decompose/Unpack");
 

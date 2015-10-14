@@ -17,7 +17,6 @@
 #endif
 
 typedef struct {
-    int AllAttributes;
     void * (*malloc )(size_t);
     void   (*free   )(void *);
     void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
@@ -29,7 +28,10 @@ typedef struct {
 typedef struct {
     PMIFace iface;
 
+    int attributes; /* bit flags of allocated attributes */
+
     double (* x)[3];
+    float (* q)[3];
     float (* v)[3];
     float (* acc)[3];
     float (* dx1)[3];
@@ -37,24 +39,27 @@ typedef struct {
     uint64_t * id;
     size_t np;
     size_t np_upper;
+
 } PMStore;
 
 #define PACK_POS   (1 << 0)
 #define PACK_VEL   (1 << 1)
 #define PACK_DX1   (1 << 2)
 #define PACK_DX2   (1 << 3)
-#define PACK_ID    (1 << 4)
-#define PACK_ALL   (PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2)
+#define PACK_ACC   (1 << 4)
+#define PACK_ID    (1 << 5)
+#define PACK_Q     (1 << 6)
 
-#define PACK_ACC_X (1 << 5)
-#define PACK_ACC_Y (1 << 6)
-#define PACK_ACC_Z (1 << 7)
-#define PACK_DX1_X   (1 << 10)
-#define PACK_DX1_Y   (1 << 11)
-#define PACK_DX1_Z   (1 << 12)
-#define PACK_DX2_X   (1 << 13)
-#define PACK_DX2_Y   (1 << 14)
-#define PACK_DX2_Z   (1 << 15)
+
+#define PACK_ACC_X (1 << 10)
+#define PACK_ACC_Y (1 << 11)
+#define PACK_ACC_Z (1 << 12)
+#define PACK_DX1_X   (1 << 13)
+#define PACK_DX1_Y   (1 << 14)
+#define PACK_DX1_Z   (1 << 15)
+#define PACK_DX2_X   (1 << 16)
+#define PACK_DX2_Y   (1 << 17)
+#define PACK_DX2_Z   (1 << 18)
 #define HAS(a, b) ((a & b) != 0)
 
 typedef struct {
@@ -180,11 +185,10 @@ void pm_store_write(PMStore * p, char * datasource);
 void pm_store_destroy(PMStore * p);
 
 void pm_store_init(PMStore * p);
-void pm_store_alloc(PMStore * p, size_t np_upper);
-void pm_store_alloc_bare(PMStore * p, size_t np_upper);
+void pm_store_alloc(PMStore * p, size_t np_upper, int attributes);
 
 size_t 
-pm_store_alloc_evenly(PMStore * p, size_t np_total, double alloc_factor, MPI_Comm comm);
+pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm);
 void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
 void pm_store_wrap(PMStore * p, double BoxSize[3]);
 

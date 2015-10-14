@@ -15,7 +15,9 @@ fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm)
 
     pm_store_init(p);
 
-    pm_store_alloc_evenly(p, pow(nc, 3), 2.0, comm);
+    pm_store_alloc_evenly(p, pow(nc, 3), 
+        PACK_POS | PACK_VEL | PACK_ID | PACK_ACC | PACK_DX1 | PACK_DX2 | PACK_Q,
+        2.0, comm);
 
     return 0;
 }

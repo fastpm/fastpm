@@ -111,7 +111,9 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     alloc_factor = prr->np_alloc_factor;
     msg_printf(info, "Using alloc factor of %g\n", alloc_factor);
 
-    pm_store_alloc_evenly(&pdata, pow(prr->nc, 3), alloc_factor, comm);
+    pm_store_alloc_evenly(&pdata, pow(prr->nc, 3), 
+        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC, 
+        alloc_factor, comm);
 
     walltime_measure("/Init/Misc");
 
@@ -670,7 +672,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
 
         pm_store_init(&snapshot);
 
-        pm_store_alloc_bare(&snapshot, p->np_upper);
+        pm_store_alloc(&snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
 
         msg_printf(verbose, "Taking a snapshot...\n");
 
