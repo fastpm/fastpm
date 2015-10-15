@@ -10,6 +10,14 @@ void
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
         real_t * deltak_0, real_t * deltak_1, MPI_Comm comm);
+
+void 
+fastpm_derivative_2lpt(PM * pm, 
+        PMStore * p, /* Current position (x) saved in -> x */
+        real_t * rhod_k, /* rhod in fourier space */
+        real_t * Fk,     /* (out) hmc force in fourier space */
+        MPI_Comm comm);
+
 void 
 fastpm_fill_deltak(PM * pm, real_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata);
 
