@@ -344,3 +344,52 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     free(count);
 }
 
+void 
+pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]) 
+{
+    /* fill pdata with a uniform grid, respecting domain given by pm */
+    
+    ptrdiff_t ind;
+    int d;
+    p->np = 1;
+    for(d = 0; d < 3; d++) {
+        p->np *= pm->IRegion.size[d];
+    }
+    if(p->np > p->np_upper) {
+        msg_abort(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
+    }
+    ptrdiff_t ptrmax = 0;
+    ptrdiff_t i[3] = {0};
+    ptrdiff_t ptr = 0;
+    for(ind = 0; ind < pm->IRegion.total; ind ++, pm_inc_i_index(pm, i)){
+        uint64_t id;
+        /* avoid the padded region */
+        if(i[2] >= pm->IRegion.size[2]) continue;
+
+        id = 0;
+        for(d = 0; d < 3; d ++) {
+            id = id * pm->Nmesh[d] + i[d] + pm->IRegion.start[d];
+        }
+//        msg_aprintf(debug, "Creating particle at offset %td i = %td %td %td\n", ptr, i[0], i[1], i[2]);
+        for(d = 0; d < 3; d ++) {
+            p->x[ptr][d] = (i[d] + pm->IRegion.start[d]) * (pm->BoxSize[d] / pm->Nmesh[d]) + shift[d];
+
+            p->id[ptr]  = id;
+
+            /* set q if it is allocated. */
+            if(p->q) p->q[ptr][d] = p->x[ptr][d];
+        }
+        if(ptr > ptrmax) ptrmax = ptr;
+        ptr ++;
+    }
+    if(ptrmax + 1 != p->np) {
+        msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td, allocsize=%td, shape=(%td %td %td)\n", 
+            ptrmax + 1, p->np, pm->allocsize, 
+            pm->IRegion.size[0],
+            pm->IRegion.size[1],
+            pm->IRegion.size[2]
+
+            );
+    }
+}
+

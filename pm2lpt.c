@@ -82,58 +82,10 @@ apply_2lpt_transfer(PM * pm, int dir1, int dir2)
     }
 }
 
-static void 
-pm_2lpt_fill_pdata(PMStore * p, PM * pm) 
-{
-    /* fill pdata with a uniform grid, respecting domain given by pm */
-    
-    ptrdiff_t ind;
-    int d;
-    p->np = 1;
-    for(d = 0; d < 3; d++) {
-        p->np *= pm->IRegion.size[d];
-    }
-    if(p->np > p->np_upper) {
-        msg_abort(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
-    }
-    ptrdiff_t ptrmax = 0;
-    ptrdiff_t i[3] = {0};
-    ptrdiff_t ptr = 0;
-    for(ind = 0; ind < pm->IRegion.total; ind ++, pm_inc_i_index(pm, i)){
-        uint64_t id;
-        /* avoid the padded region */
-        if(i[2] >= pm->IRegion.size[2]) continue;
-
-        id = 0;
-        for(d = 0; d < 3; d ++) {
-            id = id * pm->Nmesh[d] + i[d] + pm->IRegion.start[d];
-        }
-//        msg_aprintf(debug, "Creating particle at offset %td i = %td %td %td\n", ptr, i[0], i[1], i[2]);
-        for(d = 0; d < 3; d ++) {
-            p->x[ptr][d] = (i[d] + pm->IRegion.start[d]) * (pm->BoxSize[d] / pm->Nmesh[d]);
-            p->v[ptr][d] = 0;
-            p->dx1[ptr][d] = 0;
-            p->dx2[ptr][d] = 0;
-            p->acc[d][ptr] = 0;
-            p->id[ptr]  = id;
-        }
-        if(ptr > ptrmax) ptrmax = ptr;
-        ptr ++;
-    }
-    if(ptrmax + 1 != p->np) {
-        msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td, allocsize=%td, shape=(%td %td %td)\n", 
-            ptrmax + 1, p->np, pm->allocsize, 
-            pm->IRegion.size[0],
-            pm->IRegion.size[1],
-            pm->IRegion.size[2]
-
-            );
-    }
-}
-
 void 
 pm_2lpt_init(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm) 
 {
+    /* initialize the pm object for 2lpt calculation. */
     PMInit pminit = {
         .Nmesh = Ngrid,
         .BoxSize = BoxSize,
@@ -144,12 +96,10 @@ pm_2lpt_init(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm)
 
     pm_init(pm, &pminit, &p->iface, comm);
 
-    pm_2lpt_fill_pdata(p, pm);
-
 }
 
 void 
-pm_2lpt_main(PM * pm, PMStore * p, MPI_Comm comm) 
+pm_2lpt_main(PM * pm, PMStore * p, double shift[3]) 
 {
 
     PMGhostData pgd = {
@@ -161,15 +111,19 @@ pm_2lpt_main(PM * pm, PMStore * p, MPI_Comm comm)
         .get_position = p->iface.get_position,
         .nghosts = 0,
     };
-
+    ptrdiff_t i;
+    int d;
+    for(i = 0; i < p->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            p->x[i][d] -= shift[d];
+        }
+    }
     pm_append_ghosts(&pgd);
-    
+     
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
     int D1[] = {1, 2, 0};
     int D2[] = {2, 0, 1};
-    ptrdiff_t i;
-    int d;
 
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX1 axis = %d\n", d);
@@ -292,15 +246,21 @@ pm_2lpt_main(PM * pm, PMStore * p, MPI_Comm comm)
 #endif
 
     pm_destroy_ghosts(&pgd);
+
+    for(i = 0; i < p->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            p->x[i][d] += shift[d];
+        }
+    }
 }
 
 // Interpolate position and velocity for snapshot at a=aout
 void 
-pm_2lpt_set_initial(double aout, PMStore * p, double shift[3], double Omega)
+pm_2lpt_evolve(double aout, PMStore * p, double Omega)
 {
     int np= p->np;
 
-    msg_printf(verbose, "Setting up inital snapshot at a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
+    msg_printf(verbose, "Evolveing by 2lpt to a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
     Cosmology c = {
             .OmegaM = Omega,
             .OmegaLambda = 1 - Omega,
@@ -325,7 +285,6 @@ pm_2lpt_set_initial(double aout, PMStore * p, double shift[3], double Omega)
             p->dx2[i][d] *= 3.0 / 7.0 * D20;
 
             p->x[i][d] += Dplus * p->dx1[i][d] + D2 * p->dx2[i][d];
-            p->x[i][d] += shift[d];
 
             p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
         }

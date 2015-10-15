@@ -126,28 +126,31 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         read_runpb_ic(prr, prr->time_step[0], &pdata, comm);
         walltime_measure("/Init/ReadIC");
     } else {
+        double shift[3] = {
+            prr->boxsize / prr->nc * 0.5,
+            prr->boxsize / prr->nc * 0.5,
+            prr->boxsize / prr->nc * 0.5,
+            };
+
         PM pm;
 
         pm_2lpt_init(&pm, &pdata, prr->nc, prr->boxsize, comm);
+
+        pm_store_set_lagrangian_position(&pdata, &pm, shift);
 
         pm_start(&pm);
 
         pm_ic_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
 
-        pm_2lpt_main(&pm, &pdata, comm);
+        /* read out values at locations with an inverted shift */
+        pm_2lpt_main(&pm, &pdata, shift);
 
         pm_destroy(&pm);
+
         walltime_measure("/Init/2LPT");
     }
 
-    double shift[3] = {
-        prr->boxsize / prr->nc * 0.5,
-        prr->boxsize / prr->nc * 0.5,
-        prr->boxsize / prr->nc * 0.5,
-        };
-
-
-    pm_2lpt_set_initial(prr->time_step[0], &pdata, shift, prr->omega_m);
+    pm_2lpt_evolve(prr->time_step[0], &pdata, prr->omega_m);
 
     if(prr->force_mode != FORCE_MODE_PM) {
         /* for COLA and COLA1, v cancels out such that the initial is zero */

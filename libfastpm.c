@@ -68,12 +68,15 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
         double a, double omega_m, 
         real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) 
 {
+    double shift[3] = {0, 0, 0};
+
+    pm_store_set_lagrangian_position(pdata, pm, shift);
 
     pm_start(pm);
 
     memcpy(pm->canvas, deltak_0, sizeof(pm->canvas[0]) * pm->allocsize);
 
-    pm_2lpt_main(pm, pdata, comm);
+    pm_2lpt_main(pm, pdata, shift);
 
     /* pdata->dx1 and pdata->dx2 are s1 and s2 terms 
      * S = D * dx1 + D2 * 3 / 7 * D20 * dx2; 
@@ -82,22 +85,10 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
      * */
 
     /* now shift particles to the correct locations. */
-    int d;
-    double shift[3];
-    for(d = 0; d < 3; d ++){
-        shift[d] = 0.0; //pm->CellSize[d] * 0.5;
-    }
-
     int i;
-    /* copy the lagrangian coordinates. */
-    for(i = 0; i < pdata->np; i ++) {
-        for(d = 0; d < 3; d ++) {
-            pdata->q[i][d] = pdata->x[i][d] + shift[d];
-        }
-    }
 
     /* predict particle positions by 2lpt */
-    pm_2lpt_set_initial(a, pdata, shift, omega_m);
+    pm_2lpt_evolve(a, pdata, shift, omega_m);
 
     /* paint to mesh */
     fastpm_particle_to_mesh(pm, pdata);
