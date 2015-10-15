@@ -118,10 +118,73 @@ get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3])
     pos[1] = p->q[index][1];
     pos[2] = p->q[index][2];
 }
+
+void fastpm_apply_diff_transfer(PM * pm, int dir) {
+
+    PMKFactors * fac[3];
+
+    pm_create_k_factors(pm, fac);
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        pm_prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+
+            /* - i k[d] */
+            pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite);
+            pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite);
+            pm_inc_o_index(pm, i);
+        }
+    }
+    pm_destroy_k_factors(pm, fac);
+
+}
+
+void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, int dir) {
+
+    PMKFactors * fac[3];
+
+    pm_create_k_factors(pm, fac);
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        pm_prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double kk_finite = 0.;
+            for(d = 0; d < 3; d++) {
+                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+            }
+
+            /* - i k[d] / k**2 */
+            pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite / kk_finite);
+            pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite / kk_finite);
+            pm_inc_o_index(pm, i);
+        }
+    }
+    pm_destroy_k_factors(pm, fac);
+
+}
+
 void 
 fastpm_derivative_2lpt(PM * pm, 
         PMStore * p, /* Current position (x) saved in -> x */
-        real_t * rhod_k, real_t * Fk, MPI_Comm comm) 
+        real_t * rhod_k, /* rhod in fourier space */
+        real_t * Fk,     /* (out) hmc force in fourier space */
+        MPI_Comm comm) 
 {
     int d;
     pm_start(pm);
@@ -143,7 +206,7 @@ fastpm_derivative_2lpt(PM * pm,
     for(d = 0; d < 3; d ++) {
         memcpy(pm->canvas, rhod_k, sizeof(pm->canvas[0]) * pm->allocsize);
 
-    //    fastpm_apply_diff_transfer(pm, d);
+        fastpm_apply_diff_transfer(pm, d);
 
         /* Canvas stores \Gamma(k) = -i k \rho_d */
 
@@ -176,7 +239,7 @@ fastpm_derivative_2lpt(PM * pm,
             pm_paint_pos(pm, pos, p->acc[i][d]);
         }
         pm_r2c(pm);
-    //    fastpm_apply_2lpt_derivative_transfer(pm, d);
+        fastpm_apply_hmc_force_2lpt_transfer(pm, d);
 
         /* add HMC force component to to Fk */
         ptrdiff_t ind;

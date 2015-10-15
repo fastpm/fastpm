@@ -70,8 +70,6 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 static double 
-sinc_unnormed(double x);
-static double 
 estimate_alloc_factor(double Volume, int NTask, double failure_rate);
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
@@ -280,109 +278,15 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
     return pm_pos_to_rank(pm, pos);
 }
 
-static double 
-diff_kernel(double w) 
-{
-    /* order N = 1 super lanzcos kernel */
-    /* 
-     * This is the same as GADGET-2 but in fourier space: 
-     * see gadget-2 paper and Hamming's book.
-     * c1 = 2 / 3, c2 = 1 / 12
-     * */
-    return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
-}
-
-
-typedef struct {
-    float k_finite; /* i k, finite */
-    float kk_finite; /* k ** 2, on a mesh */
-    float kk;  /* k ** 2 */
-    float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/
-    float extra;  /* any temporary variable that can be useful. */
-} KFactors;
-
-static void 
-create_k_factors(PM * pm, KFactors * fac[3]) 
-{ 
-    /* This function populates fac with precalculated values that
-     * are useful for force calculation. 
-     * e.g. k**2 and the finite differentiation kernels. 
-     * precalculating them means in the true kernel we only need a 
-     * table look up. watch out for the offset ORegion.start
-     * */
-    int d;
-    ptrdiff_t ind;
-    for(d = 0; d < 3; d++) {
-        fac[d] = malloc(sizeof(fac[0][0]) * pm->Nmesh[d]);
-        double CellSize = pm->BoxSize[d] / pm->Nmesh[d];
-        for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
-            float k = pm->MeshtoK[d][ind];
-            float w = k * CellSize;
-            float ff = sinc_unnormed(0.5 * w);
-
-            fac[d][ind].k_finite = 1 / CellSize * diff_kernel(w);
-            fac[d][ind].kk_finite = k * k * ff * ff;
-            fac[d][ind].kk = k * k;
-            double tmp = sin(0.5 * k * CellSize);
-            fac[d][ind].cic = 1 - 2. / 3 * tmp * tmp;
-        }
-    } 
-}
-
-static void 
-destroy_k_factors(PM * pm, KFactors * fac[3]) 
-{
-    int d;
-    for(d = 0; d < 3; d ++) {
-        free(fac[d]);
-    }
-}
-
-static void 
-prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
-{ 
-    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
-     *
-     * i is in units of complex numbers.
-     *
-     * We call pm_unravel_o_index to set the initial i[] for each threads,
-     * then rely on pm_inc_o_index to increment i, because the former is 
-     * much slower than pm_inc_o_index and would eliminate threading advantage.
-     *
-     * */
-    int nth = omp_get_num_threads();
-    int ith = omp_get_thread_num();
-
-    *start = ith * pm->ORegion.total / nth * 2;
-    *end = (ith + 1) * pm->ORegion.total / nth * 2;
-
-    /* do not unravel if we are not looping at all. 
-     * This fixes a FPE when
-     * the rank has ORegion.total == 0 
-     * -- with PFFT the last transposed dimension
-     * on some ranks will be 0 */
-    if(*end > *start) 
-        pm_unravel_o_index(pm, *start / 2, i);
-
-#if 0
-        msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
-            *start, *end,
-            pm->ORegion.strides[0],
-            pm->ORegion.strides[1],
-            pm->ORegion.strides[2]
-            );
-#endif
-
-}
 
 static void 
 apply_force_kernel(PM * pm, int dir) 
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
-    KFactors * fac[3];
+    PMKFactors * fac[3];
 
-    create_k_factors(pm, fac);
+    pm_create_k_factors(pm, fac);
 
 #pragma omp parallel 
     {
@@ -390,7 +294,7 @@ apply_force_kernel(PM * pm, int dir)
         ptrdiff_t start, end;
         ptrdiff_t i[3];
 
-        prepare_omp_loop(pm, &start, &end, i);
+        pm_prepare_omp_loop(pm, &start, &end, i);
 
         for(ind = start; ind < end; ind += 2) {
             int d;
@@ -413,7 +317,7 @@ apply_force_kernel(PM * pm, int dir)
             pm_inc_o_index(pm, i);
         }
     }
-    destroy_k_factors(pm, fac);
+    pm_destroy_k_factors(pm, fac);
 }
 
 static void 
@@ -423,9 +327,9 @@ smooth_density(PM * pm, double r_s)
      *  This function smooth density by scale r_s. There could be a factor of sqrt(2)
      *  It is not used. */
 
-    KFactors * fac[3];
+    PMKFactors * fac[3];
 
-    create_k_factors(pm, fac);
+    pm_create_k_factors(pm, fac);
     {
         /* fill in the extra 'smoothing kernels' we will take the product */
         ptrdiff_t ind;
@@ -442,7 +346,7 @@ smooth_density(PM * pm, double r_s)
         ptrdiff_t start, end;
         ptrdiff_t i[3];
 
-        prepare_omp_loop(pm, &start, &end, i);
+        pm_prepare_omp_loop(pm, &start, &end, i);
 
         for(ind = start; ind < end; ind += 2) {
             int d;
@@ -464,13 +368,13 @@ smooth_density(PM * pm, double r_s)
         }
     }
 
-    destroy_k_factors(pm, fac);
+    pm_destroy_k_factors(pm, fac);
 }
 
 static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor) {
-    KFactors * fac[3];
+    PMKFactors * fac[3];
 
-    create_k_factors(pm, fac);
+    pm_create_k_factors(pm, fac);
 
     memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
     memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
@@ -484,7 +388,7 @@ static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_
         ptrdiff_t start, end;
         ptrdiff_t i[3];
 
-        prepare_omp_loop(pm, &start, &end, i);
+        pm_prepare_omp_loop(pm, &start, &end, i);
 
         for(ind = start; ind < end; ind += 2) {
             int d;
@@ -523,7 +427,7 @@ static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_
         ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm) * (density_factor * density_factor);
     }
 
-    destroy_k_factors(pm, fac);
+    pm_destroy_k_factors(pm, fac);
 }
 
 static void 
@@ -641,14 +545,6 @@ static void rungdb(const char* fmt, ...){
     free(tmpfilename);
 
     return;
-}
-static double sinc_unnormed(double x) {
-    if(x < 1e-5 && x > -1e-5) {
-        double x2 = x * x;
-        return 1.0 - x2 / 6. + x2  * x2 / 120.;
-    } else {
-        return sin(x) / x;
-    }
 }
 
 static int

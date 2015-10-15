@@ -534,3 +534,65 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
 
     return 0;
 } 
+
+static double 
+sinc_unnormed(double x);
+
+static double sinc_unnormed(double x) {
+    if(x < 1e-5 && x > -1e-5) {
+        double x2 = x * x;
+        return 1.0 - x2 / 6. + x2  * x2 / 120.;
+    } else {
+        return sin(x) / x;
+    }
+}
+
+static double 
+diff_kernel(double w) 
+{
+    /* order N = 1 super lanzcos kernel */
+    /* 
+     * This is the same as GADGET-2 but in fourier space: 
+     * see gadget-2 paper and Hamming's book.
+     * c1 = 2 / 3, c2 = 1 / 12
+     * */
+    return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
+}
+
+void 
+pm_create_k_factors(PM * pm, PMKFactors * fac[3]) 
+{ 
+    /* This function populates fac with precalculated values that
+     * are useful for force calculation. 
+     * e.g. k**2 and the finite differentiation kernels. 
+     * precalculating them means in the true kernel we only need a 
+     * table look up. watch out for the offset ORegion.start
+     * */
+    int d;
+    ptrdiff_t ind;
+    for(d = 0; d < 3; d++) {
+        fac[d] = malloc(sizeof(fac[0][0]) * pm->Nmesh[d]);
+        double CellSize = pm->BoxSize[d] / pm->Nmesh[d];
+        for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
+            float k = pm->MeshtoK[d][ind];
+            float w = k * CellSize;
+            float ff = sinc_unnormed(0.5 * w);
+
+            fac[d][ind].k_finite = 1 / CellSize * diff_kernel(w);
+            fac[d][ind].kk_finite = k * k * ff * ff;
+            fac[d][ind].kk = k * k;
+            double tmp = sin(0.5 * k * CellSize);
+            fac[d][ind].cic = 1 - 2. / 3 * tmp * tmp;
+        }
+    } 
+}
+
+void 
+pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]) 
+{
+    int d;
+    for(d = 0; d < 3; d ++) {
+        free(fac[d]);
+    }
+}
+

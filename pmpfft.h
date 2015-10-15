@@ -145,6 +145,14 @@ typedef struct {
 
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
+typedef struct {
+    float k_finite; /* i k, finite */
+    float kk_finite; /* k ** 2, on a mesh */
+    float kk;  /* k ** 2 */
+    float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/
+    float extra;  /* any temporary variable that can be useful. */
+} PMKFactors;
+
 
 void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
 void pm_destroy(PM * pm);
@@ -201,4 +209,46 @@ void pm_store_wrap(PMStore * p, double BoxSize[3]);
 int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
         MPI_Datatype sendtype, void *recvbuf, int *recvcnts,
         int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
+
+void 
+pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
+void 
+pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
+
+static inline
+pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
+{ 
+    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
+     *
+     * i is in units of complex numbers.
+     *
+     * We call pm_unravel_o_index to set the initial i[] for each threads,
+     * then rely on pm_inc_o_index to increment i, because the former is 
+     * much slower than pm_inc_o_index and would eliminate threading advantage.
+     *
+     * */
+    int nth = omp_get_num_threads();
+    int ith = omp_get_thread_num();
+
+    *start = ith * pm->ORegion.total / nth * 2;
+    *end = (ith + 1) * pm->ORegion.total / nth * 2;
+
+    /* do not unravel if we are not looping at all. 
+     * This fixes a FPE when
+     * the rank has ORegion.total == 0 
+     * -- with PFFT the last transposed dimension
+     * on some ranks will be 0 */
+    if(*end > *start) 
+        pm_unravel_o_index(pm, *start / 2, i);
+
+#if 0
+        msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
+            *start, *end,
+            pm->ORegion.strides[0],
+            pm->ORegion.strides[1],
+            pm->ORegion.strides[2]
+            );
+#endif
+
+}
 
