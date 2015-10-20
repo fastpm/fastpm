@@ -63,26 +63,19 @@ void stepping_init(Parameters * param) {
 
     if(param->force_mode == FORCE_MODE_2LPT ||
        param->force_mode == FORCE_MODE_ZA) {
-        NSTEPS = 1;
-        A_X = (double*) calloc(NSTEPS + 1, sizeof(double));
-        A_V = (double*) calloc(NSTEPS + 1, sizeof(double));
-        A_V[0] = param->time_step[0];
-        A_X[0] = param->time_step[0];
-        A_X[NSTEPS] = 1.0;
-        A_V[NSTEPS] = 1.0;
+        if(NSTEPS != 2) 
+            msg_abort(-1, "only one step is supported in 2LPT and ZA mode\n");
     } else {
-        /* one extra item in the end; to avoid an if conditioni in main loop */
-        A_X = (double*) calloc(NSTEPS + 1, sizeof(double));
-        A_V = (double*) calloc(NSTEPS + 1, sizeof(double));
+        A_X = (double*) calloc(NSTEPS, sizeof(double));
+        A_V = (double*) calloc(NSTEPS, sizeof(double));
         int i;
-        for (i = 0; i <= NSTEPS - 1;i++){
+        for (i = 0; i < NSTEPS;i++){
             A_X[i] = param->time_step[i];
         }
-        A_X[NSTEPS] = 1.0;
 
         A_V[0] = A_X[0];
 
-        for (i = 1; i <= NSTEPS; i++){
+        for (i = 1; i < NSTEPS; i++){
             A_V[i] = exp((log(A_X[i])+log(A_X[i-1]))/2);
         }
     }
@@ -91,13 +84,13 @@ void stepping_init(Parameters * param) {
     int i;
     msg_printf(normal, "%d steps: \n", NSTEPS);
     msg_printf(normal, "Drift: \n");
-    for(p = buf, i = 0; i < NSTEPS + 1; i ++) {
+    for(p = buf, i = 0; i < NSTEPS; i ++) {
         sprintf(p, "%6.4f ", A_X[i]);
         p += strlen(p);
     }
     msg_printf(normal, "%s\n", buf);
     msg_printf(normal, " Kick: \n");
-    for(p = buf, i = 0; i < NSTEPS + 1; i ++) {
+    for(p = buf, i = 0; i < NSTEPS; i ++) {
         sprintf(p, "%6.4f ", A_V[i]);
         p += strlen(p);
     }
@@ -113,10 +106,11 @@ void stepping_get_times(int istep,
     double * a_v,
     double * a_v1) {
 
+    /* The last step is the terminal step. */
     *a_v = A_V[istep];
     *a_x = A_X[istep];
-    if(istep >= NSTEPS) {
-        istep = NSTEPS - 1;
+    if(istep + 1 >= NSTEPS) {
+        istep = NSTEPS - 2;
     }
     *a_v1= A_V[istep + 1];
     *a_x1= A_X[istep + 1];

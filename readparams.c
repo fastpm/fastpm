@@ -170,24 +170,18 @@ int read_parameters(char * filename, Parameters * param)
 static int read_parameter_file(const char filename[], Parameters * param)
 {
     static char * preface = 
-" function linspace(start, e, N, endpoint) \
+" function linspace(start, e, N) \
     local r = {} \
-    N1 = N \
-    if endpoint then \
-        N = N - 1 \
-    end \
- \
+    N1 = N + 1 \
     for i=1,N1 do \
         r[i] = 1.0 * (e - start) * (i - 1) / N + start \
     end \
-    if endpoint then \
-        r[N1] = e \
-    end \
+    r[N1] = e \
     return r \
 end \
-function logspace(start, e, N, endpoint) \
+function logspace(start, e, N) \
     local r \
-    r = linspace(start, e, N, endpoint) \
+    r = linspace(start, e, N) \
     for i, j in pairs(r) do \
         r[i] = math.pow(10, j) \
     end \
@@ -201,8 +195,9 @@ function blendspace(start, e, a1, a2) \
         r[i] = a \
         dlna = math.pow(math.pow(1/a1, 2) + math.pow(a/a2, 2), -0.5) \
         a = math.exp(math.log(a) + dlna) \
-        i = i +1 \
+        i = i + 1 \
     end \
+    r[i] = e \
     return r \
 end \
 ";

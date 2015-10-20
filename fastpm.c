@@ -172,7 +172,9 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     walltime_measure("/Init/Start");
 
-    for (istep = 0; istep <= nsteps; istep++) {
+    /* The last step is the 'terminal' step */
+
+    for (istep = 0; istep < nsteps; istep++) {
         double a_v, a_x, a_v1, a_x1;
 
         /* begining and ending of drift(x) and kick(v)*/
