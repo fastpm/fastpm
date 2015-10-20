@@ -37,7 +37,7 @@ c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *le
 { \
     lua_getglobal(L, name); \
     if(!lua_istable(L, -1)) { \
-        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n"); \
+        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
     const int n = luaL_len(L, -1);     \
     c_typename * array = (c_typename *) malloc(sizeof(c_typename) * n); \
@@ -77,7 +77,7 @@ c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *le
 { \
     lua_getglobal(L, name); \
     if(!lua_istable(L, -1)) { \
-        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n"); \
+        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
     int n = luaL_len(L, -1);     \
     c_typename * array = (c_typename *) malloc(sizeof(c_typename) * n); \
