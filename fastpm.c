@@ -153,7 +153,8 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     pm_2lpt_evolve(prr->time_step[0], &pdata, prr->omega_m);
 
     if(prr->force_mode != FORCE_MODE_PM) {
-        /* for COLA and COLA1, v cancels out such that the initial is zero */
+        /* If not doing PM, v_res = 0 at initial. 
+         * (for 2LPT or ZA v_res remains 0) */
         memset(pdata.v, 0, sizeof(pdata.v[0]) * pdata.np);
     }
 
@@ -253,14 +254,14 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         
         // Leap-frog "kick" -- velocities updated
 
-        stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m);
+        stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m, prr->force_mode);
         walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
         snps_interp(&snps, a_x, a_v1);
         
         // Leap-frog "drift" -- positions updated
-        stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m);
+        stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m, prr->force_mode);
         walltime_measure("/Stepping/drift");
 
         /* no need to check for snapshots here, it will be checked next loop.  */
@@ -581,7 +582,7 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         double aout = snps->aout[snps->iout];
         int isnp= snps->iout+1;
 
-        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, param->omega_m);
+        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, param->omega_m, param->force_mode);
         walltime_measure("/Snapshot/KickDrift");
 
         pm_store_wrap(&snapshot, BoxSize);

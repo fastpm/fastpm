@@ -36,7 +36,6 @@ static int martinKick = 0;
 
 double Sphi(double ai, double af, double aRef, Cosmology c);
 double Sq(double ai, double af, double aRef, Cosmology c);
-static int FORCE_MODE;
 static int NSTEPS;
 static double *A_X;
 static double *A_V;
@@ -57,7 +56,6 @@ void stepping_set_boost(double boost) {
 }
 
 void stepping_init(Parameters * param) {
-    FORCE_MODE = param->force_mode;
     NSTEPS = param->n_time_step;
     stdDA = param->cola_stdda;
 
@@ -82,7 +80,7 @@ void stepping_init(Parameters * param) {
     char * buf = malloc(24 * (NSTEPS + 1));
     char * p;
     int i;
-    msg_printf(normal, "%d steps: \n", NSTEPS);
+    msg_printf(normal, "%d Sync Points: \n", NSTEPS);
     msg_printf(normal, "Drift: \n");
     for(p = buf, i = 0; i < NSTEPS; i ++) {
         sprintf(p, "%6.4f ", A_X[i]);
@@ -122,7 +120,7 @@ void
 stepping_kick(PMStore * pi, PMStore * po,
               double ai, double af, double ac,
                 /* a_v     avel1     a_x*/
-              double OmegaM)
+              double OmegaM, int FORCE_MODE)
 {
     Cosmology c = {
         .OmegaM = OmegaM,
@@ -180,7 +178,7 @@ void
 stepping_drift(PMStore * pi, PMStore * po,
                double ai, double af, double ac,
               /*a_x, apos1, a_v */
-               double OmegaM)
+               double OmegaM, int FORCE_MODE)
 {
     int np = pi->np;
     Cosmology c = {
@@ -333,7 +331,7 @@ double Sphi(double ai, double af, double aRef, Cosmology c) {
 void 
 stepping_set_snapshot(PMStore * p, PMStore * po,
                 double aout, double a_x, double a_v,
-                double OmegaM)
+                double OmegaM, int FORCE_MODE)
 {
     int np= p->np;
 
@@ -354,9 +352,9 @@ stepping_set_snapshot(PMStore * p, PMStore * po,
     msg_printf(debug, "velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
     msg_printf(debug, "RSD factor %e\n", aout/Qfactor(aout, c)/vfac);
 
-    stepping_kick(p, po, a_v, aout, a_x, OmegaM);
+    stepping_kick(p, po, a_v, aout, a_x, OmegaM, FORCE_MODE);
 
-    stepping_drift(p, po, a_x, aout, a_v, OmegaM);
+    stepping_drift(p, po, a_x, aout, a_v, OmegaM, FORCE_MODE);
 
     int i;
 #pragma omp parallel for 
