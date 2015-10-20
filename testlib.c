@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_init(pdata, nc, alloc_factor, comm);
 
-    pm_2lpt_init(pm, pdata, nc, boxsize, comm);
+    fastpm_init_pm(pm, pdata, nc, boxsize, comm);
 
     real_t * rhok_0 = malloc(sizeof(rhok_0[0]) * pm->allocsize);
     real_t * rhok_1 = malloc(sizeof(rhok_1[0]) * pm->allocsize);

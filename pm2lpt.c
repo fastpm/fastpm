@@ -83,22 +83,6 @@ apply_2lpt_transfer(PM * pm, int dir1, int dir2)
 }
 
 void 
-pm_2lpt_init(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm) 
-{
-    /* initialize the pm object for 2lpt calculation. */
-    PMInit pminit = {
-        .Nmesh = Ngrid,
-        .BoxSize = BoxSize,
-        .NprocY = 0, /* 0 for auto, 1 for slabs */
-        .transposed = 0,
-        .use_fftw = 0,
-    };
-
-    pm_init(pm, &pminit, &p->iface, comm);
-
-}
-
-void 
 pm_2lpt_main(PM * pm, PMStore * p, double shift[3]) 
 {
 

@@ -22,6 +22,12 @@ fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm)
     return 0;
 }
 
+void
+fastpm_init_pm(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm) 
+{
+    pm_init_simple(pm, p, Ngrid, BoxSize, comm);
+}
+
 static double 
 tk_eh(double k, struct fastpm_powerspec_eh_params * params)		/* from Martin White */
 {

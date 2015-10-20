@@ -134,7 +134,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         PM pm;
 
-        pm_2lpt_init(&pm, &pdata, prr->nc, prr->boxsize, comm);
+        pm_init_simple(&pm, &pdata, prr->nc, prr->boxsize, comm);
 
         pm_store_set_lagrangian_position(&pdata, &pm, shift);
 

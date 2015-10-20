@@ -155,6 +155,10 @@ typedef struct {
 
 
 void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
+
+void 
+pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
+
 void pm_destroy(PM * pm);
 void pm_start(PM * pm);
 void pm_stop(PM * pm);

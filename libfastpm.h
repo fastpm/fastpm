@@ -6,6 +6,9 @@ typedef double (*fastpm_pkfunc)(double k, void * data);
 int 
 fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm);
 
+void
+fastpm_init_pm(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
+
 void 
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
