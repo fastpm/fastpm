@@ -14,6 +14,9 @@
 #include "fastpm-preface.h"
 
 
+static void 
+parse_conf(char * confstr, Parameters * param, lua_State * L);
+
 #define DEF_READ(my_typename, c_typename, lua_typename, transform) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue) { \
     lua_getglobal(L, name); \
@@ -165,20 +168,33 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
         confstr = strdup(lua_tostring(L, -1));
         confstr_len = strlen(confstr) + 1;
         lua_pop(L, 1);
+
+        /* 0-th rank parse first to report possible errors */
+        parse_conf(confstr, param, L);
+
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
     } else {
+        /* other ranks parse after the collective call to avoid duplicated
+         * error reports */
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         confstr = malloc(confstr_len);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+
+        parse_conf(confstr, param, L);
     }
 
+    free(confstr);
+    lua_close(L);
+}
+
+static void 
+parse_conf(char * confstr, Parameters * param, lua_State * L) 
+{
     if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 0, 0)) {
         msg_abort(-1, "%s\n", lua_tostring(L, -1));
         return -1;
     }
-
-    free(confstr);
 
     memset(param, 0, sizeof(*param));
     param->nc = read_integer(L, "nc");
@@ -263,8 +279,5 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
     } else {
         param->cola_stdda = 1;
     }
-    lua_close(L);
-
-    return 0;
 }
 
