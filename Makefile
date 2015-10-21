@@ -36,6 +36,7 @@ fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o)
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
+
 testlib : testlib.c libfastpm.a
 	$(CC) $(OPTIMIZE) $(CPPFLAGS) -o $@ testlib.c libfastpm.a \
 			$(LDFLAGS) \
@@ -49,6 +50,9 @@ libfastpm.a : $(PFFTLIB) $(PFFTFLIB) $(LIBSOURCES:%.c=.objs/%.o)
 
 $(LUALIB): lua/Makefile
 	(cd lua; CC="$(CC)" make generic)
+
+fastpm-preface.h: fastpm-preface.lua
+	xxd -i $^ > $@
 
 -include $(SOURCES:%.c=.deps/%.d)
 
