@@ -31,88 +31,30 @@
 #include "cosmology.h"
 
 static double nLPT= -2.5f;
-static int stdDA = 0; // velocity growth model
 static int martinKick = 0;
-
-double Sphi(double ai, double af, double aRef, Cosmology c);
-double Sq(double ai, double af, double aRef, Cosmology c);
-static int NSTEPS;
-static double *A_X;
-static double *A_V;
 
 static double stepping_boost = 1.0;
 
-static double polval(const double * pol, const int degrees, const double x) {
-    double rt = 0;
-    int i;
-    for(i = 0; i < degrees; i ++) {
-        rt += pow(x, degrees - i - 1) * pol[i];
-    }
-    return rt;
-}
+static double 
+Sq(double ai, double af, double aRef, Cosmology c, int stdDA);
+
+static double 
+Sphi(double ai, double af, double aRef, Cosmology c, int stdDA);
 
 void stepping_set_boost(double boost) {
     stepping_boost = boost;
 }
 
 void stepping_init(Parameters * param) {
-    NSTEPS = param->n_time_step;
-    stdDA = param->cola_stdda;
+    int NSTEPS = param->n_time_step;
 
     if(param->force_mode == FORCE_MODE_2LPT ||
        param->force_mode == FORCE_MODE_ZA) {
         if(NSTEPS != 2) 
             msg_abort(-1, "only one step is supported in 2LPT and ZA mode\n");
-    } else {
-        A_X = (double*) calloc(NSTEPS, sizeof(double));
-        A_V = (double*) calloc(NSTEPS, sizeof(double));
-        int i;
-        for (i = 0; i < NSTEPS;i++){
-            A_X[i] = param->time_step[i];
-        }
-
-        A_V[0] = A_X[0];
-
-        for (i = 1; i < NSTEPS; i++){
-            A_V[i] = exp((log(A_X[i])+log(A_X[i-1]))/2);
-        }
     }
-    char * buf = malloc(24 * (NSTEPS + 1));
-    char * p;
-    int i;
-    msg_printf(normal, "%d Sync Points: \n", NSTEPS);
-    msg_printf(normal, "Drift: \n");
-    for(p = buf, i = 0; i < NSTEPS; i ++) {
-        sprintf(p, "%6.4f ", A_X[i]);
-        p += strlen(p);
-    }
-    msg_printf(normal, "%s\n", buf);
-    msg_printf(normal, " Kick: \n");
-    for(p = buf, i = 0; i < NSTEPS; i ++) {
-        sprintf(p, "%6.4f ", A_V[i]);
-        p += strlen(p);
-    }
-    msg_printf(normal, "%s\n", buf);
 }
 
-int stepping_get_nsteps() {
-    return NSTEPS;
-}
-void stepping_get_times(int istep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1) {
-
-    /* The last step is the terminal step. */
-    *a_v = A_V[istep];
-    *a_x = A_X[istep];
-    if(istep + 1 >= NSTEPS) {
-        istep = NSTEPS - 2;
-    }
-    *a_v1= A_V[istep + 1];
-    *a_x1= A_X[istep + 1];
-}
 // Leap frog time integration
 // ** Total momentum adjustment dropped
 
@@ -120,7 +62,7 @@ void
 stepping_kick(PMStore * pi, PMStore * po,
               double ai, double af, double ac,
                 /* a_v     avel1     a_x*/
-              double OmegaM, int FORCE_MODE)
+              double OmegaM, int FORCE_MODE, int stdDA)
 {
     Cosmology c = {
         .OmegaM = OmegaM,
@@ -133,7 +75,7 @@ stepping_kick(PMStore * pi, PMStore * po,
     }
 
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
-    double dda = Sphi(ai, af, ac, c) * stepping_boost;
+    double dda = Sphi(ai, af, ac, c, stdDA) * stepping_boost;
     double growth1 = GrowthFactor(ac, c);
 
     msg_printf(normal, "Kick %6.4f -> %6.4f\n", ai, af);
@@ -178,7 +120,7 @@ void
 stepping_drift(PMStore * pi, PMStore * po,
                double ai, double af, double ac,
               /*a_x, apos1, a_v */
-               double OmegaM, int FORCE_MODE)
+               double OmegaM, int FORCE_MODE, int stdDA)
 {
     int np = pi->np;
     Cosmology c = {
@@ -186,7 +128,7 @@ stepping_drift(PMStore * pi, PMStore * po,
         .OmegaLambda = 1 - OmegaM,
     };
 
-    double dyyy = Sq(ai, af, ac, c) * stepping_boost;
+    double dyyy = Sq(ai, af, ac, c, stdDA) * stepping_boost;
 
     double da1 = GrowthFactor(af, c) - GrowthFactor(ai, c);    // change in D_1lpt
     double da2 = GrowthFactor2(af, c) - GrowthFactor2(ai, c);  // change in D_2lpt
@@ -229,24 +171,48 @@ double gpQ(double a) {
     return pow(a, nLPT);
 }
 
-double stddriftfunc (double a, void * params) {
-    Cosmology * c = params;
-    return 1.0/Qfactor(a, *c);
+static double stddriftfunc (double a, Cosmology c) {
+    return 1.0/Qfactor(a, c);
 }
 
-double nonstddriftfunc (double a, void * params) {
-    Cosmology * c = params;
-    return gpQ(a)/Qfactor(a, *c); 
+static double nonstddriftfunc (double a, Cosmology c) {
+    return gpQ(a)/Qfactor(a, c); 
 }
 
-double stdkickfunc (double a, void * params) {
-    Cosmology * c = params;
-    return a/Qfactor(a, *c);
+static double stdkickfunc (double a, Cosmology c) {
+    return a/Qfactor(a, c);
 }
 
-double martinkickfunc (double a, void * params) {
-    Cosmology * c = params;
-    return Qfactor(a, *c) / (a*a);
+static double martinkickfunc (double a, Cosmology c) {
+    return Qfactor(a, c) / (a*a);
+}
+
+static double integrand(double a, void * params) {
+    void ** p = (void**) params;
+    double (*func)(double a, Cosmology c) = p[0];
+    Cosmology *pc = p[1];
+    return func(a, *pc);
+}
+
+double integrate(double ai, double af,
+        Cosmology c,
+        double (*func)(double a, Cosmology c)) {
+
+    gsl_integration_workspace * w 
+        = gsl_integration_workspace_alloc (5000);
+    
+    gsl_function F;
+    double error;
+    double result;
+
+    F.params = (void*[]){func, &c};
+    F.function = integrand;
+
+    gsl_integration_qag (&F, ai, af, 0, 1e-8, 5000, 6,
+            w, &result, &error); 
+
+    gsl_integration_workspace_free (w);
+    return result;
 }
 
 /*     
@@ -256,26 +222,15 @@ double martinkickfunc (double a, void * params) {
        See Section A.3 of TZE.
        */
 
-double Sq(double ai, double af, double aRef, Cosmology c) {
-    gsl_integration_workspace * w 
-        = gsl_integration_workspace_alloc (5000);
-
+static double 
+Sq(double ai, double af, double aRef, Cosmology c, int stdDA) 
+{
     double resultstd, result, error;
 
-    gsl_function F;
-    F.function = &stddriftfunc;
-    F.params = &c;
-    gsl_integration_qag (&F, ai, af, 0, 1e-8, 5000,6,
-            w, &resultstd, &error); 
+    resultstd = integrate(ai, af, c, stddriftfunc);
 
-    F.function = &nonstddriftfunc;
-    F.params = &c;
-    gsl_integration_qag (&F, ai, af, 0, 1e-8, 5000,6,
-            w, &result, &error); 
-
+    result = integrate(ai, af, c, nonstddriftfunc);
     result /= gpQ(aRef);
-
-    gsl_integration_workspace_free (w);
 
     msg_printf(verbose, "ref time = %6.4f, std drift =%g, non std drift = %g \n",
         aRef, resultstd, result);
@@ -290,7 +245,10 @@ double DERgpQ(double a) { // This must return d(gpQ)/da
     return nLPT*pow(a, nLPT-1);
 }
 
-double Sphi(double ai, double af, double aRef, Cosmology c) {
+
+static double 
+Sphi(double ai, double af, double aRef, Cosmology c, int stdDA) 
+{
     double result;
     double resultstd;
 
@@ -298,23 +256,7 @@ double Sphi(double ai, double af, double aRef, Cosmology c) {
     result = (gpQ(af) - gpQ(ai)) * aRef 
         / (Qfactor(aRef, c) * DERgpQ(aRef));
 
-    gsl_integration_workspace * w 
-        = gsl_integration_workspace_alloc (5000);
-
-    double error;
-
-    gsl_function F;
-    if (martinKick) {
-        F.function = &martinkickfunc;
-    } else{
-        F.function = &stdkickfunc;
-    }
-    F.params = &c;
-
-    gsl_integration_qag (&F, ai, af, 0, 1e-8, 5000, 6,
-            w, &resultstd, &error); 
-
-    gsl_integration_workspace_free (w);
+    resultstd = integrate(ai, af, c, stdkickfunc);
 
     msg_printf(verbose, "ref time = %6.4f, std kick = %g, non std kick = %g\n",
             aRef, resultstd, result);
@@ -331,7 +273,7 @@ double Sphi(double ai, double af, double aRef, Cosmology c) {
 void 
 stepping_set_snapshot(PMStore * p, PMStore * po,
                 double aout, double a_x, double a_v,
-                double OmegaM, int FORCE_MODE)
+                double OmegaM, int FORCE_MODE, int stdDA)
 {
     int np= p->np;
 
@@ -352,9 +294,9 @@ stepping_set_snapshot(PMStore * p, PMStore * po,
     msg_printf(debug, "velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
     msg_printf(debug, "RSD factor %e\n", aout/Qfactor(aout, c)/vfac);
 
-    stepping_kick(p, po, a_v, aout, a_x, OmegaM, FORCE_MODE);
+    stepping_kick(p, po, a_v, aout, a_x, OmegaM, FORCE_MODE, stdDA);
 
-    stepping_drift(p, po, a_x, aout, a_v, OmegaM, FORCE_MODE);
+    stepping_drift(p, po, a_x, aout, a_v, OmegaM, FORCE_MODE, stdDA);
 
     int i;
 #pragma omp parallel for 

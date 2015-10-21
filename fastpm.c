@@ -43,7 +43,7 @@ typedef struct {
 } SNPS;
 
 static int 
-snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE);
+snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE, int stdDA);
 static void 
 snps_init(SNPS * snps, Parameters * prr, PMStore * p, MPI_Comm comm);
 static void 
@@ -77,6 +77,22 @@ static int
 to_rank(void * pdata, ptrdiff_t i, void * data);
 static double 
 estimate_alloc_factor(double Volume, int NTask, double failure_rate);
+
+void pm_get_times(int istep,
+    double time_step[],
+    int nstep,
+    double * a_x,
+    double * a_x1,
+    double * a_v,
+    double * a_v1) {
+
+    /* The last step is the terminal step. */
+    *a_x = time_step[(istep >= nstep)?(nstep - 1):istep];
+    *a_x1 = time_step[(istep + 1 >= nstep)?(nstep - 1):(istep + 1)];
+    double a_xm1 = time_step[(istep > 0)?(istep - 1):0];
+    *a_v = sqrt(a_xm1 * *(a_x));
+    *a_v1 = sqrt(*a_x * *a_x1);
+}
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
 
@@ -176,9 +192,9 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     snps_start(&snps);
 
     int istep;
-    int nsteps = stepping_get_nsteps();
+    int nsteps = prr->n_time_step;
 
-    snps_interp(&snps, prr->time_step[0], prr->time_step[0], prr->omega_m, prr->force_mode);
+    snps_interp(&snps, prr->time_step[0], prr->time_step[0], prr->omega_m, prr->force_mode, prr->cola_stdda);
 
     walltime_measure("/Init/Start");
 
@@ -188,7 +204,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         double a_v, a_x, a_v1, a_x1;
 
         /* begining and ending of drift(x) and kick(v)*/
-        stepping_get_times(istep,
+        pm_get_times(istep, prr->time_step, prr->n_time_step,
             &a_x, &a_x1, &a_v, &a_v1);
 
         /* Find the Particle Mesh to use for this time step */
@@ -269,21 +285,21 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 #endif
 
         /* take snapshots if needed, before the kick */
-        snps_interp(&snps, a_x, a_v, prr->omega_m, prr->force_mode);
+        snps_interp(&snps, a_x, a_v, prr->omega_m, prr->force_mode, prr->cola_stdda);
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
         
         // Leap-frog "kick" -- velocities updated
 
-        stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m, prr->force_mode);
+        stepping_kick(&pdata, &pdata, a_v, a_v1, a_x, prr->omega_m, prr->force_mode, prr->cola_stdda);
         walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
-        snps_interp(&snps, a_x, a_v1, prr->omega_m, prr->force_mode);
+        snps_interp(&snps, a_x, a_v1, prr->omega_m, prr->force_mode, prr->cola_stdda);
         
         // Leap-frog "drift" -- positions updated
-        stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m, prr->force_mode);
+        stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m, prr->force_mode, prr->cola_stdda);
         walltime_measure("/Stepping/drift");
 
         /* no need to check for snapshots here, it will be checked next loop.  */
@@ -567,7 +583,7 @@ static void rungdb(const char* fmt, ...){
 }
 
 static int
-snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE)
+snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE, int stdDA)
 {
     /* interpolate and write snapshots, assuming snps->p 
      * is at time a_x and a_v. */
@@ -592,7 +608,7 @@ snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE)
         double aout = snps->aout[snps->iout];
         int isnp= snps->iout+1;
 
-        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, omega_m, FORCE_MODE);
+        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, omega_m, FORCE_MODE, stdDA);
         walltime_measure("/Snapshot/KickDrift");
 
         double BoxSize[3] = {snps->boxsize, snps->boxsize, snps->boxsize};
