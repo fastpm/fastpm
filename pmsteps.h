@@ -1,28 +1,28 @@
 #ifndef STEPPING_H
 #define STEPPING_H
+typedef struct {
+    double omega_m;
+    int mode;
+    int stdda;
+} PMStepper;
 
 void 
-stepping_kick(PMStore * pi, PMStore * po,
-        double ai, double af, double ac,
-        double OmegaM, int FORCE_MODE, int stdDA);
+stepping_kick(PMStepper * stepper, 
+        PMStore * pi, PMStore * po,
+        double ai, double af, double ac);
 void 
-stepping_drift(PMStore * pi, PMStore * po,
-        double ai, double af, double ac,
-        double OmegaM, int FORCE_MODE, int stdDA);
+stepping_drift(PMStepper * stepper, 
+        PMStore * pi, PMStore * po,
+        double ai, double af, double ac);
+
 
 void stepping_set_boost(double boost);
 
-int stepping_get_nsteps();
-
 void 
-stepping_get_times(int istep,
-    double * a_x, double * a_x1,
-    double * a_v, double * a_v1);
+stepping_set_snapshot(PMStepper * stepper, 
+                PMStore * pi, PMStore * po,
+                double aout, double a_x, double a_v);
 
-void 
-stepping_set_snapshot(PMStore * pi, PMStore * po,
-                double aout, double a_x, double a_v, 
-                double OmegaM, int FORCE_MODE, int stdDA);
 
-void stepping_init(Parameters * param);
+void stepping_init(PMStepper * stepper, double omega_m, int force_mode, int stdDA);
 #endif
