@@ -84,13 +84,16 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     msg_set_loglevel(verbose);
 
+    const double rho_crit = 27.7455;
+    const double M0 = prr->omega_m*rho_crit*pow(prr->boxsize / prr->nc, 3.0);
+    msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
+
     PMStore pdata;
     PM pm;
     VPM * vpm_list;
     PMInit baseinit = {
             .Nmesh = prr->nc,
-            .BoxSize = prr->boxsize,
-            .NprocY = prr->NprocY, /* 0 for auto, 1 for slabs */
+            .BoxSize = prr->boxsize, .NprocY = prr->NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
             .use_fftw = prr->UseFFTW,
         };
@@ -597,10 +600,6 @@ snps_interp(SNPS * snps, double a_x, double a_v)
 
         MPI_Barrier(snps->comm);
         walltime_measure("/Snapshot/Wait");
-
-        const double rho_crit = 27.7455;
-        const double M0 = param->omega_m*rho_crit*pow(param->boxsize / param->nc, 3.0);
-        msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
 
         const double z_out= 1.0/aout - 1.0;
 
