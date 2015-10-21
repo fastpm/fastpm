@@ -13,7 +13,6 @@
 #include "msg.h"
 #include "fastpm-preface.h"
 
-static int ThisTask;
 
 #define DEF_READ(my_typename, c_typename, lua_typename, transform) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue) { \
@@ -136,56 +135,50 @@ DEF_READ(number, double, number, PLAIN)
 DEF_READ(string, char *, string, _strdup)
 DEF_READ2(enum, int, string, parse_enum, struct enum_entry *, enum_table)
 
-static int read_parameter_file(const char filename[], Parameters * param);
-static void bcast_string(char** string);
-static void bcast_array(void ** parray, size_t elsize, int* len);
-
-int read_parameters(char * filename, Parameters * param)
+int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
 {
-    //int myrank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    if(ThisTask == 0) {
-        int ret = read_parameter_file(filename, param);
-        if(ret != 0)
-            msg_abort(1001, "Error: Unable to read parameter file: %s\n", filename);
-    }
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
 
-    // Share parameters with other nodes
-    MPI_Bcast(param, sizeof(param[0]), MPI_BYTE, 0, MPI_COMM_WORLD);
-
-    bcast_string(&param->power_spectrum_filename);
-    bcast_string(&param->measure_power_spectrum_filename);
-
-    bcast_string(&param->snapshot_filename);
-    bcast_string(&param->readic_filename);
-
-    bcast_array((void**)&param->zout,   sizeof(double), &param->n_zout);
-    bcast_array((void**)&param->pm_nc_factor,   sizeof(int), &param->n_pm_nc_factor);
-    bcast_array((void**)&param->change_pm,   sizeof(double), &param->n_change_pm);
-    bcast_array((void**)&param->time_step,   sizeof(double), &param->n_time_step);
-    bcast_array((void**)&param->pm_mond_parameters,   sizeof(double), &param->n_pm_mond_parameters);
-
-    return 0;
-}
-
-static int read_parameter_file(const char filename[], Parameters * param)
-{
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
 
-    char * null_terminated = alloca(fastpm_preface_lua_len + 1);
-    memcpy(null_terminated, fastpm_preface_lua, fastpm_preface_lua_len);
-    null_terminated[fastpm_preface_lua_len] = 0;
+    /* Load the preface */
+    char * preface = alloca(fastpm_preface_lua_len + 1);
+    memcpy(preface, fastpm_preface_lua, fastpm_preface_lua_len);
+    preface[fastpm_preface_lua_len] = 0;
 
-    if(luaL_loadstring(L, null_terminated) || lua_pcall(L, 0, 0, 0)) {
-        fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    if(luaL_loadstring(L, preface) || lua_pcall(L, 0, 0, 0)) {
+        msg_abort(-1, "%s\n", lua_tostring(L, -1));
         return -1;
     }
 
-    if(luaL_loadfile(L, filename) || lua_pcall(L, 0, 0, 0)) {
-        fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    /* read the configuration file */
+    char * confstr;
+    int confstr_len;
+    if(ThisTask == 0) {
+        lua_getglobal(L, "read_file");
+        lua_pushstring(L, filename);
+        if(lua_pcall(L, 1, 1, 0)) {
+            msg_abort(-1, "%s\n", lua_tostring(L, -1));
+        }
+        confstr = strdup(lua_tostring(L, -1));
+        confstr_len = strlen(confstr) + 1;
+        lua_pop(L, 1);
+        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
+        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+    } else {
+        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
+        confstr = malloc(confstr_len);
+        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+    }
+
+    if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 0, 0)) {
+        msg_abort(-1, "%s\n", lua_tostring(L, -1));
         return -1;
     }
+
+    free(confstr);
 
     memset(param, 0, sizeof(*param));
     param->nc = read_integer(L, "nc");
@@ -275,48 +268,3 @@ static int read_parameter_file(const char filename[], Parameters * param)
     return 0;
 }
 
-static void bcast_string(char ** pstring)
-{
-    int len;
-    if(ThisTask == 0) {
-        if(*pstring)
-            len = strlen(*pstring);
-        else
-            len = 0;
-    } else {
-        len = 0;
-    }
-    MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    if(len == 0) {
-        *pstring = NULL;
-        return;
-    }
-
-    if(ThisTask != 0) {
-        *pstring = malloc( sizeof(char) * (len + 1));
-    }
-
-    MPI_Bcast(*pstring, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
-}
-
-static void bcast_array(void ** parray, size_t elsize, int* len)
-{
-    MPI_Bcast(len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    const int n = *len;
-
-    if(n == 0) {
-        *parray = NULL;
-        return;
-    }
-
-    if(ThisTask != 0) {
-        *parray = malloc(elsize * n);
-    }
-    MPI_Datatype type;
-    MPI_Type_contiguous(elsize, MPI_BYTE, &type);
-    MPI_Type_commit(&type);
-    MPI_Bcast(*parray, n, type, 0, MPI_COMM_WORLD);
-    MPI_Type_free(&type);
-}

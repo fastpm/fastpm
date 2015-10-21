@@ -28,3 +28,7 @@ function blendspace(start, e, a1, a2)
     r[i] = e 
     return r
 end 
+function read_file(filename)
+    f = assert(io.open(filename, 'r'))
+    return f:read('*all')
+end

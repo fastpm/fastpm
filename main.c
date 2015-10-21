@@ -26,9 +26,9 @@ int main(int argc, char ** argv) {
 
     parse_args(argc, argv, &prr);
 
-    read_parameters(ParamFileName, &prr);
-
     MPI_Comm comm = MPI_COMM_WORLD; 
+
+    read_parameters(ParamFileName, &prr, comm);
 
     fastpm(&prr, comm);
 
