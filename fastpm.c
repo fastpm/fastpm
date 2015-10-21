@@ -31,16 +31,19 @@ ensure_dir(char * path);
 
 /* Snapshots */
 typedef struct {
-    Parameters * param;
     MPI_Comm comm;
     PMStore * p;
     int nout;
     double * aout;
     int iout;
+    double boxsize;
+    char * snapshot_filename;
+    double omega_m;
+    int random_seed;
 } SNPS;
 
 static int 
-snps_interp(SNPS * snps, double a_x, double a_v);
+snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE);
 static void 
 snps_init(SNPS * snps, Parameters * prr, PMStore * p, MPI_Comm comm);
 static void 
@@ -172,7 +175,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     int istep;
     int nsteps = stepping_get_nsteps();
 
-    snps_interp(&snps, prr->time_step[0], prr->time_step[0]);
+    snps_interp(&snps, prr->time_step[0], prr->time_step[0], prr->omega_m, prr->force_mode);
 
     walltime_measure("/Init/Start");
 
@@ -250,7 +253,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 #endif
 
         /* take snapshots if needed, before the kick */
-        snps_interp(&snps, a_x, a_v);
+        snps_interp(&snps, a_x, a_v, prr->omega_m, prr->force_mode);
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
@@ -261,7 +264,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
-        snps_interp(&snps, a_x, a_v1);
+        snps_interp(&snps, a_x, a_v1, prr->omega_m, prr->force_mode);
         
         // Leap-frog "drift" -- positions updated
         stepping_drift(&pdata, &pdata, a_x, a_x1, a_v1, prr->omega_m, prr->force_mode);
@@ -557,16 +560,13 @@ static void rungdb(const char* fmt, ...){
 }
 
 static int
-snps_interp(SNPS * snps, double a_x, double a_v)
+snps_interp(SNPS * snps, double a_x, double a_v, double omega_m, int FORCE_MODE)
 {
     /* interpolate and write snapshots, assuming snps->p 
      * is at time a_x and a_v. */
     char filebase[1024];    
     PMStore * p = snps->p;
-    Parameters * param = snps->param;
     PMStore snapshot;
-    double BoxSize[3] = {param->boxsize, param->boxsize, param->boxsize};
-
 
     while(snps->iout < snps->nout && (
         /* after a kick */
@@ -585,16 +585,18 @@ snps_interp(SNPS * snps, double a_x, double a_v)
         double aout = snps->aout[snps->iout];
         int isnp= snps->iout+1;
 
-        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, param->omega_m, param->force_mode);
+        stepping_set_snapshot(p, &snapshot, aout, a_x, a_v, omega_m, FORCE_MODE);
         walltime_measure("/Snapshot/KickDrift");
+
+        double BoxSize[3] = {snps->boxsize, snps->boxsize, snps->boxsize};
 
         pm_store_wrap(&snapshot, BoxSize);
         walltime_measure("/Snapshot/Periodic");
 
-        if(param->snapshot_filename) {
-            ensure_dir(param->snapshot_filename);
-            sprintf(filebase, "%s%05d_%0.04f.bin", param->snapshot_filename, param->random_seed, aout);
-            write_runpb_snapshot(param, &snapshot, aout, filebase, snps->comm);
+        if(snps->snapshot_filename) {
+            ensure_dir(snps->snapshot_filename);
+            sprintf(filebase, "%s%05d_%0.04f.bin", snps->snapshot_filename, snps->random_seed, aout);
+            write_runpb_snapshot(omega_m, snps->boxsize, &snapshot, aout, filebase, snps->comm);
         }
         walltime_measure("/Snapshot/IO");
 
@@ -617,11 +619,13 @@ snps_init(SNPS * snps, Parameters * prr, PMStore * p, MPI_Comm comm)
 {
     snps->iout = 0;
     snps->nout = prr->n_zout;
-    snps->param = prr;
     snps->p = p;
     snps->comm = comm;
-
+    snps->boxsize = prr->boxsize;
     snps->aout = malloc(sizeof(double)*snps->nout);
+    snps->random_seed = prr->random_seed;
+    snps->omega_m = prr->omega_m;
+    snps->snapshot_filename = prr->snapshot_filename;
     int i;
     for(i=0; i<snps->nout; i++) {
         snps->aout[i] = (double)(1.0/(1 + prr->zout[i]));

@@ -289,7 +289,7 @@ static void write_mine(char * filebase,
 
     size_t chunksize = scratch_bytes;
 
-    int offset = 0;
+    int offset = 0; 
     int chunknpart = chunksize / (sizeof(float) * 3);
 
     int i;
@@ -379,7 +379,7 @@ static void write_mine(char * filebase,
     free(scratch);
 }
 
-int write_runpb_snapshot(Parameters * param, PMStore * p, double aa,
+int write_runpb_snapshot(double boxsize, double omega_m, PMStore * p, double aa,
         char * filebase, MPI_Comm comm){
     int ThisTask;
     int NTask;
@@ -431,10 +431,10 @@ int write_runpb_snapshot(Parameters * param, PMStore * p, double aa,
     MPI_Barrier(comm);
 
     Cosmology c = {
-        .OmegaM = param->omega_m,
-        .OmegaLambda = 1.0 - param->omega_m,
+        .OmegaM = omega_m,
+        .OmegaLambda = 1.0 - omega_m,
     };
-    write_mine(filebase, p, aa, c, param->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
+    write_mine(filebase, p, aa, c, boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
     return 0;
 }
 
