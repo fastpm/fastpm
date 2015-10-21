@@ -64,12 +64,15 @@ power_spectrum_init(PowerSpectrum * ps, size_t size);
 static void 
 power_spectrum_destroy(PowerSpectrum * ps);
 
+static void 
+calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor);
+
 static void
 write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
 
 /* Useful stuff */
 static void 
-do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps);
+pm_calculate_forces(PMStore * p, PM * pm, double density_factor);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 static double 
@@ -192,6 +195,9 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         VPM * vpm = vpm_find(vpm_list, a_x);
         PM * pm = &vpm->pm;
 
+        /* watch out: boost the density since mesh is finer than grid */
+        double density_factor =  pow(vpm->pm_nc_factor, 3); 
+
         msg_printf(normal, "==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
                     istep, a_x, a_x1, a_v, a_v1, pm->init.Nmesh);
 
@@ -217,11 +223,30 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         walltime_measure("/Stepping/Decompose");
 
         /* Calculate PM forces, only if needed. */
-        power_spectrum_init(&ps, pm->Nmesh[0] / 2);
-
         if(prr->force_mode & FORCE_MODE_PM) {
-            /* watch out: boost the density since mesh is finer than grid */
-            do_pm(&pdata, vpm, &ps);
+            pm_start(pm);
+
+            pm_calculate_forces(&pdata, pm, density_factor);
+
+            /* calculate the power spectrum */
+            power_spectrum_init(&ps, pm->Nmesh[0] / 2);
+
+            calculate_powerspectrum(pm, &ps, density_factor);
+            walltime_measure("/PowerSpectrum/Measure");
+            
+            if(prr->measure_power_spectrum_filename) {
+                if(pm->ThisTask == 0) {
+                    ensure_dir(prr->measure_power_spectrum_filename);
+                    write_power_spectrum(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
+                        prr->measure_power_spectrum_filename, prr->random_seed, a_x);
+                }
+            }
+
+            MPI_Barrier(comm);
+            walltime_measure("/PowerSpectrum/Write");
+            power_spectrum_destroy(&ps);
+
+            pm_stop(pm);
         }
 
 #if 0
@@ -235,16 +260,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         MPI_Abort(MPI_COMM_WORLD, -10);
 }
 #endif
-        if(prr->measure_power_spectrum_filename) {
-            if(pm->ThisTask == 0) {
-                ensure_dir(prr->measure_power_spectrum_filename);
-                write_power_spectrum(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
-                    prr->measure_power_spectrum_filename, prr->random_seed, a_x);
-            }
-        }
-        power_spectrum_destroy(&ps);
-        MPI_Barrier(comm);
-        walltime_measure("/Stepping/PowerSpectrum");
+
 #if 0
         fwrite(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("x.f8x3", "w"));
         fwrite(pdata.v, sizeof(pdata.v[0]), pdata.np, fopen("v.f4x3", "w"));
@@ -383,7 +399,9 @@ smooth_density(PM * pm, double r_s)
     pm_destroy_k_factors(pm, fac);
 }
 
-static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor) {
+static void 
+calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor) 
+{
     PMKFactors * fac[3];
 
     pm_create_k_factors(pm, fac);
@@ -443,11 +461,8 @@ static void calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_
 }
 
 static void 
-do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
+pm_calculate_forces(PMStore * p, PM * pm, double density_factor)
 {
-    PM * pm = &vpm->pm;
-    double density_factor =  pow(vpm->pm_nc_factor, 3); 
-
     PMGhostData pgd = {
         .pm = pm,
         .pdata = p,
@@ -457,8 +472,6 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
         .nghosts = 0,
         .get_position = p->iface.get_position,
     };
-    pm_start(pm);
-
     walltime_measure("/Force/Init");
 
     pm_append_ghosts(&pgd);
@@ -474,11 +487,6 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
     pm_r2c(pm);
     walltime_measure("/Force/FFT");
 
-    /* calculate the power spectrum */
-
-    calculate_powerspectrum(pm, ps, density_factor);
-    walltime_measure("/Force/PowerSpectrum");
-    
 #if 0
     fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("density-k.f4", "w"));
 #endif
@@ -524,7 +532,6 @@ do_pm(PMStore * p, VPM * vpm, PowerSpectrum * ps)
         walltime_measure("/Force/ReduceGhosts");
     }
     pm_destroy_ghosts(&pgd);
-    pm_stop(pm);
     walltime_measure("/Force/Finish");
 
     MPI_Barrier(pm->Comm2D);
