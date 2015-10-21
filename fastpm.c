@@ -33,19 +33,18 @@ ensure_dir(char * path);
 typedef struct {
     MPI_Comm comm;
     PMStore * p;
+    char template[1024];    
     int nout;
     double * aout;
     int iout;
     double boxsize;
-    char * snapshot_filename;
     double omega_m;
-    int random_seed;
 } SNPS;
 
 static int 
-snps_interp(SNPS * snps, double a_x, double a_v, PMStepper * stepper);
+snps_interp(SNPS * snps, PMStore * p, double a_x, double a_v, PMStepper * stepper);
 static void 
-snps_init(SNPS * snps, Parameters * prr, PMStore * p, MPI_Comm comm);
+snps_init(SNPS * snps, Parameters * prr, MPI_Comm comm);
 static void 
 snps_start(SNPS * snps);
 
@@ -185,7 +184,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     SNPS snps;
 
-    snps_init(&snps, prr, &pdata, comm);
+    snps_init(&snps, prr, comm);
 
     snps_start(&snps);
 
@@ -195,7 +194,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     int istep;
     int nsteps = prr->n_time_step;
 
-    snps_interp(&snps, prr->time_step[0], prr->time_step[0], &stepper);
+    snps_interp(&snps, &pdata, prr->time_step[0], prr->time_step[0], &stepper);
 
     walltime_measure("/Init/Start");
 
@@ -286,7 +285,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 #endif
 
         /* take snapshots if needed, before the kick */
-        snps_interp(&snps, a_x, a_v, &stepper);
+        snps_interp(&snps, &pdata, a_x, a_v, &stepper);
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
@@ -297,7 +296,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
-        snps_interp(&snps, a_x, a_v1, &stepper);
+        snps_interp(&snps, &pdata, a_x, a_v1, &stepper);
         
         // Leap-frog "drift" -- positions updated
         stepping_drift(&stepper, &pdata, &pdata, a_x, a_x1, a_v1);
@@ -584,12 +583,10 @@ static void rungdb(const char* fmt, ...){
 }
 
 static int
-snps_interp(SNPS * snps, double a_x, double a_v, PMStepper * stepper)
+snps_interp(SNPS * snps, PMStore * p, double a_x, double a_v, PMStepper * stepper)
 {
-    /* interpolate and write snapshots, assuming snps->p 
+    /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
-    char filebase[1024];    
-    PMStore * p = snps->p;
     PMStore snapshot;
 
     while(snps->iout < snps->nout && (
@@ -612,16 +609,11 @@ snps_interp(SNPS * snps, double a_x, double a_v, PMStepper * stepper)
         stepping_set_snapshot(stepper, p, &snapshot, aout, a_x, a_v);
         walltime_measure("/Snapshot/KickDrift");
 
-        double BoxSize[3] = {snps->boxsize, snps->boxsize, snps->boxsize};
-
-        pm_store_wrap(&snapshot, BoxSize);
-        walltime_measure("/Snapshot/Periodic");
-
-        if(snps->snapshot_filename) {
-            ensure_dir(snps->snapshot_filename);
-            sprintf(filebase, "%s%05d_%0.04f.bin", snps->snapshot_filename, snps->random_seed, aout);
-            write_runpb_snapshot(stepper->omega_m, snps->boxsize, &snapshot, aout, filebase, snps->comm);
-        }
+        char filebase[1024];
+        sprintf(filebase, snps->template, aout);
+        ensure_dir(filebase);
+        write_runpb_snapshot(stepper->omega_m, snps->boxsize, &snapshot, aout, filebase, snps->comm);
+        
         walltime_measure("/Snapshot/IO");
 
         MPI_Barrier(snps->comm);
@@ -639,17 +631,19 @@ snps_interp(SNPS * snps, double a_x, double a_v, PMStepper * stepper)
 }
 
 static void 
-snps_init(SNPS * snps, Parameters * prr, PMStore * p, MPI_Comm comm) 
+snps_init(SNPS * snps, Parameters * prr, MPI_Comm comm) 
 {
     snps->iout = 0;
     snps->nout = prr->n_zout;
-    snps->p = p;
     snps->comm = comm;
+
     snps->boxsize = prr->boxsize;
-    snps->aout = malloc(sizeof(double)*snps->nout);
-    snps->random_seed = prr->random_seed;
     snps->omega_m = prr->omega_m;
-    snps->snapshot_filename = prr->snapshot_filename;
+
+    snps->aout = malloc(sizeof(double)*snps->nout);
+
+    sprintf(snps->template, "%s%05d_%%0.04f.bin", prr->snapshot_filename, prr->random_seed);
+
     int i;
     for(i=0; i<snps->nout; i++) {
         snps->aout[i] = (double)(1.0/(1 + prr->zout[i]));
