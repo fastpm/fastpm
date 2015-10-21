@@ -279,5 +279,11 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     } else {
         param->cola_stdda = 1;
     }
+
+    if(param->force_mode == FORCE_MODE_2LPT ||
+       param->force_mode == FORCE_MODE_ZA) {
+        if(param->n_time_step != 2) 
+            msg_abort(-1, "only one step is supported in 2LPT and ZA mode\n");
+    }
 }
 
