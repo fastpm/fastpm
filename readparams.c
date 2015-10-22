@@ -193,7 +193,6 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
 {
     if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 0, 0)) {
         msg_abort(-1, "%s\n", lua_tostring(L, -1));
-        return -1;
     }
 
     memset(param, 0, sizeof(*param));
