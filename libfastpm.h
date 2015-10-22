@@ -1,6 +1,7 @@
 #include "pmpfft.h"
 #include "pm2lpt.h"
 #include "vpm.h"
+#include "walltime.h"
 
 typedef double (*fastpm_pkfunc)(double k, void * data);
 

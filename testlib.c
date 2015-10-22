@@ -7,6 +7,9 @@ int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
 
+    struct ClockTable ct = {};
+    walltime_init(&ct);
+
     MPI_Comm comm = MPI_COMM_WORLD;
     int nc = 128;
     double boxsize = 256;
@@ -20,10 +23,16 @@ int main(int argc, char * argv[]) {
 
     fastpm_init_pm(pm, pdata, nc, boxsize, comm);
 
+    VPM * vpm_list = vpm_create(3, (int[]) {1, 2, 3}, (double[]){0, 0.2, 0.5},
+            &pm->init, &pm->iface, comm);
+
     real_t * rhok_0 = malloc(sizeof(rhok_0[0]) * pm->allocsize);
     real_t * rhok_1 = malloc(sizeof(rhok_1[0]) * pm->allocsize);
     real_t * rhok_1truth = malloc(sizeof(rhok_1truth[0]) * pm->allocsize);
     real_t * rhok_0truth = malloc(sizeof(rhok_0truth[0]) * pm->allocsize);
+
+    real_t * rhok_1pm= malloc(sizeof(rhok_1truth[0]) * pm->allocsize);
+
     real_t * Fk = malloc(sizeof(Fk[0]) * pm->allocsize);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
@@ -35,6 +44,11 @@ int main(int argc, char * argv[]) {
     };
     fastpm_fill_deltak(pm, rhok_0truth, 100, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
     fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, rhok_0truth, rhok_1truth, comm);
+
+    fastpm_evolve_pm(pm, vpm_list, pdata, 
+        (double[]) {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0}, 
+                10, omega_m, 
+            rhok_0truth, rhok_1pm, comm);
 
     /* now a fake MCMC loop. */
     int mcmcstep;

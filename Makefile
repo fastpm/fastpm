@@ -69,6 +69,7 @@ fastpm-preface.h: fastpm-preface.lua
 clean:
 	rm -rf .objs
 	rm -rf .deps
+	rm -rf libfastpm.a
 
 PFFT_CONFIGURE = $(abspath depends/src/pfft-$(PFFT_VERSION)/configure)
 PFFT_CONFIGURE_FLAGS_SINGLE = $(subst --enable-sse2, --enable-sse, $(PFFT_CONFIGURE_FLAGS))
