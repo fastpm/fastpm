@@ -1,5 +1,6 @@
 #include "pmpfft.h"
 #include "pm2lpt.h"
+#include "vpm.h"
 
 typedef double (*fastpm_pkfunc)(double k, void * data);
 

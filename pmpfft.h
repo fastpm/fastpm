@@ -258,3 +258,6 @@ pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3])
 
 void 
 pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]);
+
+void 
+pm_calculate_forces(PMStore * p, PM * pm, double density_factor);

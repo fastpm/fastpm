@@ -3,6 +3,8 @@
 #include <string.h>
 #include "libfastpm.h"
 #include "msg.h"
+#include "parameters.h"
+#include "pmsteps.h"
 
 static int 
 fastpm_particle_to_mesh(PM * pm, PMStore * p);
@@ -106,6 +108,84 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
 
     pm_stop(pm);
 }
+
+static int 
+to_rank(void * pdata, ptrdiff_t i, void * data) 
+{
+    PMStore * p = (PMStore *) pdata;
+    PM * pm = (PM*) data;
+    double pos[3];
+    p->iface.get_position(p, i, pos);
+    return pm_pos_to_rank(pm, pos);
+}
+
+void 
+fastpm_evolve_pm(PM * basepm, VPM * vpm_list, 
+        PMStore * pdata, 
+        double time_step[],
+        int n_time_step,
+        double omega_m, 
+        real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) 
+{
+    double shift[3] = {0, 0, 0};
+
+    pm_store_set_lagrangian_position(pdata, basepm, shift);
+
+    pm_start(basepm);
+
+    memcpy(basepm->canvas, deltak_0, sizeof(basepm->canvas[0]) * basepm->allocsize);
+
+    pm_2lpt_main(basepm, pdata, shift);
+
+    /* predict particle positions by 2lpt */
+    pm_2lpt_evolve(time_step[0], pdata, shift, omega_m);
+
+    PMStepper stepper;
+
+    stepping_init(&stepper, omega_m, FORCE_MODE_PM, 1);
+
+    int istep;
+    int nsteps = n_time_step;
+
+    for (istep = 0; istep < nsteps; istep++) {
+        double a_v, a_x, a_v1, a_x1;
+
+        pm_get_times(istep, time_step, n_time_step,
+            &a_x, &a_x1, &a_v, &a_v1);
+
+        /* Find the Particle Mesh to use for this time step */
+        VPM * vpm = vpm_find(vpm_list, a_x);
+        PM * pm = &vpm->pm;
+
+        /* watch out: boost the density since mesh is finer than grid */
+        double density_factor =  pow(vpm->pm_nc_factor, 3); 
+
+        pm_store_wrap(pdata, pm->BoxSize);
+
+        pm_store_decompose(pdata, to_rank, pm, comm);
+
+        pm_start(pm);
+
+        pm_calculate_forces(pdata, pm, density_factor);
+
+        pm_stop(pm);
+
+        stepping_kick(&stepper, pdata, pdata, a_v, a_v1, a_x);
+
+        stepping_drift(&stepper, pdata, pdata, a_x, a_x1, a_v1);
+    }
+
+    /* paint to mesh */
+    fastpm_particle_to_mesh(basepm, pdata);
+
+    pm_r2c(basepm);
+
+    /* copy out the results */
+    memcpy(deltak_1, basepm->canvas, sizeof(basepm->canvas[0]) * basepm->allocsize);
+
+    pm_stop(basepm);
+}
+
 
 static void 
 get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3]) 
@@ -245,30 +325,6 @@ fastpm_derivative_2lpt(PM * pm,
         }
     }
     pm_destroy_ghosts(&pgd);
-
-    pm_stop(pm);
-}
-
-void     
-fastpm_evolve_pm(PM * pm, PMStore * pdata, 
-        double ainit, double afinal, int nsteps, double omega_m, 
-        real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) 
-{
-    fastpm_evolve_2lpt(pm, pdata, ainit, omega_m, deltak_0, deltak_1, comm);
-
-    /* now do the steps */
-    pm_start(pm);
-
-    memcpy(pm->canvas, deltak_0, sizeof(pm->canvas[0]) * pm->allocsize);
-
-    /* FIXME: Do it */
-    /* paint to mesh */
-    fastpm_particle_to_mesh(pm, pdata);
-
-    pm_r2c(pm);
-
-    /* copy out the results */
-    memcpy(deltak_1, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
 
     pm_stop(pm);
 }
