@@ -479,7 +479,7 @@ snps_interp(SNPS * snps, PMStore * p, double a_x, double a_v, PMStepper * steppe
         char filebase[1024];
         sprintf(filebase, snps->template, aout);
         ensure_dir(filebase);
-        write_runpb_snapshot(stepper->omega_m, snps->boxsize, &snapshot, aout, filebase, snps->comm);
+        write_runpb_snapshot(snps->boxsize, stepper->omega_m, &snapshot, aout, filebase, snps->comm);
         
         walltime_measure("/Snapshot/IO");
 
