@@ -233,6 +233,7 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
 
     // File Names and optional parameters realated
     param->readic_filename = read_string_opt(L, "readic", NULL);
+    param->readnoise_filename = read_string_opt(L, "readnoise", NULL);
 
     if(!param->readic_filename) {
         param->power_spectrum_filename = read_string(L, "powerspectrum");

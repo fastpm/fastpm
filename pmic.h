@@ -7,3 +7,5 @@ void
 pm_ic_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata);
 void 
 pm_ic_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata);
+void 
+pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata);

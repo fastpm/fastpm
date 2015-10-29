@@ -194,7 +194,7 @@ pm_ic_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
 }
 
 static void 
-pm_ic_induce_correlation(PM * pm, int seed, pkfunc pk, void * pkdata) {
+pm_ic_induce_correlation(PM * pm, pkfunc pk, void * pkdata) {
 #ifdef PM_2LPT_DUMP
     fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("noise-r.f4", "w"));
 #endif
@@ -220,6 +220,12 @@ pm_ic_induce_correlation(PM * pm, int seed, pkfunc pk, void * pkdata) {
         knorm = sqrt(k2);
         double f = sqrt(pk(knorm, pkdata));
 
+        /* ensure the fourier space is a normal distribution */
+        f /= sqrt(pm->Norm);
+        /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
+         * forget where it is from. */
+        f *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
+//
 //        msg_aprintf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
 //                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
 
@@ -257,15 +263,10 @@ pm_ic_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
         while(ampl == 0.0);
 
         ampl = sqrt(-log(ampl));
-        /* ensure the fourier space is a normal distribution */
-        ampl /= sqrt(pm->Norm);
-        /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
-         * forget where it is from. */
-        ampl *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
         pm->workspace[ind] = ampl * sin(phase);
         pm->workspace[ind + 1] = ampl * cos(phase);
     }
-    pm_ic_induce_correlation(pm, seed, pk, pkdata);
+    pm_ic_induce_correlation(pm, pk, pkdata);
 }
 
 void 
@@ -295,14 +296,76 @@ pm_ic_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata)
             ind += ii[d] * pm->IRegion.strides[d];
         }
         ampl = sqrt(-log(ampl));
-        ampl /= sqrt(pm->Norm);
-
-        ampl *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
         pm->workspace[ind] = ampl * sin(phase);
         next:
         continue;
     }
-    pm_ic_induce_correlation(pm, seed, pk, pkdata);
+    pm_ic_induce_correlation(pm, pk, pkdata);
     gsl_rng_free(random_generator);
 }
             
+void 
+pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
+{
+    ptrdiff_t ind;
+    int d;
+    ptrdiff_t i[3] = {0, 0, 0};
+    FILE * fp = fopen(filename, "r");
+
+    struct {
+        int32_t bs1;
+        int32_t n[3];
+        int32_t seed;
+        int32_t bs2;
+    } header;
+
+    fread(&header, sizeof(header), 1, fp);
+
+    ind = 0;
+
+    if(header.bs1 != 16) 
+        msg_abort(-1, "file not in BigMD noise format\n");
+
+    msg_printf(info, "BigMD simulation is in Fortran ordering. FastPM is in C ordering."
+        "The simulation will be transformed x->z y->y z->x.\n");
+
+    for(d = 0; d < 3; d ++) {
+        /* BigMD is in */
+        int permute[3] = {2, 1, 0};
+        if(header.n[d] != pm->Nmesh[permute[d]]) {
+            msg_abort(-1, "file is in %d, but simulation is in %d\n",
+                header.n[d], pm->Nmesh[permute[d]]);
+        }
+    }
+
+    float * buf = malloc(sizeof(float) * header.n[0]);
+
+    for(i[0] = 0; i[0] < pm->IRegion.size[0]; i[0] ++) {
+        for(i[1] = 0; i[1] < pm->IRegion.size[1]; i[1] ++) {
+            ptrdiff_t i_abs[3];
+            for(d = 0; d < 3; d ++) {
+                i_abs[d] = i[d] + pm->IRegion.start[d];
+            }
+            fseek(fp, (/*header*/16 + 8) + 
+                    i_abs[0] * (header.n[0] * header.n[1] * 4 + 8), 
+                    SEEK_SET);
+
+            int32_t bs;
+            fread(&bs, sizeof(int32_t), 1, fp);
+            if(bs != 4 * header.n[0] * header.n[1])
+                msg_abort(-1, "file size is wrong\n");
+
+            fseek(fp, i_abs[1] * header.n[1] * 4, SEEK_CUR);
+            fread(buf, 4, header.n[0], fp);
+
+            ind = i[0] * pm->IRegion.strides[0] + i[1] * pm->IRegion.strides[1];
+            for(i[2] = 0; i[2] < pm->IRegion.size[2]; i[2] ++) {
+                pm->workspace[ind] = buf[i[2]];
+                ind ++;
+            }
+        }
+    }
+    free(buf);
+    pm_ic_induce_correlation(pm, pk, pkdata);
+}
+

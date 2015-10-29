@@ -144,7 +144,11 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_start(&pm);
 
-        pm_ic_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
+        if(prr->readnoise_filename) {
+            pm_ic_read_gaussian(&pm, prr->readnoise_filename, PowerSpecWithData, NULL);
+        } else {
+            pm_ic_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
+        }
 
         /* read out values at locations with an inverted shift */
         pm_2lpt_main(&pm, &pdata, shift);
