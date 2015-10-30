@@ -341,7 +341,7 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
         }
     }
 
-    float * buf = malloc(sizeof(float) * header.n[0]);
+    float * buf = malloc(sizeof(float) * header.n[0] * pm->IRegion.size[1]);
 
     for(i[0] = 0; i[0] < pm->IRegion.size[0]; i[0] ++) {
         ptrdiff_t i_abs[3];
@@ -359,16 +359,18 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
         if(bs != 4 * header.n[0] * header.n[1])
             msg_abort(-1, "file size is wrong\n");
 
+        fseek(fp, pm->IRegion.start[1] * header.n[1] * 4, SEEK_CUR);
+        fread(buf, 4, header.n[0] * pm->IRegion.size[1], fp);
+        int p = 0;
         for(i[1] = 0; i[1] < pm->IRegion.size[1]; i[1] ++) {
-            i_abs[1] = i[1] + pm->IRegion.start[1];
-
-            fseek(fp, offset + 4 + i_abs[1] * header.n[1] * 4, SEEK_SET);
-            fread(buf, 4, header.n[0], fp);
-
-            ind = i[0] * pm->IRegion.strides[0] + i[1] * pm->IRegion.strides[1];
+            /* note that size[2] is Nmesh[2] == n[0] and start[2] is 0 */
             for(i[2] = 0; i[2] < pm->IRegion.size[2]; i[2] ++) {
-                pm->workspace[ind] = buf[i[2]];
-                ind ++;
+                ind = 0;
+                for(d = 0; d < 3; d++) {
+                    ind += i[d] * pm->IRegion.strides[d];
+                }
+                pm->workspace[ind] = buf[p];
+                p ++;
             }
         }
     }
