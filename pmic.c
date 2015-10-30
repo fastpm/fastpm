@@ -310,6 +310,9 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
     ptrdiff_t ind;
     int d;
     ptrdiff_t i[3] = {0, 0, 0};
+
+    msg_printf(info, "Reading grafic white noise file from '%s'.\n", filename);
+
     FILE * fp = fopen(filename, "r");
 
     struct {
@@ -324,16 +327,16 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
     ind = 0;
 
     if(header.bs1 != 16) 
-        msg_abort(-1, "file not in BigMD noise format\n");
+        msg_abort(-1, "file not in BigMD noise format.\n");
 
-    msg_printf(info, "BigMD simulation is in Fortran ordering. FastPM is in C ordering."
+    msg_printf(info, "GrafIC noise is Fortran ordering. FastPM is in C ordering."
         "The simulation will be transformed x->z y->y z->x.\n");
 
     for(d = 0; d < 3; d ++) {
         /* BigMD is in */
         int permute[3] = {2, 1, 0};
         if(header.n[d] != pm->Nmesh[permute[d]]) {
-            msg_abort(-1, "file is in %d, but simulation is in %d\n",
+            msg_abort(-1, "file is in %d, but simulation is in %d.\n",
                 header.n[d], pm->Nmesh[permute[d]]);
         }
     }
@@ -341,21 +344,25 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
     float * buf = malloc(sizeof(float) * header.n[0]);
 
     for(i[0] = 0; i[0] < pm->IRegion.size[0]; i[0] ++) {
+        ptrdiff_t i_abs[3];
+
+        i_abs[0] = i[0] + pm->IRegion.start[0];
+
+        ptrdiff_t offset = (/*header*/16 + 8) + 
+                    i_abs[0] * (header.n[0] * header.n[1] * 4 + 8); 
+        int32_t bs;
+
+        fseek(fp, offset, SEEK_SET);
+
+        fread(&bs, 4, 1, fp);
+
+        if(bs != 4 * header.n[0] * header.n[1])
+            msg_abort(-1, "file size is wrong\n");
+
         for(i[1] = 0; i[1] < pm->IRegion.size[1]; i[1] ++) {
-            ptrdiff_t i_abs[3];
-            for(d = 0; d < 3; d ++) {
-                i_abs[d] = i[d] + pm->IRegion.start[d];
-            }
-            fseek(fp, (/*header*/16 + 8) + 
-                    i_abs[0] * (header.n[0] * header.n[1] * 4 + 8), 
-                    SEEK_SET);
+            i_abs[1] = i[1] + pm->IRegion.start[1];
 
-            int32_t bs;
-            fread(&bs, sizeof(int32_t), 1, fp);
-            if(bs != 4 * header.n[0] * header.n[1])
-                msg_abort(-1, "file size is wrong\n");
-
-            fseek(fp, i_abs[1] * header.n[1] * 4, SEEK_CUR);
+            fseek(fp, offset + 4 + i_abs[1] * header.n[1] * 4, SEEK_SET);
             fread(buf, 4, header.n[0], fp);
 
             ind = i[0] * pm->IRegion.strides[0] + i[1] * pm->IRegion.strides[1];
@@ -366,6 +373,9 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
         }
     }
     free(buf);
+
+    MPI_Barrier(pm->Comm2D);    
+
     pm_ic_induce_correlation(pm, pk, pkdata);
 }
 
