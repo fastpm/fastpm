@@ -14,14 +14,14 @@ fastpm_init_pm(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 void 
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
-        real_t * deltak_0, real_t * deltak_1, MPI_Comm comm);
+        real_t * deltak_0);
 
 void 
 fastpm_derivative_2lpt(PM * pm, 
         PMStore * p, /* Current position (x) saved in -> x */
-        real_t * rhod_k, /* rhod in fourier space */
-        real_t * Fk,     /* (out) hmc force in fourier space */
-        MPI_Comm comm);
+        real_t * rhopx, /* rho_p (the data) in x-space */
+        real_t * Fk     /* (out) hmc force in fourier space */
+        );
 
 void 
 fastpm_fill_deltak(PM * pm, real_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata);

@@ -23,15 +23,17 @@ int main(int argc, char * argv[]) {
 
     fastpm_init_pm(pm, pdata, nc, boxsize, comm);
 
+    pm_start(pm);
+
+/*
     VPM * vpm_list = vpm_create(3, (int[]) {1, 2, 3}, (double[]){0, 0.2, 0.5},
             &pm->init, &pm->iface, comm);
-
-    real_t * rhok_0 = malloc(sizeof(rhok_0[0]) * pm->allocsize);
-    real_t * rhok_1 = malloc(sizeof(rhok_1[0]) * pm->allocsize);
-    real_t * rhok_1truth = malloc(sizeof(rhok_1truth[0]) * pm->allocsize);
-    real_t * rhok_0truth = malloc(sizeof(rhok_0truth[0]) * pm->allocsize);
-
-    real_t * rhok_1pm= malloc(sizeof(rhok_1truth[0]) * pm->allocsize);
+*/
+    real_t * rho_init_k = malloc(sizeof(rho_init_k[0]) * pm->allocsize);
+    real_t * rho_final_k = malloc(sizeof(rho_final_k[0]) * pm->allocsize);
+    real_t * rho_p_x = malloc(sizeof(rho_p_x[0]) * pm->allocsize);
+    real_t * rho_model_x = malloc(sizeof(rho_model_x[0]) * pm->allocsize);
+    real_t * rho_init_ktruth = malloc(sizeof(rho_init_ktruth[0]) * pm->allocsize);
 
     real_t * Fk = malloc(sizeof(Fk[0]) * pm->allocsize);
 
@@ -42,13 +44,18 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_fill_deltak(pm, rhok_0truth, 100, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
-    fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, rhok_0truth, rhok_1truth, comm);
+    fastpm_fill_deltak(pm, rho_init_ktruth, 100, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
 
+    fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, rho_init_ktruth);
+
+/*
     fastpm_evolve_pm(pm, vpm_list, pdata, 
         (double[]) {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0}, 
                 10, omega_m, 
-            rhok_0truth, rhok_1pm, comm);
+            rho_init_ktruth, rho_final_kpm, comm);
+*/
+
+    memcpy(rho_p_x, pm->workspace, sizeof(pm->workspace[0]) * pm->allocsize);
 
     /* now a fake MCMC loop. */
     int mcmcstep;
@@ -70,37 +77,27 @@ int main(int argc, char * argv[]) {
             double k1 = sqrt(kk);
          
             double P = fastpm_powerspec_eh(sqrt(kk), &eh);
-            rhok_0[ind + 0] = fac * sqrt(P) * 1.0; /* real */
-            rhok_0[ind + 1] = fac * sqrt(P) * 1.0; /* imag */
+            rho_init_k[ind + 0] = fac * sqrt(P) * 1.0; /* real */
+            rho_init_k[ind + 1] = fac * sqrt(P) * 1.0; /* imag */
         }
 
-        /* Evolve to rhok_1 */
-        fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, rhok_0, rhok_1, comm);
+        /* Evolve to rho_final_k */
+        fastpm_evolve_2lpt(pm, pdata, 1.0, omega_m, rho_init_k);
+        memcpy(rho_model_x, pm->workspace, sizeof(pm->workspace[0]) * pm->allocsize);
 
-        /* The difference rhok_d */
-        i[0] = 0;
-        i[1] = 0;
-        i[2] = 0;
+        pm_r2c(pm);
+        memcpy(rho_final_k, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
 
-        for(ind = 0; ind < pm->allocsize; ind += 2, pm_inc_o_index(pm, i)) {
-            int d;
-            double k[3];
-            for(d = 0; d < 3; d ++) {
-                k[d] = pm->MeshtoK[d][i[d] + pm->ORegion.start[d]];
-            }
-            rhok_1[ind + 0] -= rhok_1truth[ind + 0];
-            rhok_1[ind + 1] -= rhok_1truth[ind + 1];
-        }
         /* calculate the HMC force into Fk */
-        fastpm_derivative_2lpt(pm, pdata, rhok_1, Fk, comm);
+        fastpm_derivative_2lpt(pm, pdata, rho_p_x, Fk);
     }
 
-    free(rhok_0);
-    free(rhok_1);
-    free(rhok_0truth);
-    free(rhok_1truth);
+    free(rho_init_k);
+    free(rho_final_k);
+    free(rho_init_ktruth);
     free(Fk);
 
+    pm_stop(pm);
     MPI_Finalize();
     return 0;
 }
