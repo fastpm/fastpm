@@ -65,22 +65,19 @@ fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eise
 void 
 fastpm_fill_deltak(PM * pm, real_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata) 
 {
-    pm_start(pm);
     pm_ic_fill_gaussian_gadget(pm, seed, pk, pkdata);
     memcpy(deltak, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
-    pm_stop(pm);
 }
 
 void 
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
-        real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) 
+        real_t * deltak_0)
 {
+    /* evolve particles by 2lpt to time a. pm->canvas contains rho(x, a) */
     double shift[3] = {0, 0, 0};
 
     pm_store_set_lagrangian_position(pdata, pm, shift);
-
-    pm_start(pm);
 
     memcpy(pm->canvas, deltak_0, sizeof(pm->canvas[0]) * pm->allocsize);
 
@@ -98,15 +95,7 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
     /* predict particle positions by 2lpt */
     pm_2lpt_evolve(a, pdata, shift, omega_m);
 
-    /* paint to mesh */
     fastpm_particle_to_mesh(pm, pdata);
-
-    pm_r2c(pm);
-
-    /* copy out the results */
-    memcpy(deltak_1, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
-
-    pm_stop(pm);
 }
 
 static int 
@@ -259,12 +248,11 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, int dir) {
 void 
 fastpm_derivative_2lpt(PM * pm, 
         PMStore * p, /* Current position (x) saved in -> x */
-        real_t * rhod_k, /* rhod in fourier space */
-        real_t * Fk,     /* (out) hmc force in fourier space */
-        MPI_Comm comm) 
+        real_t * rhop_x, /* rhop in x-space*/
+        real_t * Fk     /* (out) hmc force in fourier space */
+        )
 {
     int d;
-    pm_start(pm);
 
     PMGhostData pgd = {
         .pm = pm,
@@ -278,11 +266,21 @@ fastpm_derivative_2lpt(PM * pm,
 
     pm_append_ghosts(&pgd);
 
+    pm_paint(pm, p, p->np + pgd.nghosts);
+
+    ptrdiff_t ind;
+
+    for(ind = 0; ind < pm->allocsize; ind ++) {
+        pm->workspace[ind] -= rhop_x[ind];
+    }
+
+    pm_r2c(pm);
+
+    /* canvas contains rhod_k at this point */
+
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
 
     for(d = 0; d < 3; d ++) {
-        memcpy(pm->canvas, rhod_k, sizeof(pm->canvas[0]) * pm->allocsize);
-
         fastpm_apply_diff_transfer(pm, d);
 
         /* Canvas stores \Gamma(k) = -i k \rho_d */
@@ -305,7 +303,7 @@ fastpm_derivative_2lpt(PM * pm,
 
     pm_append_ghosts(&pgd);
 
-    memset(pm->canvas, 0, sizeof(pm->canvas[0]) * pm->allocsize);
+    memset(pm->workspace, 0, sizeof(pm->workspace[0]) * pm->allocsize);
     memset(Fk, 0, sizeof(Fk[0]) * pm->allocsize);
 
     for(d = 0; d < 3; d ++) {
@@ -325,8 +323,6 @@ fastpm_derivative_2lpt(PM * pm,
         }
     }
     pm_destroy_ghosts(&pgd);
-
-    pm_stop(pm);
 }
 
 static int 
