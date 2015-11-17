@@ -159,9 +159,16 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
 void 
 pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void pm_destroy(PM * pm);
 void pm_start(PM * pm);
 void pm_stop(PM * pm);
+#ifdef __cplusplus
+}
+#endif
+
 
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
@@ -179,6 +186,10 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     }
     return total;
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
@@ -192,6 +203,9 @@ void pm_paint(PM * pm, void * pdata, ptrdiff_t size);
 double pm_readout_pos(PM * pm, double pos[3]);
 void pm_paint_pos(PM * pm, double pos[3], double weight);
 double pm_readout_one(PM * pm, PMStore * p, ptrdiff_t i);
+#ifdef __cplusplus
+}
+#endif
 
 typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
@@ -219,7 +233,11 @@ pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
 void 
 pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
 
+int omp_get_num_threads();
+int omp_get_thread_num();
+
 static inline
+void
 pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
 { 
     /* static schedule the openmp loops. start, end is in units of 'real' numbers.

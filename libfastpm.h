@@ -5,6 +5,9 @@
 
 typedef double (*fastpm_pkfunc)(double k, void * data);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 int 
 fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm);
 
@@ -35,3 +38,7 @@ struct fastpm_powerspec_eh_params {
 
 double 
 fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
+
+#ifdef __cplusplus
+}
+#endif

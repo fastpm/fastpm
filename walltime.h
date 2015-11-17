@@ -51,4 +51,11 @@ struct ClockTable {
     double ElapsedTime;
     double StepTime;
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 void walltime_init(struct ClockTable * table);
+#ifdef __cplusplus
+}
+#endif
