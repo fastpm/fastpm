@@ -6,4 +6,4 @@ void
 pm_2lpt_main(PM * pm, PMStore * p, double shift[3]);
 
 void 
-pm2lpt_evolve(double aout, PMStore * p, double Omega);
+pm_2lpt_evolve(double aout, PMStore * p, double Omega);

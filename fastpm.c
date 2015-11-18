@@ -9,6 +9,7 @@
 #include <omp.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "pmpfft.h"
 #include "vpm.h"
@@ -296,6 +297,8 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     msg_printf(info, "Total Time\n");
     walltime_summary(0, comm);
     walltime_report(stdout, 0, comm);
+
+    pfft_cleanup();
 }
 
 static int 

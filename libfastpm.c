@@ -5,6 +5,7 @@
 #include "msg.h"
 #include "parameters.h"
 #include "pmsteps.h"
+#include "pmic.h"
 
 static int 
 fastpm_particle_to_mesh(PM * pm, PMStore * p);
@@ -93,7 +94,7 @@ fastpm_evolve_2lpt(PM * pm, PMStore * pdata,
     int i;
 
     /* predict particle positions by 2lpt */
-    pm_2lpt_evolve(a, pdata, shift, omega_m);
+    pm_2lpt_evolve(a, pdata, omega_m);
 
     fastpm_particle_to_mesh(pm, pdata);
 }
@@ -127,7 +128,7 @@ fastpm_evolve_pm(PM * basepm, VPM * vpm_list,
     pm_2lpt_main(basepm, pdata, shift);
 
     /* predict particle positions by 2lpt */
-    pm_2lpt_evolve(time_step[0], pdata, shift, omega_m);
+    pm_2lpt_evolve(time_step[0], pdata, omega_m);
 
     PMStepper stepper;
 

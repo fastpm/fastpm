@@ -43,7 +43,7 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
 #endif
 
 static void module_init() {
-    if(MPI_PTRDIFF != NULL) return;
+    if(MPI_PTRDIFF) return;
         
     _pfft_init();
 

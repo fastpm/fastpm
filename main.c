@@ -32,7 +32,6 @@ int main(int argc, char ** argv) {
 
     fastpm(&prr, comm);
 
-    pfft_cleanup();
     MPI_Finalize();
 }
 
@@ -68,7 +67,7 @@ parse_args(int argc, char ** argv, Parameters * prr)
     return;
 
 usage:
-    msg_printf(-1, "Usage: fastpm [-f] [-y NprocY] paramfile\n"
+    printf("Usage: fastpm [-f] [-y NprocY] paramfile\n"
     "-f Use FFTW \n"
     "-y Set the number of processes in the 2D mesh\n"
 );

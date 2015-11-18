@@ -279,3 +279,18 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]);
 
 void 
 pm_calculate_forces(PMStore * p, PM * pm, double density_factor);
+
+void 
+pm_r2c(PM * pm);
+
+void 
+pm_c2r(PM * pm);
+
+void 
+pm_get_times(int istep,
+    double time_step[],
+    int nstep,
+    double * a_x,
+    double * a_x1,
+    double * a_v,
+    double * a_v1);
