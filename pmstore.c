@@ -241,8 +241,6 @@ static void pm_store_permute(PMStore * p, int * ind) {
         permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
 }
 
-typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
-
 void pm_store_wrap(PMStore * p, double BoxSize[3]) {
     int i;
     int d;
