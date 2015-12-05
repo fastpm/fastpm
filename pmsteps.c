@@ -58,7 +58,11 @@ stepping_init(PMStepper * stepper, double omega_m, int force_mode, int stdDA)
 {
     stepper->omega_m = omega_m;
     stepper->mode = force_mode;
-    stepper->stdda = stdDA;
+    if(force_mode == FORCE_MODE_COLA || FORCE_MODE_COLA1) {
+        stepper->stdda = stdDA;
+    } else {
+        stepper->stdda = 1;
+    }
 }
 
 // Leap frog time integration

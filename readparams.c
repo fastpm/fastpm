@@ -269,16 +269,7 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     param->diff_order = read_integer(L, "diff_order");
     param->poisson_order = read_integer_opt(L, "poisson_order", 1);
 
-    if(param->force_mode & FORCE_MODE_PM) {
-        if(param->force_mode > FORCE_MODE_PM) {
-            param->cola_stdda = 1;
-        } else {
-            param->cola_stdda = 0;
-        }
-        param->cola_stdda = ! read_boolean_opt(L, "cola_nonstdda", param->cola_stdda);
-    } else {
-        param->cola_stdda = 1;
-    }
+    param->cola_stdda = read_boolean_opt(L, "cola_stdda", param->cola_stdda);
 
     if(param->force_mode == FORCE_MODE_2LPT ||
        param->force_mode == FORCE_MODE_ZA) {
