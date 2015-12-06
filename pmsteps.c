@@ -58,7 +58,7 @@ stepping_init(PMStepper * stepper, double omega_m, int force_mode, int stdDA)
 {
     stepper->omega_m = omega_m;
     stepper->mode = force_mode;
-    if(force_mode == FORCE_MODE_COLA || FORCE_MODE_COLA1) {
+    if(force_mode == FORCE_MODE_COLA || force_mode == FORCE_MODE_COLA1) {
         stepper->stdda = stdDA;
     } else {
         stepper->stdda = 1;
