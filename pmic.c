@@ -26,7 +26,7 @@ index_to_k2(PM * pm, ptrdiff_t i[3], double k[3])
 }
 
 
-inline void 
+static inline void 
 SETSEED(PM * pm, unsigned int * table[2][2], int i, int j, gsl_rng * rng) 
 { 
     unsigned int seed = 0x7fffffff * gsl_rng_uniform(rng); 
@@ -49,7 +49,7 @@ SETSEED(PM * pm, unsigned int * table[2][2], int i, int j, gsl_rng * rng)
         }
     }
 }
-inline unsigned int 
+static inline unsigned int 
 GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2) 
 {
     i -= pm->ORegion.start[0];

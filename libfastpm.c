@@ -309,7 +309,7 @@ fastpm_derivative_2lpt(PM * pm,
 
     for(d = 0; d < 3; d ++) {
         int i;
-        for(i = 0; i < p->np + pgd.nghosts; p ++) {
+        for(i = 0; i < p->np + pgd.nghosts; i ++) {
             double pos[3];
             get_lagrangian_position(p, i, pos);
             pm_paint_pos(pm, pos, p->acc[i][d]);

@@ -154,21 +154,17 @@ typedef struct {
 } PMKFactors;
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
 
 void 
 pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void pm_destroy(PM * pm);
 void pm_start(PM * pm);
 void pm_stop(PM * pm);
-#ifdef __cplusplus
-}
-#endif
-
 
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
@@ -187,9 +183,6 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     return total;
 }
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
@@ -274,6 +267,9 @@ pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3])
 
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void 
 pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]);
 
@@ -294,3 +290,6 @@ pm_get_times(int istep,
     double * a_x1,
     double * a_v,
     double * a_v1);
+#ifdef __cplusplus
+}
+#endif
