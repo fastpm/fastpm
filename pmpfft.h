@@ -146,7 +146,8 @@ typedef struct {
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
 typedef struct {
-    float k_finite; /* i k, finite */
+    float k_finite; /* k, finite */
+    float k; /* k */
     float kk_finite; /* k ** 2, on a mesh */
     float kk;  /* k ** 2 */
     float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/

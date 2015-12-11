@@ -202,7 +202,7 @@ void fastpm_apply_diff_transfer(PM * pm, int dir) {
 
         for(ind = start; ind < end; ind += 2) {
             int d;
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k;
 
             /* - i k[d] */
             pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite);
@@ -230,15 +230,23 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, int dir) {
 
         for(ind = start; ind < end; ind += 2) {
             int d;
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k;
             double kk_finite = 0.;
             for(d = 0; d < 3; d++) {
-                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk;
             }
 
-            /* - i k[d] / k**2 */
-            pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite / kk_finite);
-            pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite / kk_finite);
+            if(kk_finite == 0)
+            {
+                pm->workspace[ind + 0] = 0;
+                pm->workspace[ind + 1] = 0;
+            }
+            else
+            {
+                /* - i k[d] / k**2 */
+                pm->workspace[ind + 0] =   pm->canvas[ind + 1] * (k_finite / kk_finite);
+                pm->workspace[ind + 1] = - pm->canvas[ind + 0] * (k_finite / kk_finite);
+            }
             pm_inc_o_index(pm, i);
         }
     }
@@ -284,14 +292,14 @@ fastpm_derivative_2lpt(PM * pm,
     for(d = 0; d < 3; d ++) {
         fastpm_apply_diff_transfer(pm, d);
 
-        /* Canvas stores \Gamma(k) = -i k \rho_d */
+        /* workspace stores \Gamma(k) = -i k \rho_d */
 
         pm_c2r(pm);
         
         int i;
         /* acc stores \Gamma(x) := \Psi(q) */
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
-            p->acc[i][d] = pm_readout_one(pm, p, i);
+            p->acc[i][d] = pm_readout_one(pm, p, i) / pm->Norm;
         }
         pm_reduce_ghosts(&pgd, ACC[d]);
     }
@@ -320,7 +328,9 @@ fastpm_derivative_2lpt(PM * pm,
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < pm->allocsize; ind ++) {
-            Fk[ind] += pm->workspace[ind];
+            Fk[ind] += 2 * pm->workspace[ind] / pm->Norm; 
+            /*Wang's magic factor of 2 in 1301.1348. 
+             * We do not put it in in hmc_force_2lpt_transfer */
         }
     }
     pm_destroy_ghosts(&pgd);
