@@ -64,7 +64,7 @@ fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eise
 }
 
 void 
-fastpm_fill_deltak(PM * pm, real_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata) 
+fastpm_fill_deltak(PM * pm, float_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata) 
 {
     pm_ic_fill_gaussian_gadget(pm, seed, pk, pkdata);
     memcpy(deltak, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
@@ -73,7 +73,7 @@ fastpm_fill_deltak(PM * pm, real_t * deltak, int seed, fastpm_pkfunc pk, void * 
 void 
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
-        real_t * deltak_0)
+        float_t * deltak_0)
 {
     /* evolve particles by 2lpt to time a. pm->canvas contains rho(x, a) */
     double shift[3] = {0, 0, 0};
@@ -115,7 +115,7 @@ fastpm_evolve_pm(PM * basepm, VPM * vpm_list,
         double time_step[],
         int n_time_step,
         double omega_m, 
-        real_t * deltak_0, real_t * deltak_1, MPI_Comm comm) 
+        float_t * deltak_0, float_t * deltak_1, MPI_Comm comm) 
 {
     double shift[3] = {0, 0, 0};
 
@@ -257,8 +257,8 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, int dir) {
 void 
 fastpm_derivative_2lpt(PM * pm, 
         PMStore * p, /* Current position (x) saved in -> x */
-        real_t * rhop_x, /* rhop in x-space*/
-        real_t * Fk     /* (out) hmc force in fourier space */
+        float_t * rhop_x, /* rhop in x-space*/
+        float_t * Fk     /* (out) hmc force in fourier space */
         )
 {
     int d;

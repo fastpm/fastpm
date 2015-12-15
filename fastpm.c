@@ -21,11 +21,12 @@
 #include "power.h"
 #include "walltime.h"
 
+int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm);
+int write_runpb_snapshot(double boxsize, double omega_m, PMStore * p, double aa,
+        char * filebase, MPI_Comm comm);
+
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
-
-static void 
-rungdb(const char* fmt, ...);
 
 static void 
 ensure_dir(char * path);
@@ -51,30 +52,9 @@ snps_start(SNPS * snps);
 
 
 
-typedef struct {
-    size_t size;
-    double *k;
-    double *p;
-    double *N;
-} PowerSpectrum;
-
-static void 
-power_spectrum_init(PowerSpectrum * ps, size_t size);
-
-static void 
-power_spectrum_destroy(PowerSpectrum * ps);
-
-static void 
-calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor);
-
-static void
-write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
-
 /* Useful stuff */
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
-static double 
-estimate_alloc_factor(double Volume, int NTask, double failure_rate);
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
 
@@ -93,7 +73,6 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
 
     PMStore pdata;
-    PM pm;
     VPM * vpm_list;
     PMInit baseinit = {
             .Nmesh = prr->nc,
@@ -143,17 +122,18 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_store_set_lagrangian_position(&pdata, &pm, shift);
 
-        pm_start(&pm);
+        float_t * delta_k = pm_alloc(&pm);
 
         if(prr->readnoise_filename) {
-            pm_ic_read_gaussian(&pm, prr->readnoise_filename, PowerSpecWithData, NULL);
+            pmic_read_gaussian(&pm, delta_k, prr->readnoise_filename, PowerSpecWithData, NULL);
         } else {
-            pm_ic_fill_gaussian_gadget(&pm, prr->random_seed, PowerSpecWithData, NULL);
+            pmic_fill_gaussian_gadget(&pm, delta_k, prr->random_seed, PowerSpecWithData, NULL);
         }
 
         /* read out values at locations with an inverted shift */
-        pm_2lpt_main(&pm, &pdata, shift);
+        pm_2lpt_main(&pm, delta_k, &pdata, shift);
 
+        pm_free(&pm, delta_k);
         pm_destroy(&pm);
 
         walltime_measure("/Init/2LPT");
@@ -227,20 +207,20 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         /* Calculate PM forces, only if needed. */
         if(prr->force_mode & FORCE_MODE_PM) {
-            pm_start(pm);
+            float_t * delta_k = pm_alloc(pm);
 
-            pm_calculate_forces(&pdata, pm, density_factor);
+            pm_calculate_forces(&pdata, pm, delta_k, density_factor);
 
             /* calculate the power spectrum */
             power_spectrum_init(&ps, pm->Nmesh[0] / 2);
 
-            calculate_powerspectrum(pm, &ps, density_factor);
+            pm_calculate_powerspectrum(pm, delta_k, &ps, density_factor);
             walltime_measure("/PowerSpectrum/Measure");
             
             if(prr->measure_power_spectrum_filename) {
                 if(pm->ThisTask == 0) {
                     ensure_dir(prr->measure_power_spectrum_filename);
-                    write_power_spectrum(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
+                    power_spectrum_write(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
                         prr->measure_power_spectrum_filename, prr->random_seed, a_x);
                 }
             }
@@ -249,7 +229,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             walltime_measure("/PowerSpectrum/Write");
             power_spectrum_destroy(&ps);
 
-            pm_stop(pm);
+            pm_free(pm, delta_k);
         }
 
 #if 0
@@ -299,6 +279,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     walltime_report(stdout, 0, comm);
 
     pfft_cleanup();
+    return 0;
 }
 
 static int 
@@ -312,6 +293,7 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
 }
 
 
+#if 0
 static void 
 smooth_density(PM * pm, double r_s) 
 {
@@ -362,95 +344,7 @@ smooth_density(PM * pm, double r_s)
 
     pm_destroy_k_factors(pm, fac);
 }
-
-static void 
-calculate_powerspectrum(PM * pm, PowerSpectrum * ps, double density_factor) 
-{
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
-    memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
-    memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
-    memset(ps->N, 0, sizeof(ps->N[0]) * ps->size);
-
-    double k0 = 2 * M_PI / pm->BoxSize[0];
-
-#pragma omp parallel 
-    {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
-
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
-            int d;
-            double kk = 0.;
-            double cic = 1.0;
-            for(d = 0; d < 3; d++) {
-                kk += fac[d][i[d] + pm->ORegion.start[d]].kk;
-                cic *= fac[d][i[d] + pm->ORegion.start[d]].cic;
-            }
-
-            double real = pm->canvas[ind + 0];
-            double imag = pm->canvas[ind + 1];
-            double value = real * real + imag * imag;
-            double k = sqrt(kk);
-            ptrdiff_t bin = floor(k / k0);
-            if(bin >= 0 && bin < ps->size) {
-                int w = 2;
-                if(i[2] == 0) w = 1;
-                ps->N[bin] += w;
-                ps->p[bin] += w * value; /// cic;
-                ps->k[bin] += w * k;
-            }
-            pm_inc_o_index(pm, i);
-        }
-    }
-
-
-    MPI_Allreduce(MPI_IN_PLACE, ps->p, ps->size, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, ps->N, ps->size, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, ps->k, ps->size, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-
-    ptrdiff_t ind;
-    for(ind = 0; ind < ps->size; ind++) {
-        ps->k[ind] /= ps->N[ind];
-        ps->p[ind] /= ps->N[ind];
-        ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm) * (density_factor * density_factor);
-    }
-
-    pm_destroy_k_factors(pm, fac);
-}
-
-static void rungdb(const char* fmt, ...){
-    /* dumpstack(void) Got this routine from http://www.whitefang.com/unix/faq_toc.html
- *     ** Section 6.5. Modified to redirect to file to prevent clutter
- *         */
-    /* This needs to be changed... */
-    char dbx[160];
-    char cmd[160];
-    char * tmpfilename;
-    extern const char *__progname;
-    va_list va;
-    va_start(va, fmt);
-    
-    vsprintf(cmd, fmt, va);
-    va_end(va);
-
-    tmpfilename = tempnam(NULL, NULL);
-
-    sprintf(dbx, "echo '%s\n' > %s", cmd, tmpfilename);
-    system(dbx);
-
-    sprintf(dbx, "echo 'where\ndetach' | gdb -batch --command=%s %s %d", tmpfilename, __progname, getpid() );
-    system(dbx);
-    unlink(tmpfilename);
-    free(tmpfilename);
-
-    return;
-}
+#endif
 
 static int
 snps_interp(SNPS * snps, PMStore * p, double a_x, double a_v, PMStepper * stepper)
@@ -530,44 +424,6 @@ snps_start(SNPS * snps)
 
 
 static void 
-power_spectrum_init(PowerSpectrum * ps, size_t size) 
-{
-    ps->size = size;
-    ps->k = malloc(sizeof(ps->k[0]) * size);
-    ps->p = malloc(sizeof(ps->p[0]) * size);
-    ps->N = malloc(sizeof(ps->N[0]) * size);
-}
-static void 
-power_spectrum_destroy(PowerSpectrum * ps) {
-    free(ps->N);
-    free(ps->p);
-    free(ps->k);
-}
-
-static void
-write_power_spectrum(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout) 
-{
-    char buf[1024];
-    sprintf(buf, "%s%05d_%0.04f.txt", basename, random_seed, aout);
-    FILE * fp = fopen(buf, "w");
-    int i;
-    fprintf(fp, "# k p N \n");
-    for(i = 0; i < ps->size; i ++) {
-        fprintf(fp, "%g %g %g\n", ps->k[i], ps->p[i], ps->N[i]);
-    }
-    fprintf(fp, "# metadata 7\n");
-    fprintf(fp, "# volume %g float64\n", pm->Volume);
-    fprintf(fp, "# shotnoise %g float64\n", pm->Volume / ntotal);
-    fprintf(fp, "# N1 %g int\n", ntotal);
-    fprintf(fp, "# N2 %g int\n", ntotal);
-    fprintf(fp, "# Lz %g float64\n", pm->BoxSize[2]);
-    fprintf(fp, "# Lx %g float64\n", pm->BoxSize[0]);
-    fprintf(fp, "# Ly %g float64\n", pm->BoxSize[1]);
-    fclose(fp);
-}
-
-
-static void 
 _mkdir(const char *dir) 
 {
         char * tmp = strdup(dir);
@@ -604,27 +460,3 @@ ensure_dir(char * path)
     free(dup);
 }
 
-static double 
-estimate_alloc_factor(double Volume, int NTask, double failure_rate)
-{
-
-    double R = pow(4 * M_PI / 3 * Volume, 0.3333);
-    double sigma = sqrt(Sigma2(R));
-    double factor = 1.001;
-    double probfail;
-    while (1) {
-        double x = (factor - 1.0);
-        probfail = erfc(x / (1.414) / sigma);
-        /* 1 - (1 - p) ** k == - [ exp(log(1-p) * k) - 1];
-         * Because p is small, at large cores directly calculating (1-p)**k
-         * can be very inaccurate. */
-
-        probfail = - expm1(log1p(-probfail) * NTask);
-
-        if (probfail < failure_rate) break;
-        factor *= 1.01;
-    }
-    msg_printf(info, "Sigma %g AllocFactor %g Overrun probability %g\n", sigma, factor, probfail); 
-
-    return factor;
-}

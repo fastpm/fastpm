@@ -10,20 +10,20 @@
 
 /* paint and read out */
 
-static inline double WRtPlus(real_t * const d, 
+static inline double WRtPlus(float_t * const d, 
         const int i, const int j, const int k, const double f, PM * pm)
 {
 #pragma omp atomic
     d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] += f;
     return f;
 }
-static inline double REd(real_t const * const d, const int i, const int j, const int k, const double w, PM * pm)
+static inline double REd(float_t const * const d, const int i, const int j, const int k, const double w, PM * pm)
 {
     return d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] * w;
 }
 
 static inline void 
-pm_paint_pos_tuned(PM * pm, double pos[3], double weight) 
+pm_paint_pos_tuned(PM * pm, float_t * canvas, double pos[3], double weight) 
 {
     double X=pos[0]*pm->InvCellSize[0];
     double Y=pos[1]*pm->InvCellSize[1];
@@ -60,36 +60,36 @@ pm_paint_pos_tuned(PM * pm, double pos[3], double weight)
     if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I, J,  K,  T3*T1*T2W, pm);
+                WRtPlus(canvas, I, J,  K,  T3*T1*T2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I, J,  K1, D3*T1*T2W, pm);
+                WRtPlus(canvas, I, J,  K1, D3*T1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I, J1, K,  T3*T1*D2W, pm);
+                WRtPlus(canvas, I, J1, K,  T3*T1*D2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I, J1, K1, D3*T1*D2W, pm);
+                WRtPlus(canvas, I, J1, K1, D3*T1*D2W, pm);
         }
     }
 
     if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I1, J,  K,  T3*D1*T2W, pm);
+                WRtPlus(canvas, I1, J,  K,  T3*D1*T2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I1, J,  K1, D3*D1*T2W, pm);
+                WRtPlus(canvas, I1, J,  K1, D3*D1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I1, J1, K,  T3*D1*D2W, pm);
+                WRtPlus(canvas, I1, J1, K,  T3*D1*D2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(pm->workspace, I1, J1, K1, D3*D1*D2W, pm);
+                WRtPlus(canvas, I1, J1, K1, D3*D1*D2W, pm);
         }
     }
 }
 
 static inline double 
-pm_readout_pos_tuned(PM * pm, double pos[3]) 
+pm_readout_pos_tuned(PM * pm, float_t * canvas, double pos[3]) 
 {
     double X=pos[0]*pm->InvCellSize[0];
     double Y=pos[1]*pm->InvCellSize[1];
@@ -128,39 +128,38 @@ pm_readout_pos_tuned(PM * pm, double pos[3])
     if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I, J,  K,  T3*T1*T2W, pm);
+                value += REd(canvas, I, J,  K,  T3*T1*T2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I, J,  K1, D3*T1*T2W, pm);
+                value += REd(canvas, I, J,  K1, D3*T1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I, J1, K,  T3*T1*D2W, pm);
+                value += REd(canvas, I, J1, K,  T3*T1*D2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I, J1, K1, D3*T1*D2W, pm);
+                value += REd(canvas, I, J1, K1, D3*T1*D2W, pm);
         }
     }
 
     if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
         if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I1, J,  K,  T3*D1*T2W, pm);
+                value += REd(canvas, I1, J,  K,  T3*D1*T2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I1, J,  K1, D3*D1*T2W, pm);
+                value += REd(canvas, I1, J,  K1, D3*D1*T2W, pm);
         }
         if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
             if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I1, J1, K,  T3*D1*D2W, pm);
+                value += REd(canvas, I1, J1, K,  T3*D1*D2W, pm);
             if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(pm->workspace, I1, J1, K1, D3*D1*D2W, pm);
+                value += REd(canvas, I1, J1, K1, D3*D1*D2W, pm);
         }
     }
     return value;
 }
 
 static inline void 
-pm_paint_pos_untuned(PM * pm, double pos[3], double weight) 
+pm_paint_pos_untuned(PM * pm, float_t * canvas, double pos[3], double weight) 
 {
-    /* to pm->workspace */
     int n;
     double gpos[3];
     int ipos[3];
@@ -192,7 +191,7 @@ pm_paint_pos_untuned(PM * pm, double pos[3], double weight)
                 goto outside;
         }
 #pragma omp atomic
-        pm->workspace[ind] += weight * kernel;
+        canvas[ind] += weight * kernel;
 
     outside:
         continue;
@@ -201,9 +200,8 @@ pm_paint_pos_untuned(PM * pm, double pos[3], double weight)
 }
 
 static inline double 
-pm_readout_pos_untuned(PM * pm, double pos[3]) 
+pm_readout_pos_untuned(PM * pm, float_t * canvas, double pos[3]) 
 {
-    /* from pm->workspace */
     double value = 0;
     int n;
     double gpos[3];
@@ -239,7 +237,7 @@ pm_readout_pos_untuned(PM * pm, double pos[3])
             } 
             ind += pm->IRegion.strides[d] * targetpos;
         }
-        value += kernel * pm->workspace[ind];
+        value += kernel * canvas[ind];
 outside:
         continue;
     }
@@ -247,33 +245,33 @@ outside:
 }
 
 void 
-pm_paint_pos(PM * pm, double pos[3], double weight) 
+pm_paint_pos(PM * pm, float_t * canvas, double pos[3], double weight) 
 {
-    pm_paint_pos_tuned(pm, pos, weight);
+    pm_paint_pos_tuned(pm, canvas, pos, weight);
 }
 
 double
-pm_readout_pos(PM * pm, double pos[3]) 
+pm_readout_pos(PM * pm, float_t * canvas, double pos[3]) 
 {
-    return pm_readout_pos_tuned(pm, pos);
+    return pm_readout_pos_tuned(pm, canvas, pos);
 }
 
-void pm_paint(PM * pm, void * pdata, ptrdiff_t size) {
+void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size) {
     ptrdiff_t i;
-    memset(pm->workspace, 0, sizeof(pm->workspace[0]) * pm->allocsize);
-#pragma parallel for
+    memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
+#pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
-        pm_paint_pos_tuned(pm, pos, 1.0);
+        pm_paint_pos_tuned(pm, canvas, pos, 1.0);
     }
 }
 
 double
-pm_readout_one(PM * pm, PMStore * p, ptrdiff_t i) 
+pm_readout_one(PM * pm, float_t * canvas, PMStore * p, ptrdiff_t i) 
 {
     double pos[3];
     p->iface.get_position(p, i, pos);    
-    return pm_readout_pos_tuned(pm, pos);
+    return pm_readout_pos_tuned(pm, canvas, pos);
 }
 

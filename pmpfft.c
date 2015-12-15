@@ -256,19 +256,19 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         }
     }
 
-    pm->canvas = pm->iface.malloc(pm->allocsize * sizeof(pm->canvas[0]));
-    pm->workspace = pm->iface.malloc(pm->allocsize * sizeof(pm->workspace[0]));
+    float_t * canvas = pm_alloc(pm);
+    float_t * workspace = pm_alloc(pm);
 
     if(pm->init.use_fftw) {
         pm->r2c = plan_dft_r2c_fftw(
-                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
+                3, pm->Nmesh, (void*) workspace, (void*) canvas, 
                 pm->Comm2D, 
                 (pm->init.transposed?FFTW_MPI_TRANSPOSED_OUT:0)
                 | FFTW_ESTIMATE 
                 | FFTW_DESTROY_INPUT
                 );
         pm->c2r = plan_dft_c2r_fftw(
-                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
+                3, pm->Nmesh, (void*) canvas, (void*) canvas, 
                 pm->Comm2D, 
                 (pm->init.transposed?FFTW_MPI_TRANSPOSED_IN:0)
                 | FFTW_ESTIMATE 
@@ -276,7 +276,7 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 );
     } else {
         pm->r2c = plan_dft_r2c(
-                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->canvas, 
+                3, pm->Nmesh, (void*) workspace, (void*) canvas, 
                 pm->Comm2D,
                 PFFT_FORWARD, 
                 (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
@@ -287,7 +287,7 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 | PFFT_DESTROY_INPUT
                 );
         pm->c2r = plan_dft_c2r(
-                3, pm->Nmesh, (void*) pm->workspace, (void*) pm->workspace, 
+                3, pm->Nmesh, (void*) workspace, (void*) workspace, 
                 pm->Comm2D,
                 PFFT_BACKWARD, 
                 (pm->init.transposed?PFFT_TRANSPOSED_IN:0)
@@ -299,10 +299,8 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 );
     }
 
-    pm->iface.free(pm->workspace);
-    pm->iface.free(pm->canvas);
-    pm->canvas = NULL;
-    pm->workspace = NULL;
+    pm_free(pm, workspace);
+    pm_free(pm, canvas);
 
     for(d = 0; d < 3; d++) {
         pm->MeshtoK[d] = malloc(pm->Nmesh[d] * sizeof(double));
@@ -335,7 +333,6 @@ pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm)
 void 
 pm_destroy(PM * pm) 
 {
-    pm_stop(pm);
     int d;
     if(pm->init.use_fftw) {
         destroy_plan_fftw(pm->r2c);
@@ -352,7 +349,6 @@ pm_destroy(PM * pm)
 
 int pm_pos_to_rank(PM * pm, double pos[3]) {
     int d;
-    int rank2d[2];
     int ipos[3];
     for(d = 0; d < 2; d ++) {
         ipos[d] = floor(pos[d] * pm->InvCellSize[d]);
@@ -372,38 +368,31 @@ int pm_ipos_to_rank(PM * pm, int i[3]) {
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
 }
 
-void 
-pm_start(PM * pm) 
+float_t * pm_alloc(PM * pm) 
 {
-    pm->canvas = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
-    pm->workspace = pm->iface.malloc(sizeof(pm->canvas[0]) * pm->allocsize);
+    return pm->iface.malloc(sizeof(float_t) * pm->allocsize);
 }
 
 void 
-pm_stop(PM * pm) 
+pm_free(PM * pm, float_t * data) 
 {
-    if(pm->workspace)
-        pm->iface.free(pm->workspace);
-    if(pm->canvas && pm->canvas != pm->workspace)
-        pm->iface.free(pm->canvas);
-
-    pm->canvas = NULL;
-    pm->workspace = NULL;
+    pm->iface.free(data);
 }
 
-void pm_r2c(PM * pm) {
+void pm_r2c(PM * pm, float_t * from, float_t * to) {
+    /* workspace to canvas*/
     if(pm->init.use_fftw) {
-        execute_dft_r2c_fftw(pm->r2c, pm->workspace, (void*)pm->canvas);
+        execute_dft_r2c_fftw(pm->r2c, from, (void*)to);
     } else {
-        execute_dft_r2c(pm->r2c, pm->workspace, (void*)pm->canvas);
+        execute_dft_r2c(pm->r2c, from, (void*)to);
     }
 }
 
-void pm_c2r(PM * pm) {
+void pm_c2r(PM * pm, float_t * inplace) {
     if(pm->init.use_fftw) {
-        execute_dft_c2r_fftw(pm->c2r, (void*) pm->workspace, pm->workspace);
+        execute_dft_c2r_fftw(pm->c2r, (void*) inplace, inplace);
     } else {
-        execute_dft_c2r(pm->c2r, (void*) pm->workspace, pm->workspace);
+        execute_dft_c2r(pm->c2r, (void*) inplace, inplace);
     }
 }
 
@@ -630,3 +619,43 @@ pm_get_times(int istep,
     *a_v1 = sqrt(*a_x * *a_x1);
 }
 
+void
+pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
+{ 
+    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
+     *
+     * i is in units of complex numbers.
+     *
+     * We call pm_unravel_o_index to set the initial i[] for each threads,
+     * then rely on pm_inc_o_index to increment i, because the former is 
+     * much slower than pm_inc_o_index and would eliminate threading advantage.
+     *
+     * */
+    int nth = omp_get_num_threads();
+    int ith = omp_get_thread_num();
+
+    *start = ith * pm->ORegion.total / nth * 2;
+    *end = (ith + 1) * pm->ORegion.total / nth * 2;
+
+    /* do not unravel if we are not looping at all. 
+     * This fixes a FPE when
+     * the rank has ORegion.total == 0 
+     * -- with PFFT the last transposed dimension
+     * on some ranks will be 0 */
+    if(*end > *start) 
+        pm_unravel_o_index(pm, *start / 2, i);
+
+#if 0
+        msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
+            *start, *end,
+            pm->ORegion.strides[0],
+            pm->ORegion.strides[1],
+            pm->ORegion.strides[2]
+            );
+#endif
+
+}
+
+void pm_assign(PM * pm, float_t * from, float_t * to) {
+    memcpy(to, from, sizeof(from[0]) * pm->allocsize);
+}

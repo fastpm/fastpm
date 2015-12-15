@@ -33,6 +33,7 @@ int main(int argc, char ** argv) {
     fastpm(&prr, comm);
 
     MPI_Finalize();
+    return 0;
 }
 
 static void 

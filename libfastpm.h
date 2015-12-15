@@ -17,17 +17,17 @@ fastpm_init_pm(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 void 
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
-        real_t * deltak_0);
+        float_t * deltak_0);
 
 void 
 fastpm_derivative_2lpt(PM * pm, 
         PMStore * p, /* Current position (x) saved in -> x */
-        real_t * rhopx, /* rho_p (the data) in x-space */
-        real_t * Fk     /* (out) hmc force in fourier space */
+        float_t * rhopx, /* rho_p (the data) in x-space */
+        float_t * Fk     /* (out) hmc force in fourier space */
         );
 
 void 
-fastpm_fill_deltak(PM * pm, real_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata);
+fastpm_fill_deltak(PM * pm, float_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata);
 
 struct fastpm_powerspec_eh_params {
     double hubble_param;

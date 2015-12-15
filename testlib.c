@@ -29,13 +29,13 @@ int main(int argc, char * argv[]) {
     VPM * vpm_list = vpm_create(3, (int[]) {1, 2, 3}, (double[]){0, 0.2, 0.5},
             &pm->init, &pm->iface, comm);
 */
-    real_t * rho_init_k = malloc(sizeof(rho_init_k[0]) * pm->allocsize);
-    real_t * rho_final_k = malloc(sizeof(rho_final_k[0]) * pm->allocsize);
-    real_t * rho_p_x = malloc(sizeof(rho_p_x[0]) * pm->allocsize);
-    real_t * rho_model_x = malloc(sizeof(rho_model_x[0]) * pm->allocsize);
-    real_t * rho_init_ktruth = malloc(sizeof(rho_init_ktruth[0]) * pm->allocsize);
+    float_t * rho_init_k = malloc(sizeof(rho_init_k[0]) * pm->allocsize);
+    float_t * rho_final_k = malloc(sizeof(rho_final_k[0]) * pm->allocsize);
+    float_t * rho_p_x = malloc(sizeof(rho_p_x[0]) * pm->allocsize);
+    float_t * rho_model_x = malloc(sizeof(rho_model_x[0]) * pm->allocsize);
+    float_t * rho_init_ktruth = malloc(sizeof(rho_init_ktruth[0]) * pm->allocsize);
 
-    real_t * Fk = malloc(sizeof(Fk[0]) * pm->allocsize);
+    float_t * Fk = malloc(sizeof(Fk[0]) * pm->allocsize);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {

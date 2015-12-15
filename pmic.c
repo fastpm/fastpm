@@ -62,14 +62,13 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
 }
 
 void 
-pm_ic_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata) 
+pmic_fill_gaussian_gadget(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * pkdata) 
 {
-    /* Fill gaussian with gadget scheme */
-    ptrdiff_t ind;
+    /* Fill delta_k with gadget scheme */
     int d;
     int i, j, k;
 
-    memset(pm->canvas, 0, sizeof(pm->canvas[0]) * pm->allocsize);
+    memset(delta_k, 0, sizeof(delta_k[0]) * pm->allocsize);
 
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_ranlxd1);
     gsl_rng_set(rng, seed);
@@ -171,11 +170,11 @@ pm_ic_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
                 p_of_k *= pk(kmag, pkdata);
 
                 double delta = fac * sqrt(p_of_k);
-                pm->canvas[2 * ip + 0] = delta * cos(phase);
-                pm->canvas[2 * ip + 1] = delta * sin(phase);
+                delta_k[2 * ip + 0] = delta * cos(phase);
+                delta_k[2 * ip + 1] = delta * sin(phase);
 
                 if(hermitian && k == 0) {
-                    pm->canvas[2 * ip + 1] *= -1;
+                    delta_k[2 * ip + 1] *= -1;
                 }
             }
         }
@@ -194,20 +193,11 @@ pm_ic_fill_gaussian_gadget(PM * pm, int seed, pkfunc pk, void * pkdata)
 }
 
 static void 
-pm_ic_induce_correlation(PM * pm, pkfunc pk, void * pkdata) {
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("noise-r.f4", "w"));
-#endif
+pmic_induce_correlation(PM * pm, float_t * g_x, float_t * delta_k, pkfunc pk, void * pkdata) {
+
     msg_printf(info, "Transforming to fourier space .\n");
-    pm_r2c(pm);
+    pm_r2c(pm, g_x, delta_k);
 
-
-#ifdef PM_2LPT_LOAD_NOISE_K
-    fread(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("input-noise-k.f4", "r"));
-#endif
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("noise-k.f4", "w"));
-#endif
     msg_printf(info, "Inducing correlation to the white noise.\n");
     msg_printf(debug, "Volume = %g.\n", pm->Volume);
 
@@ -229,18 +219,14 @@ pm_ic_induce_correlation(PM * pm, pkfunc pk, void * pkdata) {
 //        msg_aprintf(debug, "ind = %td, i = %td %td %td, k = %g %g %g, k2 = %g, pk=%g \n",
 //                ind, i[0], i[1], i[2], k[0], k[1], k[2], k2, pk(knorm, pkdata));
 
-        pm->canvas[ind + 0] *= f;
-        pm->canvas[ind + 1] *= f;
+        delta_k[ind + 0] *= f;
+        delta_k[ind + 1] *= f;
     }
-
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->canvas, sizeof(pm->canvas[0]), pm->allocsize, fopen("overdensity-k.f4", "w"));
-#endif
 }
 
 
 void 
-pm_ic_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
+pmic_fill_gaussian_fast(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
     int d;
@@ -255,6 +241,8 @@ pm_ic_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
 
     gsl_rng_set(random_generator, seed);
 
+    float_t * g_x = pm_alloc(pm);
+
     for(ind = 0; ind < pm->IRegion.total; ind += 2) {
         double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
         double ampl;
@@ -263,21 +251,23 @@ pm_ic_fill_gaussian_fast(PM * pm, int seed, pkfunc pk, void * pkdata)
         while(ampl == 0.0);
 
         ampl = sqrt(-log(ampl));
-        pm->workspace[ind] = ampl * sin(phase);
-        pm->workspace[ind + 1] = ampl * cos(phase);
+        g_x[ind] = ampl * sin(phase);
+        g_x[ind + 1] = ampl * cos(phase);
     }
-    pm_ic_induce_correlation(pm, pk, pkdata);
+    pmic_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    pm_free(pm, g_x);
 }
 
 void 
-pm_ic_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata) 
+pmic_fill_gaussian_slow(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * pkdata) 
 {    
     ptrdiff_t i[3] = {0};
-    ptrdiff_t ind;
     int d;
     gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
 
     gsl_rng_set(random_generator, seed);
+
+    float_t * g_x = pm_alloc(pm);
 
     for(i[0] = 0; i[0] < pm->Nmesh[0]; i[0]++)
     for(i[1] = 0; i[1] < pm->Nmesh[1]; i[1]++)
@@ -296,16 +286,17 @@ pm_ic_fill_gaussian_slow(PM * pm, int seed, pkfunc pk, void * pkdata)
             ind += ii[d] * pm->IRegion.strides[d];
         }
         ampl = sqrt(-log(ampl));
-        pm->workspace[ind] = ampl * sin(phase);
+        g_x[ind] = ampl * sin(phase);
         next:
         continue;
     }
-    pm_ic_induce_correlation(pm, pk, pkdata);
+    pmic_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    pm_free(pm, g_x);
     gsl_rng_free(random_generator);
 }
             
 void 
-pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
+pmic_read_gaussian(PM * pm, float_t * delta_k, char * filename, pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
     int d;
@@ -343,6 +334,8 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
 
     float * buf = malloc(sizeof(float) * header.n[0] * pm->IRegion.size[1]);
 
+    float_t * g_x = pm_alloc(pm);
+
     for(i[0] = 0; i[0] < pm->IRegion.size[0]; i[0] ++) {
         ptrdiff_t i_abs[3];
 
@@ -369,15 +362,15 @@ pm_ic_read_gaussian(PM * pm, char * filename, pkfunc pk, void * pkdata)
                 for(d = 0; d < 3; d++) {
                     ind += i[d] * pm->IRegion.strides[d];
                 }
-                pm->workspace[ind] = buf[p];
+                g_x[ind] = buf[p];
                 p ++;
             }
         }
     }
     free(buf);
-
     MPI_Barrier(pm->Comm2D);    
 
-    pm_ic_induce_correlation(pm, pk, pkdata);
+    pmic_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    pm_free(pm, g_x);
 }
 

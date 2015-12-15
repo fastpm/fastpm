@@ -186,6 +186,7 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
 
     free(confstr);
     lua_close(L);
+    return 0;
 }
 
 static void 

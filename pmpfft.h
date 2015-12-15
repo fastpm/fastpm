@@ -7,11 +7,24 @@
 #include <mpi.h>
 #include <pfft.h>
 
+#ifndef LIKELY
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#endif
+
+#ifndef UNLIKELY
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#endif
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FFT_PRECISION 32
 #if FFT_PRECISION == 64
-    typedef double real_t;
+    typedef double float_t;
 #elif FFT_PRECISION == 32
-    typedef float real_t;
+    typedef float float_t;
 #else
     #error FFT_PRECISION must be 32 or 64
 #endif
@@ -105,8 +118,6 @@ typedef struct {
     ptrdiff_t allocsize;
     PMRegion IRegion;
     PMRegion ORegion;
-    real_t * canvas;
-    real_t * workspace;
  
     PMGrid Grid;
     double * MeshtoK[3];
@@ -155,20 +166,99 @@ typedef struct {
 } PMKFactors;
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
+/* Initializing a PM object. */
+void 
+pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
 
 void 
 pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
-void pm_start(PM * pm);
-void pm_stop(PM * pm);
+
+/* 
+ * Allocate memory for FFT/painting in PM. 
+ * */
+float_t * pm_alloc(PM * pm);
+void pm_free(PM * pm, float_t * buf);
+void pm_assign(PM * pm, float_t * from, float_t * to);
+
+/* 
+ * r2c is out-of-place and c2r is in-place.
+ * */
+void 
+pm_r2c(PM * pm, float_t * from, float_t * to);
+void 
+pm_c2r(PM * pm, float_t * inplace);
 
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
+
+void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
+void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
+void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
+void pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
+
+void pm_append_ghosts(PMGhostData * pgd);
+void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
+void pm_destroy_ghosts(PMGhostData * pgd);
+
+void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size);
+double pm_readout_pos(PM * pm, float_t * canvas, double pos[3]);
+void pm_paint_pos(PM * pm, float_t * canvas, double pos[3], double weight);
+double pm_readout_one(PM * pm, float_t * canvas, PMStore * p, ptrdiff_t i);
+
+typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
+
+void pm_store_init(PMStore * p);
+void pm_store_alloc(PMStore * p, size_t np_upper, int attributes);
+
+size_t 
+pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm);
+
+void pm_store_destroy(PMStore * p);
+
+/* Generic IO; unimplemented */
+void pm_store_read(PMStore * p, char * datasource);
+void pm_store_write(PMStore * p, char * datasource);
+
+/* Domain Decomposition */
+void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
+void pm_store_wrap(PMStore * p, double BoxSize[3]);
+
+/* reset 'x' and 'q' of every particle to the lagrangian position. This function shall
+ * not belong here.*/
+void 
+pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]);
+
+void 
+pm_get_times(int istep,
+    double time_step[],
+    int nstep,
+    double * a_x,
+    double * a_x1,
+    double * a_v,
+    double * a_v1);
+
+
+/* This function guarentees good performance for sparse all to all. 
+ * Used e.g. in domain decomposition */
+int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
+        MPI_Datatype sendtype, void *recvbuf, int *recvcnts,
+        int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
+
+/* For OpenMP threading */
+void
+pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]);
+void 
+pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
+void 
+pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
+int omp_get_num_threads();
+int omp_get_thread_num();
+
+#ifdef __cplusplus
+}
+#endif
 
 static inline size_t cumsum(int * out, int * in, size_t nitems) {
     size_t total = 0;
@@ -184,113 +274,26 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     return total;
 }
 
-void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
-void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
-void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
-void pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
+/* Gravity and power spectrum */
+void 
+pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_factor);
 
-void pm_append_ghosts(PMGhostData * pgd);
-void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
-void pm_destroy_ghosts(PMGhostData * pgd);
-
-void pm_paint(PM * pm, void * pdata, ptrdiff_t size);
-double pm_readout_pos(PM * pm, double pos[3]);
-void pm_paint_pos(PM * pm, double pos[3], double weight);
-double pm_readout_one(PM * pm, PMStore * p, ptrdiff_t i);
-#ifdef __cplusplus
-}
-#endif
-
-typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
-
-void pm_store_read(PMStore * p, char * datasource);
-void pm_store_write(PMStore * p, char * datasource);
-void pm_store_destroy(PMStore * p);
-
-void pm_store_init(PMStore * p);
-void pm_store_alloc(PMStore * p, size_t np_upper, int attributes);
-
-size_t 
-pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm);
-void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
-void pm_store_wrap(PMStore * p, double BoxSize[3]);
-
-#define LIKELY(x) __builtin_expect(!!(x), 1)
-#define UNLIKELY(x) __builtin_expect(!!(x), 0)
-
-int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
-        MPI_Datatype sendtype, void *recvbuf, int *recvcnts,
-        int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
+typedef struct {
+    size_t size;
+    double *k;
+    double *p;
+    double *N;
+} PowerSpectrum;
 
 void 
-pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
+pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps, double density_factor);
+
 void 
-pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
+power_spectrum_init(PowerSpectrum * ps, size_t size);
 
-int omp_get_num_threads();
-int omp_get_thread_num();
+void 
+power_spectrum_destroy(PowerSpectrum * ps);
 
-static inline
 void
-pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
-{ 
-    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
-     *
-     * i is in units of complex numbers.
-     *
-     * We call pm_unravel_o_index to set the initial i[] for each threads,
-     * then rely on pm_inc_o_index to increment i, because the former is 
-     * much slower than pm_inc_o_index and would eliminate threading advantage.
-     *
-     * */
-    int nth = omp_get_num_threads();
-    int ith = omp_get_thread_num();
+power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
 
-    *start = ith * pm->ORegion.total / nth * 2;
-    *end = (ith + 1) * pm->ORegion.total / nth * 2;
-
-    /* do not unravel if we are not looping at all. 
-     * This fixes a FPE when
-     * the rank has ORegion.total == 0 
-     * -- with PFFT the last transposed dimension
-     * on some ranks will be 0 */
-    if(*end > *start) 
-        pm_unravel_o_index(pm, *start / 2, i);
-
-#if 0
-        msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
-            *start, *end,
-            pm->ORegion.strides[0],
-            pm->ORegion.strides[1],
-            pm->ORegion.strides[2]
-            );
-#endif
-
-}
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-void 
-pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]);
-
-void 
-pm_calculate_forces(PMStore * p, PM * pm, double density_factor);
-
-void 
-pm_r2c(PM * pm);
-
-void 
-pm_c2r(PM * pm);
-
-void 
-pm_get_times(int istep,
-    double time_step[],
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1);
-#ifdef __cplusplus
-}
-#endif

@@ -30,7 +30,7 @@ index_to_k2(PM * pm, ptrdiff_t i[3], double k[3])
 }
 
 static void 
-apply_za_transfer(PM * pm, int dir) 
+apply_za_transfer(PM * pm, float_t * from, float_t * to, int dir) 
 {
     /* apply za transfer function i k / k2 from canvas -> workspace */
     ptrdiff_t ind;
@@ -43,26 +43,18 @@ apply_za_transfer(PM * pm, int dir)
         k2 = index_to_k2(pm, i, k);
         /* i k[d] / k2 */
         if(k2 > 0) {
-            pm->workspace[ind + 0] = - pm->canvas[ind + 1] * (k[dir] / k2);
-            pm->workspace[ind + 1] =   pm->canvas[ind + 0] * (k[dir] / k2);
+            to[ind + 0] = - from[ind + 1] * (k[dir] / k2);
+            to[ind + 1] =   from[ind + 0] * (k[dir] / k2);
         } else {
-            pm->workspace[ind + 0] = 0;
-            pm->workspace[ind + 1] = 0;
+            to[ind + 0] = 0;
+            to[ind + 1] = 0;
         }
         pm_inc_o_index(pm, i);
-
-#if 0
-        if(dir == 0)
-            msg_printf(debug, "%ld %ld %ld %ld %g %g %g %g,%g->%g,%g\n", ind, i[0], i[1], i[2], k[0], k[1], k[2],
-            pm->canvas[ind][0], pm->canvas[ind][1],
-            pm->workspace[ind][0], pm->workspace[ind][1]
-            );
-#endif
     }
 }
 
 static void 
-apply_2lpt_transfer(PM * pm, int dir1, int dir2) 
+apply_2lpt_transfer(PM * pm, float_t * from, float_t * to, int dir1, int dir2) 
 {
     /* apply 2lpt transfer function - k k / k2 from canvas -> workspace */
     ptrdiff_t ind;
@@ -72,19 +64,23 @@ apply_2lpt_transfer(PM * pm, int dir1, int dir2)
         double k2;
         k2 = index_to_k2(pm, i, k);
         if(k2 > 0) {
-            pm->workspace[ind + 0] = pm->canvas[ind + 0] * (-k[dir1] * k[dir2] / k2);
-            pm->workspace[ind + 1] = pm->canvas[ind + 1] * (-k[dir1] * k[dir2] / k2);
+            to[ind + 0] = from[ind + 0] * (-k[dir1] * k[dir2] / k2);
+            to[ind + 1] = from[ind + 1] * (-k[dir1] * k[dir2] / k2);
         } else {
-            pm->workspace[ind + 0] = 0;
-            pm->workspace[ind + 1] = 0;
+            to[ind + 0] = 0;
+            to[ind + 1] = 0;
         }
         pm_inc_o_index(pm, i);
     }
 }
 
 void 
-pm_2lpt_main(PM * pm, PMStore * p, double shift[3]) 
+pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3]) 
 {
+/* calculate dx1, dx2, for initial fluctuation delta_k.
+ * shift: martin has shift = 0.5, 0.5, 0.5.
+ * Use shift of 0, 0, 0 if in doublt. 
+ *   */
 
     PMGhostData pgd = {
         .pm = pm,
@@ -97,6 +93,16 @@ pm_2lpt_main(PM * pm, PMStore * p, double shift[3])
     };
     ptrdiff_t i;
     int d;
+
+    float_t * workspace = pm_alloc(pm);
+    float_t * source =  pm_alloc(pm);
+    memset(source, 0, sizeof(source[0]) * pm->allocsize);
+
+    float_t * field[3];
+
+    for(d = 0; d < 3; d++ )
+        field[d] = pm_alloc(pm);
+
     for(i = 0; i < p->np; i ++) {
         for(d = 0; d < 3; d ++) {
             p->x[i][d] -= shift[d];
@@ -111,33 +117,21 @@ pm_2lpt_main(PM * pm, PMStore * p, double shift[3])
 
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX1 axis = %d\n", d);
-        apply_za_transfer(pm, d);
-#ifdef PM_2LPT_DUMP
-        char * fnames[] = {"dx1-0.f4", "dx1-1.f4", "dx1-2.f4"};
-        fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fnames[d], "w"));
-#endif
-        pm_c2r(pm);
+
+        apply_za_transfer(pm, delta_k, workspace, d);
+
+        pm_c2r(pm, workspace);
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
-            p->dx1[i][d] = pm_readout_one(pm, p, i);
+            p->dx1[i][d] = pm_readout_one(pm, workspace, p, i);
         }
         pm_reduce_ghosts(&pgd, DX1[d]);
     } 
 
-    real_t * source;
-    source = (real_t*) p->iface.malloc(pm->allocsize * sizeof(source[0]));
-
-    memset(source, 0, sizeof(source[0]) * pm->allocsize);
-
-    real_t * field[3];
-    for(d = 0; d < 3; d++ )
-        field[d] = p->iface.malloc(pm->allocsize * sizeof(field[d][0]));
-
     for(d = 0; d< 3; d++) {
         msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d, d);
-        apply_2lpt_transfer(pm, d, d);
-        pm_c2r(pm);
-        memcpy(field[d], pm->workspace, pm->allocsize * sizeof(field[d][0]));
+        apply_2lpt_transfer(pm, delta_k, field[d], d, d);
+        pm_c2r(pm, field[d]);
     }
 
     for(d = 0; d < 3; d++) {
@@ -153,26 +147,15 @@ pm_2lpt_main(PM * pm, PMStore * p, double shift[3])
         int d1 = D1[d];
         int d2 = D2[d];
         msg_printf(info, "Solving for 2LPT axes = %d %d .\n", d1, d2);
-        apply_2lpt_transfer(pm, d1, d2);
-        pm_c2r(pm);
+        apply_2lpt_transfer(pm, delta_k, workspace, d1, d2);
+        pm_c2r(pm, workspace);
 #pragma omp parallel for
         for(i = 0; i < pm->IRegion.total; i ++) {
-            source[i] -= pm->workspace[i] * pm->workspace[i];
+            source[i] -= workspace[i] * workspace[i];
         }
     } 
-    memcpy(pm->workspace, source, pm->allocsize * sizeof(pm->canvas[0]));
-
-#ifdef PM_2LPT_DUMP
-    fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("digrad.f4", "w"));
-#endif
-#ifdef PM_2LPT_LOAD_DIGRAD
-    fread(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen("input-digrad.f4", "r"));
-#endif
-    pm_r2c(pm);
-
-    for(d = 2; d >=0; d-- )
-        p->iface.free(field[d]);
-    p->iface.free(source);
+    pm_r2c(pm, source, workspace);
+    pm_assign(pm, workspace, source);
 
     for(d = 0; d < 3; d++) {
         msg_printf(info, "Solving for DX2 axis = %d .\n", d);
@@ -180,17 +163,13 @@ pm_2lpt_main(PM * pm, PMStore * p, double shift[3])
          * We absorb some the negative factor in za transfer to below;
          *
          * */
-        apply_za_transfer(pm, d);
-#ifdef PM_2LPT_DUMP
-        char * fnames[] = {"dx2-0.f4", "dx2-1.f4", "dx2-2.f4"};
-        fwrite(pm->workspace, sizeof(pm->workspace[0]), pm->allocsize, fopen(fnames[d], "w"));
-#endif
-        pm_c2r(pm);
+        apply_za_transfer(pm, source, workspace, d);
+        pm_c2r(pm, workspace);
 
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
-            p->dx2[i][d] = pm_readout_one(pm, p, i) / pm->Norm ;
+            p->dx2[i][d] = pm_readout_one(pm, workspace, p, i) / pm->Norm ;
         }
         pm_reduce_ghosts(&pgd, DX2[d]);
     }
@@ -236,6 +215,12 @@ pm_2lpt_main(PM * pm, PMStore * p, double shift[3])
             p->x[i][d] += shift[d];
         }
     }
+
+    for(d = 0; d < 3; d ++) {
+        pm_free(pm, field[2-d]);
+    }
+    pm_free(pm, source);
+    pm_free(pm, workspace);
 }
 
 // Interpolate position and velocity for snapshot at a=aout

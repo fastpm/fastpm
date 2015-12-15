@@ -199,6 +199,7 @@ pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc
     int NTask;
     MPI_Comm_size(comm, &NTask);
     pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * 2), attributes);
+    return 0;
 }
 
 void pm_store_destroy(PMStore * p) {

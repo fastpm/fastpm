@@ -187,10 +187,6 @@ static double stdkickfunc (double a, PMStepper * stepper) {
     return a/Qfactor(a, stepper_get_cosmology(stepper));
 }
 
-static double martinkickfunc (double a, PMStepper * stepper) {
-    return Qfactor(a, stepper_get_cosmology(stepper)) / (a*a);
-}
-
 static double integrand(double a, void * params) {
     void ** p = (void**) params;
     double (*func)(double a, PMStepper * s) = p[0];
@@ -229,7 +225,7 @@ double integrate(double ai, double af,
 static double 
 Sq(double ai, double af, double aRef, PMStepper * stepper)
 {
-    double resultstd, result, error;
+    double resultstd, result;
 
     resultstd = integrate(ai, af, stepper, stddriftfunc);
 
