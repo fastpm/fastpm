@@ -256,14 +256,14 @@ pm_readout_pos(PM * pm, float_t * canvas, double pos[3])
     return pm_readout_pos_tuned(pm, canvas, pos);
 }
 
-void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size) {
+void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size, double weight) {
     ptrdiff_t i;
     memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
-        pm_paint_pos_tuned(pm, canvas, pos, 1.0);
+        pm_paint_pos_tuned(pm, canvas, pos, weight);
     }
 }
 

@@ -214,7 +214,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             /* calculate the power spectrum */
             power_spectrum_init(&ps, pm->Nmesh[0] / 2);
 
-            pm_calculate_powerspectrum(pm, delta_k, &ps, density_factor);
+            pm_calculate_powerspectrum(pm, delta_k, &ps);
             walltime_measure("/PowerSpectrum/Measure");
             
             if(prr->measure_power_spectrum_filename) {

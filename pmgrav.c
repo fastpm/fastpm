@@ -62,9 +62,9 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
 
     /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
      * it is less than the density (a cell is smaller than the mean seperation between particles. 
-     * we compensate this later at readout by density_factor.
+     * We thus have to boost the density by density_factor.
      * */
-    pm_paint(pm, canvas, p, p->np + pgd.nghosts);
+    pm_paint(pm, canvas, p, p->np + pgd.nghosts, density_factor);
     walltime_measure("/Force/Paint");
     
     pm_r2c(pm, canvas, delta_k);
@@ -84,8 +84,7 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
 
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd.nghosts; i ++) {
-            /* compensate the density is less than the true density */
-            p->acc[i][d] = pm_readout_one(pm, canvas, p, i) * (density_factor / pm->Norm);
+            p->acc[i][d] = pm_readout_one(pm, canvas, p, i) / pm->Norm;
         }
         walltime_measure("/Force/Readout");
 
@@ -102,7 +101,7 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
 }    
 
 void 
-pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps, double density_factor) 
+pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps) 
 {
     PMKFactors * fac[3];
 
@@ -156,7 +155,7 @@ pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps, doubl
     for(ind = 0; ind < ps->size; ind++) {
         ps->k[ind] /= ps->N[ind];
         ps->p[ind] /= ps->N[ind];
-        ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm) * (density_factor * density_factor);
+        ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm);
     }
 
     pm_destroy_k_factors(pm, fac);

@@ -202,7 +202,7 @@ void pm_append_ghosts(PMGhostData * pgd);
 void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
 void pm_destroy_ghosts(PMGhostData * pgd);
 
-void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size);
+void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size, double weight);
 double pm_readout_pos(PM * pm, float_t * canvas, double pos[3]);
 void pm_paint_pos(PM * pm, float_t * canvas, double pos[3], double weight);
 double pm_readout_one(PM * pm, float_t * canvas, PMStore * p, ptrdiff_t i);
@@ -286,7 +286,7 @@ typedef struct {
 } PowerSpectrum;
 
 void 
-pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps, double density_factor);
+pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps);
 
 void 
 power_spectrum_init(PowerSpectrum * ps, size_t size);
