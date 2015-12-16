@@ -77,7 +77,7 @@ void fastpm_apply_diff_transfer(PM * pm, float_t * from, float_t * to, int dir) 
         pm_prepare_omp_loop(pm, &start, &end, i);
 
         for(ind = start; ind < end; ind += 2) {
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
 
             /* - i k[d] */
             to[ind + 0] =   from[ind + 1] * (k_finite);
@@ -105,10 +105,10 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, float_t * from, float_t * to,
 
         for(ind = start; ind < end; ind += 2) {
             int d;
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
             double kk_finite = 0.;
             for(d = 0; d < 3; d++) {
-                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk;
+                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
             }
 
             if(kk_finite == 0)
@@ -178,11 +178,11 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
 
     pgd = pm_ghosts_create(solver->pm, solver->p, PACK_Q, get_lagrangian_position);
 
-    memset(workspace, 0, sizeof(workspace[0]) * solver->pm->allocsize);
-    memset(workspace2, 0, sizeof(workspace2[0]) * solver->pm->allocsize);
     memset(Fk, 0, sizeof(Fk[0]) * solver->pm->allocsize);
 
     for(d = 0; d < 3; d ++) {
+        memset(workspace, 0, sizeof(workspace[0]) * solver->pm->allocsize);
+        memset(workspace2, 0, sizeof(workspace2[0]) * solver->pm->allocsize);
         int i;
         for(i = 0; i < solver->p->np + pgd->nghosts; i ++) {
             double pos[3];
@@ -196,7 +196,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         ptrdiff_t ind;
         for(ind = 0; ind < solver->pm->allocsize; ind ++) {
             Fk[ind] += 2 * workspace[ind] / solver->pm->Norm; 
-            /*Wang's magic factor of 2 in 1301.1348. 
+            /* Wang's magic factor of 2 in 1301.1348. 
              * We do not put it in in hmc_force_2lpt_transfer */
         }
     }
@@ -219,6 +219,10 @@ fastpm_2lpt_paint(FastPM2LPTSolver * solver, float_t * delta_x, float_t * delta_
 
     if(delta_k) {
         pm_r2c(solver->pm, delta_x, delta_k);
+        ptrdiff_t i = 0;
+        for(i = 0; i < solver->pm->allocsize; i ++) {
+            delta_k[i] /= solver->pm->Norm;
+        }
     }
 }
 

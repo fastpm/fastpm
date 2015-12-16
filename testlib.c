@@ -3,6 +3,12 @@
 
 #include "libfastpm.h"
 
+static void DUMP(FastPM2LPTSolver * solver, char * filename, float_t *data) {
+    FILE * fp = fopen(filename, "w");
+    fwrite(data, sizeof(float_t), solver->pm->allocsize, fp);
+    fclose(fp);
+}
+
 int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
@@ -11,12 +17,13 @@ int main(int argc, char * argv[]) {
     FastPM2LPTSolver * solver = alloca(sizeof(FastPM2LPTSolver));
 
     int nc = 128;
-    double boxsize = 256;
+    double boxsize = 409600.;
     double alloc_factor = 2.0;
     double omega_m = 0.292;
 
     fastpm_2lpt_init(solver, nc, boxsize, alloc_factor, comm);
 
+    float_t * rho_final_ktruth = pm_alloc(solver->pm);
     float_t * Fk = pm_alloc(solver->pm);
     float_t * rho_final_xtruth = pm_alloc(solver->pm);
     float_t * rho_init_ktruth = pm_alloc(solver->pm);
@@ -36,7 +43,13 @@ int main(int argc, char * argv[]) {
 
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
-    fastpm_2lpt_paint(solver, rho_final_xtruth, NULL);
+    fastpm_2lpt_paint(solver, rho_final_xtruth, rho_final_ktruth);
+    DUMP(solver, "rho_init_ktruth.raw", rho_init_ktruth);
+    DUMP(solver, "rho_final_ktruth.raw", rho_final_ktruth);
+
+    memset(rho_final_x, 0, sizeof(float_t) * solver->pm->allocsize);
+    fastpm_2lpt_hmc_force(solver, rho_final_x, Fk);
+    DUMP(solver, "Fk.raw", Fk);
 
     /* now a fake MCMC loop. */
     int mcmcstep;
