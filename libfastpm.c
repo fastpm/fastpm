@@ -213,17 +213,19 @@ fastpm_2lpt_paint(FastPM2LPTSolver * solver, float_t * delta_x, float_t * delta_
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
-    pm_paint(solver->pm, delta_x, solver->p, solver->p->np + pgd->nghosts, 1.0);
-
-    pm_ghosts_free(pgd);
+    float_t * canvas = pm_alloc(solver->pm);
+    pm_paint(solver->pm, canvas, solver->p, solver->p->np + pgd->nghosts, 1.0);
+    pm_assign(solver->pm, canvas, delta_x);
 
     if(delta_k) {
-        pm_r2c(solver->pm, delta_x, delta_k);
+        pm_r2c(solver->pm, canvas, delta_k);
         ptrdiff_t i = 0;
         for(i = 0; i < solver->pm->allocsize; i ++) {
             delta_k[i] /= solver->pm->Norm;
         }
     }
+    pm_free(solver->pm, canvas);
+    pm_ghosts_free(pgd);
 }
 
 static double 
