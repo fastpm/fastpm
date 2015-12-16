@@ -3,9 +3,9 @@
 
 #include "libfastpm.h"
 
-static void DUMP(FastPM2LPTSolver * solver, char * filename, float_t *data) {
+static void DUMP(FastPM2LPTSolver * solver, char * filename, FastPMFloat *data) {
     FILE * fp = fopen(filename, "w");
-    fwrite(data, sizeof(float_t), solver->pm->allocsize, fp);
+    fwrite(data, sizeof(FastPMFloat), solver->pm->allocsize, fp);
     fclose(fp);
 }
 
@@ -23,14 +23,14 @@ int main(int argc, char * argv[]) {
 
     fastpm_2lpt_init(solver, nc, boxsize, alloc_factor, comm);
 
-    float_t * rho_final_ktruth = pm_alloc(solver->pm);
-    float_t * Fk = pm_alloc(solver->pm);
-    float_t * rho_final_xtruth = pm_alloc(solver->pm);
-    float_t * rho_init_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * Fk = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_xtruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
 
-    float_t * rho_init_k = pm_alloc(solver->pm);
-    float_t * rho_final_k = pm_alloc(solver->pm);
-    float_t * rho_final_x = pm_alloc(solver->pm);
+    FastPMFloat * rho_init_k = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_k = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_x = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -39,15 +39,16 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_fill_deltak(solver->pm, rho_init_ktruth, 100, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
+    fastpm_fill_deltak(solver->pm, rho_init_ktruth, 200, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
 
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
     fastpm_2lpt_paint(solver, rho_final_xtruth, rho_final_ktruth);
     DUMP(solver, "rho_init_ktruth.raw", rho_init_ktruth);
     DUMP(solver, "rho_final_ktruth.raw", rho_final_ktruth);
+    DUMP(solver, "rho_final_xtruth.raw", rho_final_xtruth);
 
-    memset(rho_final_x, 0, sizeof(float_t) * solver->pm->allocsize);
+    memset(rho_final_x, 0, sizeof(FastPMFloat) * solver->pm->allocsize);
     fastpm_2lpt_hmc_force(solver, rho_final_x, Fk);
     DUMP(solver, "Fk.raw", Fk);
 

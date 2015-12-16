@@ -62,7 +62,7 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
 }
 
 void 
-pmic_fill_gaussian_gadget(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * pkdata) 
+pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, void * pkdata) 
 {
     /* Fill delta_k with gadget scheme */
     int d;
@@ -193,7 +193,7 @@ pmic_fill_gaussian_gadget(PM * pm, float_t * delta_k, int seed, pkfunc pk, void 
 }
 
 static void 
-pmic_induce_correlation(PM * pm, float_t * g_x, float_t * delta_k, pkfunc pk, void * pkdata) {
+pmic_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, pkfunc pk, void * pkdata) {
 
     msg_printf(info, "Transforming to fourier space .\n");
     pm_r2c(pm, g_x, delta_k);
@@ -226,7 +226,7 @@ pmic_induce_correlation(PM * pm, float_t * g_x, float_t * delta_k, pkfunc pk, vo
 
 
 void 
-pmic_fill_gaussian_fast(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * pkdata)
+pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
     int d;
@@ -241,7 +241,7 @@ pmic_fill_gaussian_fast(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * 
 
     gsl_rng_set(random_generator, seed);
 
-    float_t * g_x = pm_alloc(pm);
+    FastPMFloat * g_x = pm_alloc(pm);
 
     for(ind = 0; ind < pm->IRegion.total; ind += 2) {
         double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
@@ -259,7 +259,7 @@ pmic_fill_gaussian_fast(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * 
 }
 
 void 
-pmic_fill_gaussian_slow(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * pkdata) 
+pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, void * pkdata) 
 {    
     ptrdiff_t i[3] = {0};
     int d;
@@ -267,7 +267,7 @@ pmic_fill_gaussian_slow(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * 
 
     gsl_rng_set(random_generator, seed);
 
-    float_t * g_x = pm_alloc(pm);
+    FastPMFloat * g_x = pm_alloc(pm);
 
     for(i[0] = 0; i[0] < pm->Nmesh[0]; i[0]++)
     for(i[1] = 0; i[1] < pm->Nmesh[1]; i[1]++)
@@ -296,7 +296,7 @@ pmic_fill_gaussian_slow(PM * pm, float_t * delta_k, int seed, pkfunc pk, void * 
 }
             
 void 
-pmic_read_gaussian(PM * pm, float_t * delta_k, char * filename, pkfunc pk, void * pkdata)
+pmic_read_gaussian(PM * pm, FastPMFloat * delta_k, char * filename, pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
     int d;
@@ -334,7 +334,7 @@ pmic_read_gaussian(PM * pm, float_t * delta_k, char * filename, pkfunc pk, void 
 
     float * buf = malloc(sizeof(float) * header.n[0] * pm->IRegion.size[1]);
 
-    float_t * g_x = pm_alloc(pm);
+    FastPMFloat * g_x = pm_alloc(pm);
 
     for(i[0] = 0; i[0] < pm->IRegion.size[0]; i[0] ++) {
         ptrdiff_t i_abs[3];

@@ -25,14 +25,14 @@ fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc
 }
 
 void 
-fastpm_fill_deltak(PM * pm, float_t * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
+fastpm_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
 {
     pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
 }
 
 void 
 fastpm_2lpt_evolve(FastPM2LPTSolver * solver, 
-        float_t * delta_k_i, double aout, double omega_m)
+        FastPMFloat * delta_k_i, double aout, double omega_m)
 {
     /* evolve particles by 2lpt to time a. pm->canvas contains rho(x, a) */
     double shift[3] = {0, 0, 0};
@@ -62,7 +62,7 @@ get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3])
     pos[2] = p->q[index][2];
 }
 
-void fastpm_apply_diff_transfer(PM * pm, float_t * from, float_t * to, int dir) {
+void fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
 
     PMKFactors * fac[3];
 
@@ -89,7 +89,7 @@ void fastpm_apply_diff_transfer(PM * pm, float_t * from, float_t * to, int dir) 
 
 }
 
-void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, float_t * from, float_t * to, int dir) {
+void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
 
     PMKFactors * fac[3];
 
@@ -131,14 +131,14 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, float_t * from, float_t * to,
 
 void 
 fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
-        float_t * data_x, /* rhop in x-space*/
-        float_t * Fk     /* (out) hmc force in fourier space */
+        FastPMFloat * data_x, /* rhop in x-space*/
+        FastPMFloat * Fk     /* (out) hmc force in fourier space */
         )
 {
     int d;
 
-    float_t * workspace = pm_alloc(solver->pm);
-    float_t * workspace2 = pm_alloc(solver->pm);
+    FastPMFloat * workspace = pm_alloc(solver->pm);
+    FastPMFloat * workspace2 = pm_alloc(solver->pm);
 
     PMGhostData * pgd = pm_ghosts_create(solver->pm, solver->p, PACK_POS, NULL);
 
@@ -206,14 +206,14 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
 }
 
 void
-fastpm_2lpt_paint(FastPM2LPTSolver * solver, float_t * delta_x, float_t * delta_k) 
+fastpm_2lpt_paint(FastPM2LPTSolver * solver, FastPMFloat * delta_x, FastPMFloat * delta_k) 
 {
 
     PMGhostData * pgd = pm_ghosts_create(solver->pm, solver->p, PACK_POS, NULL);
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
-    float_t * canvas = pm_alloc(solver->pm);
+    FastPMFloat * canvas = pm_alloc(solver->pm);
     pm_paint(solver->pm, canvas, solver->p, solver->p->np + pgd->nghosts, 1.0);
     pm_assign(solver->pm, canvas, delta_x);
 

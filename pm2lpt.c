@@ -13,7 +13,7 @@
 #include "msg.h"
 
 static void 
-apply_za_transfer(PM * pm, float_t * from, float_t * to, int dir) 
+apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
@@ -52,7 +52,7 @@ apply_za_transfer(PM * pm, float_t * from, float_t * to, int dir)
 
 
 static void 
-apply_2lpt_transfer(PM * pm, float_t * from, float_t * to, int dir1, int dir2) 
+apply_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir1, int dir2) 
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
@@ -91,7 +91,7 @@ apply_2lpt_transfer(PM * pm, float_t * from, float_t * to, int dir1, int dir2)
 
 
 void 
-pm_2lpt_solve(PM * pm, float_t * delta_k, PMStore * p, double shift[3]) 
+pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3]) 
 {
 /* calculate dx1, dx2, for initial fluctuation delta_k.
  * shift: martin has shift = 0.5, 0.5, 0.5.
@@ -103,11 +103,11 @@ pm_2lpt_solve(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
     ptrdiff_t i;
     int d;
 
-    float_t * workspace = pm_alloc(pm);
-    float_t * source =  pm_alloc(pm);
+    FastPMFloat * workspace = pm_alloc(pm);
+    FastPMFloat * source =  pm_alloc(pm);
     memset(source, 0, sizeof(source[0]) * pm->allocsize);
 
-    float_t * field[3];
+    FastPMFloat * field[3];
 
     for(d = 0; d < 3; d++ )
         field[d] = pm_alloc(pm);

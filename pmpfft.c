@@ -256,8 +256,8 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         }
     }
 
-    float_t * canvas = pm_alloc(pm);
-    float_t * workspace = pm_alloc(pm);
+    FastPMFloat * canvas = pm_alloc(pm);
+    FastPMFloat * workspace = pm_alloc(pm);
 
     if(pm->init.use_fftw) {
         pm->r2c = plan_dft_r2c_fftw(
@@ -368,18 +368,18 @@ int pm_ipos_to_rank(PM * pm, int i[3]) {
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
 }
 
-float_t * pm_alloc(PM * pm) 
+FastPMFloat * pm_alloc(PM * pm) 
 {
-    return pm->iface.malloc(sizeof(float_t) * pm->allocsize);
+    return pm->iface.malloc(sizeof(FastPMFloat) * pm->allocsize);
 }
 
 void 
-pm_free(PM * pm, float_t * data) 
+pm_free(PM * pm, FastPMFloat * data) 
 {
     pm->iface.free(data);
 }
 
-void pm_r2c(PM * pm, float_t * from, float_t * to) {
+void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     /* workspace to canvas*/
     if(pm->init.use_fftw) {
         execute_dft_r2c_fftw(pm->r2c, from, (void*)to);
@@ -388,7 +388,7 @@ void pm_r2c(PM * pm, float_t * from, float_t * to) {
     }
 }
 
-void pm_c2r(PM * pm, float_t * inplace) {
+void pm_c2r(PM * pm, FastPMFloat * inplace) {
     if(pm->init.use_fftw) {
         execute_dft_c2r_fftw(pm->c2r, (void*) inplace, inplace);
     } else {
@@ -656,6 +656,6 @@ pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3])
 
 }
 
-void pm_assign(PM * pm, float_t * from, float_t * to) {
+void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     memcpy(to, from, sizeof(from[0]) * pm->allocsize);
 }

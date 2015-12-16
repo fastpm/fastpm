@@ -125,7 +125,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_store_set_lagrangian_position(&pdata, &pm, shift);
 
-        float_t * delta_k = pm_alloc(&pm);
+        FastPMFloat * delta_k = pm_alloc(&pm);
 
         if(prr->readnoise_filename) {
             pmic_read_gaussian(&pm, delta_k, prr->readnoise_filename, PowerSpecWithData, NULL);
@@ -204,7 +204,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         walltime_measure("/Stepping/Decompose");
 
         /* Calculate PM forces. */
-        float_t * delta_k = pm_alloc(pm);
+        FastPMFloat * delta_k = pm_alloc(pm);
 
         pm_calculate_forces(&pdata, pm, delta_k, density_factor);
 

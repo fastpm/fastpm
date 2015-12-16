@@ -20,11 +20,14 @@
 extern "C" {
 #endif
 
+#ifndef FFT_PRECISION
 #define FFT_PRECISION 32
+#endif
+
 #if FFT_PRECISION == 64
-    typedef double float_t;
+    typedef double FastPMFloat;
 #elif FFT_PRECISION == 32
-    typedef float float_t;
+    typedef float FastPMFloat;
 #else
     #error FFT_PRECISION must be 32 or 64
 #endif
@@ -178,17 +181,17 @@ void pm_destroy(PM * pm);
 /* 
  * Allocate memory for FFT/painting in PM. 
  * */
-float_t * pm_alloc(PM * pm);
-void pm_free(PM * pm, float_t * buf);
-void pm_assign(PM * pm, float_t * from, float_t * to);
+FastPMFloat * pm_alloc(PM * pm);
+void pm_free(PM * pm, FastPMFloat * buf);
+void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
 
 /* 
  * r2c is out-of-place and c2r is in-place.
  * */
 void 
-pm_r2c(PM * pm, float_t * from, float_t * to);
+pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void 
-pm_c2r(PM * pm, float_t * inplace);
+pm_c2r(PM * pm, FastPMFloat * inplace);
 
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
@@ -204,10 +207,10 @@ PMGhostData * pm_ghosts_create(PM * pm, PMStore * p, int attributes,
 void pm_ghosts_reduce(PMGhostData * pgd, int attributes);
 void pm_ghosts_free(PMGhostData * pgd);
 
-void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size, double weight);
-double pm_readout_pos(PM * pm, float_t * canvas, double pos[3]);
-void pm_paint_pos(PM * pm, float_t * canvas, double pos[3], double weight);
-double pm_readout_one(PM * pm, float_t * canvas, PMStore * p, ptrdiff_t i);
+void pm_paint(PM * pm, FastPMFloat * canvas, void * pdata, ptrdiff_t size, double weight);
+double pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3]);
+void pm_paint_pos(PM * pm, FastPMFloat * canvas, double pos[3], double weight);
+double pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i);
 
 typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
@@ -278,7 +281,7 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
 
 /* Gravity and power spectrum */
 void 
-pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_factor);
+pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor);
 
 typedef struct {
     size_t size;
@@ -288,10 +291,10 @@ typedef struct {
 } PowerSpectrum;
 
 void 
-pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps);
+pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps);
 
 double 
-pm_calculate_linear_power(PM * pm, float_t * delta_k, double kmax);
+pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax);
 
 void 
 power_spectrum_init(PowerSpectrum * ps, size_t size);

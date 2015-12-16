@@ -10,20 +10,20 @@
 
 /* paint and read out */
 
-static inline double WRtPlus(float_t * const d, 
+static inline double WRtPlus(FastPMFloat * const d, 
         const int i, const int j, const int k, const double f, PM * pm)
 {
 #pragma omp atomic
     d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] += f;
     return f;
 }
-static inline double REd(float_t const * const d, const int i, const int j, const int k, const double w, PM * pm)
+static inline double REd(FastPMFloat const * const d, const int i, const int j, const int k, const double w, PM * pm)
 {
     return d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] * w;
 }
 
 static inline void 
-pm_paint_pos_tuned(PM * pm, float_t * canvas, double pos[3], double weight) 
+pm_paint_pos_tuned(PM * pm, FastPMFloat * canvas, double pos[3], double weight) 
 {
     double X=pos[0]*pm->InvCellSize[0];
     double Y=pos[1]*pm->InvCellSize[1];
@@ -36,33 +36,35 @@ pm_paint_pos_tuned(PM * pm, float_t * canvas, double pos[3], double weight)
     double D2=Y-((double) J);
     double D3=Z-((double) K);
     double T1=1.-D1;
-    double T2=1.-D2;
     double T3=1.-D3;
 
-    double T2W =T2*weight;
-    double D2W =D2*weight;
+    double D2W = D2*weight;
+    double T2W = weight -D2W;
+
+    int I1=I+1; 
+    int J1=J+1; 
+    int K1=K+1; 
 
     // Do periodic wrapup in all directions. 
     // Buffer particles are copied from adjacent nodes
+    while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
+    while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
+    while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
     while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
     while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
     while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
 
-    int I1=I+1; while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
-    int J1=J+1; while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1]; // assumes y,z < BoxSize
-    int K1=K+1; while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
-
-    while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
-    while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
-    while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
 
     while(UNLIKELY(I1 < 0)) I1 += pm->Nmesh[0];
     while(UNLIKELY(J1 < 0)) J1 += pm->Nmesh[1];
     while(UNLIKELY(K1 < 0)) K1 += pm->Nmesh[2];
+    while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
+    while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
+    while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
 
     I -= pm->IRegion.start[0];
-    I1 -= pm->IRegion.start[0];
     J -= pm->IRegion.start[1];
+    I1 -= pm->IRegion.start[0];
     J1 -= pm->IRegion.start[1];
 
     if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
@@ -97,7 +99,7 @@ pm_paint_pos_tuned(PM * pm, float_t * canvas, double pos[3], double weight)
 }
 
 static inline double 
-pm_readout_pos_tuned(PM * pm, float_t * canvas, double pos[3]) 
+pm_readout_pos_tuned(PM * pm, FastPMFloat * canvas, double pos[3]) 
 {
     double X=pos[0]*pm->InvCellSize[0];
     double Y=pos[1]*pm->InvCellSize[1];
@@ -116,27 +118,31 @@ pm_readout_pos_tuned(PM * pm, float_t * canvas, double pos[3])
     double T2W =T2;
     double D2W =D2;
 
+    int I1=I+1; 
+    int J1=J+1; 
+    int K1=K+1; 
+
     // Do periodic wrapup in all directions. 
     // Buffer particles are copied from adjacent nodes
-    while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
-    while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
-    while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
-
-    int I1=I+1; while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
-    int J1=J+1; while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
-    int K1=K+1; while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
 
     while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
     while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
     while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
+    while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
+    while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
+    while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
+
 
     while(UNLIKELY(I1 < 0)) I1 += pm->Nmesh[0];
     while(UNLIKELY(J1 < 0)) J1 += pm->Nmesh[1];
     while(UNLIKELY(K1 < 0)) K1 += pm->Nmesh[2];
+    while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
+    while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
+    while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
 
     I -= pm->IRegion.start[0];
-    I1 -= pm->IRegion.start[0];
     J -= pm->IRegion.start[1];
+    I1 -= pm->IRegion.start[0];
     J1 -= pm->IRegion.start[1];
 
     double value = 0;
@@ -174,7 +180,7 @@ pm_readout_pos_tuned(PM * pm, float_t * canvas, double pos[3])
 }
 
 static inline void 
-pm_paint_pos_untuned(PM * pm, float_t * canvas, double pos[3], double weight) 
+pm_paint_pos_untuned(PM * pm, FastPMFloat * canvas, double pos[3], double weight) 
 {
     int n;
     double gpos[3];
@@ -216,7 +222,7 @@ pm_paint_pos_untuned(PM * pm, float_t * canvas, double pos[3], double weight)
 }
 
 static inline double 
-pm_readout_pos_untuned(PM * pm, float_t * canvas, double pos[3]) 
+pm_readout_pos_untuned(PM * pm, FastPMFloat * canvas, double pos[3]) 
 {
     double value = 0;
     int n;
@@ -261,33 +267,33 @@ outside:
 }
 
 void 
-pm_paint_pos(PM * pm, float_t * canvas, double pos[3], double weight) 
+pm_paint_pos(PM * pm, FastPMFloat * canvas, double pos[3], double weight) 
 {
-    pm_paint_pos_untuned(pm, canvas, pos, weight);
+    pm_paint_pos_tuned(pm, canvas, pos, weight);
 }
 
 double
-pm_readout_pos(PM * pm, float_t * canvas, double pos[3]) 
+pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3]) 
 {
-    return pm_readout_pos_untuned(pm, canvas, pos);
+    return pm_readout_pos_tuned(pm, canvas, pos);
 }
 
-void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size, double weight) {
+void pm_paint(PM * pm, FastPMFloat * canvas, void * pdata, ptrdiff_t size, double weight) {
     ptrdiff_t i;
     memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
         pm->iface.get_position(pdata, i, pos);
-        pm_paint_pos_untuned(pm, canvas, pos, weight);
+        pm_paint_pos_tuned(pm, canvas, pos, weight);
     }
 }
 
 double
-pm_readout_one(PM * pm, float_t * canvas, PMStore * p, ptrdiff_t i) 
+pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i) 
 {
     double pos[3];
     p->iface.get_position(p, i, pos);    
-    return pm_readout_pos_untuned(pm, canvas, pos);
+    return pm_readout_pos_tuned(pm, canvas, pos);
 }
 

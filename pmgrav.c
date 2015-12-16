@@ -4,7 +4,7 @@
 #include "walltime.h"
 
 static void 
-apply_force_kernel(PM * pm, float_t * from, float_t * to, int dir) 
+apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
@@ -42,7 +42,7 @@ apply_force_kernel(PM * pm, float_t * from, float_t * to, int dir)
 }
 
 void 
-pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_factor)
+pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor)
 {
     walltime_measure("/Force/Init");
 
@@ -50,7 +50,7 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
 
     walltime_measure("/Force/AppendGhosts");
 
-    float_t * canvas = pm_alloc(pm);
+    FastPMFloat * canvas = pm_alloc(pm);
 
     /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
      * it is less than the density (a cell is smaller than the mean seperation between particles. 
@@ -95,7 +95,7 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
 /* measure the linear scale power spectrum up to kmax, 
  * returns 1.0 if no such scale. k == 0 is skipped. */
 double
-pm_calculate_linear_power(PM * pm, float_t * delta_k, double kmax)
+pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
 {
     PMKFactors * fac[3];
     double sum = 0;
@@ -148,7 +148,7 @@ pm_calculate_linear_power(PM * pm, float_t * delta_k, double kmax)
 }
 
 void 
-pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps) 
+pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps) 
 {
     PMKFactors * fac[3];
 
