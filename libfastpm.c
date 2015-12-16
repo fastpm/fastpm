@@ -64,16 +64,15 @@ fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eise
 }
 
 void 
-fastpm_fill_deltak(PM * pm, float_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata) 
+fastpm_fill_deltak(PM * pm, float_t * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
 {
-    pm_ic_fill_gaussian_gadget(pm, seed, pk, pkdata);
-    memcpy(deltak, pm->canvas, sizeof(pm->canvas[0]) * pm->allocsize);
+    pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
 }
 
 void 
 fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
         double a, double omega_m, 
-        float_t * deltak_0)
+        float_t * delta_k_i, float_t * delta_x_f)
 {
     /* evolve particles by 2lpt to time a. pm->canvas contains rho(x, a) */
     double shift[3] = {0, 0, 0};

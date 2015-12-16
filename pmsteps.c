@@ -48,6 +48,14 @@ static Cosmology stepper_get_cosmology(PMStepper * stepper) {
     };
     return c;
 }
+double stepper_get_growth_factor(PMStepper * stepper, double a) {
+    Cosmology c = {
+        .OmegaM = stepper->omega_m,
+        .OmegaLambda = 1 - stepper->omega_m,
+    };
+    double growth1 = GrowthFactor(a, c);
+    return growth1;
+}
 
 void stepping_set_boost(double boost) {
     stepping_boost = boost;
@@ -58,7 +66,7 @@ stepping_init(PMStepper * stepper, double omega_m, int force_mode, int stdDA)
 {
     stepper->omega_m = omega_m;
     stepper->mode = force_mode;
-    if(force_mode == FORCE_MODE_COLA || force_mode == FORCE_MODE_COLA1) {
+    if(force_mode == FORCE_MODE_COLA) {
         stepper->stdda = stdDA;
     } else {
         stepper->stdda = 1;
@@ -74,11 +82,6 @@ stepping_kick(PMStepper * stepper,
               double ai, double af, double ac)
                 /* a_v     avel1     a_x*/
 {
-    if(stepper->mode == FORCE_MODE_ZA
-    || stepper->mode == FORCE_MODE_2LPT) {
-        /* ZA and 2LPT sims no kicks */
-        return;
-    }
     Cosmology c = stepper_get_cosmology(stepper);
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double dda = Sphi(ai, af, ac, stepper) * stepping_boost;
@@ -110,9 +113,6 @@ stepping_kick(PMStepper * stepper,
             switch(stepper->mode) {
                 case FORCE_MODE_COLA:
                     ax -= (pi->dx1[i][d]*q1 + pi->dx2[i][d]*q2);
-                break;
-                case FORCE_MODE_COLA1:
-                    ax -= (pi->dx1[i][d]*q1);
                 break;
             }
             po->v[i][d] = pi->v[i][d] + ax * dda;
@@ -147,19 +147,10 @@ stepping_drift(PMStepper * stepper,
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
-            if(stepper->mode & FORCE_MODE_PM) {
-                po->x[i][d] = pi->x[i][d] + pi->v[i][d]*dyyy;
-            } else {
-                po->x[i][d] = 0;
-            }
+            po->x[i][d] = pi->x[i][d] + pi->v[i][d]*dyyy;
             switch(stepper->mode) {
-                case FORCE_MODE_2LPT:
                 case FORCE_MODE_COLA:
                     po->x[i][d] += pi->dx1[i][d]*da1 + pi->dx2[i][d]*da2;
-                break;
-                case FORCE_MODE_ZA:
-                case FORCE_MODE_COLA1:
-                    po->x[i][d] += pi->dx1[i][d]*da1;
                 break;
             }
         }
@@ -308,9 +299,6 @@ stepping_set_snapshot(PMStepper * stepper,
                 case FORCE_MODE_COLA:
                     po->v[i][d] += p->dx1[i][d]*Dv 
                                  + p->dx2[i][d]*Dv2;
-                break;
-                case FORCE_MODE_COLA1:
-                    po->v[i][d] += p->dx1[i][d]*Dv;
                 break;
             }
             /* convert the unit to km/s */

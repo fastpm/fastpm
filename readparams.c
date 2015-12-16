@@ -200,25 +200,11 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     param->nc = read_integer(L, "nc");
     param->boxsize = read_number(L, "boxsize");
 
-    double a_init = read_number_opt(L, "a_init", -1);
-    if(a_init != -1) {
-        double a_final = read_number(L, "a_final");
-        int ntimestep = read_integer(L, "ntimestep");
-        param->time_step = malloc(sizeof(double) * (ntimestep + 1));
-        param->n_time_step = ntimestep + 1;
-        int i = 0;
-        for(i = 0; i <= ntimestep ; i ++) {
-            param->time_step[i] = (a_final - a_init) / ntimestep * i + a_init;
-        }
-        param->time_step[ntimestep] = a_final;
-    } else {
-        param->time_step = read_array_number(L, "time_step", &param->n_time_step);
-    }
+    param->time_step = read_array_number(L, "time_step", &param->n_time_step);
 
     param->zout = read_array_number(L, "output_redshifts", &param->n_zout);
 
     param->random_seed = read_integer(L, "random_seed");
-    param->nrealization = read_integer(L, "nrealization");
 
     param->omega_m = read_number(L, "omega_m");
     param->h = read_number(L, "h");
@@ -245,37 +231,14 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     param->snapshot_filename = read_string_opt(L, "snapshot", NULL);
 
     struct enum_entry table[] = {
-        {"a", TIME_STEP_A},
-        {"loga", TIME_STEP_LOGA},
-        {"growth", TIME_STEP_GROWTH},
         {"cola", FORCE_MODE_COLA},
-        {"cola1", FORCE_MODE_COLA1},
-        {"za", FORCE_MODE_ZA},
-        {"2lpt", FORCE_MODE_2LPT},
         {"pm", FORCE_MODE_PM},
         {NULL, -1},
     };
-    struct enum_entry mond_table[] = {
-        {"none", PM_MOND_NONE},
-        {"simple", PM_MOND_SIMPLE},
-        {"nbc", PM_MOND_NBC},
-        {NULL, -1},
-    };
-    param->pm_mond_mode = read_enum_opt(L, "pm_mond_mode", PM_MOND_NONE, mond_table);
-    if(param->pm_mond_mode > PM_MOND_NONE) {
-        param->pm_mond_parameters = read_array_number(L, "pm_mond_parameters", &param->n_pm_mond_parameters);
-    }
+
     param->force_mode = read_enum(L, "force_mode", table);
     param->enforce_broadband = read_boolean(L, "enforce_broadband");
-    param->diff_order = read_integer(L, "diff_order");
-    param->poisson_order = read_integer_opt(L, "poisson_order", 1);
 
     param->cola_stdda = read_boolean_opt(L, "cola_stdda", param->cola_stdda);
-
-    if(param->force_mode == FORCE_MODE_2LPT ||
-       param->force_mode == FORCE_MODE_ZA) {
-        if(param->n_time_step != 2) 
-            msg_abort(-1, "only one step is supported in 2LPT and ZA mode\n");
-    }
 }
 

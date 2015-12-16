@@ -31,6 +31,9 @@ int write_runpb_snapshot(double boxsize, double omega_m, PMStore * p, double aa,
 static void 
 ensure_dir(char * path);
 
+static void
+fix_linear_growth(PMStore * p, double Plin0, double Plin);
+
 /* Snapshots */
 typedef struct {
     MPI_Comm comm;
@@ -141,12 +144,6 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     pm_2lpt_evolve(prr->time_step[0], &pdata, prr->omega_m);
 
-    if(prr->force_mode != FORCE_MODE_PM) {
-        /* If not doing PM, v_res = 0 at initial. 
-         * (for 2LPT or ZA v_res remains 0) */
-        memset(pdata.v, 0, sizeof(pdata.v[0]) * pdata.np);
-    }
-
     walltime_measure("/Init/Drift");
 
     SNPS snps;
@@ -165,6 +162,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     walltime_measure("/Init/Start");
 
+    double Plin0 = 0;
     /* The last step is the 'terminal' step */
 
     for (istep = 0; istep < nsteps; istep++) {
@@ -205,34 +203,39 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         walltime_measure("/Stepping/Decompose");
 
-        /* Calculate PM forces, only if needed. */
-        if(prr->force_mode & FORCE_MODE_PM) {
-            float_t * delta_k = pm_alloc(pm);
+        /* Calculate PM forces. */
+        float_t * delta_k = pm_alloc(pm);
 
-            pm_calculate_forces(&pdata, pm, delta_k, density_factor);
+        pm_calculate_forces(&pdata, pm, delta_k, density_factor);
 
-            /* calculate the power spectrum */
-            power_spectrum_init(&ps, pm->Nmesh[0] / 2);
+        /* calculate the power spectrum */
+        power_spectrum_init(&ps, pm->Nmesh[0] / 2);
 
-            pm_calculate_powerspectrum(pm, delta_k, &ps);
-            double linear_power = pm_calculate_linear_power(pm, delta_k, 0.01);
-            msg_printf(info, "Linear power = %g\n", linear_power); 
-            walltime_measure("/PowerSpectrum/Measure");
-            
-            if(prr->measure_power_spectrum_filename) {
-                if(pm->ThisTask == 0) {
-                    ensure_dir(prr->measure_power_spectrum_filename);
-                    power_spectrum_write(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
-                        prr->measure_power_spectrum_filename, prr->random_seed, a_x);
-                }
-            }
+        pm_calculate_powerspectrum(pm, delta_k, &ps);
 
-            MPI_Barrier(comm);
-            walltime_measure("/PowerSpectrum/Write");
-            power_spectrum_destroy(&ps);
-
-            pm_free(pm, delta_k);
+        double Plin = pm_calculate_linear_power(pm, delta_k, 0.04);
+        Plin /= pow(stepper_get_growth_factor(&stepper, a_x), 2.0);
+        if(istep == 0) {
+            Plin0 = Plin;
         }
+
+        fix_linear_growth(&pdata, Plin0, Plin);
+
+        walltime_measure("/PowerSpectrum/Measure");
+        
+        if(prr->measure_power_spectrum_filename) {
+            if(pm->ThisTask == 0) {
+                ensure_dir(prr->measure_power_spectrum_filename);
+                power_spectrum_write(&ps, pm, ((double)prr->nc * prr->nc * prr->nc), 
+                    prr->measure_power_spectrum_filename, prr->random_seed, a_x);
+            }
+        }
+
+        MPI_Barrier(comm);
+        walltime_measure("/PowerSpectrum/Write");
+        power_spectrum_destroy(&ps);
+
+        pm_free(pm, delta_k);
 
         /* take snapshots if needed, before the kick */
         snps_interp(&snps, &pdata, a_x, a_v, &stepper);
@@ -443,3 +446,21 @@ ensure_dir(char * path)
     free(dup);
 }
 
+static void
+fix_linear_growth(PMStore * p, double Plin0, double Plin) 
+{
+    double correction = sqrt(Plin0 / Plin);
+    msg_printf(info, "<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
+        0.04,
+        Plin,
+        Plin0,
+        correction
+    ); 
+    ptrdiff_t i;
+    int d;
+    for(d = 0; d < 3; d ++) {
+        for(i = 0; i < p->np; i ++) {
+            p->acc[d][i] *= correction;
+        }
+    }
+}

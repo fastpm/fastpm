@@ -25,4 +25,5 @@ stepping_set_snapshot(PMStepper * stepper,
 
 
 void stepping_init(PMStepper * stepper, double omega_m, int force_mode, int stdDA);
+double stepper_get_growth_factor(PMStepper * stepper, double ai);
 #endif
