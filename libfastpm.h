@@ -1,33 +1,31 @@
 #include "pmpfft.h"
-#include "pm2lpt.h"
-#include "vpm.h"
-#include "walltime.h"
 
 typedef double (*fastpm_pkfunc)(double k, void * data);
+typedef struct {
+    PM * pm;
+    PMStore * p;
+    int Ngrid;
+    MPI_Comm comm;
+} FastPM2LPTSolver;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 int 
-fastpm_init(PMStore * p, int nc, double alloc_factor, MPI_Comm comm);
+fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double BoxSize, double alloc_factor, MPI_Comm comm);
+
+void 
+fastpm_2lpt_evolve(FastPM2LPTSolver * solver, float_t * delta_k_i, double a, double omega_m);
 
 void
-fastpm_init_pm(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
-
+fastpm_2lpt_paint(FastPM2LPTSolver * solver, float_t * delta_x, float_t * delta_k);
+        
 void 
-fastpm_evolve_2lpt(PM * pm, PMStore * pdata, 
-        double a, double omega_m, 
-        float_t * deltak_0);
-
-void 
-fastpm_derivative_2lpt(PM * pm, 
-        PMStore * p, /* Current position (x) saved in -> x */
-        float_t * rhopx, /* rho_p (the data) in x-space */
+fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver, 
+        float_t * rhopx, /* (in), rho_p (the data) in x-space */
         float_t * Fk     /* (out) hmc force in fourier space */
         );
-
-void 
-fastpm_fill_deltak(PM * pm, float_t * deltak, int seed, fastpm_pkfunc pk, void * pkdata);
 
 struct fastpm_powerspec_eh_params {
     double hubble_param;
@@ -38,6 +36,11 @@ struct fastpm_powerspec_eh_params {
 
 double 
 fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
+
+void 
+fastpm_fill_deltak(PM * pm, float_t * deltak, 
+        int seed, fastpm_pkfunc pk, void * pkdata);
+
 
 #ifdef __cplusplus
 }
