@@ -230,6 +230,9 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
 
     param->snapshot_filename = read_string_opt(L, "snapshot", NULL);
 
+    param->enforce_broadband = read_integer_opt(L, "enforce_broadband", 1);
+    param->enforce_broadband_kmax = read_number_opt(L, "enforce_broadband_kmax", 0.02);
+
     struct enum_entry table[] = {
         {"cola", FORCE_MODE_COLA},
         {"pm", FORCE_MODE_PM},

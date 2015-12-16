@@ -32,7 +32,7 @@ static void
 ensure_dir(char * path);
 
 static void
-fix_linear_growth(PMStore * p, double Plin0, double Plin);
+fix_linear_growth(PMStore * p, double correction);
 
 /* Snapshots */
 typedef struct {
@@ -213,13 +213,20 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_calculate_powerspectrum(pm, delta_k, &ps);
 
-        double Plin = pm_calculate_linear_power(pm, delta_k, 0.04);
+        double Plin = pm_calculate_linear_power(pm, delta_k, prr->enforce_broadband_kmax);
         Plin /= pow(stepper_get_growth_factor(&stepper, a_x), 2.0);
         if(istep == 0) {
             Plin0 = Plin;
         }
-
-        fix_linear_growth(&pdata, Plin0, Plin);
+        double correction = sqrt(Plin0 / Plin);
+        if(!prr->enforce_broadband) correction = 1.0;
+        msg_printf(info, "<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
+            prr->enforce_broadband_kmax,
+            Plin,
+            Plin0,
+            correction
+        ); 
+        fix_linear_growth(&pdata, correction);
 
         walltime_measure("/PowerSpectrum/Measure");
         
@@ -447,15 +454,8 @@ ensure_dir(char * path)
 }
 
 static void
-fix_linear_growth(PMStore * p, double Plin0, double Plin) 
+fix_linear_growth(PMStore * p, double correction)
 {
-    double correction = sqrt(Plin0 / Plin);
-    msg_printf(info, "<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
-        0.04,
-        Plin,
-        Plin0,
-        correction
-    ); 
     ptrdiff_t i;
     int d;
     for(d = 0; d < 3; d ++) {

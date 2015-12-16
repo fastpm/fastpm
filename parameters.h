@@ -33,7 +33,8 @@ typedef struct {
     int cola_stdda;
 
     double * time_step; int n_time_step;
-    int enforce_broadband;
+    int enforce_broadband; 
+    double enforce_broadband_kmax;
     int UseFFTW;
     int NprocY;
 } Parameters;
