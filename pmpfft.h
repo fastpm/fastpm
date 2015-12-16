@@ -290,6 +290,9 @@ typedef struct {
 void 
 pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps);
 
+double 
+pm_calculate_linear_power(PM * pm, float_t * delta_k, double kmax);
+
 void 
 power_spectrum_init(PowerSpectrum * ps, size_t size);
 

@@ -215,6 +215,8 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             power_spectrum_init(&ps, pm->Nmesh[0] / 2);
 
             pm_calculate_powerspectrum(pm, delta_k, &ps);
+            double linear_power = pm_calculate_linear_power(pm, delta_k, 0.01);
+            msg_printf(info, "Linear power = %g\n", linear_power); 
             walltime_measure("/PowerSpectrum/Measure");
             
             if(prr->measure_power_spectrum_filename) {

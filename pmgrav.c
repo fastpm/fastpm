@@ -92,6 +92,61 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
     walltime_measure("/Force/Wait");
 }    
 
+/* measure the linear scale power spectrum up to kmax, 
+ * returns 1.0 if no such scale. k == 0 is skipped. */
+double
+pm_calculate_linear_power(PM * pm, float_t * delta_k, double kmax)
+{
+    PMKFactors * fac[3];
+    double sum = 0;
+    double N   = 0;
+    pm_create_k_factors(pm, fac);
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        pm_prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double kk = 0.;
+            for(d = 0; d < 3; d++) {
+                double kk1 = fac[d][i[d] + pm->ORegion.start[d]].kk;
+                if(kk1 > kmax * kmax) {
+                    goto next;
+                }
+                kk += kk1;
+            }
+            double real = delta_k[ind + 0];
+            double imag = delta_k[ind + 1];
+            double value = real * real + imag * imag;
+            double k = sqrt(kk);
+            if(k > 0.01 * kmax && k < kmax) {
+                #pragma omp atomic
+                sum += value;
+                #pragma omp atomic
+                N += 1;
+            }
+            next:
+            pm_inc_o_index(pm, i);
+        }
+    }
+
+    pm_destroy_k_factors(pm, fac);
+
+    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+
+    if(N > 1) {
+        return sum / N * pm->Volume / (pm->Norm * pm->Norm);
+    } else {
+        return 1.0;
+    }
+}
+
 void 
 pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps) 
 {
@@ -130,8 +185,11 @@ pm_calculate_powerspectrum(PM * pm, float_t * delta_k, PowerSpectrum * ps)
             if(bin >= 0 && bin < ps->size) {
                 int w = 2;
                 if(i[2] == 0) w = 1;
+                #pragma omp atomic
                 ps->N[bin] += w;
+                #pragma omp atomic
                 ps->p[bin] += w * value; /// cic;
+                #pragma omp atomic
                 ps->k[bin] += w * k;
             }
             pm_inc_o_index(pm, i);
@@ -190,5 +248,3 @@ power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename
     fprintf(fp, "# Ly %g float64\n", pm->BoxSize[1]);
     fclose(fp);
 }
-
-
