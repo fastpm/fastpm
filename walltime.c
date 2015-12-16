@@ -104,6 +104,9 @@ static void walltime_clock_insert(char * name) {
 }
 
 int walltime_clock(char * name) {
+    if(CT == NULL) {
+        walltime_init(malloc(sizeof(struct ClockTable)));
+    }
     struct Clock dummy;
     strcpy(dummy.name, name);
     struct Clock * rt = bsearch(&dummy, CT->C, CT->N, sizeof(struct Clock), clockcmp);
