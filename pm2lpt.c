@@ -12,67 +12,83 @@
 #include "pm2lpt.h"
 #include "msg.h"
 
-//#define PM_2LPT_LOAD_NOISE_K
-//#define PM_2LPT_LOAD_DIGRAD
-//#define PM_2LPT_DUMP
-
-static double 
-index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
-{
-    /* convert (rel) integer to k values. */
-    int d;
-    double k2 = 0;
-    for(d = 0; d < 3 ; d++) {
-        k[d] = pm->MeshtoK[d][i[d] + pm->ORegion.start[d]];
-        k2 += k[d] * k[d];
-    } 
-    return k2;
-}
-
 static void 
 apply_za_transfer(PM * pm, float_t * from, float_t * to, int dir) 
 {
-    /* apply za transfer function i k / k2 from canvas -> workspace */
-    ptrdiff_t ind;
+    /* This is the force in fourier space. - i k[dir] / k2 */
 
-    ptrdiff_t i[3] = {0};
+    PMKFactors * fac[3];
 
-    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2) {
-        double k[3];
-        double k2;
-        k2 = index_to_k2(pm, i, k);
-        /* i k[d] / k2 */
-        if(k2 > 0) {
-            to[ind + 0] = - from[ind + 1] * (k[dir] / k2);
-            to[ind + 1] =   from[ind + 0] * (k[dir] / k2);
-        } else {
-            to[ind + 0] = 0;
-            to[ind + 1] = 0;
+    pm_create_k_factors(pm, fac);
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        pm_prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double kk_finite = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+            }
+            /* - i k[d] / k2 */
+            if(LIKELY(kk_finite > 0)) {
+                to[ind + 0] = - from[ind + 1] * (k_finite / kk_finite);
+                to[ind + 1] = + from[ind + 0] * (k_finite / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            }
+            pm_inc_o_index(pm, i);
         }
-        pm_inc_o_index(pm, i);
     }
+    pm_destroy_k_factors(pm, fac);
 }
+
 
 static void 
 apply_2lpt_transfer(PM * pm, float_t * from, float_t * to, int dir1, int dir2) 
 {
-    /* apply 2lpt transfer function - k k / k2 from canvas -> workspace */
-    ptrdiff_t ind;
-    ptrdiff_t i[3] = {0};
-    for(ind = 0; ind < pm->ORegion.total * 2; ind += 2) {
-        double k[3];
-        double k2;
-        k2 = index_to_k2(pm, i, k);
-        if(k2 > 0) {
-            to[ind + 0] = from[ind + 0] * (-k[dir1] * k[dir2] / k2);
-            to[ind + 1] = from[ind + 1] * (-k[dir1] * k[dir2] / k2);
-        } else {
-            to[ind + 0] = 0;
-            to[ind + 1] = 0;
+    /* This is the force in fourier space. - i k[dir] / k2 */
+
+    PMKFactors * fac[3];
+
+    pm_create_k_factors(pm, fac);
+
+#pragma omp parallel 
+    {
+        ptrdiff_t ind;
+        ptrdiff_t start, end;
+        ptrdiff_t i[3];
+
+        pm_prepare_omp_loop(pm, &start, &end, i);
+
+        for(ind = start; ind < end; ind += 2) {
+            int d;
+            double k1_finite = fac[dir1][i[dir1] + pm->ORegion.start[dir1]].k_finite;
+            double k2_finite = fac[dir2][i[dir2] + pm->ORegion.start[dir2]].k_finite;
+            double kk_finite = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+            }
+            if(kk_finite > 0) {
+                to[ind + 0] = from[ind + 0] * (-k1_finite * k2_finite / kk_finite);
+                to[ind + 1] = from[ind + 1] * (-k1_finite * k2_finite / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            }
+            pm_inc_o_index(pm, i);
         }
-        pm_inc_o_index(pm, i);
     }
+    pm_destroy_k_factors(pm, fac);
 }
+
 
 void 
 pm_2lpt_solve(PM * pm, float_t * delta_k, PMStore * p, double shift[3]) 
