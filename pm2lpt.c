@@ -82,15 +82,8 @@ pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
  * Use shift of 0, 0, 0 if in doublt. 
  *   */
 
-    PMGhostData pgd = {
-        .pm = pm,
-        .pdata = p,
-        .np = p->np,
-        .np_upper = p->np_upper,
-        .attributes = PACK_POS,
-        .get_position = p->iface.get_position,
-        .nghosts = 0,
-    };
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
+
     ptrdiff_t i;
     int d;
 
@@ -108,7 +101,6 @@ pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
             p->x[i][d] -= shift[d];
         }
     }
-    pm_append_ghosts(&pgd);
      
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
@@ -122,10 +114,10 @@ pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
 
         pm_c2r(pm, workspace);
 #pragma omp parallel for
-        for(i = 0; i < p->np + pgd.nghosts; i ++) {        
+        for(i = 0; i < p->np + pgd->nghosts; i ++) {        
             p->dx1[i][d] = pm_readout_one(pm, workspace, p, i);
         }
-        pm_reduce_ghosts(&pgd, DX1[d]);
+        pm_ghosts_reduce(pgd, DX1[d]);
     } 
 
     for(d = 0; d< 3; d++) {
@@ -167,11 +159,11 @@ pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
         pm_c2r(pm, workspace);
 
 #pragma omp parallel for
-        for(i = 0; i < p->np + pgd.nghosts; i ++) {        
+        for(i = 0; i < p->np + pgd->nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
             p->dx2[i][d] = pm_readout_one(pm, workspace, p, i) / pm->Norm ;
         }
-        pm_reduce_ghosts(&pgd, DX2[d]);
+        pm_ghosts_reduce(pgd, DX2[d]);
     }
     double dx1disp[3] = {0};
     double dx2disp[3] = {0};
@@ -208,8 +200,6 @@ pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
     fwrite(p->dx2, sizeof(p->dx2[0]), p->np, fopen("dx2.f4x3", "w"));
 #endif
 
-    pm_destroy_ghosts(&pgd);
-
     for(i = 0; i < p->np; i ++) {
         for(d = 0; d < 3; d ++) {
             p->x[i][d] += shift[d];
@@ -221,6 +211,9 @@ pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3])
     }
     pm_free(pm, source);
     pm_free(pm, workspace);
+
+    pm_ghosts_free(pgd);
+
 }
 
 // Interpolate position and velocity for snapshot at a=aout

@@ -232,25 +232,6 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             pm_free(pm, delta_k);
         }
 
-#if 0
-{
-        pdata.v = pdata.acc;
-        char filebase[1000];
-        sprintf(filebase, "%s%05d_%0.04f.bin", prr->snapshot_filename, prr->random_seed, 2.0);
-        write_runpb_snapshot(prr, &pdata, 1.0, filebase, MPI_COMM_WORLD);
-
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Abort(MPI_COMM_WORLD, -10);
-}
-#endif
-
-#if 0
-        fwrite(pdata.x, sizeof(pdata.x[0]), pdata.np, fopen("x.f8x3", "w"));
-        fwrite(pdata.v, sizeof(pdata.v[0]), pdata.np, fopen("v.f4x3", "w"));
-        fwrite(pdata.id, sizeof(pdata.id[0]), pdata.np, fopen("id.i8", "w"));
-        fwrite(pdata.acc, sizeof(pdata.acc[0]), pdata.np, fopen("acc.f4x3", "w"));
-#endif
-
         /* take snapshots if needed, before the kick */
         snps_interp(&snps, &pdata, a_x, a_v, &stepper);
 

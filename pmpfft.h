@@ -198,9 +198,11 @@ void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
 
-void pm_append_ghosts(PMGhostData * pgd);
-void pm_reduce_ghosts(PMGhostData * pgd, int attributes);
-void pm_destroy_ghosts(PMGhostData * pgd);
+PMGhostData * pm_ghosts_create(PM * pm, PMStore * p, int attributes, 
+        void (*getpos)(void * pdata, ptrdiff_t index, double pos[3]));
+
+void pm_ghosts_reduce(PMGhostData * pgd, int attributes);
+void pm_ghosts_free(PMGhostData * pgd);
 
 void pm_paint(PM * pm, float_t * canvas, void * pdata, ptrdiff_t size, double weight);
 double pm_readout_pos(PM * pm, float_t * canvas, double pos[3]);

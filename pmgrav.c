@@ -44,18 +44,10 @@ apply_force_kernel(PM * pm, float_t * from, float_t * to, int dir)
 void 
 pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_factor)
 {
-    PMGhostData pgd = {
-        .pm = pm,
-        .pdata = p,
-        .np = p->np,
-        .np_upper = p->np_upper,
-        .attributes = PACK_POS,
-        .nghosts = 0,
-        .get_position = p->iface.get_position,
-    };
     walltime_measure("/Force/Init");
 
-    pm_append_ghosts(&pgd); 
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL); 
+
     walltime_measure("/Force/AppendGhosts");
 
     float_t * canvas = pm_alloc(pm);
@@ -64,7 +56,7 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
      * it is less than the density (a cell is smaller than the mean seperation between particles. 
      * We thus have to boost the density by density_factor.
      * */
-    pm_paint(pm, canvas, p, p->np + pgd.nghosts, density_factor);
+    pm_paint(pm, canvas, p, p->np + pgd->nghosts, density_factor);
     walltime_measure("/Force/Paint");
     
     pm_r2c(pm, canvas, delta_k);
@@ -83,17 +75,17 @@ pm_calculate_forces(PMStore * p, PM * pm, float_t * delta_k, double density_fact
         walltime_measure("/Force/FFT");
 
 #pragma omp parallel for
-        for(i = 0; i < p->np + pgd.nghosts; i ++) {
+        for(i = 0; i < p->np + pgd->nghosts; i ++) {
             p->acc[i][d] = pm_readout_one(pm, canvas, p, i) / pm->Norm;
         }
         walltime_measure("/Force/Readout");
 
-        pm_reduce_ghosts(&pgd, ACC[d]); 
+        pm_ghosts_reduce(pgd, ACC[d]); 
         walltime_measure("/Force/ReduceGhosts");
     }
     pm_free(pm, canvas);
 
-    pm_destroy_ghosts(&pgd);
+    pm_ghosts_free(pgd);
     walltime_measure("/Force/Finish");
 
     MPI_Barrier(pm->Comm2D);

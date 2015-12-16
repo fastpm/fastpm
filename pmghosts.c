@@ -8,23 +8,24 @@
 #include "pmpfft.h"
 #include "msg.h"
 
-void pm_destroy_ghosts(PMGhostData * ppd) {
-    ppd->pm->iface.free(ppd->ighost_to_ipar);
-    free(ppd->Nsend);
-    free(ppd->Osend);
-    free(ppd->Nrecv);
-    free(ppd->Orecv);
+void pm_ghosts_free(PMGhostData * pgd) {
+    pgd->pm->iface.free(pgd->ighost_to_ipar);
+    free(pgd->Nsend);
+    free(pgd->Osend);
+    free(pgd->Nrecv);
+    free(pgd->Orecv);
+    free(pgd);
 }
 
-static void pm_iter_ghosts(PM * pm, PMGhostData * ppd, 
+static void pm_iter_ghosts(PM * pm, PMGhostData * pgd, 
     pm_iter_ghosts_func iter_func) {
 
     ptrdiff_t i;
-    for (i = 0; i < ppd->np; i ++) {
-        PMGhostData localppd = *ppd;
+    for (i = 0; i < pgd->np; i ++) {
+        PMGhostData localppd = *pgd;
         double pos[3];
         int rank;
-        ppd->get_position(ppd->pdata, i, pos);
+        pgd->get_position(pgd->pdata, i, pos);
         int d;
         int ipos[3];
         for(d = 0; d < 3; d ++) {
@@ -60,119 +61,129 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * ppd,
     }
 }
 
-static void count_ghosts(PM * pm, PMGhostData * ppd) {
+static void count_ghosts(PM * pm, PMGhostData * pgd) {
 //#pragma omp atomic
-    ppd->Nsend[ppd->rank] ++;
+    pgd->Nsend[pgd->rank] ++;
 }
 
-static void build_ghost_buffer(PM * pm, PMGhostData * ppd) {
+static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
     double pos[3];
-    ppd->get_position(ppd->pdata, ppd->ipar, pos);
+    pgd->get_position(pgd->pdata, pgd->ipar, pos);
 
     int ighost;
     int offset; 
 
 //#pragma omp atomic capture
-    offset = ppd->Nsend[ppd->rank] ++;
+    offset = pgd->Nsend[pgd->rank] ++;
 
-    ighost = ppd->Osend[ppd->rank] + offset;
+    ighost = pgd->Osend[pgd->rank] + offset;
 
-    pm->iface.pack(ppd->pdata, ppd->ipar, 
-        (char*) ppd->send_buffer + ighost * ppd->elsize, ppd->attributes);
+    pm->iface.pack(pgd->pdata, pgd->ipar, 
+        (char*) pgd->send_buffer + ighost * pgd->elsize, pgd->attributes);
 
-    ppd->ighost_to_ipar[ighost] = ppd->ipar;
-#if 0
-    msg_aprintf(debug, "Making a ghost for particle %td (%g %g %g) to rank %d for %td %td %td\n", 
-            ppd->ipar, 
-            pos[0], pos[1], pos[2],
-            ppd->rank, ppd->reason[0], ppd->reason[1], ppd->reason[2]);
-
-    msg_aprintf(debug, "Connecting Ghost %d to Particle %td\n", ighost, ppd->ipar);
-#endif
+    pgd->ighost_to_ipar[ighost] = pgd->ipar;
 }
 
-void pm_append_ghosts(PMGhostData * ppd) {
-    PM * pm = ppd->pm;
+PMGhostData * 
+pm_ghosts_create(PM * pm, PMStore *p, 
+    int attributes, 
+    void (*get_position)(void * pdata, ptrdiff_t index, double pos[3])) 
+{
+
+    PMGhostData * pgd = malloc(sizeof(pgd[0]));
+    pgd->pm = pm;
+    pgd->pdata = p;
+    pgd->np = p->np;
+    pgd->np_upper = p->np_upper;
+    pgd->attributes = attributes;
+    if(get_position == NULL) 
+        pgd->get_position = p->iface.get_position;
+    else
+        pgd->get_position = get_position;
+    pgd->nghosts = 0;
+
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pm->iface.pack(ppd->pdata, 0, NULL, ppd->attributes);
+    size_t elsize = pm->iface.pack(pgd->pdata, 0, NULL, pgd->attributes);
 
-    ppd->Nsend = calloc(pm->NTask, sizeof(int));
-    ppd->Osend = calloc(pm->NTask, sizeof(int));
-    ppd->Nrecv = calloc(pm->NTask, sizeof(int));
-    ppd->Orecv = calloc(pm->NTask, sizeof(int));
+    pgd->Nsend = calloc(pm->NTask, sizeof(int));
+    pgd->Osend = calloc(pm->NTask, sizeof(int));
+    pgd->Nrecv = calloc(pm->NTask, sizeof(int));
+    pgd->Orecv = calloc(pm->NTask, sizeof(int));
 
-    ppd->elsize = elsize;
+    pgd->elsize = elsize;
 
-    memset(ppd->Nsend, 0, sizeof(ppd->Nsend[0]) * pm->NTask);
+    memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    pm_iter_ghosts(pm, ppd, count_ghosts);
+    pm_iter_ghosts(pm, pgd, count_ghosts);
 
-    Nsend = cumsum(ppd->Osend, ppd->Nsend, pm->NTask);
+    Nsend = cumsum(pgd->Osend, pgd->Nsend, pm->NTask);
 
-    MPI_Alltoall(ppd->Nsend, 1, MPI_INT, ppd->Nrecv, 1, MPI_INT, pm->Comm2D);
+    MPI_Alltoall(pgd->Nsend, 1, MPI_INT, pgd->Nrecv, 1, MPI_INT, pm->Comm2D);
 
-    Nrecv = cumsum(ppd->Orecv, ppd->Nrecv, pm->NTask);
+    Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
     
 
-    ppd->ighost_to_ipar = pm->iface.malloc(Nsend * sizeof(int));
-    ppd->send_buffer = pm->iface.malloc(Nsend * ppd->elsize);
-    ppd->recv_buffer = pm->iface.malloc(Nrecv * ppd->elsize);
+    pgd->ighost_to_ipar = pm->iface.malloc(Nsend * sizeof(int));
+    pgd->send_buffer = pm->iface.malloc(Nsend * pgd->elsize);
+    pgd->recv_buffer = pm->iface.malloc(Nrecv * pgd->elsize);
 
-    memset(ppd->Nsend, 0, sizeof(ppd->Nsend[0]) * pm->NTask);
+    memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    pm_iter_ghosts(pm, ppd, build_ghost_buffer);
+    pm_iter_ghosts(pm, pgd, build_ghost_buffer);
 
     /* exchange */
 
-    ppd->nghosts = Nrecv;
+    pgd->nghosts = Nrecv;
 
-    if(Nrecv + ppd->np > ppd->np_upper) {
-        msg_abort(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, ppd->np_upper - ppd->np);
+    if(Nrecv + pgd->np > pgd->np_upper) {
+        msg_abort(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, pgd->np_upper - pgd->np);
     }
 
     MPI_Datatype GHOST_TYPE;
-    MPI_Type_contiguous(ppd->elsize, MPI_BYTE, &GHOST_TYPE);
+    MPI_Type_contiguous(pgd->elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
-    MPI_Alltoallv_sparse(ppd->send_buffer, ppd->Nsend, ppd->Osend, GHOST_TYPE,
-                  ppd->recv_buffer, ppd->Nrecv, ppd->Orecv, GHOST_TYPE,
+    MPI_Alltoallv_sparse(pgd->send_buffer, pgd->Nsend, pgd->Osend, GHOST_TYPE,
+                  pgd->recv_buffer, pgd->Nrecv, pgd->Orecv, GHOST_TYPE,
                     pm->Comm2D);
     MPI_Type_free(&GHOST_TYPE);
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        pm->iface.unpack(ppd->pdata, ppd->np + i, 
-                (char*) ppd->recv_buffer + i * ppd->elsize, 
-                        ppd->attributes);
+        pm->iface.unpack(pgd->pdata, pgd->np + i, 
+                (char*) pgd->recv_buffer + i * pgd->elsize, 
+                        pgd->attributes);
     }
-    pm->iface.free(ppd->recv_buffer);
-    pm->iface.free(ppd->send_buffer);
+    pm->iface.free(pgd->recv_buffer);
+    pm->iface.free(pgd->send_buffer);
+
+    return pgd;
 }
 
-void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
-    PM * pm = ppd->pm;
-    size_t Nsend = cumsum(NULL, ppd->Nsend, pm->NTask);
-    size_t Nrecv = cumsum(NULL, ppd->Nrecv, pm->NTask);
+void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
+    PM * pm = pgd->pm;
+    size_t Nsend = cumsum(NULL, pgd->Nsend, pm->NTask);
+    size_t Nrecv = cumsum(NULL, pgd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    ppd->elsize = pm->iface.pack(ppd->pdata, 0, NULL, attributes);
-    ppd->recv_buffer = pm->iface.malloc(Nrecv * ppd->elsize);
-    ppd->send_buffer = pm->iface.malloc(Nsend * ppd->elsize);
-    ppd->ReductionAttributes = attributes;
+    pgd->elsize = pm->iface.pack(pgd->pdata, 0, NULL, attributes);
+    pgd->recv_buffer = pm->iface.malloc(Nrecv * pgd->elsize);
+    pgd->send_buffer = pm->iface.malloc(Nsend * pgd->elsize);
+    pgd->ReductionAttributes = attributes;
 
 #pragma omp parallel for
-    for(i = 0; i < ppd->nghosts; i ++) {
-        pm->iface.pack(ppd->pdata, i + ppd->np, 
-            (char*) ppd->recv_buffer + i * ppd->elsize, 
-            ppd->ReductionAttributes);
+    for(i = 0; i < pgd->nghosts; i ++) {
+        pm->iface.pack(pgd->pdata, i + pgd->np, 
+            (char*) pgd->recv_buffer + i * pgd->elsize, 
+            pgd->ReductionAttributes);
     }
 
     MPI_Datatype GHOST_TYPE;
-    MPI_Type_contiguous(ppd->elsize, MPI_BYTE, &GHOST_TYPE);
+    MPI_Type_contiguous(pgd->elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
-    MPI_Alltoallv_sparse(ppd->recv_buffer, ppd->Nrecv, ppd->Orecv, GHOST_TYPE,
-                  ppd->send_buffer, ppd->Nsend, ppd->Osend, GHOST_TYPE,
+    MPI_Alltoallv_sparse(pgd->recv_buffer, pgd->Nrecv, pgd->Orecv, GHOST_TYPE,
+                  pgd->send_buffer, pgd->Nsend, pgd->Osend, GHOST_TYPE,
                     pm->Comm2D);
     MPI_Type_free(&GHOST_TYPE);
 
@@ -180,10 +191,10 @@ void pm_reduce_ghosts(PMGhostData * ppd, int attributes) {
     int ighost;
 #pragma omp parallel for
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        pm->iface.reduce(ppd->pdata, ppd->ighost_to_ipar[ighost], 
-            (char*) ppd->send_buffer + ighost * ppd->elsize, 
-            ppd->ReductionAttributes);
+        pm->iface.reduce(pgd->pdata, pgd->ighost_to_ipar[ighost], 
+            (char*) pgd->send_buffer + ighost * pgd->elsize, 
+            pgd->ReductionAttributes);
     }
-    pm->iface.free(ppd->send_buffer);
-    pm->iface.free(ppd->recv_buffer);
+    pm->iface.free(pgd->send_buffer);
+    pm->iface.free(pgd->recv_buffer);
 }
