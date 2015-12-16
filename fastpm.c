@@ -134,7 +134,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         }
 
         /* read out values at locations with an inverted shift */
-        pm_2lpt_main(&pm, delta_k, &pdata, shift);
+        pm_2lpt_solve(&pm, delta_k, &pdata, shift);
 
         pm_free(&pm, delta_k);
         pm_destroy(&pm);

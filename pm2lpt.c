@@ -75,7 +75,7 @@ apply_2lpt_transfer(PM * pm, float_t * from, float_t * to, int dir1, int dir2)
 }
 
 void 
-pm_2lpt_main(PM * pm, float_t * delta_k, PMStore * p, double shift[3]) 
+pm_2lpt_solve(PM * pm, float_t * delta_k, PMStore * p, double shift[3]) 
 {
 /* calculate dx1, dx2, for initial fluctuation delta_k.
  * shift: martin has shift = 0.5, 0.5, 0.5.
