@@ -390,5 +390,6 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3])
 
             );
     }
+    p->a_x = p->a_v = 0.;
 }
 

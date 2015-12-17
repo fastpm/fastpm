@@ -4,7 +4,17 @@
 #include "libfastpm.h"
 
 static void DUMP(FastPM2LPTSolver * solver, char * filename, FastPMFloat *data) {
-    FILE * fp = fopen(filename, "w");
+    char fn2[1024];
+    if(solver->pm->NTask > 1) {
+        sprintf(fn2, "%s.%03d", filename, solver->pm->ThisTask);
+        printf("%d: %td %td %td\n", solver->pm->ThisTask,
+                    solver->pm->IRegion.strides[0],
+                    solver->pm->IRegion.strides[1],
+                    solver->pm->IRegion.strides[2]);
+    } else {
+        sprintf(fn2, "%s", filename);
+    }
+    FILE * fp = fopen(fn2, "w");
     fwrite(data, sizeof(FastPMFloat), solver->pm->allocsize, fp);
     fclose(fp);
 }
@@ -17,7 +27,7 @@ int main(int argc, char * argv[]) {
     FastPM2LPTSolver * solver = alloca(sizeof(FastPM2LPTSolver));
 
     int nc = 128;
-    double boxsize = 409600.;
+    double boxsize = 128.;
     double alloc_factor = 2.0;
     double omega_m = 0.292;
 
@@ -39,7 +49,7 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_fill_deltak(solver->pm, rho_init_ktruth, 200, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
+    fastpm_fill_deltak(solver->pm, rho_init_ktruth, 2004, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
 
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 

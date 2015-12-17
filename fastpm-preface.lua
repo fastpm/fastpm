@@ -1,3 +1,4 @@
+-- Define a few time stepping schemes
 function linspace(start, e, N)
     local r = {} 
     N1 = N + 1 

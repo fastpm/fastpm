@@ -55,7 +55,8 @@ typedef struct {
     uint64_t * id;
     size_t np;
     size_t np_upper;
-
+    double a_x;
+    double a_v;
 } PMStore;
 
 #define PACK_POS   (1 << 0)

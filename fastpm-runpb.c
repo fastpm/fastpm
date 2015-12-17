@@ -12,11 +12,19 @@
 #include <math.h>
 #include <alloca.h>
 
-#include "parameters.h"
 #include "cosmology.h"
-#include "power.h"
 #include "pmpfft.h"
+#include "vpm.h"
 #include "msg.h"
+#include "fastpm.h"
+
+static Cosmology CP(FastPM * fastpm) {
+    Cosmology c = {
+        .OmegaM = fastpm->omega_m,
+        .OmegaLambda = 1 - fastpm->omega_m,
+    };
+    return c;
+}
 
 #define FILENAME  "%s.%02d"
 
@@ -28,11 +36,12 @@ typedef struct {
   float eps;            /* Gravitational softening    */
 } FileHeader;
 
-int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm) {
-    int ThisTask;
-    int NTask;
-    MPI_Comm_rank(comm, &ThisTask);
-    MPI_Comm_size(comm, &NTask);
+int 
+fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename) 
+{
+    int ThisTask = fastpm->ThisTask;
+    int NTask = fastpm->NTask;
+    MPI_Comm comm = fastpm->comm;
 
     size_t scratch_bytes = 32 * 1024 * 1024;
     void * scratch = malloc(scratch_bytes);
@@ -52,7 +61,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
         char buf[1024];
         int i;
         for(i = 0; ; i ++) {
-            sprintf(buf, FILENAME, param->readic_filename, i);
+            sprintf(buf, FILENAME, filename, i);
             FILE * fp = fopen(buf, "r");
             if(!fp) {
                 Nfile = i;
@@ -69,7 +78,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
         NperFile = malloc(sizeof(int) * Nfile);
 
         for(i = 0; i < Nfile; i ++) {
-            sprintf(buf, FILENAME, param->readic_filename, i);
+            sprintf(buf, FILENAME, filename, i);
             FILE * fp = fopen(buf, "r");
             FileHeader header;
             int eflag, hsize;
@@ -85,7 +94,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
             Ntot += header.npart;        
             fclose(fp);
         }
-        if (Ntot != param->nc * param->nc * param->nc) {
+        if (Ntot != fastpm->nc * fastpm->nc * fastpm->nc) {
             msg_abort(0030, "Number of p does not match nc\n");
         }
         MPI_Bcast(NperFile, Nfile, MPI_INT, 0, comm);
@@ -136,7 +145,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
         char buf[1024];
         int eflag, hsize;
         FileHeader header;
-        sprintf(buf, FILENAME, param->readic_filename, i);
+        sprintf(buf, FILENAME, filename, i);
 
         FILE * fp = fopen(buf, "r");
         /* skip these */
@@ -196,22 +205,15 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
         msg_abort(0030, "mismatch %d != %d\n", offset, p->np);
     }
 
-    Cosmology c = {
-        .OmegaM = param->omega_m,
-        .OmegaLambda = 1.0 - param->omega_m,
-    };
-    const double omega = OmegaA(aa, c);
-    const float DplusIC = GrowthFactor(aa, c);
-    const float Dplus = GrowthFactor(a_init, c);
-    const double D2 = Dplus*Dplus*pow(omega/c.OmegaM, -1.0/143.0);
-    const double D20 = pow(c.OmegaM, -1.0/143.0);
+    const double omega = OmegaA(aa, CP(fastpm));
+    const float DplusIC = GrowthFactor(aa, CP(fastpm));
     const double f1 = pow(omega, (4./7));
     const double f2 = pow(omega, (6./11));
 
-    int64_t strides[] = {param->nc * param->nc, param->nc, 1};
+    int64_t strides[] = {fastpm->nc * fastpm->nc, fastpm->nc, 1};
 
     /* RUN PB ic global shifting */
-    const double offset0 = 0.5 * 1.0 / param->nc;
+    const double offset0 = 0.5 * 1.0 / fastpm->nc;
     double dx1disp[3] = {0};
     double dx2disp[3] = {0};
     int ip;
@@ -225,7 +227,7 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
         int64_t id0 = id;
         int d;
         for(d = 0; d < 3; d ++ ) {
-            double opos = (id / strides[d]) * (1.0 / param->nc) + offset0;
+            double opos = (id / strides[d]) * (1.0 / fastpm->nc) + offset0;
             id %= strides[d];
             double disp = x[d] - opos;
             if(disp < -0.5) disp += 1.0;
@@ -233,17 +235,17 @@ int read_runpb_ic(Parameters * param, double a_init, PMStore * p, MPI_Comm comm)
             dx1[d] = (v[d] - disp * (2 * f2)) / (f1 - 2 * f2) / DplusIC;
             /* this ensures  = x0 + dx1 + 3/7 dx2; we shift the positioni in pmsteps.c  */
             dx2[d] = 7. / 3 * (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
-            double tmp = opos; // + dx1[d] * Dplus + dx2[d] * (D20 * D2);
-            x[d] = tmp * param->boxsize;
-            while(x[d] < 0.0) x[d] += param->boxsize;
-            while(x[d] >= param->boxsize) x[d] -= param->boxsize;
-            dx1[d] *= param->boxsize;
+            double tmp = opos; 
+            x[d] = tmp * fastpm->boxsize;
+            while(x[d] < 0.0) x[d] += fastpm->boxsize;
+            while(x[d] >= fastpm->boxsize) x[d] -= fastpm->boxsize;
+            dx1[d] *= fastpm->boxsize;
 
             if(dx1[d] > 100) {
-                printf("id = %ld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g Dplus=%g, D20=%g, D2=%g, DplusIC=%g\n", 
-                    id0, dx1[d], v[d], x[d], disp, opos, f1, f2, Dplus, D20, D2, DplusIC);
+                printf("id = %ld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g DplusIC=%g\n", 
+                    id0, dx1[d], v[d], x[d], disp, opos, f1, f2, DplusIC);
             }
-            dx2[d] *= param->boxsize;
+            dx2[d] *= fastpm->boxsize;
 
             v[d] = 0.0;
             dx1disp[d] += dx1[d] * dx1[d];
@@ -379,13 +381,14 @@ static void write_mine(char * filebase,
     free(scratch);
 }
 
-int write_runpb_snapshot(double boxsize, double omega_m, PMStore * p, double aa,
-        char * filebase, MPI_Comm comm){
-    int ThisTask;
-    int NTask;
+int 
+fastpm_write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
+{
+    int ThisTask = fastpm->ThisTask;
+    int NTask = fastpm->NTask;
+    MPI_Comm comm = fastpm->comm;
 
-    MPI_Comm_rank(comm, &ThisTask);
-    MPI_Comm_size(comm, &NTask);
+    double aa = p->a_x;
 
     int np = p->np;
     int i;
@@ -430,11 +433,7 @@ int write_runpb_snapshot(double boxsize, double omega_m, PMStore * p, double aa,
     }
     MPI_Barrier(comm);
 
-    Cosmology c = {
-        .OmegaM = omega_m,
-        .OmegaLambda = 1.0 - omega_m,
-    };
-    write_mine(filebase, p, aa, c, boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
+    write_mine(filebase, p, aa, CP(fastpm), fastpm->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
     return 0;
 }
 

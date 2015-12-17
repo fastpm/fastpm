@@ -202,8 +202,12 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
 
     param->time_step = read_array_number(L, "time_step", &param->n_time_step);
 
-    param->zout = read_array_number(L, "output_redshifts", &param->n_zout);
-
+    param->aout = read_array_number(L, "output_redshifts", &param->n_aout);
+    /* convert z to a */
+    int i;
+    for(i = 0; i < param->n_aout; i ++) {
+        param->aout[i] = 1 / (param->aout[i] + 1);
+    }
     param->random_seed = read_integer(L, "random_seed");
 
     param->omega_m = read_number(L, "omega_m");

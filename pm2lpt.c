@@ -238,7 +238,7 @@ pm_2lpt_evolve(double aout, PMStore * p, double Omega)
 {
     int np= p->np;
 
-    msg_printf(verbose, "Evolveing by 2lpt to a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
+    msg_printf(verbose, "Evolving by 2lpt to a= %6.4f (z=%6.4f).\n", aout, 1.0f/aout-1);
     Cosmology c = {
             .OmegaM = Omega,
             .OmegaLambda = 1 - Omega,
@@ -267,5 +267,6 @@ pm_2lpt_evolve(double aout, PMStore * p, double Omega)
             p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
         }
     }
+    p->a_x = p->a_v = aout;
 }
 

@@ -601,24 +601,6 @@ pm_destroy_k_factors(PM * pm, PMKFactors * fac[3])
     }
 }
 
-void 
-pm_get_times(int istep,
-    double time_step[],
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1) 
-{
-
-    /* The last step is the terminal step. */
-    *a_x = time_step[(istep >= nstep)?(nstep - 1):istep];
-    *a_x1 = time_step[(istep + 1 >= nstep)?(nstep - 1):(istep + 1)];
-    double a_xm1 = time_step[(istep > 0)?(istep - 1):0];
-    *a_v = sqrt(a_xm1 * *(a_x));
-    *a_v1 = sqrt(*a_x * *a_x1);
-}
-
 void
 pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
 { 

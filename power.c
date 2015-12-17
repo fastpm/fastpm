@@ -31,9 +31,9 @@ static struct pow_table
     double logk, logD;
 } *PowerTable;
 
-void read_power_table_camb(const char filename[]);
-double normalize_power(const double a_init, const double sigma8);
-double TopHatSigma2(double R, double (*func)(double, void*), void*);
+static void read_power_table_camb(const char filename[]);
+static double normalize_power(const double a_init, const double sigma8);
+static double TopHatSigma2(double R, double (*func)(double, void*), void*);
 
 void power_init(const char filename[], const double a_init, const double sigma8, const double omega_m, const double omega_lambda,
             MPI_Comm comm)
@@ -109,9 +109,6 @@ void read_power_table_camb(const char filename[])
 
 double PowerSpecWithData(double k, void * data) {
     return PowerSpec(k);
-}
-double Sigma2(double R) {
-    return TopHatSigma2(R, PowerSpecWithData, NULL); 
 }
 
 double normalize_power(const double a_init, const double sigma8)

@@ -21,7 +21,7 @@ typedef struct {
 
     double omega_m, sigma8, h;
 
-    double * zout; int n_zout;
+    double * aout; int n_aout;
 
     char * power_spectrum_filename;
     char * measure_power_spectrum_filename; 

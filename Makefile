@@ -3,7 +3,7 @@ CC=mpicc
 OPENMP = -fopenmp
 DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM $(CPPFLAGS)
 
-OPTIMIZE ?= -O3 -g -Wall -Werror -fopenmp
+OPTIMIZE ?= -O0 -g -Wall -Werror -fopenmp -DFFT_PRECISION=32
 OPTIMIZE += $(OPENMP)
 
 CPPFLAGS += -I lua
@@ -17,9 +17,9 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 SOURCES = main.c fastpm.c vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pm2lpt.c pmic.c \
-		readparams.c msg.c power.c pmsteps.c pmio-runpb.c cosmology.c walltime.c
-LIBSOURCES = libfastpm.c vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pm2lpt.c pmic.c \
-		msg.c pmsteps.c cosmology.c walltime.c
+		readparams.c msg.c power.c fastpm-steps.c fastpm-runpb.c cosmology.c walltime.c
+LIBSOURCES = fastpm-2lpt.c vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pm2lpt.c pmic.c \
+		msg.c fastpm-steps.c cosmology.c walltime.c
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
 PFFTFLIB = depends/install/lib/libpfftf_omp.a
