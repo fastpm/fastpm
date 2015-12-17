@@ -237,7 +237,6 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     };
 
     param->force_mode = read_enum(L, "force_mode", table);
-    param->enforce_broadband = read_boolean(L, "enforce_broadband");
     
     if(param->force_mode == FORCE_MODE_PM) {
         param->cola_stdda = 1;
