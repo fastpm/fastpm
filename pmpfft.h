@@ -15,32 +15,6 @@
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #endif
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef FFT_PRECISION
-#define FFT_PRECISION 32
-#endif
-
-#if FFT_PRECISION == 64
-    typedef double FastPMFloat;
-#elif FFT_PRECISION == 32
-    typedef float FastPMFloat;
-#else
-    #error FFT_PRECISION must be 32 or 64
-#endif
-
-typedef struct {
-    void * (*malloc )(size_t);
-    void   (*free   )(void *);
-    void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
-    size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
-    void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
-    void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int method);
-} PMIFace;
-
 typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
@@ -94,8 +68,6 @@ typedef struct PM {
 } PM;
 
 
-typedef struct PMGhostData PMGhostData;
-
 /* Initializing a PM object. */
 void 
 pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
@@ -104,17 +76,6 @@ void
 pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
-
-ptrdiff_t * pm_nmesh(PM * pm);
-double * pm_boxsize(PM * pm);
-
-/* 
- * Allocate memory for FFT/painting in PM. 
- * */
-FastPMFloat * pm_alloc(PM * pm);
-void pm_free(PM * pm, FastPMFloat * buf);
-void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
-size_t pm_size(PM * pm); 
 
 /* 
  * r2c is out-of-place and c2r is in-place.
@@ -146,10 +107,6 @@ double pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i);
 int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
         MPI_Datatype sendtype, void *recvbuf, int *recvcnts,
         int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
-
-#ifdef __cplusplus
-}
-#endif
 
 static inline size_t cumsum(int * out, int * in, size_t nitems) {
     size_t total = 0;

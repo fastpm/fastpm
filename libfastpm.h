@@ -1,6 +1,20 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PM PM;
 typedef struct PMStore PMStore;
 typedef struct VPM VPM;
+typedef struct PMGhostData PMGhostData;
+
+typedef struct {
+    void * (*malloc )(size_t);
+    void   (*free   )(void *);
+    void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
+    size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
+    void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
+    void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int method);
+} PMIFace;
 
 #ifndef FFT_PRECISION
 #define FFT_PRECISION 32
@@ -30,3 +44,7 @@ double * pm_boxsize(PM * pm);
 
 #include "pmkiter.h"
 #include "pmpowerspectrum.h"
+
+#ifdef __cplusplus
+}
+#endif
