@@ -192,29 +192,6 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
     pm_free(solver->pm, workspace);
 }
 
-void
-fastpm_2lpt_paint(FastPM2LPTSolver * solver, FastPMFloat * delta_x, FastPMFloat * delta_k) 
-{
-
-    PMGhostData * pgd = pm_ghosts_create(solver->pm, solver->p, PACK_POS, NULL);
-
-    /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
-     * otherwise increase this to (Nmesh / Ngrid) **3 */
-    FastPMFloat * canvas = pm_alloc(solver->pm);
-    pm_paint(solver->pm, canvas, solver->p, solver->p->np + pgd->nghosts, 1.0);
-    pm_assign(solver->pm, canvas, delta_x);
-
-    if(delta_k) {
-        pm_r2c(solver->pm, canvas, delta_k);
-        ptrdiff_t i = 0;
-        for(i = 0; i < solver->pm->allocsize; i ++) {
-            delta_k[i] /= solver->pm->Norm;
-        }
-    }
-    pm_free(solver->pm, canvas);
-    pm_ghosts_free(pgd);
-}
-
 static double 
 tk_eh(double k, struct fastpm_powerspec_eh_params * params)		/* from Martin White */
 {
@@ -247,18 +224,3 @@ fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eise
     return param->Norm * k * pow(tk_eh(k, param), 2);
 }
 
-void fastpm_2lpt_dump(FastPM2LPTSolver * solver, char * filename, FastPMFloat *data) {
-    char fn2[1024];
-    if(solver->pm->NTask > 1) {
-        sprintf(fn2, "%s.%03d", filename, solver->pm->ThisTask);
-        printf("%d: %td %td %td\n", solver->pm->ThisTask,
-                    solver->pm->IRegion.strides[0],
-                    solver->pm->IRegion.strides[1],
-                    solver->pm->IRegion.strides[2]);
-    } else {
-        sprintf(fn2, "%s", filename);
-    }
-    FILE * fp = fopen(fn2, "w");
-    fwrite(data, sizeof(FastPMFloat), solver->pm->allocsize, fp);
-    fclose(fp);
-}

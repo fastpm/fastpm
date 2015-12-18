@@ -5,7 +5,6 @@
 #include <math.h>
 
 #include "libfastpm.h"
-#define DUMP fastpm_2lpt_dump
 
 int main(int argc, char * argv[]) {
 
@@ -41,14 +40,14 @@ int main(int argc, char * argv[]) {
 
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
-    fastpm_2lpt_paint(solver, rho_final_xtruth, rho_final_ktruth);
-    DUMP(solver, "rho_init_ktruth.raw", rho_init_ktruth);
-    DUMP(solver, "rho_final_ktruth.raw", rho_final_ktruth);
-    DUMP(solver, "rho_final_xtruth.raw", rho_final_xtruth);
+    fastpm_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
+    fastpm_dump(solver->pm, "rho_init_ktruth.raw", rho_init_ktruth);
+    fastpm_dump(solver->pm, "rho_final_ktruth.raw", rho_final_ktruth);
+    fastpm_dump(solver->pm, "rho_final_xtruth.raw", rho_final_xtruth);
 
     memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
     fastpm_2lpt_hmc_force(solver, rho_final_x, Fk);
-    DUMP(solver, "Fk.raw", Fk);
+    fastpm_dump(solver->pm, "Fk.raw", Fk);
 
     /* now a fake MCMC loop. */
     int mcmcstep;
@@ -79,7 +78,7 @@ int main(int argc, char * argv[]) {
 
         /* Evolve to rho_final_k */
         fastpm_2lpt_evolve(solver, rho_init_k, 1.0, omega_m);
-        fastpm_2lpt_paint(solver, rho_final_x, rho_final_k);
+        fastpm_paint(solver->pm, solver->p, rho_final_x, rho_final_k);
 
         /* calculate the HMC force into Fk */
         fastpm_2lpt_hmc_force(solver, rho_final_xtruth, Fk);

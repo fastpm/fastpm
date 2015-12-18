@@ -32,16 +32,7 @@ typedef struct {
 #include "fastpm-2lpt.h"
 #include "fastpm-pm.h"
 #include "fastpm-log.h"
-
-/* 
- * Allocate memory for FFT/painting in PM. 
- * */
-FastPMFloat * pm_alloc(PM * pm);
-void pm_free(PM * pm, FastPMFloat * buf);
-void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
-size_t pm_size(PM * pm);
-ptrdiff_t * pm_nmesh(PM * pm);
-double * pm_boxsize(PM * pm);
+#include "fastpm-utils.h"
 
 #include "pmkiter.h"
 #include "pmpowerspectrum.h"
