@@ -110,6 +110,11 @@ void fastpm_init(FastPM * fastpm,
 
     pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
 
+    int i = 0;
+    for (i = 0; i < FASTPM_EXT_MAX; i ++) {
+        fastpm->exts[i] = NULL;
+    }
+
     walltime_measure("/Init/Plan");
 }
 
@@ -129,12 +134,12 @@ fastpm_prepare_ic(FastPM * fastpm, FastPMFloat * delta_k)
 }
 
 void
-fastpm_evolve(FastPM * fastpm, 
-    fastpm_after_force_action after_force,
-    fastpm_after_drift_action after_drift,
-    fastpm_after_kick_action after_kick,
-    void * userdata) 
+fastpm_evolve(FastPM * fastpm) 
 {
+
+    pm_store_summary(fastpm->p, fastpm->comm);
+
+    FastPMExtension * ext;
 
     pm_2lpt_evolve(fastpm->time_step[0], fastpm->p, fastpm->omega_m);
 
@@ -167,7 +172,11 @@ fastpm_evolve(FastPM * fastpm,
 
         pm_calculate_forces(fastpm->p, fastpm->pm, delta_k, density_factor);
 
-        after_force(fastpm, delta_k, a_x, userdata);
+        for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
+            ext; ext = ext->next) {
+                ((fastpm_ext_after_force) ext->function) 
+                    (fastpm, delta_k, a_x, ext->userdata);
+        }
 
         double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
 
@@ -186,7 +195,11 @@ fastpm_evolve(FastPM * fastpm,
         pm_free(fastpm->pm, delta_k);
 
         /* take snapshots if needed, before the kick */
-        after_drift(fastpm, userdata);
+        for(ext = fastpm->exts[FASTPM_EXT_AFTER_DRIFT];
+            ext; ext = ext->next) {
+                ((fastpm_ext_after_drift) ext->function) 
+                    (fastpm, ext->userdata);
+        }
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
@@ -197,7 +210,11 @@ fastpm_evolve(FastPM * fastpm,
         walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
-        after_kick(fastpm, userdata);
+        for(ext = fastpm->exts[FASTPM_EXT_AFTER_KICK];
+            ext; ext = ext->next) {
+                ((fastpm_ext_after_kick) ext->function) 
+                    (fastpm, ext->userdata);
+        }
         //
         // Leap-frog "drift" -- positions updated
         fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1);
@@ -211,7 +228,17 @@ void
 fastpm_destroy(FastPM * fastpm) 
 {
     pm_store_destroy(fastpm->p);
+    vpm_free(fastpm->vpm_list);
+    pm_destroy(fastpm->pm_2lpt);
     /* FIXME: free VPM and stuff. */
+    FastPMExtension * ext, * e2;
+    int i;
+    for(i = 0; i < FASTPM_EXT_MAX; i++) {
+        for(ext = fastpm->exts[i]; ext; ext = e2) {
+            e2 = ext->next;
+            free(e2);
+        }
+    }
 }
 
 static int 
@@ -372,3 +399,16 @@ fastpm_paint (FastPM * fastpm, FastPMFloat * delta_x, double density_factor) {
     pm_ghosts_free(pgd);
 }
 */
+
+void 
+fastpm_add_extension(FastPM * fastpm, 
+    int where,
+    void * function, void * userdata) 
+{
+    FastPMExtension * q = malloc(sizeof(FastPMExtension));
+    q->userdata = userdata;
+    q->function = function;
+    q->next = fastpm->exts[where];
+    fastpm->exts[where] = q;
+}
+

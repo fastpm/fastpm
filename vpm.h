@@ -18,3 +18,4 @@ vpm_find(VPM * vpm, double a);
 double
 vpm_estimate_alloc_factor(double failure_rate);
 
+void vpm_free (VPM * vpm);

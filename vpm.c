@@ -48,6 +48,15 @@ vpm_create (int size, int * pm_nc_factors, double * change_pm,
     vpm[i].end = 1;
     return vpm;
 }
+void vpm_free (VPM * vpm) {
+    int i;
+    while(!vpm[i].end) {
+        pm_destroy(&vpm[i].pm);
+
+        i++;
+    }
+    free(vpm);
+}
 #if 0
 double
 vpm_estimate_alloc_factor(double failure_rate) 

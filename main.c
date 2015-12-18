@@ -72,9 +72,11 @@ int main(int argc, char ** argv) {
     return 0;
 }
 
-static int default_step_action(FastPM * fastpm, Parameters * prr);
 static int 
-measure_power_action(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
+check_snapshots(FastPM * fastpm, Parameters * prr);
+
+static int 
+measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
 
@@ -99,6 +101,21 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         prr->np_alloc_factor, prr->NprocY, prr->UseFFTW, 
         prr->pm_nc_factor, prr->n_pm_nc_factor, prr->change_pm, 
         comm);
+
+    fastpm_add_extension(fastpm,
+        FASTPM_EXT_AFTER_FORCE,
+        measure_powerspectrum,
+        prr);
+
+    fastpm_add_extension(fastpm,
+        FASTPM_EXT_AFTER_KICK,
+        check_snapshots,
+        prr);
+
+    fastpm_add_extension(fastpm,
+        FASTPM_EXT_AFTER_DRIFT,
+        check_snapshots,
+        prr);
 
     walltime_measure("/Init/Misc");
 
@@ -127,18 +144,14 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         walltime_measure("/Init/2LPT");
     }
 
-    fastpm_evolve(fastpm,
-            (fastpm_after_force_action) measure_power_action, 
-            (fastpm_after_drift_action) default_step_action, 
-            (fastpm_after_kick_action) default_step_action,
-            prr
-            );
+    fastpm_evolve(fastpm);
+
     fastpm_destroy(fastpm);
 
     return 0;
 }
 
-static int default_step_action(FastPM * fastpm, Parameters * prr) {
+static int check_snapshots(FastPM * fastpm, Parameters * prr) {
     char TEMPLATE[1024];
     sprintf(TEMPLATE, "%s%05d_%%0.04f.bin", prr->snapshot_filename, prr->random_seed);
     fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
@@ -165,7 +178,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * templat
 }
 
 static int 
-measure_power_action(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
+measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
     PowerSpectrum ps;
     /* calculate the power spectrum */
