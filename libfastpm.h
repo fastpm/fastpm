@@ -16,16 +16,16 @@ typedef struct {
     void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int method);
 } PMIFace;
 
-#ifndef FFT_PRECISION
-#define FFT_PRECISION 32
+#ifndef FASTPM_FFT_PRECISION
+#define FASTPM_FFT_PRECISION 32
 #endif
 
-#if FFT_PRECISION == 64
+#if FASTPM_FFT_PRECISION == 64
     typedef double FastPMFloat;
-#elif FFT_PRECISION == 32
+#elif FASTPM_FFT_PRECISION == 32
     typedef float FastPMFloat;
 #else
-    #error FFT_PRECISION must be 32 or 64
+    #error FASTPM_FFT_PRECISION must be 32 or 64
 #endif
 
 

@@ -18,7 +18,7 @@
 
 static MPI_Datatype MPI_PTRDIFF = NULL;
 
-#if FFT_PRECISION == 64
+#if FASTPM_FFT_PRECISION == 64
     #define plan_dft_r2c pfft_plan_dft_r2c
     #define plan_dft_c2r pfft_plan_dft_c2r
     #define execute_dft_r2c pfft_execute_dft_r2c
@@ -31,7 +31,7 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define destroy_plan pfft_destroy_plan
     #define destroy_plan_fftw fftw_destroy_plan
 
-#elif FFT_PRECISION == 32
+#elif FASTPM_FFT_PRECISION == 32
     #define plan_dft_r2c pfftf_plan_dft_r2c
     #define plan_dft_c2r pfftf_plan_dft_c2r
     #define plan_dft_r2c_fftw fftwf_mpi_plan_dft_r2c
