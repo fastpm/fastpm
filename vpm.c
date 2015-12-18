@@ -47,7 +47,7 @@ vpm_create (int size, int * pm_nc_factors, double * change_pm,
     return vpm;
 }
 void vpm_free (VPM * vpm) {
-    int i;
+    int i = 0;
     while(!vpm[i].end) {
         pm_destroy(&vpm[i].pm);
 
