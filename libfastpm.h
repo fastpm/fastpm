@@ -23,3 +23,5 @@ FastPMFloat * pm_alloc(PM * pm);
 void pm_free(PM * pm, FastPMFloat * buf);
 void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
 size_t pm_size(PM * pm);
+
+#include "pmkiter.h"

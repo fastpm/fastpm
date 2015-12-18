@@ -55,25 +55,28 @@ int main(int argc, char * argv[]) {
 
     for(mcmcstep = 0; mcmcstep < 1; mcmcstep++) {
         /* example looping over ks */
-#if 0
-        ptrdiff_t ind;
-        ptrdiff_t i[3] = {0};
-        double fac = sqrt(pow(2 * M_PI, 3) / solver->pm->Volume);
+        double fac = sqrt(pow(2 * M_PI, 3) / pow(boxsize, 3));
+        PMKIter kiter;
+        for(pm_kiter_init(solver->pm, &kiter); 
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
 
-        for(ind = 0; ind < solver->pm->allocsize; ind += 2, pm_inc_o_index(solver->pm, i)) {
             int d;
             double k[3];
             double kk = 0.0;
             for(d = 0; d < 3; d ++) {
-                k[d] = solver->pm->MeshtoK[d][i[d] + solver->pm->ORegion.start[d]];
-                kk += k[d] * k[d];
+                /* where to get k and k^2 */
+                k[d] = kiter.fac[d][kiter.iabs[d]].k_finite;
+                kk += kiter.fac[d][kiter.iabs[d]].kk_finite;
             }
          
+            k[d] *= 1.0; /* shut up compiler warning */
+
             double P = fastpm_powerspec_eh(sqrt(kk), &eh);
-            rho_init_k[ind + 0] = fac * sqrt(P) * 1.0; /* real */
-            rho_init_k[ind + 1] = fac * sqrt(P) * 1.0; /* imag */
+            rho_init_k[kiter.ind + 0] = fac * sqrt(P) * 1.0; /* real */
+            rho_init_k[kiter.ind + 1] = fac * sqrt(P) * 1.0; /* imag */
         }
-#endif
+
         /* Evolve to rho_final_k */
         fastpm_2lpt_evolve(solver, rho_init_k, 1.0, omega_m);
         fastpm_2lpt_paint(solver, rho_final_x, rho_final_k);
