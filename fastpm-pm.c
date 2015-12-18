@@ -19,7 +19,7 @@
 #include "msg.h"
 #include "power.h"
 #include "walltime.h"
-#include "fastpm.h"
+#include "fastpm-pm.h"
 
 void 
 fastpm_init(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
@@ -102,7 +102,6 @@ void fastpm_init(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
 
     walltime_measure("/Init/Plan");
-
 }
 
 void 

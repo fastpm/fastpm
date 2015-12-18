@@ -28,7 +28,7 @@
 #include "vpm.h"
 #include "msg.h"
 #include "cosmology.h"
-#include "fastpm.h"
+#include "fastpm-pm.h"
 
 static double 
 Sq(double ai, double af, double aRef, FastPM * );

@@ -16,7 +16,7 @@
 #include "pmpfft.h"
 #include "vpm.h"
 #include "msg.h"
-#include "fastpm.h"
+#include "fastpm-pm.h"
 
 static Cosmology CP(FastPM * fastpm) {
     Cosmology c = {
