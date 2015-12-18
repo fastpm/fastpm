@@ -3,6 +3,10 @@ language: c
 env:
     - NUMPY_VERSION=1.8 OMP_NUM_THREADS=2
 
+cache:
+    - directories:
+        - ${TRAVIS_BUILD_DIR}/depends
+
 addons:
     apt:
         packages:
