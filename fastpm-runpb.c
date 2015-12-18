@@ -12,11 +12,11 @@
 #include <math.h>
 #include <alloca.h>
 
+#include "libfastpm.h"
 #include "cosmology.h"
 #include "pmpfft.h"
-#include "vpm.h"
+#include "pmstore.h"
 #include "msg.h"
-#include "fastpm-pm.h"
 
 static Cosmology CP(FastPM * fastpm) {
     Cosmology c = {

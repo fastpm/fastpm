@@ -8,7 +8,9 @@
 #include <signal.h>
 #include <gsl/gsl_rng.h>
 
+#include "libfastpm.h"
 #include "pmpfft.h"
+#include "pmstore.h"
 #include "pmic.h"
 #include "msg.h"
 

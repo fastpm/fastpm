@@ -5,7 +5,11 @@
 #include <stdarg.h>
 #include <math.h>
 #include <mpi.h>
+
+#include "libfastpm.h"
 #include "pmpfft.h"
+#include "pmghosts.h"
+#include "pmstore.h"
 #include "msg.h"
 
 void pm_ghosts_free(PMGhostData * pgd) {

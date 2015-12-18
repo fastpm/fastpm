@@ -6,6 +6,7 @@
 #include <math.h>
 #include <mpi.h>
 
+#include "libfastpm.h"
 #include "pmpfft.h"
 #include "vpm.h"
 #include "msg.h"

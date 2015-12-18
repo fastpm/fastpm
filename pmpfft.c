@@ -8,10 +8,13 @@
 #include <signal.h>
 #include <omp.h>
 
-#include "pmpfft.h"
-#include "msg.h"
 #include <fftw3.h>
 #include <fftw3-mpi.h>
+
+#include "libfastpm.h"
+#include "pmpfft.h"
+#include "pmstore.h"
+#include "msg.h"
 
 static MPI_Datatype MPI_PTRDIFF = NULL;
 

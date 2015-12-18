@@ -42,44 +42,6 @@ typedef struct {
 } PMIFace;
 
 typedef struct {
-    PMIFace iface;
-
-    int attributes; /* bit flags of allocated attributes */
-
-    double (* x)[3];
-    float (* q)[3];
-    float (* v)[3];
-    float (* acc)[3];
-    float (* dx1)[3];
-    float (* dx2)[3];
-    uint64_t * id;
-    size_t np;
-    size_t np_upper;
-    double a_x;
-    double a_v;
-} PMStore;
-
-#define PACK_POS   (1 << 0)
-#define PACK_VEL   (1 << 1)
-#define PACK_DX1   (1 << 2)
-#define PACK_DX2   (1 << 3)
-#define PACK_ACC   (1 << 4)
-#define PACK_ID    (1 << 5)
-#define PACK_Q     (1 << 6)
-
-
-#define PACK_ACC_X (1 << 10)
-#define PACK_ACC_Y (1 << 11)
-#define PACK_ACC_Z (1 << 12)
-#define PACK_DX1_X   (1 << 13)
-#define PACK_DX1_Y   (1 << 14)
-#define PACK_DX1_Z   (1 << 15)
-#define PACK_DX2_X   (1 << 16)
-#define PACK_DX2_Y   (1 << 17)
-#define PACK_DX2_Z   (1 << 18)
-#define HAS(a, b) ((a & b) != 0)
-
-typedef struct {
     ptrdiff_t Nmesh;
     double BoxSize;
     int NprocY;
@@ -101,7 +63,7 @@ typedef struct {
     ptrdiff_t total;
 } PMRegion;
 
-typedef struct {
+typedef struct PM {
     PMInit init;
     PMIFace iface;
     int NTask;
@@ -132,34 +94,7 @@ typedef struct {
 } PM;
 
 
-typedef struct {
-    PM * pm;
-    void * pdata;
-    size_t np;
-    size_t np_upper;
-    size_t nghosts;
-    int attributes;
-    void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
-
-    /* private members */
-    int * Nsend;
-    int * Osend;
-    int * Nrecv;
-    int * Orecv;
-    void * send_buffer;
-    void * recv_buffer;
-
-    /* iterator status */
-    ptrdiff_t ipar; 
-    int * ighost_to_ipar;
-    int rank;
-    ptrdiff_t * reason; /* relative offset causing the ghost */
-    int ReductionAttributes;
-    size_t elsize;
-} PMGhostData;
-
-typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
-
+typedef struct PMGhostData PMGhostData;
 
 /* Initializing a PM object. */
 void 
@@ -197,49 +132,14 @@ void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
 
-PMGhostData * pm_ghosts_create(PM * pm, PMStore * p, int attributes, 
-        void (*getpos)(void * pdata, ptrdiff_t index, double pos[3]));
-
-void pm_ghosts_reduce(PMGhostData * pgd, int attributes);
-void pm_ghosts_free(PMGhostData * pgd);
-
 void pm_paint(PM * pm, FastPMFloat * canvas, void * pdata, ptrdiff_t size, double weight);
 double pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3]);
 void pm_paint_pos(PM * pm, FastPMFloat * canvas, double pos[3], double weight);
 double pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i);
 
-typedef int (pm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
-
-void pm_store_init(PMStore * p);
-void pm_store_alloc(PMStore * p, size_t np_upper, int attributes);
-
-size_t 
-pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm);
-
-void pm_store_destroy(PMStore * p);
-
-/* Generic IO; unimplemented */
-void pm_store_read(PMStore * p, char * datasource);
-void pm_store_write(PMStore * p, char * datasource);
-
-/* Domain Decomposition */
-void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm);
-void pm_store_wrap(PMStore * p, double BoxSize[3]);
 
 /* reset 'x' and 'q' of every particle to the lagrangian position. This function shall
  * not belong here.*/
-void 
-pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]);
-
-void 
-pm_get_times(int istep,
-    double time_step[],
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1);
-
 
 /* This function guarentees good performance for sparse all to all. 
  * Used e.g. in domain decomposition */

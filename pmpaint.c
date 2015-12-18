@@ -6,7 +6,10 @@
 #include <math.h>
 #include <mpi.h>
 #include <signal.h>
+
+#include "libfastpm.h"
 #include "pmpfft.h"
+#include "pmstore.h"
 
 /* paint and read out */
 

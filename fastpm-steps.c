@@ -24,11 +24,12 @@
 #include <gsl/gsl_sf_hyperg.h> 
 #include <gsl/gsl_errno.h>
 
+#include "libfastpm.h"
 #include "pmpfft.h"
+#include "pmstore.h"
 #include "vpm.h"
 #include "msg.h"
 #include "cosmology.h"
-#include "fastpm-pm.h"
 
 static double 
 Sq(double ai, double af, double aRef, FastPM * );

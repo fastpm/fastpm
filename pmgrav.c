@@ -1,6 +1,10 @@
 #include <string.h>
+#include <mpi.h>
+
+#include "libfastpm.h"
 #include "pmpfft.h"
-#include "pmkiter.h"
+#include "pmghosts.h"
+#include "pmstore.h"
 #include "msg.h"
 #include "walltime.h"
 

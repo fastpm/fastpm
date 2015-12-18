@@ -1,5 +1,6 @@
+#include <mpi.h>
+#include "libfastpm.h"
 #include "pmpfft.h"
-#include "pmkiter.h"
 
 /* For OpenMP threading */
 void

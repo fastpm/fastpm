@@ -3,8 +3,8 @@
 #include <string.h>
 #include <mpi.h>
 
-#include "fastpm-internal.h"
-#include "pmpowerspectrum.h"
+#include "libfastpm.h"
+#include "pmpfft.h"
 
 void 
 pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps) 

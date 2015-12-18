@@ -1,5 +1,6 @@
 typedef double (*fastpm_pkfunc)(double k, void * data);
-typedef struct {
+
+typedef struct FastPM2LPTSolver {
     PM * pm;
     PMStore * p;
     int Ngrid;

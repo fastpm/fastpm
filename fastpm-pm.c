@@ -6,9 +6,16 @@
 #include <math.h>
 #include <mpi.h>
 
-#include "parameters.h"
-#include "fastpm-internal.h"
-#include "fastpm-pm.h"
+#include "libfastpm.h"
+
+#include "pmpfft.h"
+#include "pmstore.h"
+#include "pm2lpt.h"
+#include "pmghosts.h"
+#include "pmic.h"
+#include "msg.h"
+#include "walltime.h"
+#include "vpm.h"
 
 /*
 static void DUMP(PM * pm, char * filename, FastPMFloat *data) {

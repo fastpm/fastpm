@@ -1,7 +1,12 @@
 #include <string.h>
+
+#include <mpi.h>
+
+#include "libfastpm.h"
+
 #include "pmpfft.h"
+#include "pmstore.h"
 #include "msg.h"
-#include <signal.h>
 #include "walltime.h"
 
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
@@ -141,7 +146,9 @@ static void myfree(void * p) {
     pfft_free(p);
 }
 
-void pm_store_init(PMStore * p) {
+void 
+pm_store_init(PMStore * p) 
+{
     memset(p, 0, sizeof(p[0]));
     p->iface.malloc = malloczero;
     p->iface.free = myfree;
@@ -150,7 +157,10 @@ void pm_store_init(PMStore * p) {
     p->iface.reduce = reduce;
     p->iface.get_position = get_position;
 }
-void pm_store_alloc(PMStore * p, size_t np_upper, int attributes) {
+
+void 
+pm_store_alloc(PMStore * p, size_t np_upper, int attributes) 
+{
     pm_store_init(p);
 
     p->np = 0; 
@@ -202,7 +212,9 @@ pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc
     return 0;
 }
 
-void pm_store_destroy(PMStore * p) {
+void 
+pm_store_destroy(PMStore * p) 
+{
     if(p->dx2) p->iface.free(p->dx2);
     if(p->dx1) p->iface.free(p->dx1);
     if(p->acc) p->iface.free(p->acc);
@@ -242,7 +254,9 @@ static void pm_store_permute(PMStore * p, int * ind) {
         permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
 }
 
-void pm_store_wrap(PMStore * p, double BoxSize[3]) {
+void 
+pm_store_wrap(PMStore * p, double BoxSize[3])
+{
     int i;
     int d;
     for(i = 0; i < p->np; i ++) {
@@ -393,3 +407,42 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3])
     p->a_x = p->a_v = 0.;
 }
 
+void 
+pm_store_summary(PMStore * p, MPI_Comm comm) 
+{
+
+    double dx1disp[3] = {0};
+    double dx2disp[3] = {0};
+    ptrdiff_t i;
+
+#pragma omp parallel for
+    for(i = 0; i < p->np; i ++) {
+        int d;
+        for(d =0; d < 3; d++) {
+#pragma omp atomic
+            dx1disp[d] += p->dx1[i][d] * p->dx1[i][d];
+#pragma omp atomic
+            dx2disp[d] += p->dx2[i][d] * p->dx2[i][d];
+        } 
+    }
+    uint64_t Ntot = p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &Ntot,   1, MPI_LONG,  MPI_SUM, comm);
+    int d;
+    for(d =0; d < 3; d++) {
+        dx1disp[d] /= Ntot;
+        dx1disp[d] = sqrt(dx1disp[d]);
+        dx2disp[d] /= Ntot;
+        dx2disp[d] = sqrt(dx2disp[d]);
+    }
+
+    msg_printf(info, "dx1 disp : %g %g %g %g\n", 
+            dx1disp[0], dx1disp[1], dx1disp[2],
+            (dx1disp[0] + dx1disp[1] + dx1disp[2]) / 3.0);
+    msg_printf(info, "dx2 disp : %g %g %g %g\n", 
+            dx2disp[0], dx2disp[1], dx2disp[2],
+            (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
+
+}
