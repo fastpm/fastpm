@@ -379,6 +379,18 @@ pm_free(PM * pm, FastPMFloat * data)
     pm->iface.free(data);
 }
 
+void 
+pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to) 
+{
+    memcpy(to, from, sizeof(from[0]) * pm->allocsize);
+}
+
+size_t 
+pm_size(PM * pm)
+{
+    return pm->allocsize;
+}
+
 void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     /* workspace to canvas*/
     if(pm->init.use_fftw) {
@@ -638,6 +650,3 @@ pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3])
 
 }
 
-void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to) {
-    memcpy(to, from, sizeof(from[0]) * pm->allocsize);
-}

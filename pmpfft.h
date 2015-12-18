@@ -185,6 +185,7 @@ void pm_destroy(PM * pm);
 FastPMFloat * pm_alloc(PM * pm);
 void pm_free(PM * pm, FastPMFloat * buf);
 void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
+size_t pm_size(PM * pm); 
 
 /* 
  * r2c is out-of-place and c2r is in-place.

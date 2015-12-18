@@ -16,10 +16,11 @@ DIR_PATH = $(GSL_DIR) depends/install
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-SOURCES = main.c fastpm-pm.c vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pm2lpt.c pmic.c \
-		readparams.c msg.c power.c fastpm-steps.c fastpm-runpb.c cosmology.c walltime.c
-LIBSOURCES = fastpm-2lpt.c vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pm2lpt.c pmic.c \
-		msg.c fastpm-steps.c cosmology.c walltime.c
+INTERNAL = vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pmic.c pm2lpt.c  \
+			msg.c cosmology.c walltime.c
+SOURCES = main.c fastpm-pm.c readparams.c power.c fastpm-steps.c fastpm-runpb.c \
+		$(INTERNAL)
+LIBSOURCES = fastpm-2lpt.c fastpm-steps.c $(INTERNAL)
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
 PFFTFLIB = depends/install/lib/libpfftf_omp.a

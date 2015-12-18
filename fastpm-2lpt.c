@@ -1,10 +1,9 @@
 /* libfastpm: */
 #include <mpi.h>
 #include <string.h>
-#include "libfastpm.h"
-#include "msg.h"
-#include "pmic.h"
-#include "pm2lpt.h"
+
+#include "fastpm-internal.h"
+#include "fastpm-2lpt.h"
 
 int 
 fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc_factor, MPI_Comm comm)
@@ -260,3 +259,18 @@ fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eise
     return param->Norm * k * pow(tk_eh(k, param), 2);
 }
 
+void fastpm_2lpt_dump(FastPM2LPTSolver * solver, char * filename, FastPMFloat *data) {
+    char fn2[1024];
+    if(solver->pm->NTask > 1) {
+        sprintf(fn2, "%s.%03d", filename, solver->pm->ThisTask);
+        printf("%d: %td %td %td\n", solver->pm->ThisTask,
+                    solver->pm->IRegion.strides[0],
+                    solver->pm->IRegion.strides[1],
+                    solver->pm->IRegion.strides[2]);
+    } else {
+        sprintf(fn2, "%s", filename);
+    }
+    FILE * fp = fopen(fn2, "w");
+    fwrite(data, sizeof(FastPMFloat), solver->pm->allocsize, fp);
+    fclose(fp);
+}

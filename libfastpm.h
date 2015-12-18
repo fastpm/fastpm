@@ -1,47 +1,25 @@
-#include "pmpfft.h"
+typedef struct PM PM;
+typedef struct PMStore PMStore;
 
-typedef double (*fastpm_pkfunc)(double k, void * data);
-typedef struct {
-    PM * pm;
-    PMStore * p;
-    int Ngrid;
-    MPI_Comm comm;
-} FastPM2LPTSolver;
-
-#ifdef __cplusplus
-extern "C" {
+#ifndef FFT_PRECISION
+#define FFT_PRECISION 32
 #endif
 
-int 
-fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double BoxSize, double alloc_factor, MPI_Comm comm);
-
-void 
-fastpm_2lpt_evolve(FastPM2LPTSolver * solver, FastPMFloat * delta_k_i, double a, double omega_m);
-
-void
-fastpm_2lpt_paint(FastPM2LPTSolver * solver, FastPMFloat * delta_x, FastPMFloat * delta_k);
-        
-void 
-fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver, 
-        FastPMFloat * rhopx, /* (in), rho_p (the data) in x-space */
-        FastPMFloat * Fk     /* (out) hmc force in fourier space */
-        );
-
-struct fastpm_powerspec_eh_params {
-    double hubble_param;
-    double omegam;
-    double omegab;
-    double Norm;
-};
-
-double 
-fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
-
-void 
-fastpm_fill_deltak(PM * pm, FastPMFloat * deltak, 
-        int seed, fastpm_pkfunc pk, void * pkdata);
-
-
-#ifdef __cplusplus
-}
+#if FFT_PRECISION == 64
+    typedef double FastPMFloat;
+#elif FFT_PRECISION == 32
+    typedef float FastPMFloat;
+#else
+    #error FFT_PRECISION must be 32 or 64
 #endif
+
+
+#include "fastpm-2lpt.h"
+
+/* 
+ * Allocate memory for FFT/painting in PM. 
+ * */
+FastPMFloat * pm_alloc(PM * pm);
+void pm_free(PM * pm, FastPMFloat * buf);
+void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
+size_t pm_size(PM * pm);

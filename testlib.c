@@ -1,23 +1,11 @@
 #include <stdio.h>
 #include <string.h>
+#include <alloca.h>
+#include <mpi.h>
+#include <math.h>
 
 #include "libfastpm.h"
-
-static void DUMP(FastPM2LPTSolver * solver, char * filename, FastPMFloat *data) {
-    char fn2[1024];
-    if(solver->pm->NTask > 1) {
-        sprintf(fn2, "%s.%03d", filename, solver->pm->ThisTask);
-        printf("%d: %td %td %td\n", solver->pm->ThisTask,
-                    solver->pm->IRegion.strides[0],
-                    solver->pm->IRegion.strides[1],
-                    solver->pm->IRegion.strides[2]);
-    } else {
-        sprintf(fn2, "%s", filename);
-    }
-    FILE * fp = fopen(fn2, "w");
-    fwrite(data, sizeof(FastPMFloat), solver->pm->allocsize, fp);
-    fclose(fp);
-}
+#define DUMP fastpm_2lpt_dump
 
 int main(int argc, char * argv[]) {
 
@@ -58,7 +46,7 @@ int main(int argc, char * argv[]) {
     DUMP(solver, "rho_final_ktruth.raw", rho_final_ktruth);
     DUMP(solver, "rho_final_xtruth.raw", rho_final_xtruth);
 
-    memset(rho_final_x, 0, sizeof(FastPMFloat) * solver->pm->allocsize);
+    memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
     fastpm_2lpt_hmc_force(solver, rho_final_x, Fk);
     DUMP(solver, "Fk.raw", Fk);
 
@@ -67,6 +55,7 @@ int main(int argc, char * argv[]) {
 
     for(mcmcstep = 0; mcmcstep < 1; mcmcstep++) {
         /* example looping over ks */
+#if 0
         ptrdiff_t ind;
         ptrdiff_t i[3] = {0};
         double fac = sqrt(pow(2 * M_PI, 3) / solver->pm->Volume);
@@ -84,7 +73,7 @@ int main(int argc, char * argv[]) {
             rho_init_k[ind + 0] = fac * sqrt(P) * 1.0; /* real */
             rho_init_k[ind + 1] = fac * sqrt(P) * 1.0; /* imag */
         }
-
+#endif
         /* Evolve to rho_final_k */
         fastpm_2lpt_evolve(solver, rho_init_k, 1.0, omega_m);
         fastpm_2lpt_paint(solver, rho_final_x, rho_final_k);

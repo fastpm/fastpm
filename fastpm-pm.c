@@ -11,14 +11,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "pmpfft.h"
-#include "vpm.h"
-#include "pmic.h"
-#include "pm2lpt.h"
 #include "parameters.h"
-#include "msg.h"
-#include "power.h"
-#include "walltime.h"
+#include "fastpm-internal.h"
 #include "fastpm-pm.h"
 
 void 
