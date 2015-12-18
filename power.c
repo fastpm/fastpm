@@ -57,6 +57,10 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
     MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, comm);
 
+    if(myrank != 0) {
+        PowerTable = malloc(sizeof(struct pow_table) * NPowerTable);
+    }
+
     MPI_Datatype type;
     MPI_Type_contiguous(sizeof(struct pow_table), MPI_BYTE, &type);
     MPI_Type_commit(&type);
