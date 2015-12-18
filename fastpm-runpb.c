@@ -13,10 +13,10 @@
 #include <alloca.h>
 
 #include "libfastpm.h"
+
 #include "cosmology.h"
 #include "pmpfft.h"
 #include "pmstore.h"
-#include "msg.h"
 
 static Cosmology CP(FastPM * fastpm) {
     Cosmology c = {
@@ -70,9 +70,9 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
             fclose(fp);
         }
         if (Nfile == 0) {
-            msg_abort(0030, "No snapshot files were found.\n");
+            fastpm_raise(0030, "No snapshot files were found.\n");
         }
-        msg_printf(info, "Total number of files is %d\n", Nfile);
+        fastpm_info("Total number of files is %d\n", Nfile);
 
         MPI_Bcast(&Nfile, 1, MPI_INT, 0, comm);
         NperFile = malloc(sizeof(int) * Nfile);
@@ -85,17 +85,17 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
             fread(&eflag, sizeof(int), 1, fp);
             fread(&hsize, sizeof(int), 1, fp);
             if(hsize != sizeof(header)) {
-                msg_abort(0030, "Unable to read from %s\n", buf);
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
             }
             fread(&header, sizeof(FileHeader), 1, fp);
             aa = header.aa;
-            msg_aprintf(info, "reading from file %s npart=%d aa=%g \n", buf, header.npart, header.aa);
+            fastpm_ilog(INFO, 0, "reading from file %s npart=%d aa=%g \n", buf, header.npart, header.aa);
             NperFile[i] = header.npart;
             Ntot += header.npart;        
             fclose(fp);
         }
         if (Ntot != fastpm->nc * fastpm->nc * fastpm->nc) {
-            msg_abort(0030, "Number of p does not match nc\n");
+            fastpm_raise(0030, "Number of p does not match nc\n");
         }
         MPI_Bcast(NperFile, Nfile, MPI_INT, 0, comm);
         MPI_Bcast(&Ntot, 1, MPI_LONG_LONG, 0, comm);
@@ -123,7 +123,7 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
     
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
-    msg_printf(verbose, "chunknpart = %d\n", chunknpart);
+    fastpm_info("chunknpart = %d\n", chunknpart);
     for(i = 0; i < Nfile; i ++) {
         ptrdiff_t mystart = start - NcumFile[i];
         ptrdiff_t myend = end - NcumFile[i];
@@ -202,7 +202,7 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
         offset += myend - mystart;
     }
     if(offset != p->np) {
-        msg_abort(0030, "mismatch %d != %d\n", offset, p->np);
+        fastpm_raise(0030, "mismatch %d != %d\n", offset, p->np);
     }
 
     const double omega = OmegaA(aa, CP(fastpm));
@@ -262,10 +262,10 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
         dx2disp[d] /= Ntot;
         dx2disp[d] = sqrt(dx2disp[d]);
     }
-    msg_printf(info, "dx1 disp : %g %g %g %g\n", 
+    fastpm_info("dx1 disp : %g %g %g %g\n", 
             dx1disp[0], dx1disp[1], dx1disp[2],
             (dx1disp[0] + dx1disp[1] + dx1disp[2]) / 3.0);
-    msg_printf(info, "dx2 disp : %g %g %g %g\n", 
+    fastpm_info("dx2 disp : %g %g %g %g\n", 
             dx2disp[0], dx2disp[1], dx2disp[2],
             (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
 
@@ -376,7 +376,7 @@ static void write_mine(char * filebase,
         offset += myend - mystart;
     }
     if(offset != p->np) {
-        msg_abort(0030, "mismatch %d != %d\n", offset, p->np);
+        fastpm_raise(0030, "mismatch %d != %d\n", offset, p->np);
     }
     free(scratch);
 }
@@ -405,7 +405,7 @@ fastpm_write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
 
     int Nfile = (Ntot + (1024 * 1024 * 128 - 1)) / (1024 * 1024 * 128);
 
-    msg_printf(verbose, "Writing to %td paritlces to  %d files\n", Ntot, Nfile);
+    fastpm_info("Writing to %td paritlces to  %d files\n", Ntot, Nfile);
 
     int * NperFile = NperFile = alloca(sizeof(int) * Nfile);
 

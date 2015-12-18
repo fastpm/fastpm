@@ -14,7 +14,6 @@
 #include "libfastpm.h"
 #include "pmpfft.h"
 #include "pmstore.h"
-#include "msg.h"
 
 static MPI_Datatype MPI_PTRDIFF = NULL;
 
@@ -123,7 +122,7 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
         }
     } else {
         if(pm->NTask % Ny != 0) {
-            msg_abort(-1, "NprocY(%d) and NTask(%d) is incompatible\n", Ny, pm->NTask);
+            fastpm_raise(-1, "NprocY(%d) and NTask(%d) is incompatible\n", Ny, pm->NTask);
         }
     }
     Nx = pm->NTask / Ny;
@@ -131,7 +130,7 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
     pm->Nproc[1] = Ny;
     if(init->use_fftw) {
         if(Ny != 1) {
-            msg_abort(-1, "FFTW requires Ny == 1; Ny = %d\n", Ny);
+            fastpm_raise(-1, "FFTW requires Ny == 1; Ny = %d\n", Ny);
         }
     }
     int d;
@@ -168,27 +167,8 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
     }
-    msg_printf(info, "ProcMesh : %d x %d ( %d Threads)\n", pm->Nproc[0], pm->Nproc[1], omp_get_max_threads());
-#if 0
-    msg_aprintf(debug, "IRegion : %td %td %td + %td %td %td\n",
-        pm->IRegion.start[0],
-        pm->IRegion.start[1],
-        pm->IRegion.start[2],
-        pm->IRegion.size[0],
-        pm->IRegion.size[1],
-        pm->IRegion.size[2]
-    );
+    fastpm_info("ProcMesh : %d x %d ( %d Threads)\n", pm->Nproc[0], pm->Nproc[1], omp_get_max_threads());
 
-    msg_aprintf(debug, "ORegion : %td %td %td + %td %td %td\n",
-        pm->ORegion.start[0],
-        pm->ORegion.start[1],
-        pm->ORegion.start[2],
-        pm->ORegion.size[0],
-        pm->ORegion.size[1],
-        pm->ORegion.size[2]
-    );
-    /* Set up strides for IRegion (real) and ORegion(complex) */
-#endif
     /* Note that we need to fix up the padded size of the real data;
      * and transpose with strides , */
 

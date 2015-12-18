@@ -9,7 +9,6 @@
 #include "libfastpm.h"
 #include "pmpfft.h"
 #include "vpm.h"
-#include "msg.h"
 
 VPM *
 vpm_find(VPM * vpm, double a) 
@@ -41,7 +40,6 @@ vpm_create (int size, int * pm_nc_factors, double * change_pm,
 
         PMInit pminit = *baseinit;
         pminit.Nmesh = baseinit->Nmesh * vpm[i].pm_nc_factor;
-        msg_printf(debug, "Nmesh = %td at a %5.4g \n", pminit.Nmesh, change_pm[i]);
         pm_init(&vpm[i].pm, &pminit, iface, comm);
     }
     /* the end of the list */

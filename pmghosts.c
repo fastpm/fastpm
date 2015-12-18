@@ -10,7 +10,6 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 #include "pmstore.h"
-#include "msg.h"
 
 void pm_ghosts_free(PMGhostData * pgd) {
     pgd->pm->iface.free(pgd->ighost_to_ipar);
@@ -142,7 +141,7 @@ pm_ghosts_create(PM * pm, PMStore *p,
     pgd->nghosts = Nrecv;
 
     if(Nrecv + pgd->np > pgd->np_upper) {
-        msg_abort(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, pgd->np_upper - pgd->np);
+        fastpm_raise(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, pgd->np_upper - pgd->np);
     }
 
     MPI_Datatype GHOST_TYPE;

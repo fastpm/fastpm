@@ -28,7 +28,6 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 #include "vpm.h"
-#include "msg.h"
 #include "cosmology.h"
 
 static double 
@@ -63,8 +62,8 @@ fastpm_kick(FastPM * fastpm,
     double growth1 = GrowthFactor(ac, CP(fastpm));
     double OmegaM = fastpm->omega_m;
 
-    msg_printf(normal, "Kick %6.4f -> %6.4f\n", ai, af);
-    msg_printf(normal, "growth factor %g dda=%g\n", growth1, dda);
+    fastpm_info("Kick %6.4f -> %6.4f\n", ai, af);
+    fastpm_info("growth factor %g dda=%g\n", growth1, dda);
 
     double q2 = 1.5*OmegaM*growth1*growth1*(1.0 + 7.0/3.0*Om143);
     double q1 = 1.5*OmegaM*growth1;
@@ -106,8 +105,8 @@ fastpm_drift(FastPM * fastpm,
     double da1 = GrowthFactor(af, CP(fastpm)) - GrowthFactor(ai, CP(fastpm));    // change in D_1lpt
     double da2 = GrowthFactor2(af, CP(fastpm)) - GrowthFactor2(ai, CP(fastpm));  // change in D_2lpt
 
-    msg_printf(normal, "Drift %6.4f -> %6.4f\n", ai, af);
-    msg_printf(normal, "dyyy = %g \n", dyyy);
+    fastpm_info("Drift %6.4f -> %6.4f\n", ai, af);
+    fastpm_info("dyyy = %g \n", dyyy);
 
 
     int i;
@@ -190,7 +189,7 @@ Sq(double ai, double af, double aRef, FastPM * fastpm)
     result = integrate(ai, af, fastpm, nonstddriftfunc);
     result /= gpQ(aRef, fastpm->nLPT);
 
-    msg_printf(verbose, "ref time = %6.4f, std drift =%g, non std drift = %g \n",
+    fastpm_info("ref time = %6.4f, std drift =%g, non std drift = %g \n",
         aRef, resultstd, result);
 
     if (fastpm->USE_NONSTDDA)
@@ -217,7 +216,7 @@ Sphi(double ai, double af, double aRef, FastPM * fastpm)
 
     resultstd = integrate(ai, af, fastpm, stdkickfunc);
 
-    msg_printf(verbose, "ref time = %6.4f, std kick = %g, non std kick = %g\n",
+    fastpm_info("ref time = %6.4f, std kick = %g, non std kick = %g\n",
             aRef, resultstd, result);
 
     if (fastpm->USE_NONSTDDA) {
@@ -238,17 +237,17 @@ fastpm_set_snapshot(FastPM * fastpm,
     double a_x = p->a_x;
     double a_v = p->a_v;
 
-    msg_printf(verbose, "Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
+    fastpm_info("Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
     float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
 
-    msg_printf(normal, "Growth factor of snapshot %f (a=%.3f)\n", fastpm_growth_factor(fastpm, aout), aout);
+    fastpm_info("Growth factor of snapshot %f (a=%.3f)\n", fastpm_growth_factor(fastpm, aout), aout);
 
     double Dv=DprimeQ(aout, 1.0, CP(fastpm)); // dD_{za}/dy
     double Dv2=GrowthFactor2v(aout, CP(fastpm));   // dD_{2lpt}/dy
 
-    msg_printf(debug, "velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
-    msg_printf(debug, "RSD factor %e\n", aout/Qfactor(aout, CP(fastpm))/vfac);
+    fastpm_info("velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
+    fastpm_info("RSD factor %e\n", aout/Qfactor(aout, CP(fastpm))/vfac);
 
     fastpm_kick(fastpm, p, po, aout);
 

@@ -5,7 +5,6 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 #include "pmstore.h"
-#include "msg.h"
 #include "walltime.h"
 
 static void 

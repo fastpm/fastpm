@@ -31,6 +31,7 @@ typedef struct {
 
 #include "fastpm-2lpt.h"
 #include "fastpm-pm.h"
+#include "fastpm-log.h"
 
 /* 
  * Allocate memory for FFT/painting in PM. 

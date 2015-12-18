@@ -17,7 +17,6 @@
 
 #include "walltime.h"
 #include "power.h"
-#include "msg.h"
 #include "pmic.h"
 
 
@@ -54,10 +53,7 @@ int main(int argc, char ** argv) {
     parse_args(argc, argv, &prr);
 
     struct ClockTable CT;
-    msg_init(comm);
     walltime_init(&CT);
-
-    msg_set_loglevel(verbose);
 
     read_parameters(ParamFileName, &prr, comm);
 
@@ -65,7 +61,7 @@ int main(int argc, char ** argv) {
 
     walltime_summary(0, comm);
 
-    msg_printf(info, "Total Time\n");
+    fastpm_info("Total Time\n");
     walltime_report(stdout, 0, comm);
 
     MPI_Finalize();
@@ -82,7 +78,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
     const double rho_crit = 27.7455;
     const double M0 = prr->omega_m*rho_crit*pow(prr->boxsize / prr->nc, 3.0);
-    msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
+    fastpm_info("mass of a particle is %g 1e10 Msun/h\n", M0); 
 
     FastPM * fastpm = & (FastPM) {
         .time_step = prr->time_step,
@@ -126,6 +122,8 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     } else {
         FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
+        fastpm_info("Powerspecectrum file: %s\n", prr->power_spectrum_filename);
+
         power_init(prr->power_spectrum_filename, 
                 prr->time_step[0], 
                 prr->sigma8, 
@@ -133,8 +131,13 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
                 1 - prr->omega_m, comm);
 
         if(prr->readnoise_filename) {
+            fastpm_info("Reading grafic white noise file from '%s'.\n", prr->readnoise_filename);
+            fastpm_info("GrafIC noise is Fortran ordering. FastPM is in C ordering.\n");
+            fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
+
             pmic_read_gaussian(fastpm->pm_2lpt, delta_k, prr->readnoise_filename, PowerSpecWithData, NULL);
         } else {
+
             pmic_fill_gaussian_gadget(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL);
         }
         fastpm_prepare_ic(fastpm, delta_k);
@@ -172,7 +175,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * templat
     MPI_Barrier(fastpm->comm);
     walltime_measure("/Snapshot/Wait");
 
-    msg_printf(normal, "snapshot %s written z = %6.4f a = %6.4f\n", 
+    fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
             filebase, z_out, aout);
     return 0;
 }

@@ -17,8 +17,8 @@
 #include <gsl/gsl_integration.h>
 #include <mpi.h>
 
-#include "msg.h"
 #include "power.h"
+#include "fastpm-log.h"
 
 #define WORKSIZE 100000
 
@@ -51,8 +51,6 @@ void power_init(const char filename[], const double a_init, const double sigma8,
         PowerNorm= normalize_power(a_init, sigma8);
     }
 
-    msg_printf(normal, "Powerspecectrum file: %s\n", filename);
-
     MPI_Bcast(&PowerNorm, 1, MPI_DOUBLE, 0, comm);
 
     MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, comm);
@@ -77,7 +75,7 @@ void read_power_table_camb(const char filename[])
 
     FILE* fp= fopen(filename, "r");
     if(!fp)
-        msg_abort(3000, "Error: unable to read input power spectrum: %s",
+        fastpm_raise(3000, "Error: unable to read input power spectrum: %s",
                 filename);
 
     NPowerTable = 0;
@@ -88,8 +86,7 @@ void read_power_table_camb(const char filename[])
             break;
     } while(1);
 
-    msg_printf(verbose, 
-            "Found %d pairs of values in input spectrum table\n", NPowerTable);
+    fastpm_info("Found %d pairs of values in input spectrum table\n", NPowerTable);
 
     PowerTable = malloc(NPowerTable * sizeof(struct pow_table));
 
@@ -123,13 +120,13 @@ double normalize_power(const double a_init, const double sigma8)
     double res = TopHatSigma2(R8, PowerSpecWithData, NULL); 
     double sigma8_input= sqrt(res);
 
-    msg_printf(info, "Input power spectrum sigma8 %f\n", sigma8_input);
+    fastpm_info("Input power spectrum sigma8 %f\n", sigma8_input);
     if (sigma8 == 0)
         return 1;
-    msg_printf(info, "Expected power spectrum sigma8 %f\n", sigma8);
+    fastpm_info("Expected power spectrum sigma8 %f\n", sigma8);
 
     if(fabs(sigma8_input - sigma8)/sigma8 > 0.05)
-        msg_printf(info, "Input sigma8 %f is far from target sigma8 %f; correction applied\n",
+        fastpm_info("Input sigma8 %f is far from target sigma8 %f; correction applied\n",
                 sigma8_input, sigma8);
 
     return sigma8 * sigma8/ res;

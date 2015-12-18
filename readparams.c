@@ -10,7 +10,7 @@
 #include <lualib.h>
 
 #include "parameters.h"
-#include "msg.h"
+#include "fastpm-log.h"
 #include "fastpm-preface.h"
 
 
@@ -30,7 +30,7 @@ c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_type
 c_typename read_## my_typename (lua_State * L, const char * name) { \
     lua_getglobal(L, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
-        msg_abort(1030, "Error: Parameter %s not found in the parameter file\n", name); \
+        fastpm_raise(1030, "Error: Parameter %s not found in the parameter file\n", name); \
     } \
     c_typename retvalue = transform(lua_to ## lua_typename(L, -1)); \
     lua_pop(L, 1); \
@@ -40,7 +40,7 @@ c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *le
 { \
     lua_getglobal(L, name); \
     if(!lua_istable(L, -1)) { \
-        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
+        fastpm_raise(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
     const int n = luaL_len(L, -1);     \
     c_typename * array = (c_typename *) malloc(sizeof(c_typename) * n); \
@@ -70,7 +70,7 @@ c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_type
 c_typename read_## my_typename (lua_State * L, const char * name, argtype argname) { \
     lua_getglobal(L, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
-        msg_abort(1030, "Error: Parameter %s not found in the parameter file\n", name); \
+        fastpm_raise(1030, "Error: Parameter %s not found in the parameter file\n", name); \
     } \
     c_typename retvalue = transform(lua_to ## lua_typename(L, -1), argname); \
     lua_pop(L, 1); \
@@ -80,7 +80,7 @@ c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *le
 { \
     lua_getglobal(L, name); \
     if(!lua_istable(L, -1)) { \
-        msg_abort(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
+        fastpm_raise(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
     int n = luaL_len(L, -1);     \
     c_typename * array = (c_typename *) malloc(sizeof(c_typename) * n); \
@@ -128,7 +128,7 @@ static int parse_enum(const char * str, struct enum_entry * enum_table) {
         strcat(options, "`");
     }
      
-    msg_abort(9999, "value `%s` is not recognized. Options are %s \n",
+    fastpm_raise(9999, "value `%s` is not recognized. Options are %s \n",
         str, options);
     return 0;
 }
@@ -152,7 +152,7 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
     preface[fastpm_preface_lua_len] = 0;
 
     if(luaL_loadstring(L, preface) || lua_pcall(L, 0, 0, 0)) {
-        msg_abort(-1, "%s\n", lua_tostring(L, -1));
+        fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
         return -1;
     }
 
@@ -163,7 +163,7 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
         lua_getglobal(L, "read_file");
         lua_pushstring(L, filename);
         if(lua_pcall(L, 1, 1, 0)) {
-            msg_abort(-1, "%s\n", lua_tostring(L, -1));
+            fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
         }
         confstr = strdup(lua_tostring(L, -1));
         confstr_len = strlen(confstr) + 1;
@@ -193,7 +193,7 @@ static void
 parse_conf(char * confstr, Parameters * param, lua_State * L) 
 {
     if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 0, 0)) {
-        msg_abort(-1, "%s\n", lua_tostring(L, -1));
+        fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
 
     memset(param, 0, sizeof(*param));
@@ -217,7 +217,7 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     param->pm_nc_factor = read_array_integer(L, "pm_nc_factor", &param->n_pm_nc_factor);
     param->change_pm = read_array_number(L, "change_pm", &param->n_change_pm);
     if(param->n_change_pm != param->n_pm_nc_factor) {
-        msg_abort(1001, "Error: length of change_pm and pm_nc_factor mismatch.");
+        fastpm_raise(1001, "Error: length of change_pm and pm_nc_factor mismatch.");
     }
     param->np_alloc_factor = read_number(L, "np_alloc_factor");
     param->loglevel = read_integer(L, "loglevel");

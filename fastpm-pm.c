@@ -13,7 +13,6 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "pmic.h"
-#include "msg.h"
 #include "walltime.h"
 #include "vpm.h"
 
@@ -155,7 +154,7 @@ fastpm_evolve(FastPM * fastpm)
         fastpm_set_time(fastpm, istep, 
                     &a_x, &a_x1, &a_v, &a_v1);
 
-        msg_printf(normal, "==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
+        fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
                     istep, a_x, a_x1, a_v, a_v1, fastpm->pm->init.Nmesh);
 
         walltime_measure("/Stepping/Start");
@@ -188,7 +187,7 @@ fastpm_evolve(FastPM * fastpm)
         double correction = sqrt(Plin0 / Plin);
 
         if(!fastpm->USE_LINEAR_THEORY) correction = 1.0;
-        msg_printf(info, "<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
+        fastpm_info("<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
                           fastpm->K_LINEAR, Plin, Plin0, correction); 
         fix_linear_growth(fastpm->p, correction);
 
@@ -263,7 +262,7 @@ fastpm_decompose(FastPM * fastpm) {
     MPI_Allreduce(&fastpm->p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->comm);
     MPI_Allreduce(&fastpm->p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->comm);
 
-    msg_printf(info, "Load imbalance is - %g / + %g\n",
+    fastpm_info("Load imbalance is - %g / + %g\n",
         np_min / np_mean, np_max / np_mean);
 
 }
@@ -343,7 +342,7 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
         pm_store_init(snapshot);
         pm_store_alloc(snapshot, fastpm->p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
 
-        msg_printf(verbose, "Taking a snapshot...\n");
+        fastpm_info("Taking a snapshot...\n");
 
         fastpm_set_snapshot(fastpm, fastpm->p, snapshot, aout[iout]);
         walltime_measure("/Snapshot/KickDrift");

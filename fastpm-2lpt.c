@@ -9,14 +9,11 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "pmic.h"
-#include "msg.h"
 #include "walltime.h"
 
 int 
 fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc_factor, MPI_Comm comm)
 {
-    msg_init(comm);
-    msg_set_loglevel(verbose);
     solver->p = malloc(sizeof(PMStore));
     solver->pm = malloc(sizeof(PM));
     pm_store_init(solver->p);

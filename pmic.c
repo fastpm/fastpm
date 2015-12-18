@@ -12,7 +12,6 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 #include "pmic.h"
-#include "msg.h"
 
 static double 
 index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
@@ -197,11 +196,9 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, v
 static void 
 pmic_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, pkfunc pk, void * pkdata) {
 
-    msg_printf(info, "Transforming to fourier space .\n");
     pm_r2c(pm, g_x, delta_k);
 
-    msg_printf(info, "Inducing correlation to the white noise.\n");
-    msg_printf(debug, "Volume = %g.\n", pm->Volume);
+    fastpm_info("Inducing correlation to the white noise.\n");
 
     ptrdiff_t i[3] = {0};
     ptrdiff_t ind;
@@ -304,8 +301,6 @@ pmic_read_gaussian(PM * pm, FastPMFloat * delta_k, char * filename, pkfunc pk, v
     int d;
     ptrdiff_t i[3] = {0, 0, 0};
 
-    msg_printf(info, "Reading grafic white noise file from '%s'.\n", filename);
-
     FILE * fp = fopen(filename, "r");
 
     struct {
@@ -320,16 +315,13 @@ pmic_read_gaussian(PM * pm, FastPMFloat * delta_k, char * filename, pkfunc pk, v
     ind = 0;
 
     if(header.bs1 != 16) 
-        msg_abort(-1, "file not in BigMD noise format.\n");
-
-    msg_printf(info, "GrafIC noise is Fortran ordering. FastPM is in C ordering."
-        "The simulation will be transformed x->z y->y z->x.\n");
+        fastpm_raise(-1, "file not in BigMD noise format.\n");
 
     for(d = 0; d < 3; d ++) {
         /* BigMD is in */
         int permute[3] = {2, 1, 0};
         if(header.n[d] != pm->Nmesh[permute[d]]) {
-            msg_abort(-1, "file is in %d, but simulation is in %d.\n",
+            fastpm_raise(-1, "file is in %d, but simulation is in %d.\n",
                 header.n[d], pm->Nmesh[permute[d]]);
         }
     }
@@ -352,7 +344,7 @@ pmic_read_gaussian(PM * pm, FastPMFloat * delta_k, char * filename, pkfunc pk, v
         fread(&bs, 4, 1, fp);
 
         if(bs != 4 * header.n[0] * header.n[1])
-            msg_abort(-1, "file size is wrong\n");
+            fastpm_raise(-1, "file size is wrong\n");
 
         fseek(fp, pm->IRegion.start[1] * header.n[1] * 4, SEEK_CUR);
         fread(buf, 4, header.n[0] * pm->IRegion.size[1], fp);

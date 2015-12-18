@@ -14,7 +14,6 @@
 #include "pmstore.h"
 #include "pmghosts.h"
 #include "pm2lpt.h"
-#include "msg.h"
 
 static void 
 apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 

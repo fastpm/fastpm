@@ -18,7 +18,8 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
 LIBSOURCES = fastpm-2lpt.c fastpm-pm.c fastpm-steps.c \
              vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pmic.c pm2lpt.c \
-			 msg.c cosmology.c walltime.c pmkiter.c pmpowerspectrum.c 
+			 cosmology.c walltime.c pmkiter.c pmpowerspectrum.c \
+			 fastpm-log.c
 
 SOURCES = main.c power.c readparams.c fastpm-runpb.c
 

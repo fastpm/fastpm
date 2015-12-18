@@ -6,7 +6,6 @@
 
 #include "pmpfft.h"
 #include "pmstore.h"
-#include "msg.h"
 #include "walltime.h"
 
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
@@ -59,7 +58,7 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        msg_abort(-1, "Runtime Error, unknown packing field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown packing field.\n");
     }
     return s;
 }
@@ -85,7 +84,7 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_ACC, acc)
     #undef DISPATCH
     if(flags != 0) {
-        msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
 static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
@@ -112,7 +111,7 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_Z, dx2, 2)
     #undef DISPATCHC
     if(flags != 0) {
-        msg_abort(-1, "Runtime Error, unknown unpacking field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
 static struct {
@@ -135,11 +134,11 @@ static void myfree(void * p) {
     static size_t max_used_bytes = 0;
     if(used_bytes > max_used_bytes) {
         max_used_bytes = used_bytes;
-        msg_printf(info, "Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
+        fastpm_info("Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
     }
     NAllocTable --;
     if(AllocTable[NAllocTable].p != p) {
-        msg_abort(-1, "Allocation and Free is mismatched.\n");
+        fastpm_raise(-1, "Allocation and Free is mismatched.\n");
     }
     size_t s = AllocTable[NAllocTable].s;
     used_bytes -= s;
@@ -221,7 +220,7 @@ pm_store_destroy(PMStore * p)
     p->iface.free(p->id);
     p->iface.free(p->v);
     p->iface.free(p->x);
-    msg_printf(info, "Remainging allocation %td bytes, %d chunks\n", used_bytes, NAllocTable);
+    fastpm_info("Remainging allocation %td bytes, %d chunks\n", used_bytes, NAllocTable);
 }
 
 void pm_store_read(PMStore * p, char * datasource) {
@@ -369,7 +368,7 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3])
         p->np *= pm->IRegion.size[d];
     }
     if(p->np > p->np_upper) {
-        msg_abort(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
+        fastpm_raise(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
     }
     ptrdiff_t ptrmax = 0;
     ptrdiff_t i[3] = {0};
@@ -396,7 +395,7 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3])
         ptr ++;
     }
     if(ptrmax + 1 != p->np) {
-        msg_abort(-1, "This is an internal error, particle number mismatched with grid. %td != %td, allocsize=%td, shape=(%td %td %td)\n", 
+        fastpm_raise(-1, "This is an internal error, particle number mismatched with grid. %td != %td, allocsize=%td, shape=(%td %td %td)\n", 
             ptrmax + 1, p->np, pm->allocsize, 
             pm->IRegion.size[0],
             pm->IRegion.size[1],
@@ -438,10 +437,10 @@ pm_store_summary(PMStore * p, MPI_Comm comm)
         dx2disp[d] = sqrt(dx2disp[d]);
     }
 
-    msg_printf(info, "dx1 disp : %g %g %g %g\n", 
+    fastpm_info("dx1 disp : %g %g %g %g\n", 
             dx1disp[0], dx1disp[1], dx1disp[2],
             (dx1disp[0] + dx1disp[1] + dx1disp[2]) / 3.0);
-    msg_printf(info, "dx2 disp : %g %g %g %g\n", 
+    fastpm_info("dx2 disp : %g %g %g %g\n", 
             dx2disp[0], dx2disp[1], dx2disp[2],
             (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
 
