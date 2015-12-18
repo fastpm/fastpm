@@ -63,69 +63,51 @@ get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3])
 
 void fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
 
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
 
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
 
             /* - i k[d] */
-            to[ind + 0] =   from[ind + 1] * (k_finite);
-            to[ind + 1] = - from[ind + 0] * (k_finite);
-            pm_inc_o_index(pm, i);
+            to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite);
+            to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite);
         }
     }
-    pm_destroy_k_factors(pm, fac);
-
 }
 
 void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
 
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
-
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
             int d;
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
             double kk_finite = 0.;
+            
             for(d = 0; d < 3; d++) {
-                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
             }
 
             if(kk_finite == 0)
             {
-                to[ind + 0] = 0;
-                to[ind + 1] = 0;
+                to[kiter.ind + 0] = 0;
+                to[kiter.ind + 1] = 0;
             }
             else
             {
                 /* - i k[d] / k**2 */
-                to[ind + 0] =   from[ind + 1] * (k_finite / kk_finite);
-                to[ind + 1] = - from[ind + 0] * (k_finite / kk_finite);
+                to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite / kk_finite);
+                to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite / kk_finite);
             }
-            pm_inc_o_index(pm, i);
         }
     }
-    pm_destroy_k_factors(pm, fac);
-
 }
 
 void 

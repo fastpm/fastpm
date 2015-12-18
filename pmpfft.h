@@ -160,15 +160,6 @@ typedef struct {
 
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
-typedef struct {
-    float k_finite; /* k, finite */
-    float k; /* k */
-    float kk_finite; /* k ** 2, on a mesh */
-    float kk;  /* k ** 2 */
-    float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/
-    float extra;  /* any temporary variable that can be useful. */
-} PMKFactors;
-
 
 /* Initializing a PM object. */
 void 
@@ -253,16 +244,6 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
         MPI_Datatype sendtype, void *recvbuf, int *recvcnts,
         int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
 
-/* For OpenMP threading */
-void
-pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]);
-void 
-pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
-void 
-pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
-int omp_get_num_threads();
-int omp_get_thread_num();
-
 #ifdef __cplusplus
 }
 #endif
@@ -306,4 +287,5 @@ power_spectrum_destroy(PowerSpectrum * ps);
 
 void
 power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
+
 

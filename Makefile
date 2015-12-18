@@ -17,7 +17,7 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 INTERNAL = vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pmic.c pm2lpt.c  \
-			msg.c cosmology.c walltime.c
+			msg.c cosmology.c walltime.c pmkiter.c
 SOURCES = main.c fastpm-pm.c readparams.c power.c fastpm-steps.c fastpm-runpb.c \
 		$(INTERNAL)
 LIBSOURCES = fastpm-2lpt.c fastpm-steps.c $(INTERNAL)

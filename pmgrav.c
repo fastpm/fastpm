@@ -1,5 +1,6 @@
 #include <string.h>
 #include "pmpfft.h"
+#include "pmkiter.h"
 #include "msg.h"
 #include "walltime.h"
 
@@ -8,25 +9,20 @@ apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
+        PMKIter kiter;
 
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
             int d;
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
             double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
             }
+            ptrdiff_t ind = kiter.ind;
             /* - i k[d] / k2 */
             if(LIKELY(kk_finite > 0)) {
                 to[ind + 0] =   from[ind + 1] * (k_finite / kk_finite);
@@ -35,10 +31,8 @@ apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
                 to[ind + 0] = 0;
                 to[ind + 1] = 0;
             }
-            pm_inc_o_index(pm, i);
         }
     }
-    pm_destroy_k_factors(pm, fac);
 }
 
 void 
@@ -97,29 +91,26 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
 double
 pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
 {
-    PMKFactors * fac[3];
     double sum = 0;
     double N   = 0;
-    pm_create_k_factors(pm, fac);
 
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
-
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
             int d;
             double kk = 0.;
             for(d = 0; d < 3; d++) {
-                double kk1 = fac[d][i[d] + pm->ORegion.start[d]].kk;
+                double kk1 = kiter.fac[d][kiter.iabs[d]].kk;
                 if(kk1 > kmax * kmax) {
                     goto next;
                 }
                 kk += kk1;
             }
+            ptrdiff_t ind = kiter.ind;
+
             double real = delta_k[ind + 0];
             double imag = delta_k[ind + 1];
             double value = real * real + imag * imag;
@@ -131,11 +122,9 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
                 N += 1;
             }
             next:
-            pm_inc_o_index(pm, i);
+            continue;
         }
     }
-
-    pm_destroy_k_factors(pm, fac);
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
@@ -150,10 +139,6 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
 void 
 pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps) 
 {
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
     memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
     memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
     memset(ps->N, 0, sizeof(ps->N[0]) * ps->size);
@@ -162,20 +147,17 @@ pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps)
 
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
-
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
             int d;
             double kk = 0.;
-            double cic = 1.0;
             for(d = 0; d < 3; d++) {
-                kk += fac[d][i[d] + pm->ORegion.start[d]].kk;
-                cic *= fac[d][i[d] + pm->ORegion.start[d]].cic;
+                kk += kiter.fac[d][kiter.iabs[d]].kk;
             }
+
+            ptrdiff_t ind = kiter.ind;
 
             double real = delta_k[ind + 0];
             double imag = delta_k[ind + 1];
@@ -184,7 +166,7 @@ pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps)
             ptrdiff_t bin = floor(k / k0);
             if(bin >= 0 && bin < ps->size) {
                 int w = 2;
-                if(i[2] == 0) w = 1;
+                if(kiter.iabs[2] == 0) w = 1;
                 #pragma omp atomic
                 ps->N[bin] += w;
                 #pragma omp atomic
@@ -192,7 +174,6 @@ pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps)
                 #pragma omp atomic
                 ps->k[bin] += w * k;
             }
-            pm_inc_o_index(pm, i);
         }
     }
 
@@ -207,8 +188,6 @@ pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps)
         ps->p[ind] /= ps->N[ind];
         ps->p[ind] *= pm->Volume / (pm->Norm * pm->Norm);
     }
-
-    pm_destroy_k_factors(pm, fac);
 }
 
 void 

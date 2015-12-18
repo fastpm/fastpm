@@ -9,6 +9,7 @@
 
 #include "cosmology.h"
 #include "pmpfft.h"
+#include "pmkiter.h"
 #include "pm2lpt.h"
 #include "msg.h"
 
@@ -17,25 +18,19 @@ apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
-
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
             int d;
-            double k_finite = fac[dir][i[dir] + pm->ORegion.start[dir]].k_finite;
+            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
             double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
             }
+            ptrdiff_t ind = kiter.ind;
             /* - i k[d] / k2 */
             if(LIKELY(kk_finite > 0)) {
                 to[ind + 0] = - from[ind + 1] * (k_finite / kk_finite);
@@ -44,10 +39,8 @@ apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
                 to[ind + 0] = 0;
                 to[ind + 1] = 0;
             }
-            pm_inc_o_index(pm, i);
         }
     }
-    pm_destroy_k_factors(pm, fac);
 }
 
 
@@ -56,26 +49,21 @@ apply_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir1, int
 {
     /* This is the force in fourier space. - i k[dir] / k2 */
 
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-
 #pragma omp parallel 
     {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
 
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
             int d;
-            double k1_finite = fac[dir1][i[dir1] + pm->ORegion.start[dir1]].k_finite;
-            double k2_finite = fac[dir2][i[dir2] + pm->ORegion.start[dir2]].k_finite;
+            double k1_finite = kiter.fac[dir1][kiter.iabs[dir1]].k_finite;
+            double k2_finite = kiter.fac[dir2][kiter.iabs[dir2]].k_finite;
             double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                kk_finite += fac[d][i[d] + pm->ORegion.start[d]].kk_finite;
+                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
             }
+            ptrdiff_t ind = kiter.ind;
             if(kk_finite > 0) {
                 to[ind + 0] = from[ind + 0] * (-k1_finite * k2_finite / kk_finite);
                 to[ind + 1] = from[ind + 1] * (-k1_finite * k2_finite / kk_finite);
@@ -83,10 +71,8 @@ apply_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir1, int
                 to[ind + 0] = 0;
                 to[ind + 1] = 0;
             }
-            pm_inc_o_index(pm, i);
         }
     }
-    pm_destroy_k_factors(pm, fac);
 }
 
 
