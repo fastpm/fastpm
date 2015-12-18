@@ -170,6 +170,9 @@ pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
 
+ptrdiff_t * pm_nmesh(PM * pm);
+double * pm_boxsize(PM * pm);
+
 /* 
  * Allocate memory for FFT/painting in PM. 
  * */
@@ -266,26 +269,6 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
 void 
 pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor);
 
-typedef struct {
-    size_t size;
-    double *k;
-    double *p;
-    double *N;
-} PowerSpectrum;
-
-void 
-pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps);
-
 double 
 pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax);
-
-void 
-power_spectrum_init(PowerSpectrum * ps, size_t size);
-
-void 
-power_spectrum_destroy(PowerSpectrum * ps);
-
-void
-power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
-
 

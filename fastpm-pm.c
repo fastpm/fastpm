@@ -5,21 +5,10 @@
 #include <stdarg.h>
 #include <math.h>
 #include <mpi.h>
-#include <signal.h>
-#include <omp.h>
-#include <limits.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "parameters.h"
 #include "fastpm-internal.h"
 #include "fastpm-pm.h"
-
-void 
-fastpm_init(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
-
-void 
-fastpm_destroy(FastPM * fastpm);
 
 /*
 static void DUMP(PM * pm, char * filename, FastPMFloat *data) {
@@ -39,14 +28,37 @@ static void DUMP(PM * pm, char * filename, FastPMFloat *data) {
 }
 */
 
+static void 
+fastpm_set_time(FastPM * fastpm, 
+    int istep,
+    double * a_x,
+    double * a_x1,
+    double * a_v,
+    double * a_v1);
+
+static void
+fastpm_decompose(FastPM * fastpm);
+
+void 
+fastpm_kick(FastPM * fastpm, 
+              PMStore * pi, PMStore * po,
+              double af);
+
+void 
+fastpm_drift(FastPM * fastpm,
+               PMStore * pi, PMStore * po,
+               double af);
+
+void 
+fastpm_set_snapshot(FastPM * fastpm,
+                PMStore * p, PMStore * po,
+                double aout);
+
+double fastpm_growth_factor(FastPM * fastpm, double a);
+
+
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
-
-static int 
-take_a_snapshot(FastPM * fastpm, PMStore * snapshot, void * template);
-
-static void 
-ensure_dir(char * path);
 
 static void
 fix_linear_growth(PMStore * p, double correction);
@@ -55,32 +67,28 @@ fix_linear_growth(PMStore * p, double correction);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 
-void fastpm_init(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
+void fastpm_init(FastPM * fastpm, 
+    double alloc_factor, 
+    int NprocY, 
+    int UseFFTW, 
+    int * pm_nc_factor, 
+    int n_pm_nc_factor, 
+    double * change_pm,
+    MPI_Comm comm) {
+
     PMInit baseinit = {
-            .Nmesh = prr->nc,
-            .BoxSize = prr->boxsize, .NprocY = prr->NprocY, /* 0 for auto, 1 for slabs */
+            .Nmesh = fastpm->nc,
+            .BoxSize = fastpm->boxsize, .NprocY = NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
-            .use_fftw = prr->UseFFTW,
+            .use_fftw = UseFFTW,
         };
-    double alloc_factor = prr->np_alloc_factor;
 
     fastpm->comm = comm;
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
-    fastpm->nc = prr->nc;
-    fastpm->boxsize = prr->boxsize;
-    fastpm->omega_m = prr->omega_m;
-
     fastpm->p= malloc(sizeof(PMStore));
     fastpm->pm_2lpt = malloc(sizeof(PM));
-    fastpm->time_step = prr->time_step;
-    fastpm->n_time_step = prr->n_time_step;
-    fastpm->USE_COLA = prr->force_mode == FORCE_MODE_COLA;
-    fastpm->USE_NONSTDDA = !prr->cola_stdda;
-    fastpm->USE_LINEAR_THEORY = prr->enforce_broadband;
-    fastpm->nLPT = -2.5f;
-    fastpm->K_LINEAR = prr->enforce_broadband_kmax;
 
     pm_store_init(fastpm->p);
 
@@ -88,9 +96,9 @@ void fastpm_init(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
         PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC, 
         alloc_factor, comm);
 
-    fastpm->vpm_list = vpm_create(prr->n_pm_nc_factor, 
-                           prr->pm_nc_factor, 
-                           prr->change_pm,
+    fastpm->vpm_list = vpm_create(n_pm_nc_factor, 
+                           pm_nc_factor, 
+                           change_pm,
                            &baseinit, &fastpm->p->iface, comm);
 
     pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
@@ -113,70 +121,22 @@ fastpm_prepare_ic(FastPM * fastpm, FastPMFloat * delta_k)
     pm_2lpt_solve(fastpm->pm_2lpt, delta_k, fastpm->p, shift);
 }
 
-int fastpm(Parameters * prr, MPI_Comm comm) {
-
-    int NTask; 
-    int ThisTask;
-    MPI_Comm_size(comm, &NTask);
-    MPI_Comm_rank(comm, &ThisTask);
-    struct ClockTable CT;
-    msg_init(comm);
-    walltime_init(&CT);
-
-    msg_set_loglevel(verbose);
-
-    const double rho_crit = 27.7455;
-    const double M0 = prr->omega_m*rho_crit*pow(prr->boxsize / prr->nc, 3.0);
-    msg_printf(verbose, "mass of a particle is %g 1e10 Msun/h\n", M0); 
-
-    int istep;
-    int nsteps = prr->n_time_step;
-
-    FastPM * fastpm = alloca(sizeof(FastPM));
-
-    fastpm_init(fastpm, prr, comm);
-
-    walltime_measure("/Init/Misc");
-
-    if(prr->readic_filename) {
-        fastpm_read_runpb_ic(fastpm, fastpm->p, prr->readic_filename);
-
-        walltime_measure("/Init/ReadIC");
-    } else {
-        FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
-
-        power_init(prr->power_spectrum_filename, 
-                prr->time_step[0], 
-                prr->sigma8, 
-                prr->omega_m, 
-                1 - prr->omega_m, comm);
-
-        if(prr->readnoise_filename) {
-            pmic_read_gaussian(fastpm->pm_2lpt, delta_k, prr->readnoise_filename, PowerSpecWithData, NULL);
-        } else {
-            pmic_fill_gaussian_gadget(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL);
-        }
-        fastpm_prepare_ic(fastpm, delta_k);
-
-        pm_free(fastpm->pm_2lpt, delta_k);
-
-        walltime_measure("/Init/2LPT");
-    }
+void
+fastpm_evolve(FastPM * fastpm, 
+    fastpm_after_force_action after_force,
+    fastpm_after_drift_action after_drift,
+    fastpm_after_kick_action after_kick,
+    void * userdata) 
+{
 
     pm_2lpt_evolve(fastpm->time_step[0], fastpm->p, fastpm->omega_m);
 
     walltime_measure("/Init/Evolve");
 
-    char TEMPLATE[1024];
-    sprintf(TEMPLATE, "%s%05d_%%0.04f.bin", prr->snapshot_filename, prr->random_seed);
-    fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
-
-    walltime_measure("/Init/Start");
-
     double Plin0 = 0;
     /* The last step is the 'terminal' step */
-
-    for (istep = 0; istep < nsteps; istep++) {
+    int istep;
+    for (istep = 0; istep < fastpm->n_time_step; istep++) {
         double a_v, a_x, a_v1, a_x1;
 
         /* begining and ending of drift(x) and kick(v)*/
@@ -200,24 +160,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_calculate_forces(fastpm->p, fastpm->pm, delta_k, density_factor);
 
-        PowerSpectrum ps;
-        /* calculate the power spectrum */
-        power_spectrum_init(&ps, fastpm->pm->Nmesh[0] / 2);
-
-        pm_calculate_powerspectrum(fastpm->pm, delta_k, &ps);
-
-        walltime_measure("/PowerSpectrum/Measure");
-
-        if(prr->measure_power_spectrum_filename) {
-            if(fastpm->ThisTask == 0) {
-                ensure_dir(prr->measure_power_spectrum_filename);
-                power_spectrum_write(&ps, fastpm->pm, ((double)prr->nc * prr->nc * prr->nc), 
-                    prr->measure_power_spectrum_filename, prr->random_seed, a_x);
-            }
-        }
-        power_spectrum_destroy(&ps);
-        MPI_Barrier(comm);
-        walltime_measure("/PowerSpectrum/Write");
+        after_force(fastpm, delta_k, a_x, userdata);
 
         double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
 
@@ -236,7 +179,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         pm_free(fastpm->pm, delta_k);
 
         /* take snapshots if needed, before the kick */
-        fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
+        after_drift(fastpm, userdata);
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
@@ -247,7 +190,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         walltime_measure("/Stepping/kick");
 
         /* take snapshots if needed, before the drift */
-        fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
+        after_kick(fastpm, userdata);
         //
         // Leap-frog "drift" -- positions updated
         fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1);
@@ -255,14 +198,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         /* no need to check for snapshots here, it will be checked next loop.  */
     }
-    fastpm_destroy(fastpm);
 
-    msg_printf(info, "Total Time\n");
-    walltime_summary(0, comm);
-    walltime_report(stdout, 0, comm);
-
-    pfft_cleanup();
-    return 0;
 }
 void 
 fastpm_destroy(FastPM * fastpm) 
@@ -281,7 +217,7 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
     return pm_pos_to_rank(pm, pos);
 }
 
-void
+static void
 fastpm_decompose(FastPM * fastpm) {
     /* apply periodic boundary and move particles to the correct rank */
     pm_store_wrap(fastpm->p, fastpm->pm->BoxSize);
@@ -378,70 +314,13 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
         fastpm_set_snapshot(fastpm, fastpm->p, snapshot, aout[iout]);
         walltime_measure("/Snapshot/KickDrift");
 
-        action(fastpm, snapshot, userdata);
+        action(fastpm, snapshot, aout[iout], userdata);
 
         pm_store_destroy(snapshot);
 
     }
 }
 
-static int 
-take_a_snapshot(FastPM * fastpm, PMStore * snapshot, void * template) 
-{
-    char filebase[1024];
-    double aout = snapshot->a_x;
-    double z_out= 1.0/aout - 1.0;
-
-    sprintf(filebase, template, aout);
-    ensure_dir(filebase);
-    fastpm_write_runpb_snapshot(fastpm, snapshot, filebase);
-    
-    walltime_measure("/Snapshot/IO");
-    MPI_Barrier(fastpm->comm);
-    walltime_measure("/Snapshot/Wait");
-
-    msg_printf(normal, "snapshot %s written z = %6.4f a = %6.4f\n", 
-            filebase, z_out, aout);
-    return 0;
-}
-
-
-static void 
-_mkdir(const char *dir) 
-{
-        char * tmp = strdup(dir);
-        char *p = NULL;
-        size_t len;
-
-        len = strlen(tmp);
-        if(tmp[len - 1] == '/')
-                tmp[len - 1] = 0;
-        for(p = tmp + 1; *p; p++)
-                if(*p == '/') {
-                        *p = 0;
-                        mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
-                        *p = '/';
-                }
-        mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
-        free(tmp);
-}
-static void 
-ensure_dir(char * path) 
-{
-    int i = strlen(path);
-    char * dup = strdup(path);
-    char * p;
-    for(p = i + dup; p >= dup && *p != '/'; p --) {
-        continue;
-    }
-    /* plain file name in current directory */
-    if(p < dup) return;
-    
-    /* p == '/', so set it to NULL, dup is the dirname */
-    *p = 0;
-    _mkdir(dup);
-    free(dup);
-}
 
 static void
 fix_linear_growth(PMStore * p, double correction)
@@ -455,7 +334,7 @@ fix_linear_growth(PMStore * p, double correction)
     }
 }
 
-void 
+static void 
 fastpm_set_time(FastPM * fastpm, 
     int istep,
     double * a_x,

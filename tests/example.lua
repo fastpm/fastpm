@@ -10,16 +10,16 @@ nc = 128
 boxsize = 1280.0
 
 -- Broken, always use 1
-nrealization= 2
+nrealization= 1
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = logspace(-2, 0, 80)
+time_step = linspace(0.1, 1, 10)
 
-output_redshifts= {1.0, 0.0}  -- redshifts of output
+output_redshifts= {0.0}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 1-0.708

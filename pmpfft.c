@@ -551,3 +551,9 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
     return 0;
 } 
 
+ptrdiff_t * pm_nmesh(PM * pm) {
+    return pm->Nmesh;
+}
+double * pm_boxsize(PM * pm) {
+    return pm->BoxSize;
+}

@@ -1,5 +1,6 @@
 typedef struct PM PM;
 typedef struct PMStore PMStore;
+typedef struct VPM VPM;
 
 #ifndef FFT_PRECISION
 #define FFT_PRECISION 32
@@ -15,6 +16,7 @@ typedef struct PMStore PMStore;
 
 
 #include "fastpm-2lpt.h"
+#include "fastpm-pm.h"
 
 /* 
  * Allocate memory for FFT/painting in PM. 
@@ -23,5 +25,8 @@ FastPMFloat * pm_alloc(PM * pm);
 void pm_free(PM * pm, FastPMFloat * buf);
 void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
 size_t pm_size(PM * pm);
+ptrdiff_t * pm_nmesh(PM * pm);
+double * pm_boxsize(PM * pm);
 
 #include "pmkiter.h"
+#include "pmpowerspectrum.h"

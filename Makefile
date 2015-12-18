@@ -16,11 +16,11 @@ DIR_PATH = $(GSL_DIR) depends/install
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-INTERNAL = vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pmic.c pm2lpt.c  \
-			msg.c cosmology.c walltime.c pmkiter.c
-SOURCES = main.c fastpm-pm.c readparams.c power.c fastpm-steps.c fastpm-runpb.c \
-		$(INTERNAL)
-LIBSOURCES = fastpm-2lpt.c fastpm-steps.c $(INTERNAL)
+LIBSOURCES = fastpm-2lpt.c fastpm-pm.c fastpm-steps.c \
+             vpm.c pmpfft.c pmghosts.c pmpaint.c pmstore.c pmgrav.c pmic.c pm2lpt.c \
+			 msg.c cosmology.c walltime.c pmkiter.c pmpowerspectrum.c 
+
+SOURCES = main.c power.c readparams.c fastpm-runpb.c
 
 PFFTLIB = depends/install/lib/libpfft_omp.a
 PFFTFLIB = depends/install/lib/libpfftf_omp.a
@@ -31,8 +31,8 @@ LUALIB = lua/liblua.a
 
 all: fastpm libfastpm.a testlib
 
-fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o) 
-	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) \
+fastpm: $(PFFTLIB) $(PFFTFLIB) $(LUALIB) $(SOURCES:%.c=.objs/%.o)  libfastpm.a
+	$(CC) $(OPTIMIZE) -o fastpm $(SOURCES:%.c=.objs/%.o) libfastpm.a \
 			$(LDFLAGS) -llua -lgsl -lgslcblas \
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
