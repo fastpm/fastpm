@@ -8,12 +8,13 @@
 
 #include "libfastpm.h"
 
+#include "fastpm-prof.h"
+
 #include "pmpfft.h"
 #include "pmstore.h"
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "pmic.h"
-#include "walltime.h"
 #include "vpm.h"
 
 /*
@@ -114,7 +115,6 @@ void fastpm_init(FastPM * fastpm,
         fastpm->exts[i] = NULL;
     }
 
-    walltime_measure("/Init/Plan");
 }
 
 void 
@@ -135,14 +135,18 @@ fastpm_prepare_ic(FastPM * fastpm, FastPMFloat * delta_k)
 void
 fastpm_evolve(FastPM * fastpm) 
 {
-
-    pm_store_summary(fastpm->p, fastpm->comm);
-
     FastPMExtension * ext;
 
+    MPI_Barrier(fastpm->comm);
+
+    CLOCK(warmup);
+
+    pm_store_summary(fastpm->p, fastpm->comm);
     pm_2lpt_evolve(fastpm->time_step[0], fastpm->p, fastpm->omega_m);
 
-    walltime_measure("/Init/Evolve");
+    LEAVE(warmup);
+
+    MPI_Barrier(fastpm->comm);
 
     double Plin0 = 0;
     /* The last step is the 'terminal' step */
@@ -157,11 +161,10 @@ fastpm_evolve(FastPM * fastpm)
         fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
                     istep, a_x, a_x1, a_v, a_v1, fastpm->pm->init.Nmesh);
 
-        walltime_measure("/Stepping/Start");
-
+        CLOCK(decompose);
         fastpm_decompose(fastpm);
 
-        walltime_measure("/Stepping/Decompose");
+        LEAVE(decompose);
 
         /* Calculate PM forces. */
         FastPMFloat * delta_k = pm_alloc(fastpm->pm);
@@ -169,14 +172,19 @@ fastpm_evolve(FastPM * fastpm)
         /* watch out: boost the density since mesh is finer than grid */
         double density_factor = fastpm->pm->Norm / pow(1.0 * fastpm->nc, 3);
 
+        CLOCK(force);
         pm_calculate_forces(fastpm->p, fastpm->pm, delta_k, density_factor);
+        LEAVE(force);
 
+        CLOCK(afterforce);
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
             ext; ext = ext->next) {
                 ((fastpm_ext_after_force) ext->function) 
                     (fastpm, delta_k, a_x, ext->userdata);
         }
+        LEAVE(afterforce);
 
+        CLOCK(correction);
         double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
 
         Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
@@ -190,34 +198,42 @@ fastpm_evolve(FastPM * fastpm)
         fastpm_info("<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
                           fastpm->K_LINEAR, Plin, Plin0, correction); 
         fix_linear_growth(fastpm->p, correction);
+        LEAVE(correction);
 
         pm_free(fastpm->pm, delta_k);
 
+        CLOCK(afterdrift);
         /* take snapshots if needed, before the kick */
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_DRIFT];
             ext; ext = ext->next) {
                 ((fastpm_ext_after_drift) ext->function) 
                     (fastpm, ext->userdata);
         }
+        LEAVE(afterdrift);
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
         
         // Leap-frog "kick" -- velocities updated
 
+        CLOCK(kick);
         fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1);
-        walltime_measure("/Stepping/kick");
+        LEAVE(kick);
 
+        CLOCK(afterkick);
         /* take snapshots if needed, before the drift */
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_KICK];
             ext; ext = ext->next) {
                 ((fastpm_ext_after_kick) ext->function) 
                     (fastpm, ext->userdata);
         }
-        //
+        LEAVE(afterkick);
+        
         // Leap-frog "drift" -- positions updated
+
+        CLOCK(drift);
         fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1);
-        walltime_measure("/Stepping/drift");
+        LEAVE(drift);
 
         /* no need to check for snapshots here, it will be checked next loop.  */
     }
@@ -345,7 +361,6 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
         fastpm_info("Taking a snapshot...\n");
 
         fastpm_set_snapshot(fastpm, fastpm->p, snapshot, aout[iout]);
-        walltime_measure("/Snapshot/KickDrift");
 
         action(fastpm, snapshot, aout[iout], userdata);
 

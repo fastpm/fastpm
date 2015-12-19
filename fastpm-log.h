@@ -19,12 +19,10 @@ typedef void
 
 void 
 fastpm_ilog(const enum FastPMLogLevel level, 
-            const int code, 
             const char * fmt, ...);
 
 void 
 fastpm_log(const enum FastPMLogLevel level, 
-           const int code, 
            const char * fmt, ...);
 
 void 

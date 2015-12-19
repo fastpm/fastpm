@@ -75,20 +75,18 @@ void fastpm_log2(const enum FastPMLogLevel level,
 }
 
 void fastpm_ilog(const enum FastPMLogLevel level, 
-            const int code, 
             const char * fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    fastpm_log2(level, INDIVIDUAL, code, fmt, argp); 
+    fastpm_log2(level, INDIVIDUAL, 0, fmt, argp); 
     va_end(argp);
 }
 
 void fastpm_log(const enum FastPMLogLevel level, 
-            const int code, 
             const char * fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    fastpm_log2(level, COLLECTIVE, code, fmt, argp); 
+    fastpm_log2(level, COLLECTIVE, 0, fmt, argp); 
     va_end(argp);
 }
 

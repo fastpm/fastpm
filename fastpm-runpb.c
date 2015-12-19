@@ -89,7 +89,7 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
             }
             fread(&header, sizeof(FileHeader), 1, fp);
             aa = header.aa;
-            fastpm_ilog(INFO, 0, "reading from file %s npart=%d aa=%g \n", buf, header.npart, header.aa);
+            fastpm_ilog(INFO, "reading from file %s npart=%d aa=%g \n", buf, header.npart, header.aa);
             NperFile[i] = header.npart;
             Ntot += header.npart;        
             fclose(fp);

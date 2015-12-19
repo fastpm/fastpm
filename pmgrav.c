@@ -2,10 +2,11 @@
 #include <mpi.h>
 
 #include "libfastpm.h"
+#include "fastpm-prof.h"
+
 #include "pmpfft.h"
 #include "pmghosts.h"
 #include "pmstore.h"
-#include "walltime.h"
 
 static void 
 apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
@@ -41,11 +42,10 @@ apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 void 
 pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor)
 {
-    walltime_measure("/Force/Init");
 
+    CLOCK(ghosts);
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL); 
-
-    walltime_measure("/Force/AppendGhosts");
+    LEAVE(ghosts);
 
     FastPMFloat * canvas = pm_alloc(pm);
 
@@ -53,11 +53,13 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
      * it is less than the density (a cell is smaller than the mean seperation between particles. 
      * We thus have to boost the density by density_factor.
      * */
+    CLOCK(paint);
     pm_paint(pm, canvas, p, p->np + pgd->nghosts, density_factor);
-    walltime_measure("/Force/Paint");
-    
+    LEAVE(paint);
+ 
+    CLOCK(r2c);
     pm_r2c(pm, canvas, delta_k);
-    walltime_measure("/Force/FFT");
+    LEAVE(r2c);
 
     /* calculate the forces save them to p->acc */
 
@@ -65,28 +67,29 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
     ptrdiff_t i;
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
+        CLOCK(transfer);
         apply_force_kernel(pm, delta_k, canvas, d);
-        walltime_measure("/Force/Transfer");
+        LEAVE(transfer);
 
+        CLOCK(c2r);
         pm_c2r(pm, canvas);
-        walltime_measure("/Force/FFT");
+        LEAVE(c2r);
 
+        CLOCK(readout);
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd->nghosts; i ++) {
             p->acc[i][d] = pm_readout_one(pm, canvas, p, i) / pm->Norm;
         }
-        walltime_measure("/Force/Readout");
+        LEAVE(readout);
 
+        CLOCK(reduce);
         pm_ghosts_reduce(pgd, ACC[d]); 
-        walltime_measure("/Force/ReduceGhosts");
+        LEAVE(reduce);
     }
+
     pm_free(pm, canvas);
 
     pm_ghosts_free(pgd);
-    walltime_measure("/Force/Finish");
-
-    MPI_Barrier(pm->Comm2D);
-    walltime_measure("/Force/Wait");
 }    
 
 /* measure the linear scale power spectrum up to kmax, 

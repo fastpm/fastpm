@@ -15,7 +15,8 @@
 #include "readparams.h"
 #include "libfastpm.h"
 
-#include "walltime.h"
+#include "fastpm-prof.h"
+
 #include "power.h"
 #include "pmic.h"
 
@@ -52,17 +53,9 @@ int main(int argc, char ** argv) {
 
     parse_args(argc, argv, &prr);
 
-    struct ClockTable CT;
-    walltime_init(&CT);
-
     read_parameters(ParamFileName, &prr, comm);
 
     fastpm(&prr, comm);
-
-    walltime_summary(0, comm);
-
-    fastpm_info("Total Time\n");
-    walltime_report(stdout, 0, comm);
 
     MPI_Finalize();
     return 0;
@@ -75,6 +68,9 @@ static int
 measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 int fastpm(Parameters * prr, MPI_Comm comm) {
+    CLOCK(init);
+    CLOCK(ic);
+    CLOCK(evolve);
 
     const double rho_crit = 27.7455;
     const double M0 = prr->omega_m*rho_crit*pow(prr->boxsize / prr->nc, 3.0);
@@ -93,10 +89,15 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         .K_LINEAR = prr->enforce_broadband_kmax,
     };
 
+    MPI_Barrier(comm);
+    ENTER(init);
+
     fastpm_init(fastpm, 
         prr->np_alloc_factor, prr->NprocY, prr->UseFFTW, 
         prr->pm_nc_factor, prr->n_pm_nc_factor, prr->change_pm, 
         comm);
+
+    LEAVE(init);
 
     fastpm_add_extension(fastpm,
         FASTPM_EXT_AFTER_FORCE,
@@ -113,12 +114,11 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
         check_snapshots,
         prr);
 
-    walltime_measure("/Init/Misc");
+    MPI_Barrier(comm);
+    ENTER(ic);
 
     if(prr->readic_filename) {
         fastpm_read_runpb_ic(fastpm, fastpm->p, prr->readic_filename);
-
-        walltime_measure("/Init/ReadIC");
     } else {
         FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
@@ -144,13 +144,19 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
         pm_free(fastpm->pm_2lpt, delta_k);
 
-        walltime_measure("/Init/2LPT");
     }
+    LEAVE(ic);
+
+    MPI_Barrier(comm);
+    ENTER(evolve);
 
     fastpm_evolve(fastpm);
 
+    LEAVE(evolve);
+
     fastpm_destroy(fastpm);
 
+    fastpm_clock_stat(comm);
     return 0;
 }
 
@@ -164,16 +170,23 @@ static int check_snapshots(FastPM * fastpm, Parameters * prr) {
 static int 
 take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * template) 
 {
+    CLOCK(io);
+    CLOCK(meta);
+
     char filebase[1024];
     double z_out= 1.0/aout - 1.0;
 
     sprintf(filebase, template, aout);
+
+    ENTER(meta);
     ensure_dir(filebase);
-    fastpm_write_runpb_snapshot(fastpm, snapshot, filebase);
-    
-    walltime_measure("/Snapshot/IO");
+    LEAVE(meta);
+
     MPI_Barrier(fastpm->comm);
-    walltime_measure("/Snapshot/Wait");
+    ENTER(io);
+    fastpm_write_runpb_snapshot(fastpm, snapshot, filebase);
+
+    LEAVE(io);
 
     fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
             filebase, z_out, aout);
@@ -183,14 +196,23 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * templat
 static int 
 measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
+    CLOCK(compute);
+    CLOCK(io);
+
     PowerSpectrum ps;
     /* calculate the power spectrum */
     power_spectrum_init(&ps, pm_nmesh(fastpm->pm)[0] / 2);
 
+    MPI_Barrier(fastpm->comm);
+    ENTER(compute);
+
     pm_calculate_powerspectrum(fastpm->pm, delta_k, &ps);
 
-    walltime_measure("/PowerSpectrum/Measure");
+    LEAVE(compute);
 
+    MPI_Barrier(fastpm->comm);
+
+    ENTER(io);
     if(prr->measure_power_spectrum_filename) {
         if(fastpm->ThisTask == 0) {
             ensure_dir(prr->measure_power_spectrum_filename);
@@ -198,9 +220,10 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
                 prr->measure_power_spectrum_filename, prr->random_seed, a_x);
         }
     }
+    LEAVE(io);
+
     power_spectrum_destroy(&ps);
-    MPI_Barrier(fastpm->comm);
-    walltime_measure("/PowerSpectrum/Write");
+
     return 0;
 }
 

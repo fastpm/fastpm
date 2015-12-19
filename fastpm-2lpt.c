@@ -9,7 +9,6 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "pmic.h"
-#include "walltime.h"
 
 int 
 fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc_factor, MPI_Comm comm)
