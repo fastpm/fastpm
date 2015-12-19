@@ -72,7 +72,7 @@ fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
         if (Nfile == 0) {
             fastpm_raise(0030, "No snapshot files were found.\n");
         }
-        fastpm_info("Total number of files is %d\n", Nfile);
+        fastpm_ilog(INFO, "Total number of files is %d\n", Nfile);
 
         MPI_Bcast(&Nfile, 1, MPI_INT, 0, comm);
         NperFile = malloc(sizeof(int) * Nfile);
