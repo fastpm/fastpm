@@ -51,6 +51,8 @@ void power_init(const char filename[], const double a_init, const double sigma8,
         PowerNorm= normalize_power(a_init, sigma8);
     }
 
+    fastpm_info("Found %d pairs of values in input spectrum table\n", NPowerTable);
+
     MPI_Bcast(&PowerNorm, 1, MPI_DOUBLE, 0, comm);
 
     MPI_Bcast(&NPowerTable, 1, MPI_INT, 0, comm);
@@ -86,8 +88,6 @@ void read_power_table_camb(const char filename[])
             break;
     } while(1);
 
-    fastpm_info("Found %d pairs of values in input spectrum table\n", NPowerTable);
-
     PowerTable = malloc(NPowerTable * sizeof(struct pow_table));
 
     rewind(fp);
@@ -120,13 +120,13 @@ double normalize_power(const double a_init, const double sigma8)
     double res = TopHatSigma2(R8, PowerSpecWithData, NULL); 
     double sigma8_input= sqrt(res);
 
-    fastpm_info("Input power spectrum sigma8 %f\n", sigma8_input);
+    fastpm_ilog(INFO, "Input power spectrum sigma8 %f\n", sigma8_input);
     if (sigma8 == 0)
         return 1;
-    fastpm_info("Expected power spectrum sigma8 %f\n", sigma8);
+    fastpm_ilog(INFO, "Expected power spectrum sigma8 %f\n", sigma8);
 
     if(fabs(sigma8_input - sigma8)/sigma8 > 0.05)
-        fastpm_info("Input sigma8 %f is far from target sigma8 %f; correction applied\n",
+        fastpm_ilog(INFO, "Input sigma8 %f is far from target sigma8 %f; correction applied\n",
                 sigma8_input, sigma8);
 
     return sigma8 * sigma8/ res;
