@@ -250,7 +250,7 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
         param->enforce_broadband = 0;
     }
     param->cola_stdda = read_boolean_opt(L, "cola_stdda", param->cola_stdda);
-    param->enforce_broadband = read_integer_opt(L, "enforce_broadband", param->enforce_broadband);
+    param->enforce_broadband = read_boolean_opt(L, "enforce_broadband", param->enforce_broadband);
     param->enforce_broadband_kmax = read_number_opt(L, "enforce_broadband_kmax", 0.02);
 
 }
