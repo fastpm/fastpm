@@ -133,7 +133,7 @@ static void myfree(void * p) {
     static size_t max_used_bytes = 0;
     if(used_bytes > max_used_bytes) {
         max_used_bytes = used_bytes;
-        fastpm_info("Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
+        fastpm_ilog(INFO, "Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
     }
     NAllocTable --;
     if(AllocTable[NAllocTable].p != p) {
