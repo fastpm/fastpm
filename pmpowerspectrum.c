@@ -43,7 +43,8 @@ pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps)
             ptrdiff_t bin = floor(k / k0);
             if(bin >= 0 && bin < ps->size) {
                 int w = 2;
-                if(kiter.iabs[2] == 0) w = 1;
+                /* fixme: older version of code has this bug. */
+                if(kiter.i[2] == 0) w = 1;
                 #pragma omp atomic
                 ps->N[bin] += w;
                 #pragma omp atomic
