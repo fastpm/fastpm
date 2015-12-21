@@ -10,7 +10,7 @@
 
 static fastpm_msg_handler msg_handler = NULL;
 static void * msg_handler_userdata = NULL;
-static MPI_Comm msg_handler_comm = (MPI_Comm) NULL;
+static MPI_Comm msg_handler_comm = (MPI_Comm) 0;
 
 void fastpm_default_msg_handler(
             const enum FastPMLogLevel level,
