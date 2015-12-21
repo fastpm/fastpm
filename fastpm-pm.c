@@ -143,6 +143,10 @@ fastpm_evolve(FastPM * fastpm)
 
     pm_store_summary(fastpm->p, fastpm->comm);
     pm_2lpt_evolve(fastpm->time_step[0], fastpm->p, fastpm->omega_m);
+    if(fastpm->USE_COLA) {
+        /* If doing COLA, v_res = 0 at initial. */
+        memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
+    }
 
     LEAVE(warmup);
 
