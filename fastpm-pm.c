@@ -381,7 +381,7 @@ fix_linear_growth(PMStore * p, double correction)
     int d;
     for(d = 0; d < 3; d ++) {
         for(i = 0; i < p->np; i ++) {
-            p->acc[d][i] *= correction;
+            p->acc[i][d] *= correction;
         }
     }
 }
