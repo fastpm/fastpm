@@ -6,7 +6,7 @@ typedef struct FastPMExtension {
 
 typedef struct {
     /* input parameters */
-    int nc;
+    size_t nc;
     double boxsize;
     double omega_m;
     double * time_step;
