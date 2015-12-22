@@ -23,7 +23,8 @@ addons:
 #    - popd
 
 install:
-    - make CC=mpicc
+    - cp Makefile.travis Makefile.local
+    - make
 
 script:
     - pushd tests
