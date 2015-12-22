@@ -53,18 +53,15 @@ and previously privated codes (QPM and ic_2lpt by Martin White).
 The Particle Mesh solver and 2LPT initial condition generator in fastPM are written from scratch
 to properly support pencil / stencil domain decomposition schemes.
 
-The following files in fastPM are originally from cola_halo [COLAHALO]_ by Jun Koda:
+The following files in fastPM are originally from other projects:
 
-- msg.c :  Provides logging infrastructure
+- fastpm-steps.c : COLA stepping [COLAHALO]_ by Jun Koda.
 
-- pmtimer.c : Provides time profiling
+- power.c : Reading CAMB power spectrum [COLAHALO]_
 
-- pmsteps.c : COLA stepping
-
-- power.c : Cosmology functions
+- cosmology.c : Cosmology functions [COLAHALO]_ 
 
 The source code of fastPM is distributed under GPLv3.
-
 
 .. [2LPT] http://cosmo.nyu.edu/roman/2LPT/
 .. [COLA] https://bitbucket.org/tassev/colacode/
@@ -76,21 +73,24 @@ The source code of fastPM is distributed under GPLv3.
 Installation
 ------------
 
-First gsl. Most super-computing facility have these already installed.
+Set up the compilers and location of files in Makefile.local. An example
+is provided in Makefile.local.example which shall work on a recent version of
+Fedora .
 
-FFTW and PFFT are bundled and installed .
+gsl : Most super-computing facility have these already installed. Locate the
+path.  Point GSL_DIR to the installation dir.
+
+pfft : bundled and installed automatically via 
 
 .. code::
 
-    depends/install_pfft.sh $PWD/depends/install
+    make -f Makefile.pfft
 
-Some minor tweaks to install_pfft.sh on the configure scripts may be needed.
+Some minor tweaks to Makefile.pfft on the configure scripts may be needed.
 Especially the --enable-avx and --enable-sse / --enable-sse2 flags 
 if compliation fails with strange errors.
 
 The automatical dependency requires a working version of gcc.
-
-Point GSL_DIR to the installation dir and use
 
 .. code::
 
