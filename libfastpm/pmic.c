@@ -221,7 +221,7 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, voi
         g_x[ind] = ampl * sin(phase);
         g_x[ind + 1] = ampl * cos(phase);
     }
-    fastpm_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    fastpm_utils_induce_correlation(pm, g_x, delta_k, pk, pkdata);
     pm_free(pm, g_x);
 }
 
@@ -257,7 +257,7 @@ pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, voi
         next:
         continue;
     }
-    fastpm_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    fastpm_utils_induce_correlation(pm, g_x, delta_k, pk, pkdata);
     pm_free(pm, g_x);
     gsl_rng_free(random_generator);
 }

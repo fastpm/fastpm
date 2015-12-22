@@ -8,7 +8,8 @@
 
 #include <fastpm/libfastpm.h>
 
-#include <fastpm/fastpm-prof.h>
+#include <fastpm/prof.h>
+#include <fastpm/logging.h>
 
 #include "pmpfft.h"
 #include "pmstore.h"

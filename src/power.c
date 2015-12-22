@@ -17,8 +17,8 @@
 #include <gsl/gsl_integration.h>
 #include <mpi.h>
 
+#include <fastpm/logging.h>
 #include "power.h"
-#include "fastpm/fastpm-log.h"
 
 #define WORKSIZE 100000
 

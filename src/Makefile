@@ -11,7 +11,7 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 CPPFLAGS += -I../api/ -I../lua/
 
 
-SOURCES = main.c power.c readparams.c fastpm-runpb.c readgrafic.c
+SOURCES = main.c power.c readparams.c runpb.c readgrafic.c
 
 .PHONY: all
 
@@ -32,7 +32,7 @@ testlib : testlib.o
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
-fastpm-preface.h: fastpm-preface.lua
+lua-preface.h: lua-preface.lua
 	xxd -i $^ > $@
 
 clean:

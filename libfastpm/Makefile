@@ -11,8 +11,8 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 LIBSOURCES = fastpm-2lpt.c \
 		 	 fastpm-pm.c \
              fastpm-steps.c \
-             fastpm-utils.c \
-             fastpm-prof.c \
+             utils.c \
+             prof.c \
              vpm.c  \
              pmpfft.c  \
              pmghosts.c  \
@@ -24,7 +24,7 @@ LIBSOURCES = fastpm-2lpt.c \
 			 cosmology.c \
              pmkiter.c \
              pmpowerspectrum.c \
-			 fastpm-log.c
+			 logging.c
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 

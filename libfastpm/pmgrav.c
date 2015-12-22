@@ -2,7 +2,7 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/fastpm-prof.h>
+#include <fastpm/prof.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"

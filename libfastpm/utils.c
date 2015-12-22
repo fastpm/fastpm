@@ -5,8 +5,9 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
-#include "pmpfft.h"
+#include <fastpm/logging.h>
 #include "pmstore.h"
+#include "pmpfft.h"
 #include "pmghosts.h"
 #include "pmic.h"
 
@@ -50,13 +51,13 @@ PMRegion * pm_o_region(PM * pm) {
 }
 
 void 
-fastpm_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
+fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
 {
     pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
 }
 
 void
-fastpm_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k) 
+fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k) 
 {
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
@@ -79,7 +80,7 @@ fastpm_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k)
 }
 
 void 
-fastpm_dump(PM * pm , char * filename, FastPMFloat *data) 
+fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data) 
 {
     char fn1[1024];
     char fn2[1024];
@@ -133,13 +134,13 @@ tk_eh(double k, struct fastpm_powerspec_eh_params * params)		/* from Martin Whit
 }
 
 double 
-fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eisenstein & Hu */
+fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eisenstein & Hu */
 {
     return param->Norm * k * pow(tk_eh(k, param), 2);
 }
 
 void 
-fastpm_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, pkfunc pk, void * pkdata) {
+fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, pkfunc pk, void * pkdata) {
 
     pm_r2c(pm, g_x, delta_k);
 

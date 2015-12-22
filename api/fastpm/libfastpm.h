@@ -59,10 +59,9 @@ struct PMStore {
 #endif
 
 
-#include "fastpm-2lpt.h"
-#include "fastpm-pm.h"
-#include "fastpm-log.h"
-#include "fastpm-utils.h"
+#include "2lpt.h"
+#include "pm.h"
+#include "utils.h"
 
 #include "pmkiter.h"
 #include "pmpowerspectrum.h"

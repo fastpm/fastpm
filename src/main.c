@@ -12,10 +12,10 @@
 #include <unistd.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/fastpm-prof.h>
+#include <fastpm/prof.h>
+#include <fastpm/logging.h>
 
 #include "parameters.h"
-#include "readparams.h"
 #include "power.h"
 
 
@@ -41,6 +41,9 @@ fastpm_read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename);
 
 int 
 fastpm_write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+
+int 
+read_parameters(char * filename, Parameters * param, MPI_Comm comm);
 
 int fastpm(Parameters * prr, MPI_Comm comm);
 
@@ -138,11 +141,11 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
 
             FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
             fastpm_read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->readnoise_filename);
-            fastpm_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
+            fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
             pm_free(fastpm->pm_2lpt, g_x);
         } else {
 
-            fastpm_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL);
+            fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL);
         }
         
         fastpm_solve_2lpt(fastpm, delta_k);

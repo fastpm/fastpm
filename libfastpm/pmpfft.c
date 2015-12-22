@@ -12,6 +12,7 @@
 #include <fftw3-mpi.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include "pmpfft.h"
 #include "pmstore.h"
 

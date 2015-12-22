@@ -5,7 +5,7 @@
 
 #include <mpi.h>
 
-#include <fastpm/fastpm-log.h>
+#include <fastpm/logging.h>
 
 
 static fastpm_msg_handler msg_handler = NULL;

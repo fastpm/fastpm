@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <fastpm/fastpm-prof.h>
-#include <fastpm/fastpm-log.h>
+#include <fastpm/prof.h>
+#include <fastpm/logging.h>
 
 struct FastPMClock {
     double tcum;

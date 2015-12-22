@@ -9,9 +9,9 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include <fastpm/logging.h>
 #include "parameters.h"
-#include "fastpm/fastpm-log.h"
-#include "fastpm-preface.h"
+#include "lua-preface.h"
 
 
 static void 
@@ -147,9 +147,9 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
     luaL_openlibs(L);
 
     /* Load the preface */
-    char * preface = alloca(fastpm_preface_lua_len + 1);
-    memcpy(preface, fastpm_preface_lua, fastpm_preface_lua_len);
-    preface[fastpm_preface_lua_len] = 0;
+    char * preface = alloca(lua_preface_lua_len + 1);
+    memcpy(preface, lua_preface_lua, lua_preface_lua_len);
+    preface[lua_preface_lua_len] = 0;
 
     if(luaL_loadstring(L, preface) || lua_pcall(L, 0, 0, 0)) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));

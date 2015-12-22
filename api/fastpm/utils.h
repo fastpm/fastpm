@@ -21,18 +21,18 @@ struct fastpm_powerspec_eh_params {
 };
 
 double 
-fastpm_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
+fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
 
 typedef double (*fastpm_pkfunc)(double k, void * data);
 
 void 
-fastpm_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
 
 void 
-fastpm_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
+fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
 
 void
-fastpm_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k);
+fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k);
 
 void 
-fastpm_dump(PM * pm , char * filename, FastPMFloat *data);
+fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data);

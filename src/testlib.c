@@ -4,7 +4,7 @@
 #include <mpi.h>
 #include <math.h>
 
-#include "fastpm/libfastpm.h"
+#include <fastpm/libfastpm.h>
 
 int main(int argc, char * argv[]) {
 
