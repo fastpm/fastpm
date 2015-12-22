@@ -4,4 +4,4 @@ depends/**
 tests/*/*
 .deps/*
 .objs/*
-
+*.[oa]
