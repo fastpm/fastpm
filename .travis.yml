@@ -14,14 +14,6 @@ addons:
             - openmpi-bin
             - libgsl0-dev
 
-#before_install:
-#    - wget http://www.fftw.org/fftw-3.3.4.tar.gz
-#    - tar -xzf fftw-3.3.4.tar.gz
-#    - pushd fftw-3.3.4
-#    - ./configure --disable-option-checking --prefix=$HOME/local '--enable-single' '--disable-shared' '--enable-static' '--disable-fortran' '--disable-doc' '--enable-mpi'
-#    - make install -j 2
-#    - popd
-
 install:
     - cp Makefile.travis Makefile.local
     - make
@@ -29,6 +21,8 @@ install:
 script:
     - pushd tests
     - sh runtest.sh
-#    - test -f example-output/powerspec-1.0000.txt
-    - test -f example-output/snp00100_1.0000.bin.00
+    - test -f pm/powerspec-1.0000.txt
+    - test -f pm/snp00100_1.0000.bin.00
+    - test -f cola/powerspec-1.0000.txt
+    - test -f cola/snp00100_1.0000.bin.00
     - popd
