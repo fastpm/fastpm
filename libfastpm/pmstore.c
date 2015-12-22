@@ -8,6 +8,8 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 
+size_t fastpm_allocator_max_used_bytes = 0;
+
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
     PMStore * p = (PMStore *)pdata;
     pos[0] = p->x[index][0];
@@ -131,10 +133,8 @@ static void * malloczero(size_t s) {
 }
 
 static void myfree(void * p) {
-    static size_t max_used_bytes = 0;
-    if(used_bytes > max_used_bytes) {
-        max_used_bytes = used_bytes;
-        fastpm_ilog(INFO, "Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
+    if(used_bytes > fastpm_allocator_max_used_bytes) {
+        fastpm_allocator_max_used_bytes = used_bytes;
     }
     NAllocTable --;
     if(AllocTable[NAllocTable].p != p) {
@@ -220,7 +220,6 @@ pm_store_destroy(PMStore * p)
     p->iface.free(p->id);
     p->iface.free(p->v);
     p->iface.free(p->x);
-    fastpm_info("Remainging allocation %td bytes, %d chunks\n", used_bytes, NAllocTable);
 }
 
 void pm_store_read(PMStore * p, char * datasource) {

@@ -5,6 +5,9 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 
+/* defined in pmstore.c for the default allocator */
+extern size_t fastpm_allocator_max_used_bytes;
+
 struct FastPMClock {
     double tcum;
     double twait;
@@ -140,6 +143,15 @@ void fastpm_clock_stat(MPI_Comm comm)
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
     FastPMClock foo;
+
+    size_t max_used_bytes = 0;
+
+    MPI_Allreduce(&fastpm_allocator_max_used_bytes, 
+            &max_used_bytes, 1, MPI_LONG, MPI_MAX,
+            comm);
+
+    fastpm_log(INFO, "Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
+
     fastpm_info("%8s %8s %8s \n", "min", "max", "mean");
 
     fastpm_clock_sort();
