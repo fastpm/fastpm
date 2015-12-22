@@ -11,7 +11,6 @@
 
 #include <fastpm/logging.h>
 #include "parameters.h"
-#include "lua-preface.h"
 
 
 static void 
@@ -140,6 +139,9 @@ DEF_READ2(enum, int, string, parse_enum, struct enum_entry *, enum_table)
 
 int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
 {
+    extern char lua_preface_lua[];
+    extern unsigned int lua_preface_lua_len;
+
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
 
