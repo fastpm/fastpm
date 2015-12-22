@@ -5,7 +5,7 @@ env:
 
 cache:
     - directories:
-        - ${TRAVIS_BUILD_DIR}/depends
+        - ${TRAVIS_BUILD_DIR}/depends/install
 
 addons:
     apt:
