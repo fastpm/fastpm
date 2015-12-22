@@ -1,6 +1,9 @@
 lua/*.[oa]
 version.h
-depends/**
+depends/src
+depends/install
+depends/single
+depends/double
 tests/*/*
 .deps/*
 .objs/*
