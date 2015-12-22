@@ -9,6 +9,9 @@
 nc = 128
 boxsize = 1280.0
 
+-- Broken, always use 1
+nrealization= 1
+
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
 -- time_step = linspace(0.025, 1.0, 39)
@@ -33,9 +36,7 @@ sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 --readic="/scratch1/scratchdirs/yfeng1/PB01/tpmsph_ic.bin" 
 
 -------- Approximation Method ---------------
-force_mode = "pm" -- cola or pm
-cola_stdda = false -- default is true for cola, and ignored for pm
-enforce_broadband = true -- default is true for pm, and false for cola
+force_mode = "cola"
 
 pm_nc_factor = {1,   2,   3, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm =    {0, 0.2, 0.5, }            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
@@ -44,8 +45,8 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
--- Dark matter particle outputs, in runpb format
-snapshot= "example-output/snp"       
+-- Dark matter particle outputs (all particles)
+snapshot= "cola/snp"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
-measure_power = "example-output/powerspec"
+measure_power = "cola/powerspec"
 
