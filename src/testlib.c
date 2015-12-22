@@ -36,18 +36,18 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_fill_deltak(solver->pm, rho_init_ktruth, 2004, (fastpm_pkfunc)fastpm_powerspec_eh, &eh);
+    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 2004, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh);
 
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
-    fastpm_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
-    fastpm_dump(solver->pm, "rho_init_ktruth.raw", rho_init_ktruth);
-    fastpm_dump(solver->pm, "rho_final_ktruth.raw", rho_final_ktruth);
-    fastpm_dump(solver->pm, "rho_final_xtruth.raw", rho_final_xtruth);
+    fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
+    fastpm_utils_dump(solver->pm, "rho_init_ktruth.raw", rho_init_ktruth);
+    fastpm_utils_dump(solver->pm, "rho_final_ktruth.raw", rho_final_ktruth);
+    fastpm_utils_dump(solver->pm, "rho_final_xtruth.raw", rho_final_xtruth);
 
     memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
     fastpm_2lpt_hmc_force(solver, rho_final_x, Fk);
-    fastpm_dump(solver->pm, "Fk.raw", Fk);
+    fastpm_utils_dump(solver->pm, "Fk.raw", Fk);
 
     /* now a fake MCMC loop. */
     int mcmcstep;
@@ -71,14 +71,14 @@ int main(int argc, char * argv[]) {
          
             k[d] *= 1.0; /* shut up compiler warning */
 
-            double P = fastpm_powerspec_eh(sqrt(kk), &eh);
+            double P = fastpm_utils_powerspec_eh(sqrt(kk), &eh);
             rho_init_k[kiter.ind + 0] = fac * sqrt(P) * 1.0; /* real */
             rho_init_k[kiter.ind + 1] = fac * sqrt(P) * 1.0; /* imag */
         }
 
         /* Evolve to rho_final_k */
         fastpm_2lpt_evolve(solver, rho_init_k, 1.0, omega_m);
-        fastpm_paint(solver->pm, solver->p, rho_final_x, rho_final_k);
+        fastpm_utils_paint(solver->pm, solver->p, rho_final_x, rho_final_k);
 
         /* calculate the HMC force into Fk */
         fastpm_2lpt_hmc_force(solver, rho_final_xtruth, Fk);
