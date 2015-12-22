@@ -12,8 +12,6 @@ typedef struct {
     int random_seed;
     int nrealization;
 
-    int loglevel;
-
     double boxsize;
 
     double omega_m, sigma8, h;

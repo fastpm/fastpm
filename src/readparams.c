@@ -222,7 +222,6 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
         fastpm_raise(1001, "Error: length of change_pm and pm_nc_factor mismatch.");
     }
     param->np_alloc_factor = read_number(L, "np_alloc_factor");
-    param->loglevel = read_integer(L, "loglevel");
 
     // File Names and optional parameters realated
     param->readic_filename = read_string_opt(L, "readic", NULL);
