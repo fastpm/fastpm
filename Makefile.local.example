@@ -1,0 +1,7 @@
+CC=mpicc
+OPENMP = -fopenmp
+DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM 
+CPPFLAGS = 
+LDFLAGS = 
+OPTIMIZE ?= -O0 -g -Wall -Werror -fopenmp -DFASTPM_FFT_PRECISION=32
+

@@ -1,0 +1,12 @@
+-include $(SOURCES:%.c=.deps/%.d)
+
+.objs/%.o : %.c
+	@if ! [ -d .objs ]; then mkdir .objs; fi
+	@echo Compiling $@
+	@$(CC) $(OPTIMIZE) $(OPENMP) -c $(CPPFLAGS) -o $@ $<
+
+.deps/%.d : %.c
+	@if ! [ -d .deps ]; then mkdir .deps; fi
+	@if ! $(DEPCMD) $(CPPFLAGS) -o $@ $< ; then \
+		rm $@; \
+	fi;
