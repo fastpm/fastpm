@@ -5,6 +5,10 @@ fastPM
     :alt: Build Status
     :target: https://travis-ci.org/rainwoodman/fastPM/
 
+Lastest power spectrum from 5 step test runs:
+
+.. image:: https://rainwoodman.github.io/fastPM/tests-result.png
+
 Introduction
 ------------
 
