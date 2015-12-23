@@ -3,5 +3,5 @@ OPENMP = -fopenmp
 DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM 
 CPPFLAGS = -Wall -Werror -DFASTPM_FFT_PRECISION=32
 LDFLAGS = 
-OPTIMIZE ?= -O0 -g 
+OPTIMIZE ?= -O3 -g 
 
