@@ -19,11 +19,9 @@ fastPM solves the gravity Possion equation with an variable augumented particle 
 
 2 parallel fourier transform backends are supported, slab-based FFTW and pencil-based PFFT. 
 
-- The PFFT backend enables fastPM to scale to hundred thousand MPI ranks, allows
-  runs with significantly more than 2048**3 particles. 
+- The PFFT backend enables fastPM to scale to hundred thousand MPI ranks, allows runs with significantly more than :math:`2048^3` particles. 
 
-- The FFTW backend allows one to run smaller simulations 
-   (<= 2048**3 particles on 1024 ranks) more efficiently.
+- The FFTW backend allows one to run smaller simulations (<= :math:`2048^3` particles on 1024 ranks) slightly more efficiently.
 
 
 The size of mesh in fastPM can vary with time, allowing one to use coarse force mesh at high redshift
@@ -50,23 +48,24 @@ in power spectrum files written by nbodykit.
 Acknowledgement
 ---------------
 
-fastPM is based on publicly avaiable codes (
-[2LPT]_, [COLA]_, [LUA]_, [NBODYKIT]_, [MP-GADGET]_)
-and previously privated codes (QPM and ic_2lpt by Martin White). 
+fastPM is based on publicly avaiable codes ([PFFT]_
+[2LPT]_, [COLAHALO]_, [LUA]_, [NBODYKIT]_, [MP-GADGET]_)
+and previously private codes (QPM and ic_2lpt by Martin White). 
 
 The Particle Mesh solver and 2LPT initial condition generator in fastPM are written from scratch
 to properly support pencil / stencil domain decomposition schemes.
 
 The following files in fastPM are originally from other projects:
 
-- fastpm-steps.c : COLA stepping [COLAHALO]_ by Jun Koda.
+- fastpm-steps.c : COLA stepping [COLAHALO]_ [COLA]_ 
 
-- power.c : Reading CAMB power spectrum [COLAHALO]_
+- power.c : Reading CAMB power spectrum [COLAHALO]_ [2LPT]_ [MP-Gadget]_ N-GenIC
 
-- cosmology.c : Cosmology functions [COLAHALO]_ 
+- cosmology.c : Cosmology functions [COLAHALO]_ [2LPT]_ [MP-Gadget]_ N-GenIC
 
 The source code of fastPM is distributed under GPLv3.
 
+.. [PFFT] http://github.com/mpip/pfft
 .. [2LPT] http://cosmo.nyu.edu/roman/2LPT/
 .. [COLA] https://bitbucket.org/tassev/colacode/
 .. [NBODYKIT] http://github.com/bccp/nbodykit/
@@ -84,7 +83,7 @@ Fedora .
 gsl : Most super-computing facility have these already installed. Locate the
 path.  Point GSL_DIR to the installation dir.
 
-pfft : bundled and installed automatically via 
+pfft : bundled and built statically via 
 
 .. code::
 
@@ -96,18 +95,14 @@ if compliation fails with strange errors.
 
 The automatical dependency requires a working version of gcc.
 
-.. code::
-
-    make GSL_DIR= .... CC=....
-
-
 For example, on Edison
 
 .. code::
 
     # this will set GSL_DIR automatically
     module load gsl
-    make CC=cc
+    cp Makefile.edison Makefile.local
+    make
 
 Examples
 --------
