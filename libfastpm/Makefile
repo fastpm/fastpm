@@ -29,6 +29,8 @@ LIBSOURCES = fastpm-2lpt.c \
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 
 
+-include $(LIBSOURCES:%.c=.deps/%.d)
+
 clean:
 	rm -rf .objs
 	rm -rf .deps

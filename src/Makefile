@@ -12,16 +12,13 @@ CPPFLAGS += -I../api/ -I../lua/
 
 
 SOURCES = main.c power.c readparams.c runpb.c readgrafic.c 
-#
-# the following files are derived and will be purged by make.
-SOURCES += lua-preface.c
 
 .PHONY: all
 
 all: fastpm testlib 
 
-fastpm: $(LUALIB) $(SOURCES:%.c=.objs/%.o) ../libfastpm/libfastpm.a
-	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $(SOURCES:%.c=.objs/%.o) ../libfastpm/libfastpm.a \
+fastpm: $(LUALIB) $(SOURCES:%.c=.objs/%.o) .objs/lua-preface.o ../libfastpm/libfastpm.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $(SOURCES:%.c=.objs/%.o) .objs/lua-preface.o ../libfastpm/libfastpm.a \
 			 ../lua/liblua.a $(LDFLAGS) -lgsl -lgslcblas \
 			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
@@ -36,10 +33,14 @@ testlib : testlib.o
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
 
+-include $(SOURCES:%.c=.deps/%.d)
+
 %.c : %.lua
 	xxd -i $^ > $@
 
 clean:
 	rm -rf .objs
 	rm -rf .deps
+	rm -rf fastpm
+	rm -rf testlib
 

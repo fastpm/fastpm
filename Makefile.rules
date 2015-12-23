@@ -1,4 +1,4 @@
--include $(SOURCES:%.c=.deps/%.d)
+DEPCMD ?= gcc -MG -MT .objs/$(<:%.c=%.o) -MM 
 
 .objs/%.o : %.c
 	@if ! [ -d .objs ]; then mkdir .objs; fi
