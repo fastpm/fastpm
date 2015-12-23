@@ -1,5 +1,5 @@
 export OMP_NUM_THREADS=1
-function fail {
+fail () {
     exit 1
 }
 mpirun -n 4 ../src/fastpm cola.lua || fail
