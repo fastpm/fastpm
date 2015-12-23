@@ -4,12 +4,12 @@ PFFTLIB = install/lib/libpfft_omp.a
 PFFTFLIB = install/lib/libpfftf_omp.a
 PFFT_VERSION=1.0.8-alpha1-fftw3
 PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx
+PFFTSRC = download/pfft-$(PFFT_VERSION).tar.gz 
 
 all: $(PFFTLIB)
 
 PFFT_CONFIGURE = $(abspath src/pfft-$(PFFT_VERSION)/configure)
 PFFT_CONFIGURE_FLAGS_SINGLE = $(subst --enable-sse2, --enable-sse, $(PFFT_CONFIGURE_FLAGS))
-PFFTSRC = pfft-$(PFFT_VERSION).tar.gz 
 
 $(PFFT_CONFIGURE): $(PFFTSRC)
 	mkdir -p src ;
