@@ -9,7 +9,7 @@ def plotps(filename, ax):
     plin = numpy.interp(k, klin, plin)
     ax.plot(k, p / plin, label=filename)
 
-fig = Figure()
+fig = Figure(figsize=(6, 3))
 ax = fig.add_subplot(121)
 for fn in sorted(glob.glob('cola/powerspec*.txt')):
     plotps(fn, ax)
@@ -28,4 +28,4 @@ ax.set_yscale('log')
 ax.set_title('pm')
 
 canvas = FigureCanvasAgg(fig)
-fig.savefig('tests-result.svgz')
+fig.savefig('tests-result.png', dpi=72)

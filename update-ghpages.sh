@@ -3,7 +3,7 @@ if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
 
   #copy data we're interested in to other place
   mkdir -p $HOME/coverage
-  cp -R tests/*.png tests/*.svgz tests/*.html $HOME/coverage
+  cp -R tests/*.png tests/*.html $HOME/coverage
 
   #go to home and setup git
   cd $HOME
@@ -19,7 +19,7 @@ if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
 
   #add, commit and push files
   git add -f .
-  git commit -m "Travis build $TRAVIS_BUILD_NUMBER pushed to gh-pages"
+  git commit --amend -m "Travis build $TRAVIS_BUILD_NUMBER pushed to gh-pages"
   git push -fq origin gh-pages > /dev/null
 
   echo -e "Done magic with coverage\n"
