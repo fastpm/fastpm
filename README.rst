@@ -55,7 +55,7 @@ and previously private codes (QPM and ic_2lpt by Martin White).
 The Particle Mesh solver and 2LPT initial condition generator in fastPM are written from scratch
 to properly support pencil / stencil domain decomposition schemes.
 
-The following files in fastPM are originally from other projects:
+The following files distributed in fastPM are originally from other projects:
 
 - fastpm-steps.c : COLA stepping [COLAHALO]_ [COLA]_ 
 
@@ -63,7 +63,10 @@ The following files in fastPM are originally from other projects:
 
 - cosmology.c : Cosmology functions [COLAHALO]_ [2LPT]_ [MP-Gadget]_ N-GenIC
 
-The source code of fastPM is distributed under GPLv3.
+- lua : Lua library [LUA]_
+
+The source code of fastPM is distributed under GPLv3, with the exception files in
+lua directory distributed under any appropriate license of lua. 
 
 .. [PFFT] http://github.com/mpip/pfft
 .. [2LPT] http://cosmo.nyu.edu/roman/2LPT/
