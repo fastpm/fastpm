@@ -28,4 +28,4 @@ ax.set_yscale('log')
 ax.set_title('pm')
 
 canvas = FigureCanvasAgg(fig)
-fig.savefig('tests-result.png')
+fig.savefig('tests-result.svgz')
