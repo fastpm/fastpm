@@ -22,21 +22,24 @@ vpm_find(VPM * vpm, double a)
 }
 
 VPM * 
-vpm_create (int size, int * pm_nc_factors, double * change_pm, 
-        PMInit * baseinit, PMIFace * iface, MPI_Comm comm) 
+vpm_create (VPMInit * vpminit, PMInit * baseinit, PMIFace * iface, MPI_Comm comm) 
 {
     /* plan for the variable PMs; keep in mind we do variable
      * mesh size (PM resolution). We plan them at the begining of the run
      * in theory we can use some really weird PM resolution as function
      * of time, but the parameter files / API need to support this.
      * */
+    int size;
+    for (size = 0; vpminit[size].pm_nc_factor > 0; size ++)
+        continue;
+
     VPM * vpm = malloc(sizeof(VPM) * (size + 1));
     int i;
     for (i = 0; i < size; i ++) {
         vpm[i].end = 0; /* not the last item */
 
-        vpm[i].pm_nc_factor = pm_nc_factors[i];
-        vpm[i].a_start = change_pm[i];
+        vpm[i].pm_nc_factor = vpminit[i].pm_nc_factor;
+        vpm[i].a_start = vpminit[i].a_start;
 
         PMInit pminit = *baseinit;
         pminit.Nmesh = baseinit->Nmesh * vpm[i].pm_nc_factor;

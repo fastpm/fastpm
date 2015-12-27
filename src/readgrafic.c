@@ -9,7 +9,7 @@
 #include <fastpm/logging.h>
 
 void 
-fastpm_read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename)
+read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename)
 {
     ptrdiff_t ind;
     int d;

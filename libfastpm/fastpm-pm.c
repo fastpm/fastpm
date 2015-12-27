@@ -18,27 +18,11 @@
 #include "pmic.h"
 #include "vpm.h"
 
-/*
-static void DUMP(PM * pm, char * filename, FastPMFloat *data) {
-    char fn2[1024];
-    if(pm->NTask > 1) {
-        sprintf(fn2, "%s.%03d", filename, pm->ThisTask);
-        printf("%d: %td %td %td\n", pm->ThisTask,
-                    pm->IRegion.strides[0],
-                    pm->IRegion.strides[1],
-                    pm->IRegion.strides[2]);
-    } else {
-        sprintf(fn2, "%s", filename);
-    }
-    FILE * fp = fopen(fn2, "w");
-    fwrite(data, sizeof(FastPMFloat), pm->allocsize, fp);
-    fclose(fp);
-}
-*/
-
 static void 
 fastpm_set_time(FastPM * fastpm, 
     int istep,
+    double * time_step,
+    int nstep,
     double * a_x,
     double * a_x1,
     double * a_v,
@@ -76,17 +60,14 @@ static int
 to_rank(void * pdata, ptrdiff_t i, void * data);
 
 void fastpm_init(FastPM * fastpm, 
-    double alloc_factor, 
     int NprocY, 
     int UseFFTW, 
-    int * pm_nc_factor, 
-    int n_pm_nc_factor, 
-    double * change_pm,
     MPI_Comm comm) {
 
     PMInit baseinit = {
             .Nmesh = fastpm->nc,
-            .BoxSize = fastpm->boxsize, .NprocY = NprocY, /* 0 for auto, 1 for slabs */
+            .BoxSize = fastpm->boxsize, 
+            .NprocY = NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
             .use_fftw = UseFFTW,
         };
@@ -102,11 +83,9 @@ void fastpm_init(FastPM * fastpm,
 
     pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3), 
         PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC, 
-        alloc_factor, comm);
+        fastpm->alloc_factor, comm);
 
-    fastpm->vpm_list = vpm_create(n_pm_nc_factor, 
-                           pm_nc_factor, 
-                           change_pm,
+    fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, &fastpm->p->iface, comm);
 
     pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
@@ -134,7 +113,7 @@ fastpm_solve_2lpt(FastPM * fastpm, FastPMFloat * delta_k_ic)
 }
 
 void
-fastpm_evolve(FastPM * fastpm) 
+fastpm_evolve(FastPM * fastpm, double * time_step, int nstep) 
 {
     FastPMExtension * ext;
 
@@ -143,7 +122,7 @@ fastpm_evolve(FastPM * fastpm)
     CLOCK(warmup);
 
     pm_store_summary(fastpm->p, fastpm->comm);
-    pm_2lpt_evolve(fastpm->time_step[0], fastpm->p, fastpm->omega_m);
+    pm_2lpt_evolve(time_step[0], fastpm->p, fastpm->omega_m);
     if(fastpm->USE_COLA) {
         /* If doing COLA, v_res = 0 at initial. */
         memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
@@ -156,11 +135,11 @@ fastpm_evolve(FastPM * fastpm)
     double Plin0 = 0;
     /* The last step is the 'terminal' step */
     int istep;
-    for (istep = 0; istep < fastpm->n_time_step; istep++) {
+    for (istep = 0; istep < nstep; istep++) {
         double a_v, a_x, a_v1, a_x1;
 
         /* begining and ending of drift(x) and kick(v)*/
-        fastpm_set_time(fastpm, istep, 
+        fastpm_set_time(fastpm, istep, time_step, nstep,
                     &a_x, &a_x1, &a_v, &a_v1);
 
         fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
@@ -390,14 +369,13 @@ fix_linear_growth(PMStore * p, double correction)
 static void 
 fastpm_set_time(FastPM * fastpm, 
     int istep,
+    double * time_step,
+    int nstep,
     double * a_x,
     double * a_x1,
     double * a_v,
     double * a_v1) 
 {
-    double * time_step = fastpm->time_step;
-    int nstep = fastpm->n_time_step;
-
     /* The last step is the terminal step. */
     *a_x = time_step[(istep >= nstep)?(nstep - 1):istep];
     *a_x1 = time_step[(istep + 1 >= nstep)?(nstep - 1):(istep + 1)];
@@ -405,7 +383,7 @@ fastpm_set_time(FastPM * fastpm,
     double a_xm1 = time_step[(istep > 0)?(istep - 1):0];
     *a_v = sqrt(a_xm1 * *(a_x));
     *a_v1 = sqrt(*a_x * *a_x1);
-    fastpm->istep = istep;
+
     VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
     fastpm->pm = &vpm->pm;
 }

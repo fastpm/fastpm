@@ -35,7 +35,7 @@ typedef struct {
 } FileHeader;
 
 int 
-fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename) 
+read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename) 
 {
     int ThisTask = fastpm->ThisTask;
     int NTask = fastpm->NTask;
@@ -380,7 +380,7 @@ static void write_mine(char * filebase,
 }
 
 int 
-fastpm_write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
+write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
 {
     int ThisTask = fastpm->ThisTask;
     int NTask = fastpm->NTask;

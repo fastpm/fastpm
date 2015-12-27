@@ -1,5 +1,10 @@
 FASTPM_BEGIN_DECLS
 
+typedef struct VPMInit {
+    double a_start;
+    int pm_nc_factor;
+} VPMInit;
+
 typedef struct FastPMExtension {
     void * function;
     void * userdata;
@@ -11,9 +16,8 @@ typedef struct {
     size_t nc;
     double boxsize;
     double omega_m;
-    double * time_step;
-    int n_time_step;
-
+    double alloc_factor;
+    VPMInit * vpminit;
     int USE_COLA;
     int USE_NONSTDDA;
     int USE_LINEAR_THEORY;
@@ -32,9 +36,8 @@ typedef struct {
     PM * pm_2lpt;
     VPM * vpm_list;
 
-    int istep;
+    /* Pointer to the current PM object */
     PM * pm;
-
 } FastPM;
 
 #define FASTPM_EXT_AFTER_FORCE 0
@@ -46,12 +49,8 @@ typedef int (* fastpm_ext_after_drift) (FastPM * fastpm, void * userdata);
 #define FASTPM_EXT_MAX 3
 
 void fastpm_init(FastPM * fastpm, 
-    double alloc_factor, 
     int NprocY, 
     int UseFFTW, 
-    int * pm_nc_factor, 
-    int n_pm_nc_factor, 
-    double * change_pm,
     MPI_Comm comm);
 
 void 
@@ -66,7 +65,7 @@ void
 fastpm_solve_2lpt(FastPM * fastpm, FastPMFloat * delta_k_ic);
 
 void
-fastpm_evolve(FastPM * fastpm);
+fastpm_evolve(FastPM * fastpm, double * time_step, int nstep);
 
 typedef int 
 (*fastpm_interp_action) (FastPM * fastpm, PMStore * pout, double aout, void * userdata);

@@ -34,34 +34,57 @@ static void
 ensure_dir(char * path);
 
 int 
-fastpm_read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename);
+read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename);
 
 void 
-fastpm_read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename);
+read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename);
 
 int 
-fastpm_write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
 
 int 
 read_parameters(char * filename, Parameters * param, MPI_Comm comm);
 
-int fastpm(Parameters * prr, MPI_Comm comm);
+int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
-    libfastpm_init();
-
-    MPI_Comm comm = MPI_COMM_WORLD; 
-
     Parameters prr;
 
     parse_args(argc, argv, &prr);
 
+    MPI_Comm comm = MPI_COMM_WORLD; 
+
     read_parameters(ParamFileName, &prr, comm);
 
-    fastpm(&prr, comm);
+    libfastpm_init();
+
+    /* convert parameter files pm_nc_factor into VPMInit */
+    VPMInit * vpminit = alloca(sizeof(VPMInit) * (prr.n_pm_nc_factor + 1));
+    int i;
+    for(i = 0; i < prr.n_pm_nc_factor; i ++) {
+        vpminit[i].a_start = prr.change_pm[i];
+        vpminit[i].pm_nc_factor = prr.pm_nc_factor[i];
+    }
+    /* mark the end */
+    vpminit[i].pm_nc_factor = 0;
+
+    FastPM * fastpm = & (FastPM) {
+        .nc = prr.nc,
+        .alloc_factor = prr.np_alloc_factor, 
+        .vpminit = vpminit,
+        .boxsize = prr.boxsize,
+        .omega_m = prr.omega_m,
+        .USE_COLA = prr.force_mode == FORCE_MODE_COLA,
+        .USE_NONSTDDA = !prr.cola_stdda,
+        .USE_LINEAR_THEORY = prr.enforce_broadband,
+        .nLPT = -2.5f,
+        .K_LINEAR = prr.enforce_broadband_kmax,
+    };
+
+    run_fastpm(fastpm, &prr, comm);
 
     libfastpm_cleanup();
 
@@ -75,7 +98,7 @@ check_snapshots(FastPM * fastpm, Parameters * prr);
 static int 
 measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
-int fastpm(Parameters * prr, MPI_Comm comm) {
+int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
     CLOCK(ic);
     CLOCK(evolve);
@@ -84,25 +107,11 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     const double M0 = prr->omega_m*rho_crit*pow(prr->boxsize / prr->nc, 3.0);
     fastpm_info("mass of a particle is %g 1e10 Msun/h\n", M0); 
 
-    FastPM * fastpm = & (FastPM) {
-        .time_step = prr->time_step,
-        .n_time_step = prr->n_time_step,
-        .nc = prr->nc,
-        .boxsize = prr->boxsize,
-        .omega_m = prr->omega_m,
-        .USE_COLA = prr->force_mode == FORCE_MODE_COLA,
-        .USE_NONSTDDA = !prr->cola_stdda,
-        .USE_LINEAR_THEORY = prr->enforce_broadband,
-        .nLPT = -2.5f,
-        .K_LINEAR = prr->enforce_broadband_kmax,
-    };
-
     MPI_Barrier(comm);
     ENTER(init);
 
     fastpm_init(fastpm, 
-        prr->np_alloc_factor, prr->NprocY, prr->UseFFTW, 
-        prr->pm_nc_factor, prr->n_pm_nc_factor, prr->change_pm, 
+        prr->NprocY, prr->UseFFTW, 
         comm);
 
     LEAVE(init);
@@ -126,7 +135,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     ENTER(ic);
 
     if(prr->readic_filename) {
-        fastpm_read_runpb_ic(fastpm, fastpm->p, prr->readic_filename);
+        read_runpb_ic(fastpm, fastpm->p, prr->readic_filename);
     } else {
         FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
@@ -144,7 +153,9 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
             fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
             FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
-            fastpm_read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->readnoise_filename);
+
+            read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->readnoise_filename);
+
             fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
             pm_free(fastpm->pm_2lpt, g_x);
         } else {
@@ -162,7 +173,7 @@ int fastpm(Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(evolve);
 
-    fastpm_evolve(fastpm);
+    fastpm_evolve(fastpm, prr->time_step, prr->n_time_step);
 
     LEAVE(evolve);
 
@@ -196,7 +207,8 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * templat
 
     MPI_Barrier(fastpm->comm);
     ENTER(io);
-    fastpm_write_runpb_snapshot(fastpm, snapshot, filebase);
+
+    write_runpb_snapshot(fastpm, snapshot, filebase);
 
     LEAVE(io);
 
