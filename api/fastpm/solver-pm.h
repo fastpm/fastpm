@@ -1,4 +1,5 @@
 FASTPM_BEGIN_DECLS
+typedef struct VPM VPM;
 
 typedef struct VPMInit {
     double a_start;
@@ -54,7 +55,7 @@ typedef int
     (FastPM * fastpm, void * userdata);
 
 typedef struct FastPMExtension {
-    void * function;
+    void * function; /* The function signature must match the types above */
     void * userdata;
     struct FastPMExtension * next;
 } FastPMExtension;
@@ -74,7 +75,7 @@ void
 fastpm_destroy(FastPM * fastpm);
 
 void 
-fastpm_solve_2lpt(FastPM * fastpm, FastPMFloat * delta_k_ic);
+fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit);
 
 void
 fastpm_evolve(FastPM * fastpm, double * time_step, int nstep);

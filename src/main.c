@@ -163,7 +163,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
             fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL, FASTPM_DELTAK_GADGET);
         }
         
-        fastpm_solve_2lpt(fastpm, delta_k);
+        fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
 
         pm_free(fastpm->pm_2lpt, delta_k);
 

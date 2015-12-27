@@ -97,7 +97,7 @@ void fastpm_init(FastPM * fastpm,
 }
 
 void 
-fastpm_solve_2lpt(FastPM * fastpm, FastPMFloat * delta_k_ic)
+fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit)
 {
     double shift[3] = {
         fastpm->boxsize / fastpm->nc * 0.5,
@@ -109,6 +109,9 @@ fastpm_solve_2lpt(FastPM * fastpm, FastPMFloat * delta_k_ic)
 
     /* read out values at locations with an inverted shift */
     pm_2lpt_solve(fastpm->pm_2lpt, delta_k_ic, fastpm->p, shift);
+
+    pm_store_summary(fastpm->p, fastpm->comm);
+    pm_2lpt_evolve(ainit, fastpm->p, fastpm->omega_m);
 }
 
 void
@@ -120,8 +123,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
     CLOCK(warmup);
 
-    pm_store_summary(fastpm->p, fastpm->comm);
-    pm_2lpt_evolve(time_step[0], fastpm->p, fastpm->omega_m);
     if(fastpm->USE_COLA) {
         /* If doing COLA, v_res = 0 at initial. */
         memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
