@@ -1,3 +1,5 @@
+FASTPM_BEGIN_DECLS
+
 /* 
  * Allocate memory for FFT/painting in PM. 
  * */
@@ -36,3 +38,6 @@ fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * de
 
 void 
 fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data);
+
+FASTPM_END_DECLS
+

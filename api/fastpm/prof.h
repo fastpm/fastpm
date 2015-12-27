@@ -1,3 +1,5 @@
+FASTPM_BEGIN_DECLS
+
 typedef struct FastPMClock FastPMClock;
 
 void fastpm_clock_in(FastPMClock * clock);
@@ -15,3 +17,5 @@ void fastpm_clock_out_barrier(FastPMClock * clock, MPI_Comm comm);
 #define LEAVEB(name, comm) fastpm_clock_out_barrier(CLK ## name, comm)
 
 void fastpm_clock_stat(MPI_Comm comm);
+
+FASTPM_END_DECLS

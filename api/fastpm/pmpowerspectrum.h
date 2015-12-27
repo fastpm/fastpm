@@ -1,3 +1,4 @@
+FASTPM_BEGIN_DECLS
 
 typedef struct {
     size_t size;
@@ -18,3 +19,4 @@ power_spectrum_destroy(PowerSpectrum * ps);
 void
 power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout);
 
+FASTPM_END_DECLS

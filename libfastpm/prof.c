@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 

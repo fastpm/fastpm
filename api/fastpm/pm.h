@@ -1,3 +1,5 @@
+FASTPM_BEGIN_DECLS
+
 typedef struct FastPMExtension {
     void * function;
     void * userdata;
@@ -73,3 +75,4 @@ void
 fastpm_interp(FastPM * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata);
 
+FASTPM_END_DECLS

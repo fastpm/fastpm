@@ -2,8 +2,14 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C" {
+#define FASTPM_BEGIN_DECLS extern "C" {
+#define FASTPM_END_DECLS }
+#else
+#define FASTPM_BEGIN_DECLS
+#define FASTPM_END_DECLS
 #endif
+
+FASTPM_BEGIN_DECLS
 
 typedef struct PM PM;
 typedef struct PMStore PMStore;
@@ -61,13 +67,11 @@ struct PMStore {
 void libfastpm_init();
 void libfastpm_cleanup();
 
+FASTPM_END_DECLS
+
 #include "2lpt.h"
 #include "pm.h"
 #include "utils.h"
 
 #include "pmkiter.h"
 #include "pmpowerspectrum.h"
-
-#ifdef __cplusplus
-}
-#endif

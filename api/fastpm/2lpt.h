@@ -1,3 +1,5 @@
+FASTPM_BEGIN_DECLS
+
 typedef struct FastPM2LPTSolver {
     PM * pm;
     PMStore * p;
@@ -17,3 +19,4 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         FastPMFloat * Fk     /* (out) hmc force in fourier space */
         );
 
+FASTPM_END_DECLS

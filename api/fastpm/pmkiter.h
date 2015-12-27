@@ -1,3 +1,5 @@
+FASTPM_BEGIN_DECLS
+
 typedef struct {
     float k_finite; /* k, finite */
     float k; /* k */
@@ -23,3 +25,5 @@ pm_kiter_init(PM * pm, PMKIter * iter);
 int pm_kiter_stop(PMKIter * iter);
 
 void pm_kiter_next(PMKIter * iter);
+
+FASTPM_END_DECLS
