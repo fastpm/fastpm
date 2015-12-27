@@ -5,18 +5,7 @@ typedef struct VPMInit {
     int pm_nc_factor;
 } VPMInit;
 
-
-enum FastPMExtensionPoint {
-    FASTPM_EXT_AFTER_FORCE = 0,
-    FASTPM_EXT_AFTER_KICK = 1,
-    FASTPM_EXT_AFTER_DRIFT = 2,
-    FASTPM_EXT_MAX = 3,
-};
-typedef struct FastPMExtension {
-    void * function;
-    void * userdata;
-    struct FastPMExtension * next;
-} FastPMExtension;
+typedef struct FastPMExtension FastPMExtension;
 
 typedef struct {
     /* input parameters */
@@ -47,9 +36,29 @@ typedef struct {
     PM * pm;
 } FastPM;
 
-typedef int (* fastpm_ext_after_force) (FastPM * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
-typedef int (* fastpm_ext_after_kick) (FastPM * fastpm, void * userdata);
-typedef int (* fastpm_ext_after_drift) (FastPM * fastpm, void * userdata);
+enum FastPMExtensionPoint {
+    FASTPM_EXT_AFTER_FORCE = 0,
+    FASTPM_EXT_AFTER_KICK = 1,
+    FASTPM_EXT_AFTER_DRIFT = 2,
+    FASTPM_EXT_MAX = 3,
+};
+
+typedef int 
+    (* fastpm_ext_after_force) 
+    (FastPM * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
+typedef int 
+    (* fastpm_ext_after_kick) 
+    (FastPM * fastpm, void * userdata);
+typedef int 
+    (* fastpm_ext_after_drift) 
+    (FastPM * fastpm, void * userdata);
+
+typedef struct FastPMExtension {
+    void * function;
+    void * userdata;
+    struct FastPMExtension * next;
+} FastPMExtension;
+
 
 void fastpm_init(FastPM * fastpm, 
     int NprocY,  /* Use 0 for auto */
@@ -73,6 +82,8 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep);
 typedef int 
 (*fastpm_interp_action) (FastPM * fastpm, PMStore * pout, double aout, void * userdata);
 
+/* This function can be used in after_kick and after_drift plugins for 
+ * interpolating and writing a snapshot */
 void 
 fastpm_interp(FastPM * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata);
