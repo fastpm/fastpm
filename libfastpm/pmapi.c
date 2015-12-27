@@ -1,17 +1,55 @@
+#include <stdlib.h>
+#include <string.h>
 #include <mpi.h>
-
+#include <omp.h>
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 
 /* For OpenMP threading */
-void
+static void
 pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]);
-void 
+static void 
 pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
-void 
+static void 
 pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
-int omp_get_num_threads();
-int omp_get_thread_num();
+
+FastPMFloat * pm_alloc(PM * pm) 
+{
+    return pm->iface.malloc(sizeof(FastPMFloat) * pm->allocsize);
+}
+
+void 
+pm_free(PM * pm, FastPMFloat * data) 
+{
+    pm->iface.free(data);
+}
+
+void 
+pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to) 
+{
+    memcpy(to, from, sizeof(from[0]) * pm->allocsize);
+}
+
+size_t 
+pm_size(PM * pm)
+{
+    return pm->allocsize;
+}
+
+ptrdiff_t * pm_nmesh(PM * pm) {
+    return pm->Nmesh;
+}
+double * pm_boxsize(PM * pm) {
+    return pm->BoxSize;
+}
+
+PMRegion * pm_i_region(PM * pm) {
+    return &pm->IRegion;
+}
+
+PMRegion * pm_o_region(PM * pm) {
+    return &pm->ORegion;
+}
 
 
 void 
@@ -70,7 +108,7 @@ diff_kernel(double w)
     return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
 }
 
-void 
+static void 
 pm_create_k_factors(PM * pm, PMKFactors * fac[3]) 
 { 
     /* This function populates fac with precalculated values that
@@ -99,7 +137,7 @@ pm_create_k_factors(PM * pm, PMKFactors * fac[3])
     } 
 }
 
-void 
+static void 
 pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]) 
 {
     int d;
@@ -108,7 +146,7 @@ pm_destroy_k_factors(PM * pm, PMKFactors * fac[3])
     }
 }
 
-void
+static void
 pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
 { 
     /* static schedule the openmp loops. start, end is in units of 'real' numbers.

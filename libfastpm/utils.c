@@ -10,45 +10,6 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 
-
-FastPMFloat * pm_alloc(PM * pm) 
-{
-    return pm->iface.malloc(sizeof(FastPMFloat) * pm->allocsize);
-}
-
-void 
-pm_free(PM * pm, FastPMFloat * data) 
-{
-    pm->iface.free(data);
-}
-
-void 
-pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to) 
-{
-    memcpy(to, from, sizeof(from[0]) * pm->allocsize);
-}
-
-size_t 
-pm_size(PM * pm)
-{
-    return pm->allocsize;
-}
-
-ptrdiff_t * pm_nmesh(PM * pm) {
-    return pm->Nmesh;
-}
-double * pm_boxsize(PM * pm) {
-    return pm->BoxSize;
-}
-
-PMRegion * pm_i_region(PM * pm) {
-    return &pm->IRegion;
-}
-
-PMRegion * pm_o_region(PM * pm) {
-    return &pm->ORegion;
-}
-
 void
 fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k) 
 {

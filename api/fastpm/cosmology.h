@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct {
     double OmegaM;
     double OmegaLambda;
@@ -15,3 +18,7 @@ GrowthFactor2v(double a, Cosmology c);
 double DprimeQ(double a, double nGrowth, Cosmology c);
 double Qfactor(double a, Cosmology c);
 double OmegaA(double a, Cosmology c);
+
+#ifdef __cplusplus
+}
+#endif

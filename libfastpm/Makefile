@@ -9,9 +9,10 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 LIBSOURCES = libfastpm.c \
-    fastpm-2lpt.c \
-    fastpm-pm.c \
-    fastpm-steps.c \
+    solver-2lpt.c \
+    solver-pm.c \
+    solver-pm-steps.c \
+    solver-pm-grav.c \
     utils.c \
     utils-ps.c \
     utils-ic.c \
@@ -23,9 +24,8 @@ LIBSOURCES = libfastpm.c \
     pmghosts.c  \
     pmpaint.c \
     pmstore.c \
-    pmgrav.c \
     pm2lpt.c \
-    pmkiter.c 
+    pmapi.c 
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 

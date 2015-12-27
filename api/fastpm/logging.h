@@ -1,3 +1,15 @@
+#ifndef FASTPM_BEGIN_DECLS
+#ifdef __cplusplus
+#define FASTPM_BEGIN_DECLS extern "C" {
+#define FASTPM_END_DECLS }
+#else
+#define FASTPM_BEGIN_DECLS
+#define FASTPM_END_DECLS
+#endif
+#endif
+
+FASTPM_BEGIN_DECLS
+
 enum FastPMLogLevel {
     ERROR = 100,
     INFO = 1,
@@ -49,3 +61,4 @@ fastpm_void_msg_handler(
 void fastpm_info(const char * fmt, ...);
 void fastpm_raise(const int code, const char * fmt, ...);
 
+FASTPM_END_DECLS

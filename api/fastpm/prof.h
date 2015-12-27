@@ -1,3 +1,13 @@
+#ifndef FASTPM_BEGIN_DECLS
+#ifdef __cplusplus
+#define FASTPM_BEGIN_DECLS extern "C" {
+#define FASTPM_END_DECLS }
+#else
+#define FASTPM_BEGIN_DECLS
+#define FASTPM_END_DECLS
+#endif
+#endif
+
 FASTPM_BEGIN_DECLS
 
 typedef struct FastPMClock FastPMClock;

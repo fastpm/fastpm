@@ -1,12 +1,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef FASTPM_BEGIN_DECLS
 #ifdef __cplusplus
 #define FASTPM_BEGIN_DECLS extern "C" {
 #define FASTPM_END_DECLS }
 #else
 #define FASTPM_BEGIN_DECLS
 #define FASTPM_END_DECLS
+#endif
 #endif
 
 FASTPM_BEGIN_DECLS
@@ -69,10 +71,10 @@ void libfastpm_cleanup();
 
 FASTPM_END_DECLS
 
-#include "2lpt.h"
-#include "pm.h"
+#include "solver-2lpt.h"
+#include "solver-pm.h"
 #include "utils.h"
 #include "utils-ps.h"
 #include "utils-ic.h"
 
-#include "pmkiter.h"
+#include "pmapi.h"
