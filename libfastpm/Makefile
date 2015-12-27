@@ -13,6 +13,10 @@ LIBSOURCES = libfastpm.c \
     fastpm-pm.c \
     fastpm-steps.c \
     utils.c \
+    utils-ps.c \
+    utils-ic.c \
+    cosmology.c \
+    logging.c \
     prof.c \
     vpm.c  \
     pmpfft.c  \
@@ -20,12 +24,8 @@ LIBSOURCES = libfastpm.c \
     pmpaint.c \
     pmstore.c \
     pmgrav.c \
-    pmic.c \
     pm2lpt.c \
-    cosmology.c \
-    pmkiter.c \
-    pmpowerspectrum.c \
-    logging.c
+    pmkiter.c 
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 

@@ -15,7 +15,6 @@
 #include "pmstore.h"
 #include "pm2lpt.h"
 #include "pmghosts.h"
-#include "pmic.h"
 #include "vpm.h"
 
 static void 
@@ -53,7 +52,7 @@ double fastpm_growth_factor(FastPM * fastpm, double a);
 #define BREAKPOINT raise(SIGTRAP);
 
 static void
-fix_linear_growth(PMStore * p, double correction);
+fix_linear_growth(PMStore * p, double correction, double fudge);
 
 /* Useful stuff */
 static int 
@@ -181,7 +180,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         if(!fastpm->USE_LINEAR_THEORY) correction = 1.0;
         fastpm_info("<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
                           fastpm->K_LINEAR, Plin, Plin0, correction); 
-        fix_linear_growth(fastpm->p, correction);
+        fix_linear_growth(fastpm->p, correction, 2.0);
         LEAVE(correction);
 
         pm_free(fastpm->pm, delta_k);
@@ -355,10 +354,11 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 
 
 static void
-fix_linear_growth(PMStore * p, double correction)
+fix_linear_growth(PMStore * p, double correction, double fudge)
 {
     ptrdiff_t i;
     int d;
+    correction = pow(correction, fudge);
     for(d = 0; d < 3; d ++) {
         for(i = 0; i < p->np; i ++) {
             p->acc[i][d] *= correction;
@@ -387,15 +387,6 @@ fastpm_set_time(FastPM * fastpm,
     VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
     fastpm->pm = &vpm->pm;
 }
-
-/*
-void 
-fastpm_paint (FastPM * fastpm, FastPMFloat * delta_x, double density_factor) {
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL); 
-    pm_paint(pm, delta_x, p, p->np + pgd->nghosts, density_factor);
-    pm_ghosts_free(pgd);
-}
-*/
 
 void 
 fastpm_add_extension(FastPM * fastpm, 

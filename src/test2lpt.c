@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 2004, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 2004, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
 
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 

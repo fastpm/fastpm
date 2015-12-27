@@ -25,14 +25,6 @@ struct fastpm_powerspec_eh_params {
 double 
 fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
 
-typedef double (*fastpm_pkfunc)(double k, void * data);
-
-void 
-fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
-
-void 
-fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
-
 void
 fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k);
 

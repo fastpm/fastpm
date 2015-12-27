@@ -160,7 +160,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
             pm_free(fastpm->pm_2lpt, g_x);
         } else {
 
-            fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL);
+            fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL, FASTPM_DELTAK_GADGET);
         }
         
         fastpm_solve_2lpt(fastpm, delta_k);
@@ -223,14 +223,14 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
     CLOCK(compute);
     CLOCK(io);
 
-    PowerSpectrum ps;
+    FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    power_spectrum_init(&ps, pm_nmesh(fastpm->pm)[0] / 2);
+    fastpm_power_spectrum_init(&ps, pm_nmesh(fastpm->pm)[0] / 2);
 
     MPI_Barrier(fastpm->comm);
     ENTER(compute);
 
-    pm_calculate_powerspectrum(fastpm->pm, delta_k, &ps);
+    fastpm_utils_calculate_powerspectrum(fastpm->pm, delta_k, &ps, pow(fastpm->nc, 3.0));
 
     LEAVE(compute);
 
@@ -240,13 +240,14 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
     if(prr->measure_power_spectrum_filename) {
         if(fastpm->ThisTask == 0) {
             ensure_dir(prr->measure_power_spectrum_filename);
-            power_spectrum_write(&ps, fastpm->pm, pow(fastpm->nc, 3.0),
-                prr->measure_power_spectrum_filename, prr->random_seed, a_x);
+            char buf[1024];
+            sprintf(buf, "%s%05d_%0.04f.txt", prr->measure_power_spectrum_filename, prr->random_seed, a_x);
+            fastpm_power_spectrum_write(&ps, fastpm->pm, buf);
         }
     }
     LEAVE(io);
 
-    power_spectrum_destroy(&ps);
+    fastpm_power_spectrum_destroy(&ps);
 
     return 0;
 }

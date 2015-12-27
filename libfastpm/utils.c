@@ -9,7 +9,6 @@
 #include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
-#include "pmic.h"
 
 
 FastPMFloat * pm_alloc(PM * pm) 
@@ -48,12 +47,6 @@ PMRegion * pm_i_region(PM * pm) {
 
 PMRegion * pm_o_region(PM * pm) {
     return &pm->ORegion;
-}
-
-void 
-fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
-{
-    pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
 }
 
 void
@@ -137,42 +130,5 @@ double
 fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/* Eisenstein & Hu */
 {
     return param->Norm * k * pow(tk_eh(k, param), 2);
-}
-
-void 
-fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, pkfunc pk, void * pkdata) {
-
-    pm_r2c(pm, g_x, delta_k);
-
-    fastpm_info("Inducing correlation to the white noise.\n");
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-
-            double k2 = 0;
-            int d;
-            for(d = 0; d < 3; d++) {
-                k2 += kiter.fac[d][kiter.iabs[d]].kk;
-            }
-            double knorm = sqrt(k2);
-            double f = sqrt(pk(knorm, pkdata));
-
-            /* ensure the fourier space is a normal distribution */
-            f /= sqrt(pm->Norm);
-            /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
-             * forget where it is from. */
-            f *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
-
-            delta_k[kiter.ind + 0] *= f;
-            delta_k[kiter.ind + 1] *= f;
-
-        }
-
-    }
 }
 

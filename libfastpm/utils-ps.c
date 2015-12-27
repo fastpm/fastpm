@@ -7,8 +7,9 @@
 #include "pmpfft.h"
 
 void 
-pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps) 
+fastpm_utils_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, FastPMPowerSpectrum * ps, double ntotal) 
 {
+    ps->ntotal = ntotal;
     double Volume = 1.0;
     double Norm = 1.0;
     int d;
@@ -69,7 +70,7 @@ pm_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, PowerSpectrum * ps)
 }
 
 void 
-power_spectrum_init(PowerSpectrum * ps, size_t size) 
+fastpm_power_spectrum_init(FastPMPowerSpectrum * ps, size_t size) 
 {
     ps->size = size;
     ps->k = malloc(sizeof(ps->k[0]) * size);
@@ -78,18 +79,16 @@ power_spectrum_init(PowerSpectrum * ps, size_t size)
 }
 
 void 
-power_spectrum_destroy(PowerSpectrum * ps) {
+fastpm_power_spectrum_destroy(FastPMPowerSpectrum * ps) {
     free(ps->N);
     free(ps->p);
     free(ps->k);
 }
 
 void
-power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename, int random_seed, double aout) 
+fastpm_power_spectrum_write(FastPMPowerSpectrum * ps, PM * pm, char * filename)
 {
-    char buf[1024];
-    sprintf(buf, "%s%05d_%0.04f.txt", basename, random_seed, aout);
-    FILE * fp = fopen(buf, "w");
+    FILE * fp = fopen(filename, "w");
     int i;
     fprintf(fp, "# k p N \n");
     for(i = 0; i < ps->size; i ++) {
@@ -99,9 +98,9 @@ power_spectrum_write(PowerSpectrum * ps, PM * pm, double ntotal, char * basename
     double Volume = BoxSize[0] * BoxSize[1] * BoxSize[1];
     fprintf(fp, "# metadata 7\n");
     fprintf(fp, "# volume %g float64\n", Volume);
-    fprintf(fp, "# shotnoise %g float64\n", Volume / ntotal);
-    fprintf(fp, "# N1 %g int\n", ntotal);
-    fprintf(fp, "# N2 %g int\n", ntotal);
+    fprintf(fp, "# shotnoise %g float64\n", Volume / ps->ntotal);
+    fprintf(fp, "# N1 %g int\n", ps->ntotal);
+    fprintf(fp, "# N2 %g int\n", ps->ntotal);
     fprintf(fp, "# Lz %g float64\n", BoxSize[2]);
     fprintf(fp, "# Lx %g float64\n", BoxSize[0]);
     fprintf(fp, "# Ly %g float64\n", BoxSize[1]);

@@ -9,8 +9,75 @@
 #include <gsl/gsl_rng.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include "pmpfft.h"
-#include "pmic.h"
+
+/* The following functions fill the gaussian field*/
+static void 
+pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+static void 
+pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+static void 
+pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+
+void 
+fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, 
+        int seed, fastpm_pkfunc pk, void * pkdata, enum FastPMFillDeltaKScheme scheme)
+{
+    switch(scheme) {
+        case FASTPM_DELTAK_GADGET:
+            pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
+            break;
+        case FASTPM_DELTAK_FAST:
+            pmic_fill_gaussian_fast(pm, delta_k, seed, pk, pkdata);
+            break;
+        case FASTPM_DELTAK_SLOW:
+            pmic_fill_gaussian_slow(pm, delta_k, seed, pk, pkdata);
+            break;
+        default:
+            pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
+            break;
+    }
+}
+
+void 
+fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata) 
+{
+
+    pm_r2c(pm, g_x, delta_k);
+
+    fastpm_info("Inducing correlation to the white noise.\n");
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+
+            double k2 = 0;
+            int d;
+            for(d = 0; d < 3; d++) {
+                k2 += kiter.fac[d][kiter.iabs[d]].kk;
+            }
+            double knorm = sqrt(k2);
+            double f = sqrt(pk(knorm, pkdata));
+
+            /* ensure the fourier space is a normal distribution */
+            f /= sqrt(pm->Norm);
+            /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
+             * forget where it is from. */
+            f *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
+
+            delta_k[kiter.ind + 0] *= f;
+            delta_k[kiter.ind + 1] *= f;
+
+        }
+
+    }
+}
+
 
 static double 
 index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
@@ -61,8 +128,8 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
     return table[d1][d2][i * pm->ORegion.size[1] + j];
 }
 
-void 
-pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, void * pkdata) 
+static void 
+pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
 {
     /* Fill delta_k with gadget scheme */
     int d;
@@ -192,8 +259,8 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, v
 */
 }
 
-void 
-pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, void * pkdata)
+static void 
+pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata)
 {
     ptrdiff_t ind;
     int d;
@@ -225,8 +292,8 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, voi
     pm_free(pm, g_x);
 }
 
-void 
-pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, pkfunc pk, void * pkdata) 
+static void 
+pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
 {    
     ptrdiff_t i[3] = {0};
     int d;

@@ -72,6 +72,7 @@ FASTPM_END_DECLS
 #include "2lpt.h"
 #include "pm.h"
 #include "utils.h"
+#include "utils-ps.h"
+#include "utils-ic.h"
 
 #include "pmkiter.h"
-#include "pmpowerspectrum.h"
