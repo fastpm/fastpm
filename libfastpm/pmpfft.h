@@ -59,6 +59,11 @@ typedef struct PM {
     double InvCellSize[3];
 } PM;
 
+void
+pm_module_init();
+
+void 
+pm_module_cleanup();
 
 /* Initializing a PM object. */
 void 

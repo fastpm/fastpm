@@ -58,6 +58,8 @@ struct PMStore {
     #error FASTPM_FFT_PRECISION must be 32 or 64
 #endif
 
+void libfastpm_init();
+void libfastpm_cleanup();
 
 #include "2lpt.h"
 #include "pm.h"

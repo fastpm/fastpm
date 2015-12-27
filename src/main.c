@@ -51,6 +51,8 @@ int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
+    libfastpm_init();
+
     MPI_Comm comm = MPI_COMM_WORLD; 
 
     Parameters prr;
@@ -60,6 +62,8 @@ int main(int argc, char ** argv) {
     read_parameters(ParamFileName, &prr, comm);
 
     fastpm(&prr, comm);
+
+    libfastpm_cleanup();
 
     MPI_Finalize();
     return 0;

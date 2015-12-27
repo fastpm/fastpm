@@ -16,7 +16,7 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 
-static MPI_Datatype MPI_PTRDIFF = NULL;
+static MPI_Datatype MPI_PTRDIFF = (MPI_Datatype) 0;
 
 #if FASTPM_FFT_PRECISION == 64
     #define plan_dft_r2c pfft_plan_dft_r2c
@@ -28,6 +28,7 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define execute_dft_r2c_fftw fftw_mpi_execute_dft_r2c
     #define execute_dft_c2r_fftw fftw_mpi_execute_dft_c2r
     #define _pfft_init pfft_init
+    #define _pfft_cleanup pfft_cleanup
     #define destroy_plan pfft_destroy_plan
     #define destroy_plan_fftw fftw_destroy_plan
 
@@ -41,11 +42,14 @@ static MPI_Datatype MPI_PTRDIFF = NULL;
     #define execute_dft_r2c_fftw fftwf_mpi_execute_dft_r2c
     #define execute_dft_c2r_fftw fftwf_mpi_execute_dft_c2r
     #define _pfft_init pfftf_init
+    #define _pfft_cleanup pfftf_cleanup
     #define destroy_plan pfftf_destroy_plan
     #define destroy_plan_fftw fftwf_destroy_plan
 #endif
 
-static void module_init() {
+void
+pm_module_init() 
+{
     if(MPI_PTRDIFF) return;
         
     _pfft_init();
@@ -55,6 +59,15 @@ static void module_init() {
     } else {
         MPI_PTRDIFF = MPI_INT;
     }
+}
+
+void 
+pm_module_cleanup() 
+{
+    if(!MPI_PTRDIFF) return;
+    _pfft_cleanup();
+
+    MPI_PTRDIFF = (MPI_Datatype) 0;
 }
 
 static size_t fftw_local_size_dft_r2c(int nrnk, ptrdiff_t * n, MPI_Comm comm,
@@ -99,8 +112,6 @@ static size_t fftw_local_size_dft_r2c(int nrnk, ptrdiff_t * n, MPI_Comm comm,
 }
 
 void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
-
-    module_init();
 
     pm->init = *init;
     pm->iface = *iface;

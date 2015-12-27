@@ -10,6 +10,8 @@ int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
 
+    libfastpm_init();
+
     MPI_Comm comm = MPI_COMM_WORLD;
     FastPM2LPTSolver * solver = alloca(sizeof(FastPM2LPTSolver));
 
@@ -91,6 +93,8 @@ int main(int argc, char * argv[]) {
     pm_free(solver->pm, rho_init_ktruth);
     pm_free(solver->pm, rho_final_xtruth);
     pm_free(solver->pm, Fk);
+
+    libfastpm_cleanup();
     MPI_Finalize();
     return 0;
 }
