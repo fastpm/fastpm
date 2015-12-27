@@ -5,14 +5,17 @@
 #include <math.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 
 int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
 
     libfastpm_init();
-
     MPI_Comm comm = MPI_COMM_WORLD;
+
+    fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
+
     FastPM2LPTSolver * solver = alloca(sizeof(FastPM2LPTSolver));
 
     int nc = 128;

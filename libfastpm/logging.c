@@ -12,6 +12,27 @@ static fastpm_msg_handler msg_handler = NULL;
 static void * msg_handler_userdata = NULL;
 static MPI_Comm msg_handler_comm = (MPI_Comm) 0;
 
+void fastpm_void_msg_handler(
+            const enum FastPMLogLevel level,
+            const enum FastPMLogType type,
+            const int errcode,
+             const char * message, 
+            MPI_Comm comm,
+            void * userdata) {
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
+    if(type == COLLECTIVE) {
+        MPI_Barrier(comm);
+    }
+    if(ThisTask != 0 && type == COLLECTIVE)
+        return;
+    if(level == ERROR) {
+        fprintf(stdout, "%s", message);
+        fflush(stdout);
+        abort();
+    }
+}
+
 void fastpm_default_msg_handler(
             const enum FastPMLogLevel level,
             const enum FastPMLogType type,

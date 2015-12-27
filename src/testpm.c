@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 
 int main(int argc, char * argv[]) {
 
@@ -13,6 +14,9 @@ int main(int argc, char * argv[]) {
     libfastpm_init();
 
     MPI_Comm comm = MPI_COMM_WORLD;
+
+    fastpm_set_msg_handler(fastpm_void_msg_handler, comm, NULL);
+
     FastPM * solver = & (FastPM) {
         .nc = 128,
         .boxsize = 32.,

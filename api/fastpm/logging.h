@@ -37,6 +37,15 @@ fastpm_default_msg_handler(
         MPI_Comm comm,
         void * userdata);
 
+void 
+fastpm_void_msg_handler(
+        const enum FastPMLogLevel level,
+        const enum FastPMLogType type,
+        const int errcode, 
+        const char * message, 
+        MPI_Comm comm,
+        void * userdata);
+
 void fastpm_info(const char * fmt, ...);
 void fastpm_raise(const int code, const char * fmt, ...);
 
