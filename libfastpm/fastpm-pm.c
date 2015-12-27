@@ -399,7 +399,7 @@ fastpm_paint (FastPM * fastpm, FastPMFloat * delta_x, double density_factor) {
 
 void 
 fastpm_add_extension(FastPM * fastpm, 
-    int where,
+    enum FastPMExtensionPoint where,
     void * function, void * userdata) 
 {
     FastPMExtension * q = malloc(sizeof(FastPMExtension));

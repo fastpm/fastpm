@@ -5,6 +5,13 @@ typedef struct VPMInit {
     int pm_nc_factor;
 } VPMInit;
 
+
+enum FastPMExtensionPoint {
+    FASTPM_EXT_AFTER_FORCE = 0,
+    FASTPM_EXT_AFTER_KICK = 1,
+    FASTPM_EXT_AFTER_DRIFT = 2,
+    FASTPM_EXT_MAX = 3,
+};
 typedef struct FastPMExtension {
     void * function;
     void * userdata;
@@ -40,22 +47,18 @@ typedef struct {
     PM * pm;
 } FastPM;
 
-#define FASTPM_EXT_AFTER_FORCE 0
 typedef int (* fastpm_ext_after_force) (FastPM * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
-#define FASTPM_EXT_AFTER_KICK 1
 typedef int (* fastpm_ext_after_kick) (FastPM * fastpm, void * userdata);
-#define FASTPM_EXT_AFTER_DRIFT 2
 typedef int (* fastpm_ext_after_drift) (FastPM * fastpm, void * userdata);
-#define FASTPM_EXT_MAX 3
 
 void fastpm_init(FastPM * fastpm, 
-    int NprocY, 
-    int UseFFTW, 
+    int NprocY,  /* Use 0 for auto */
+    int UseFFTW, /* Use 0 for PFFT 1 for FFTW */
     MPI_Comm comm);
 
 void 
 fastpm_add_extension(FastPM * fastpm, 
-    int where,
+    enum FastPMExtensionPoint where,
     void * function, void * userdata);
 
 void 
