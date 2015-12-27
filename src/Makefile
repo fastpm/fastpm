@@ -15,7 +15,7 @@ SOURCES = main.c power.c readparams.c runpb.c readgrafic.c
 
 .PHONY: all
 
-all: fastpm testlib 
+all: fastpm test2lpt testpm
 
 fastpm: $(LUALIB) $(SOURCES:%.c=.objs/%.o) .objs/lua-preface.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $(SOURCES:%.c=.objs/%.o) .objs/lua-preface.o ../libfastpm/libfastpm.a \
@@ -24,8 +24,17 @@ fastpm: $(LUALIB) $(SOURCES:%.c=.objs/%.o) .objs/lua-preface.o ../libfastpm/libf
 			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
 			-lm 
 
-testlib : testlib.o
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ testlib.o \
+test2lpt : test2lpt.o
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ test2lpt.o \
+			../libfastpm/libfastpm.a \
+			$(LDFLAGS) \
+			-lgsl -lgslcblas \
+			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
+			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
+			-lm 
+
+testpm : testpm.o
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ testpm.o \
 			../libfastpm/libfastpm.a \
 			$(LDFLAGS) \
 			-lgsl -lgslcblas \
@@ -41,6 +50,5 @@ testlib : testlib.o
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm
-	rm -rf testlib
+	rm -rf fastpm testpm test2lpt
 
