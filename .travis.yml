@@ -27,11 +27,7 @@ install:
 
 script:
     - pushd tests
-    - sh runtest.sh
-    - test -f pm/powerspec00100_1.0000.txt
-    - test -f pm/snp00100_1.0000.bin.00
-    - test -f cola/powerspec00100_1.0000.txt
-    - test -f cola/snp00100_1.0000.bin.00
+    - sh runtests.sh
     - python plottests.py
     - popd
 
