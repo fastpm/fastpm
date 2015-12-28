@@ -88,6 +88,9 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
     ptrdiff_t i;
     int d;
 
+    /* It is important to (de-)shift the particles before creating ghosts 
+     * Because we will read out from the (de-)shifted positions.
+     * Otherwise the IC will have artifacts along the edges of domains. */
     for(i = 0; i < p->np; i ++) {
         for(d = 0; d < 3; d ++) {
             p->x[i][d] -= shift[d];

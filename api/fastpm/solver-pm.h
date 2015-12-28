@@ -31,6 +31,7 @@ typedef struct {
 
     PMStore * p;
     PM * pm_2lpt;
+    PM * pm_linear;
     VPM * vpm_list;
 
     /* Pointer to the current PM object */

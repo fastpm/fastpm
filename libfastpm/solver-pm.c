@@ -33,12 +33,12 @@ fastpm_decompose(FastPM * fastpm);
 void 
 fastpm_kick(FastPM * fastpm, 
               PMStore * pi, PMStore * po,
-              double af);
+              double af, int verbose);
 
 void 
 fastpm_drift(FastPM * fastpm,
                PMStore * pi, PMStore * po,
-               double af);
+               double af, int verbose);
 
 void 
 fastpm_set_snapshot(FastPM * fastpm,
@@ -52,7 +52,12 @@ double fastpm_growth_factor(FastPM * fastpm, double a);
 #define BREAKPOINT raise(SIGTRAP);
 
 static void
-fix_linear_growth(PMStore * p, double correction, double fudge);
+scale_acc(PMStore * p, PMStore * po, double correction, double fudge);
+static double
+measure_linear_power(FastPM * fastpm, PMStore * p, double a_x);
+static double
+find_correction(FastPM * fastpm, double Plin, 
+        double a_x, double a_x1, double a_v, double a_v1);
 
 /* Useful stuff */
 static int 
@@ -77,6 +82,7 @@ void fastpm_init(FastPM * fastpm,
 
     fastpm->p= malloc(sizeof(PMStore));
     fastpm->pm_2lpt = malloc(sizeof(PM));
+    fastpm->pm_linear = malloc(sizeof(PM));
 
     pm_store_init(fastpm->p);
 
@@ -88,6 +94,8 @@ void fastpm_init(FastPM * fastpm,
                            &baseinit, &fastpm->p->iface, comm);
 
     pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
+
+    pm_init_simple(fastpm->pm_linear, fastpm->p, fastpm->nc / 2, fastpm->boxsize, comm);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {
@@ -169,23 +177,10 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         }
         LEAVE(afterforce);
 
-        CLOCK(correction);
-        double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
-
-        Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
-        if(istep == 0) {
-            Plin0 = Plin;
-        }
-
-        double correction = sqrt(Plin0 / Plin);
-
-        if(!fastpm->USE_LINEAR_THEORY) correction = 1.0;
-        fastpm_info("<P(k<%g)> = %g Linear Theory = %g, correction=%g\n", 
-                          fastpm->K_LINEAR, Plin, Plin0, correction); 
-        fix_linear_growth(fastpm->p, correction, 2.0);
-        LEAVE(correction);
-
         pm_free(fastpm->pm, delta_k);
+
+        if(istep == 0)
+            Plin0 = measure_linear_power(fastpm, fastpm->p, a_x);
 
         CLOCK(afterdrift);
         /* take snapshots if needed, before the kick */
@@ -202,7 +197,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         // Leap-frog "kick" -- velocities updated
 
         CLOCK(kick);
-        fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1);
+        fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1, 1);
         LEAVE(kick);
 
         CLOCK(afterkick);
@@ -217,12 +212,151 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         // Leap-frog "drift" -- positions updated
 
         CLOCK(drift);
-        fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1);
+        fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1, 1);
         LEAVE(drift);
 
         /* no need to check for snapshots here, it will be checked next loop.  */
+        CLOCK(correction);
+
+        double correction = 1.0;
+
+        if(fastpm->USE_LINEAR_THEORY) {
+            fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x, 0);
+            fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v, 0);
+
+            correction = find_correction(fastpm, Plin0, a_x, a_x1, a_v, a_v1);
+
+            ptrdiff_t i;
+#pragma omp parallel for
+            for(i = 0; i < fastpm->p->np; i ++) {
+                int d;
+                for(d = 0; d < 3; d ++) {
+                    fastpm->p->acc[i][d] *= correction;
+                }
+            }
+            fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1, 0);
+            fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1, 0);
+        }
+
+        double Plin = measure_linear_power(fastpm, fastpm->p, a_x1);
+        fastpm_info("<P(k<%g)> = %g Linear Theory = %g, correction=%g, res=%g\n", 
+                          fastpm->K_LINEAR, Plin, Plin0, correction, Plin / Plin0); 
+        LEAVE(correction);
+
     }
 
+}
+
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_roots.h>
+
+struct find_correction_params {
+    FastPM * fastpm;
+    double Plin0;
+    double a_x;
+    double a_x1;
+    double a_v;
+    double a_v1;
+};
+
+static double 
+find_correction_eval(double correction, void * params) 
+{
+    struct find_correction_params * p = 
+        (struct find_correction_params*) params;
+
+    FastPM * fastpm = p->fastpm;
+
+    PMStore * po = alloca(sizeof(PMStore));
+    pm_store_init(po);
+    pm_store_alloc(po, fastpm->p->np_upper, PACK_POS | PACK_VEL | PACK_ACC);
+
+    scale_acc(fastpm->p, po, correction, 1.0);
+
+    fastpm_kick(fastpm, po, po, p->a_v1, 0);
+    fastpm_drift(fastpm, po, po, p->a_x1, 0);
+
+    double Plin = measure_linear_power(fastpm, po, p->a_x1);
+
+    pm_store_destroy(po);
+
+    double res = Plin / p->Plin0;
+    return res - 1.0;
+}
+
+static double
+find_correction(FastPM * fastpm, double Plin, 
+        double a_x, double a_x1, double a_v, double a_v1) 
+{
+
+    gsl_root_fsolver * s;
+    gsl_function F;
+    struct find_correction_params params = {
+        fastpm, Plin, a_x, a_x1, a_v, a_v1
+    };
+
+    F.function = find_correction_eval;
+    F.params = &params;
+
+    s = gsl_root_fsolver_alloc(gsl_root_fsolver_brent);
+
+    int iter = 0;
+    double r = 0;
+    double x_lo = 0.9;
+    double x_hi = 1.1;
+    while(find_correction_eval(x_hi, &params) < 0) {
+        x_hi *= 1.2;
+    }
+    while(find_correction_eval(x_lo, &params) > 0) {
+        x_lo /= 1.2;
+    }
+    int status;
+    gsl_root_fsolver_set(s, &F, x_lo, x_hi);
+
+    do {
+        iter++;
+        status = gsl_root_fsolver_iterate (s);
+        r = gsl_root_fsolver_root (s);
+        x_lo = gsl_root_fsolver_x_lower (s);
+        x_hi = gsl_root_fsolver_x_upper (s);
+        status = gsl_root_test_interval (x_lo, x_hi,
+                0, 0.1);
+        fastpm_info("iter = %d correction = %g\n", iter, r);
+    }
+    while (status == GSL_CONTINUE && iter < 10);
+    gsl_root_fsolver_free(s);
+    return r;
+}
+
+static double 
+measure_linear_power(FastPM * fastpm, PMStore * p, double a_x) 
+{
+    PM * pm = fastpm->pm_linear;
+
+    FastPMFloat * canvas = pm_alloc(pm);
+    FastPMFloat * delta_k = pm_alloc(pm);
+
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
+
+    /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
+     * otherwise increase this to (Nmesh / Ngrid) **3 */
+
+    double factor = 1.0 * pm->Norm / fastpm->pm_2lpt->Norm;
+    pm_paint(pm, canvas, p, p->np + pgd->nghosts, factor);
+
+    pm_r2c(pm, canvas, delta_k);
+
+    pm_ghosts_free(pgd);
+
+    double Plin = pm_calculate_linear_power(pm, delta_k, fastpm->K_LINEAR);
+
+    /* normalize to z=0 for comparison */
+    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+
+    pm_free(pm, delta_k);
+    pm_free(pm, canvas);
+    return Plin;
 }
 void 
 fastpm_destroy(FastPM * fastpm) 
@@ -230,6 +364,9 @@ fastpm_destroy(FastPM * fastpm)
     pm_store_destroy(fastpm->p);
     vpm_free(fastpm->vpm_list);
     pm_destroy(fastpm->pm_2lpt);
+    pm_destroy(fastpm->pm_linear);
+    free(fastpm->pm_linear);
+    free(fastpm->pm_2lpt);
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;
     int i;
@@ -356,16 +493,36 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 
 
 static void
-fix_linear_growth(PMStore * p, double correction, double fudge)
+scale_acc(PMStore * p, PMStore * po, double correction, double fudge)
 {
     ptrdiff_t i;
-    int d;
     correction = pow(correction, fudge);
-    for(d = 0; d < 3; d ++) {
-        for(i = 0; i < p->np; i ++) {
-            p->acc[i][d] *= correction;
+
+#pragma omp parallel for
+    for(i = 0; i < p->np; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            po->acc[i][d] = p->acc[i][d] * correction;
         }
     }
+
+#pragma omp parallel for
+    for(i = 0; i < p->np; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            po->x[i][d] = p->x[i][d];
+        }
+    }
+#pragma omp parallel for
+    for(i = 0; i < p->np; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            po->v[i][d] = p->v[i][d];
+        }
+    }
+    po->np = p->np;
+    po->a_x = p->a_x;
+    po->a_v = p->a_v;
 }
 
 static void 

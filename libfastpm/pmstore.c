@@ -217,9 +217,10 @@ pm_store_destroy(PMStore * p)
     if(p->dx2) p->iface.free(p->dx2);
     if(p->dx1) p->iface.free(p->dx1);
     if(p->acc) p->iface.free(p->acc);
-    p->iface.free(p->id);
-    p->iface.free(p->v);
-    p->iface.free(p->x);
+    if(p->id) p->iface.free(p->id);
+    if(p->v) p->iface.free(p->v);
+    if(p->x) p->iface.free(p->x);
+    if(p->q) p->iface.free(p->q);
 }
 
 void pm_store_read(PMStore * p, char * datasource) {

@@ -20,7 +20,8 @@ fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * de
      * otherwise increase this to (Nmesh / Ngrid) **3 */
     FastPMFloat * canvas = pm_alloc(pm);
     pm_paint(pm, canvas, p, p->np + pgd->nghosts, 1.0);
-    pm_assign(pm, canvas, delta_x);
+    if(delta_x) 
+        pm_assign(pm, canvas, delta_x);
 
     if(delta_k) {
         pm_r2c(pm, canvas, delta_k);

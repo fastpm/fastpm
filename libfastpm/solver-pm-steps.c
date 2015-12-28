@@ -55,7 +55,7 @@ fastpm_growth_factor(FastPM * fastpm, double a)
 
 void 
 fastpm_kick(FastPM * fastpm, 
-              PMStore * pi, PMStore * po, double af)
+              PMStore * pi, PMStore * po, double af, int verbose)
 {
     double ai = pi->a_v;
     double ac = pi->a_x;
@@ -64,9 +64,10 @@ fastpm_kick(FastPM * fastpm,
     double growth1 = GrowthFactor(ac, CP(fastpm));
     double OmegaM = fastpm->omega_m;
 
-    fastpm_info("Kick %6.4f -> %6.4f\n", ai, af);
-    fastpm_info("growth factor %g dda=%g\n", growth1, dda);
-
+    if(verbose) {
+        fastpm_info("Kick %6.4f -> %6.4f\n", ai, af);
+        fastpm_info("growth factor %g dda=%g\n", growth1, dda);
+    }
     double q2 = 1.5*OmegaM*growth1*growth1*(1.0 + 7.0/3.0*Om143);
     double q1 = 1.5*OmegaM*growth1;
 
@@ -95,7 +96,7 @@ fastpm_kick(FastPM * fastpm,
 void 
 fastpm_drift(FastPM * fastpm,
                PMStore * pi, PMStore * po,
-               double af)
+               double af, int verbose)
 {
     double ai = pi->a_x;
     double ac = pi->a_v;
@@ -107,9 +108,10 @@ fastpm_drift(FastPM * fastpm,
     double da1 = GrowthFactor(af, CP(fastpm)) - GrowthFactor(ai, CP(fastpm));    // change in D_1lpt
     double da2 = GrowthFactor2(af, CP(fastpm)) - GrowthFactor2(ai, CP(fastpm));  // change in D_2lpt
 
-    fastpm_info("Drift %6.4f -> %6.4f\n", ai, af);
-    fastpm_info("dyyy = %g \n", dyyy);
-
+    if(verbose) {
+        fastpm_info("Drift %6.4f -> %6.4f\n", ai, af);
+        fastpm_info("dyyy = %g \n", dyyy);
+    }
 
     int i;
     // Drift
@@ -191,8 +193,9 @@ Sq(double ai, double af, double aRef, FastPM * fastpm)
     result = integrate(ai, af, fastpm, nonstddriftfunc);
     result /= gpQ(aRef, fastpm->nLPT);
 
+    /*
     fastpm_info("ref time = %6.4f, std drift =%g, non std drift = %g \n",
-        aRef, resultstd, result);
+        aRef, resultstd, result); */
 
     if (fastpm->USE_NONSTDDA)
         return result;
@@ -218,8 +221,9 @@ Sphi(double ai, double af, double aRef, FastPM * fastpm)
 
     resultstd = integrate(ai, af, fastpm, stdkickfunc);
 
+    /*
     fastpm_info("ref time = %6.4f, std kick = %g, non std kick = %g\n",
-            aRef, resultstd, result);
+            aRef, resultstd, result); */
 
     if (fastpm->USE_NONSTDDA) {
         return result;
@@ -251,9 +255,9 @@ fastpm_set_snapshot(FastPM * fastpm,
     fastpm_info("velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
     fastpm_info("RSD factor %e\n", aout/Qfactor(aout, CP(fastpm))/vfac);
 
-    fastpm_kick(fastpm, p, po, aout);
+    fastpm_kick(fastpm, p, po, aout, 0);
 
-    fastpm_drift(fastpm, p, po, aout);
+    fastpm_drift(fastpm, p, po, aout, 0);
 
     int i;
 #pragma omp parallel for 
