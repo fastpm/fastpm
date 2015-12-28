@@ -81,15 +81,20 @@ apply_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir1, int
 void 
 pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3]) 
 {
-/* calculate dx1, dx2, for initial fluctuation delta_k.
- * shift: martin has shift = 0.5, 0.5, 0.5.
- * Use shift of 0, 0, 0 if in doublt. 
- *   */
-
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
-
+    /* calculate dx1, dx2, for initial fluctuation delta_k.
+     * shift: martin has shift = 0.5, 0.5, 0.5.
+     * Use shift of 0, 0, 0 if in doublt. 
+     *   */
     ptrdiff_t i;
     int d;
+
+    for(i = 0; i < p->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            p->x[i][d] -= shift[d];
+        }
+    }
+
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
     FastPMFloat * workspace = pm_alloc(pm);
     FastPMFloat * source =  pm_alloc(pm);
@@ -100,12 +105,6 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
     for(d = 0; d < 3; d++ )
         field[d] = pm_alloc(pm);
 
-    for(i = 0; i < p->np; i ++) {
-        for(d = 0; d < 3; d ++) {
-            p->x[i][d] -= shift[d];
-        }
-    }
-     
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
     int D1[] = {1, 2, 0};
