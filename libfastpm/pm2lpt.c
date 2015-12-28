@@ -27,10 +27,10 @@ apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
-            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
+            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k;
             double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
+                kk_finite += kiter.fac[d][kiter.iabs[d]].kk;
             }
             ptrdiff_t ind = kiter.ind;
             /* - i k[d] / k2 */
@@ -59,11 +59,11 @@ apply_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir1, int
             pm_kiter_next(&kiter)) {
 
             int d;
-            double k1_finite = kiter.fac[dir1][kiter.iabs[dir1]].k_finite;
-            double k2_finite = kiter.fac[dir2][kiter.iabs[dir2]].k_finite;
+            double k1_finite = kiter.fac[dir1][kiter.iabs[dir1]].k;
+            double k2_finite = kiter.fac[dir2][kiter.iabs[dir2]].k;
             double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
+                kk_finite += kiter.fac[d][kiter.iabs[d]].kk;
             }
             ptrdiff_t ind = kiter.ind;
             if(kk_finite > 0) {
