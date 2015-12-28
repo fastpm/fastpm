@@ -99,17 +99,18 @@ void fastpm_init(FastPM * fastpm,
 void 
 fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit)
 {
-    double shift[3] = {
-        fastpm->boxsize / fastpm->nc * 0.5,
-        fastpm->boxsize / fastpm->nc * 0.5,
-        fastpm->boxsize / fastpm->nc * 0.5,
-        };
+    if(delta_k_ic) {
+        double shift[3] = {
+            fastpm->boxsize / fastpm->nc * 0.5,
+            fastpm->boxsize / fastpm->nc * 0.5,
+            fastpm->boxsize / fastpm->nc * 0.5,
+            };
 
-    pm_store_set_lagrangian_position(fastpm->p, fastpm->pm_2lpt, shift);
+        pm_store_set_lagrangian_position(fastpm->p, fastpm->pm_2lpt, shift);
 
-    /* read out values at locations with an inverted shift */
-    pm_2lpt_solve(fastpm->pm_2lpt, delta_k_ic, fastpm->p, shift);
-
+        /* read out values at locations with an inverted shift */
+        pm_2lpt_solve(fastpm->pm_2lpt, delta_k_ic, fastpm->p, shift);
+    }
     pm_store_summary(fastpm->p, fastpm->comm);
     pm_2lpt_evolve(ainit, fastpm->p, fastpm->omega_m);
 }

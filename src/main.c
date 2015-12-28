@@ -136,6 +136,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
     if(prr->readic_filename) {
         read_runpb_ic(fastpm, fastpm->p, prr->readic_filename);
+        fastpm_setup_ic(fastpm, NULL, prr->time_step[0]);
     } else {
         FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
