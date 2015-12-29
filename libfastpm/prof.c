@@ -131,9 +131,14 @@ static void fastpm_clock_sort()
             if(fastpm_clock_cmp(p, q->next) < 0) {
                 p->next = q->next;
                 q->next = p;
-                break;
+                goto next;
             }
         }
+        /* no inserting, append */
+        q->next = p;
+        p->next = NULL;
+next:
+        continue;
     }
 
     head = h;
