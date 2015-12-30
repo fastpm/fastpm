@@ -3,6 +3,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
+#include <fastpm/logging.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
@@ -99,6 +100,7 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
 {
     double sum = 0;
     double N   = 0;
+    double Norm = 0;
 
 #pragma omp parallel 
     {
@@ -127,18 +129,25 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
                 #pragma omp atomic
                 N += 1;
             }
+            if(k == 0) {
+                Norm = value;
+            }
             next:
             continue;
         }
     }
 
+    MPI_Allreduce(MPI_IN_PLACE, &Norm, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
 
+    double rt;
     if(N > 1) {
-        return sum / N * pm->Volume / (pm->Norm * pm->Norm);
+        rt = sum / N * pm->Volume / Norm;
     } else {
-        return 1.0;
+        rt = 1.0;
     }
+/*    fastpm_info("norm factor = Norm / pm->Norm = %g power=%g\n", sqrt(Norm) / pm->Norm, rt); */
+    return rt;
 }
 

@@ -3,12 +3,37 @@
 #include <string.h>
 #include <stdint.h>
 #include <mpi.h>
-
+#include <gsl/gsl_rng.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
+
+static double RNDTABLE[8192];
+
+gsl_rng * random_generator;
+void fastpm_utils_init_randtable() {
+    random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+    gsl_rng_set(random_generator, 37);  /* start-up seed */
+    int i;
+    for(i = 0; i < 8192; i ++) {
+        RNDTABLE[i] = gsl_rng_uniform(random_generator);
+    }
+//    gsl_rng_free(random_generator);
+}
+
+double 
+fastpm_utils_get_random(uint64_t id) 
+{
+    uint64_t ind = 0;
+    while(id != 0) {
+        ind += id;
+        id /= 8192;
+    }
+    ind %= 8192;
+    return RNDTABLE[ind];
+}
 
 void
 fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k) 

@@ -435,3 +435,29 @@ pm_store_summary(PMStore * p, MPI_Comm comm)
             (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
 
 }
+void 
+pm_store_create_subsample(PMStore * po, PMStore * p, int attributes, int mod) 
+{
+    ptrdiff_t i;
+    ptrdiff_t j;
+    pm_store_alloc(po, 1.0 * p->np_upper / mod, attributes);
+    j = 0;
+    
+    for(i = 0; i < p->np; i ++) {
+        uint64_t id = p->id[i];
+        double r = fastpm_utils_get_random(id);
+//        if(id % mod != 0) continue;
+        if(r * mod > 1) continue;
+        if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);
+        if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0][0]) * 3);
+        if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0][0]) * 3);
+        if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0][0]) * 3);
+        if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0][0]) * 3);
+        if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0][0]) * 3);
+        if(po->id) po->id[j] = p->id[i];
+        j ++;
+    }
+    po->np = j; 
+    po->a_x = p->a_x;
+    po->a_v = p->a_v;
+}

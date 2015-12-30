@@ -53,4 +53,6 @@ pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, M
 void pm_store_read(PMStore * p, char * datasource);
 void pm_store_write(PMStore * p, char * datasource);
 
+void 
+pm_store_create_subsample(PMStore * out, PMStore * in, int attributes, int mod);
 

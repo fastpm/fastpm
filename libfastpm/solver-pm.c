@@ -52,7 +52,7 @@ double fastpm_growth_factor(FastPM * fastpm, double a);
 #define BREAKPOINT raise(SIGTRAP);
 
 static void
-scale_acc(PMStore * p, PMStore * po, double correction, double fudge);
+scale_acc(PMStore * po, double correction, double fudge);
 static double
 measure_linear_power(FastPM * fastpm, PMStore * p, double a_x);
 static double
@@ -95,7 +95,7 @@ void fastpm_init(FastPM * fastpm,
 
     pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
 
-    pm_init_simple(fastpm->pm_linear, fastpm->p, fastpm->nc / 2, fastpm->boxsize, comm);
+    pm_init_simple(fastpm->pm_linear, fastpm->p, fastpm->nc / 4, fastpm->boxsize, comm);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {
@@ -126,6 +126,15 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit)
 void
 fastpm_evolve(FastPM * fastpm, double * time_step, int nstep) 
 {
+    CLOCK(decompose);
+    CLOCK(force);
+    CLOCK(kick);
+    CLOCK(drift);
+    CLOCK(afterforce);
+    CLOCK(afterkick);
+    CLOCK(afterdrift);
+    CLOCK(correction);
+
     FastPMExtension * ext;
 
     MPI_Barrier(fastpm->comm);
@@ -141,6 +150,10 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
     MPI_Barrier(fastpm->comm);
 
+
+
+    double correction = 1.0;
+    double Plin0sub = 0;
     double Plin0 = 0;
     /* The last step is the 'terminal' step */
     int istep;
@@ -154,9 +167,8 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
                     istep, a_x, a_x1, a_v, a_v1, fastpm->pm->init.Nmesh);
 
-        CLOCK(decompose);
+        ENTER(decompose);
         fastpm_decompose(fastpm);
-
         LEAVE(decompose);
 
         /* Calculate PM forces. */
@@ -165,11 +177,26 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         /* watch out: boost the density since mesh is finer than grid */
         double density_factor = fastpm->pm->Norm / pow(1.0 * fastpm->nc, 3);
 
-        CLOCK(force);
+        ENTER(force);
         pm_calculate_forces(fastpm->p, fastpm->pm, delta_k, density_factor);
         LEAVE(force);
 
-        CLOCK(afterforce);
+        double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
+        Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+
+        if(istep == 0) {
+            Plin0 = Plin;
+            PMStore * po = alloca(sizeof(PMStore));
+            pm_store_init(po);
+            pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 32);
+            Plin0sub = measure_linear_power(fastpm, po, a_x);
+            pm_store_destroy(po);
+        }
+
+        fastpm_info("Last Step: <P(k<%g)> = %g Linear Theory = %g, correction=%g, res=%g\n", 
+                          fastpm->K_LINEAR, Plin, Plin0, correction, Plin / Plin0); 
+
+        ENTER(afterforce);
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
             ext; ext = ext->next) {
                 ((fastpm_ext_after_force) ext->function) 
@@ -177,12 +204,11 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         }
         LEAVE(afterforce);
 
+
         pm_free(fastpm->pm, delta_k);
 
-        if(istep == 0)
-            Plin0 = measure_linear_power(fastpm, fastpm->p, a_x);
 
-        CLOCK(afterdrift);
+        ENTER(afterdrift);
         /* take snapshots if needed, before the kick */
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_DRIFT];
             ext; ext = ext->next) {
@@ -193,14 +219,26 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
+
+        /* correct for linear theory before kick and drift */
+        ENTER(correction);
+        if(fastpm->USE_LINEAR_THEORY) {
+
+            correction = find_correction(fastpm, Plin0sub, 
+                        a_x, a_x1, a_v, a_v1);
+
+            scale_acc(fastpm->p, correction, 1.0);
+            /* the value of correction is leaked to the next step for reporting. */
+        }
+        LEAVE(correction);
         
         // Leap-frog "kick" -- velocities updated
 
-        CLOCK(kick);
+        ENTER(kick);
         fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1, 1);
         LEAVE(kick);
 
-        CLOCK(afterkick);
+        ENTER(afterkick);
         /* take snapshots if needed, before the drift */
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_KICK];
             ext; ext = ext->next) {
@@ -211,37 +249,10 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         
         // Leap-frog "drift" -- positions updated
 
-        CLOCK(drift);
+        ENTER(drift);
         fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1, 1);
         LEAVE(drift);
 
-        /* no need to check for snapshots here, it will be checked next loop.  */
-        CLOCK(correction);
-
-        double correction = 1.0;
-
-        if(fastpm->USE_LINEAR_THEORY) {
-            fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x, 0);
-            fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v, 0);
-
-            correction = find_correction(fastpm, Plin0, a_x, a_x1, a_v, a_v1);
-
-            ptrdiff_t i;
-#pragma omp parallel for
-            for(i = 0; i < fastpm->p->np; i ++) {
-                int d;
-                for(d = 0; d < 3; d ++) {
-                    fastpm->p->acc[i][d] *= correction;
-                }
-            }
-            fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1, 0);
-            fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1, 0);
-        }
-
-        double Plin = measure_linear_power(fastpm, fastpm->p, a_x1);
-        fastpm_info("<P(k<%g)> = %g Linear Theory = %g, correction=%g, res=%g\n", 
-                          fastpm->K_LINEAR, Plin, Plin0, correction, Plin / Plin0); 
-        LEAVE(correction);
 
     }
 
@@ -253,6 +264,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
 struct find_correction_params {
     FastPM * fastpm;
+    PMStore * po;
     double Plin0;
     double a_x;
     double a_x1;
@@ -267,19 +279,17 @@ find_correction_eval(double correction, void * params)
         (struct find_correction_params*) params;
 
     FastPM * fastpm = p->fastpm;
+    PMStore * po = p->po;
 
-    PMStore * po = alloca(sizeof(PMStore));
-    pm_store_init(po);
-    pm_store_alloc(po, fastpm->p->np_upper, PACK_POS | PACK_VEL | PACK_ACC);
-
-    scale_acc(fastpm->p, po, correction, 1.0);
+    scale_acc(po, correction, 1.0);
 
     fastpm_kick(fastpm, po, po, p->a_v1, 0);
     fastpm_drift(fastpm, po, po, p->a_x1, 0);
 
     double Plin = measure_linear_power(fastpm, po, p->a_x1);
-
-    pm_store_destroy(po);
+    fastpm_drift(fastpm, po, po, p->a_x, 0);
+    fastpm_kick(fastpm, po, po, p->a_v, 0);
+    scale_acc(po, 1.0 / correction, 1.0);
 
     double res = Plin / p->Plin0;
     return res - 1.0;
@@ -290,10 +300,14 @@ find_correction(FastPM * fastpm, double Plin,
         double a_x, double a_x1, double a_v, double a_v1) 
 {
 
+    PMStore * po = alloca(sizeof(PMStore));
+    pm_store_init(po);
+    pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 32);
+
     gsl_root_fsolver * s;
     gsl_function F;
     struct find_correction_params params = {
-        fastpm, Plin, a_x, a_x1, a_v, a_v1
+        fastpm, po, Plin, a_x, a_x1, a_v, a_v1
     };
 
     F.function = find_correction_eval;
@@ -306,9 +320,13 @@ find_correction(FastPM * fastpm, double Plin,
     double x_lo = 0.9;
     double x_hi = 1.1;
     while(find_correction_eval(x_hi, &params) < 0) {
+        iter ++;
+        fastpm_info("iter = %d x_hi = %g\n", iter, x_hi);
         x_hi *= 1.2;
     }
     while(find_correction_eval(x_lo, &params) > 0) {
+        iter ++;
+        fastpm_info("iter = %d x_lo = %g\n", iter, x_lo);
         x_lo /= 1.2;
     }
     int status;
@@ -321,11 +339,14 @@ find_correction(FastPM * fastpm, double Plin,
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
         status = gsl_root_test_interval (x_lo, x_hi,
-                0, 0.1);
+                0, 1e-2);
         fastpm_info("iter = %d correction = %g\n", iter, r);
     }
     while (status == GSL_CONTINUE && iter < 10);
     gsl_root_fsolver_free(s);
+
+    pm_store_destroy(po);
+
     return r;
 }
 
@@ -339,11 +360,9 @@ measure_linear_power(FastPM * fastpm, PMStore * p, double a_x)
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
-    /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
-     * otherwise increase this to (Nmesh / Ngrid) **3 */
-
-    double factor = 1.0 * pm->Norm / fastpm->pm_2lpt->Norm;
-    pm_paint(pm, canvas, p, p->np + pgd->nghosts, factor);
+    /* Note that pm_calculate_linear_power will divide by the 0-th mode
+     * thus we do not need to set the mass of particles correctly */
+    pm_paint(pm, canvas, p, p->np + pgd->nghosts, 1.0);
 
     pm_r2c(pm, canvas, delta_k);
 
@@ -493,36 +512,18 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 
 
 static void
-scale_acc(PMStore * p, PMStore * po, double correction, double fudge)
+scale_acc(PMStore * po, double correction, double fudge)
 {
     ptrdiff_t i;
     correction = pow(correction, fudge);
 
 #pragma omp parallel for
-    for(i = 0; i < p->np; i ++) {
+    for(i = 0; i < po->np; i ++) {
         int d;
         for(d = 0; d < 3; d ++) {
-            po->acc[i][d] = p->acc[i][d] * correction;
+            po->acc[i][d] *= correction;
         }
     }
-
-#pragma omp parallel for
-    for(i = 0; i < p->np; i ++) {
-        int d;
-        for(d = 0; d < 3; d ++) {
-            po->x[i][d] = p->x[i][d];
-        }
-    }
-#pragma omp parallel for
-    for(i = 0; i < p->np; i ++) {
-        int d;
-        for(d = 0; d < 3; d ++) {
-            po->v[i][d] = p->v[i][d];
-        }
-    }
-    po->np = p->np;
-    po->a_x = p->a_x;
-    po->a_v = p->a_v;
 }
 
 static void 

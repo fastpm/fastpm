@@ -7,7 +7,7 @@
 
 -- For Testing
 nc = 128
-boxsize = 1280.0
+boxsize = 384.0
 
 -- Broken, always use 1
 nrealization= 1
@@ -38,7 +38,7 @@ sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 -------- Approximation Method ---------------
 force_mode = "pm"
 
-pm_nc_factor = {1,   2,   3, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
+pm_nc_factor = {2,   2,   2, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm =    {0, 0.2, 0.5, }            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
