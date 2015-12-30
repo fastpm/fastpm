@@ -436,7 +436,7 @@ pm_store_summary(PMStore * p, MPI_Comm comm)
 
 }
 void 
-pm_store_create_subsample(PMStore * po, PMStore * p, int attributes, int mod) 
+pm_store_create_subsample(PMStore * po, PMStore * p, int attributes, int mod, int nc) 
 {
     ptrdiff_t i;
     ptrdiff_t j;
@@ -445,9 +445,15 @@ pm_store_create_subsample(PMStore * po, PMStore * p, int attributes, int mod)
     
     for(i = 0; i < p->np; i ++) {
         uint64_t id = p->id[i];
-        double r = fastpm_utils_get_random(id);
+//        double r = fastpm_utils_get_random(id);
 //        if(id % mod != 0) continue;
-        if(r * mod > 1) continue;
+//        if(r * mod > 1) continue;
+        if((id % nc) % mod != 0) continue;
+        id /= nc;
+        if((id % nc) % mod != 0) continue;
+        id /= nc;
+        if((id % nc) % mod != 0) continue;
+
         if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);
         if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0][0]) * 3);
         if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0][0]) * 3);

@@ -188,7 +188,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
             Plin0 = Plin;
             PMStore * po = alloca(sizeof(PMStore));
             pm_store_init(po);
-            pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 32);
+            pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 4, fastpm->nc);
             Plin0sub = measure_linear_power(fastpm, po, a_x);
             pm_store_destroy(po);
         }
@@ -302,7 +302,7 @@ find_correction(FastPM * fastpm, double Plin,
 
     PMStore * po = alloca(sizeof(PMStore));
     pm_store_init(po);
-    pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 32);
+    pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 4, fastpm->nc);
 
     gsl_root_fsolver * s;
     gsl_function F;

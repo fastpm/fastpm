@@ -15,22 +15,27 @@ static double RNDTABLE[8192];
 gsl_rng * random_generator;
 void fastpm_utils_init_randtable() {
     random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
-    gsl_rng_set(random_generator, 37);  /* start-up seed */
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    gsl_rng_set(random_generator, 37 * (rank + 1) + 1);  /* start-up seed */
     int i;
     for(i = 0; i < 8192; i ++) {
         RNDTABLE[i] = gsl_rng_uniform(random_generator);
     }
-//    gsl_rng_free(random_generator);
+    //gsl_rng_free(random_generator);
 }
 
 double 
 fastpm_utils_get_random(uint64_t id) 
 {
+    return gsl_rng_uniform(random_generator);
     uint64_t ind = 0;
+    ind = id;
+    
     while(id != 0) {
         ind += id;
         id /= 8192;
-    }
+    } 
     ind %= 8192;
     return RNDTABLE[ind];
 }
