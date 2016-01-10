@@ -14,12 +14,13 @@
 
 
 static void 
-parse_conf(char * confstr, Parameters * param, lua_State * L);
+loads(char * confstr, Parameters * param, lua_State * L);
 
 #define DEF_READ(my_typename, c_typename, lua_typename, transform) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue) { \
-    lua_getglobal(L, name); \
+    lua_getfield(L, -1, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
+        lua_pop(L, 1); \
         return defvalue; \
     } \
     c_typename retvalue = transform(lua_to ## lua_typename(L, -1)); \
@@ -27,7 +28,7 @@ c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_type
     return  retvalue; \
 } \
 c_typename read_## my_typename (lua_State * L, const char * name) { \
-    lua_getglobal(L, name); \
+    lua_getfield(L, -1, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
         fastpm_raise(1030, "Error: Parameter %s not found in the parameter file\n", name); \
     } \
@@ -37,7 +38,7 @@ c_typename read_## my_typename (lua_State * L, const char * name) { \
 } \
 c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *len) \
 { \
-    lua_getglobal(L, name); \
+    lua_getfield(L, -1, name); \
     if(!lua_istable(L, -1)) { \
         fastpm_raise(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
@@ -58,8 +59,9 @@ c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *le
 
 #define DEF_READ2(my_typename, c_typename, lua_typename, transform, argtype, argname) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue, argtype argname){ \
-    lua_getglobal(L, name); \
+    lua_getfield(L, -1, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
+        lua_pop(L, 1); \
         return defvalue; \
     } \
     c_typename retvalue = transform(lua_to ## lua_typename(L, -1), argname); \
@@ -67,7 +69,7 @@ c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_type
     return  retvalue; \
 } \
 c_typename read_## my_typename (lua_State * L, const char * name, argtype argname) { \
-    lua_getglobal(L, name); \
+    lua_getfield(L, -1, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
         fastpm_raise(1030, "Error: Parameter %s not found in the parameter file\n", name); \
     } \
@@ -77,7 +79,7 @@ c_typename read_## my_typename (lua_State * L, const char * name, argtype argnam
 } \
 c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *len, argtype argname) \
 { \
-    lua_getglobal(L, name); \
+    lua_getfield(L, -1, name); \
     if(!lua_istable(L, -1)) { \
         fastpm_raise(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
@@ -162,7 +164,7 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
     char * confstr;
     int confstr_len;
     if(ThisTask == 0) {
-        lua_getglobal(L, "read_file");
+        lua_getglobal(L, "parse_file");
         lua_pushstring(L, filename);
         if(lua_pcall(L, 1, 1, 0)) {
             fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
@@ -170,21 +172,17 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
         confstr = strdup(lua_tostring(L, -1));
         confstr_len = strlen(confstr) + 1;
         lua_pop(L, 1);
-
-        /* 0-th rank parse first to report possible errors */
-        parse_conf(confstr, param, L);
-
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
     } else {
-        /* other ranks parse after the collective call to avoid duplicated
+        /* other ranks use the serialized string to avoid duplicated
          * error reports */
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         confstr = malloc(confstr_len);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-
-        parse_conf(confstr, param, L);
     }
+
+    loads(confstr, param, L);
 
     free(confstr);
     lua_close(L);
@@ -192,11 +190,15 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
 }
 
 static void 
-parse_conf(char * confstr, Parameters * param, lua_State * L) 
+loads(char * confstr, Parameters * param, lua_State * L) 
 {
-    if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 0, 0)) {
+    if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 1, 0)) {
+        /* This shall never happen unless the dump library is brokean */
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
+    
+    fastpm_log(-1, "%s\n", confstr);
+    fastpm_log(-1, "%d\n", lua_istable(L, -1));
 
     memset(param, 0, sizeof(*param));
     param->nc = read_integer(L, "nc");
@@ -224,8 +226,8 @@ parse_conf(char * confstr, Parameters * param, lua_State * L)
     param->np_alloc_factor = read_number(L, "np_alloc_factor");
 
     // File Names and optional parameters realated
-    param->readic_filename = read_string_opt(L, "readic", NULL);
     param->readnoise_filename = read_string_opt(L, "readnoise", NULL);
+    param->readic_filename = read_string_opt(L, "readic", NULL);
 
     if(!param->readic_filename) {
         param->power_spectrum_filename = read_string(L, "powerspectrum");
