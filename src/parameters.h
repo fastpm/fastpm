@@ -26,6 +26,7 @@ typedef struct {
 
     int force_mode;
     int cola_stdda;
+    int use_dx1_only;
 
     double * time_step; int n_time_step;
     int enforce_broadband; 

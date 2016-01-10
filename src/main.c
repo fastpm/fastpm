@@ -80,6 +80,7 @@ int main(int argc, char ** argv) {
         .USE_COLA = prr.force_mode == FORCE_MODE_COLA,
         .USE_NONSTDDA = !prr.cola_stdda,
         .USE_LINEAR_THEORY = prr.enforce_broadband,
+        .USE_DX1_ONLY = prr.use_dx1_only,
         .nLPT = -2.5f,
         .K_LINEAR = prr.enforce_broadband_kmax,
     };

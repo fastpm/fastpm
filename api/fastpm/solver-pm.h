@@ -16,6 +16,7 @@ typedef struct {
     double alloc_factor;
     VPMInit * vpminit;
     int USE_COLA;
+    int USE_DX1_ONLY;
     int USE_NONSTDDA;
     int USE_LINEAR_THEORY;
     double nLPT;
