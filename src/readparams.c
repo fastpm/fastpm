@@ -143,6 +143,8 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
 {
     extern char lua_preface_lua[];
     extern unsigned int lua_preface_lua_len;
+    extern char lua_dump_lua[];
+    extern unsigned int lua_dump_lua_len;
 
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
@@ -150,20 +152,26 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
 
-    /* Load the preface */
-    char * preface = alloca(lua_preface_lua_len + 1);
-    memcpy(preface, lua_preface_lua, lua_preface_lua_len);
-    preface[lua_preface_lua_len] = 0;
-
-    if(luaL_loadstring(L, preface) || lua_pcall(L, 0, 0, 0)) {
-        fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
-        return -1;
-    }
-
     /* read the configuration file */
     char * confstr;
     int confstr_len;
+
     if(ThisTask == 0) {
+
+        if(luaL_loadbuffer(L, lua_dump_lua, lua_dump_lua_len, "dump") 
+        || lua_pcall(L, 0, 1, 0)
+        ) {
+            fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
+            return -1;
+        }
+        lua_setglobal(L, "dump");
+
+        if(luaL_loadbuffer(L, lua_preface_lua, lua_preface_lua_len, "preface") 
+        || lua_pcall(L, 0, 0, 0)) {
+            fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
+            return -1;
+        }
+
         lua_getglobal(L, "parse_file");
         lua_pushstring(L, filename);
         if(lua_pcall(L, 1, 1, 0)) {
@@ -197,8 +205,7 @@ loads(char * confstr, Parameters * param, lua_State * L)
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
     
-    fastpm_log(-1, "%s\n", confstr);
-    fastpm_log(-1, "%d\n", lua_istable(L, -1));
+    fastpm_log(-1, "Configuration %s\n", confstr);
 
     memset(param, 0, sizeof(*param));
     param->nc = read_integer(L, "nc");
