@@ -20,29 +20,16 @@ SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 all: fastpm test2lpt testpm
 
 fastpm: $(LUALIB) $(FASTPM_SOURCES:%.c=.objs/%.o) .objs/lua-dump.o .objs/lua-preface.o ../libfastpm/libfastpm.a
-	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $(FASTPM_SOURCES:%.c=.objs/%.o) .objs/lua-dump.o .objs/lua-preface.o ../libfastpm/libfastpm.a \
-			 ../lua/liblua.a $(LDFLAGS) -lgsl -lgslcblas \
-			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
-			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
-			-lm 
+	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ \
+		$(LDFLAGS) -lgsl -lgslcblas -lm
 
-test2lpt : test2lpt.o
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ test2lpt.o \
-			../libfastpm/libfastpm.a \
-			$(LDFLAGS) \
-			-lgsl -lgslcblas \
-			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
-			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
-			-lm 
+test2lpt : test2lpt.o ../libfastpm/libfastpm.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm 
 
-testpm : testpm.o
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ testpm.o \
-			../libfastpm/libfastpm.a \
-			$(LDFLAGS) \
-			-lgsl -lgslcblas \
-			-lpfft_omp -lfftw3_mpi -lfftw3_omp -lfftw3 \
-			-lpfftf_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
-			-lm 
+testpm : testpm.o ../libfastpm/libfastpm.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 

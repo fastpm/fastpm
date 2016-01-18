@@ -27,8 +27,25 @@ LIBSOURCES = libfastpm.c \
     pm2lpt.c \
     pmapi.c 
 
+PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
+PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a
+PFFTLIBS0 += libfftw3f_omp.a libfftw3f_mpi.a libfftw3f.a
+# prefix the path
+PFFTLIBS = $(PFFTLIBS0:%.a=../depends/install/lib/%.a)
+
+all: libfastpm.a 
+
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
-	$(AR) rcs $@ $(LIBSOURCES:%.c=.objs/%.o) 
+	echo create $@ > $@.mri
+	for i in $(PFFTLIBS); do echo addlib $$i >> $@.mri; done
+	for i in $(LIBSOURCES:%.c=.objs/%.o); do echo addmod $$i >> $@.mri; done
+	echo save >> $@.mri
+	echo end >> $@.mri
+	$(AR) -M < $@.mri
+
+
+#libfastpm.so : libfastpm.a $(PFFTLIBS)
+#	$(CC) -shared -fvisibility=hidden -o $@ $^ 
 
 -include $(LIBSOURCES:%.c=.deps/%.d)
 
