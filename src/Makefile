@@ -1,14 +1,14 @@
 include ../Makefile.local
 include ../Makefile.rules
 
-GSL_DIR   ?= #e.g. /Users/jkoda/Research/opt/gcc/gsl
+GSL_DIR   ?= 
 
-DIR_PATH = $(GSL_DIR) ../depends/install
+DIR_PATH = $(GSL_DIR)
 
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-CPPFLAGS += -I../api/ -I../lua/
+CPPFLAGS += -I../api/ -I../lua/ -I../depends/install
 
 
 FASTPM_SOURCES = main.c power.c readparams.c runpb.c readgrafic.c 
@@ -19,7 +19,7 @@ SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 
 all: fastpm test2lpt testpm
 
-fastpm: $(LUALIB) $(FASTPM_SOURCES:%.c=.objs/%.o) .objs/lua-dump.o .objs/lua-preface.o ../libfastpm/libfastpm.a
+fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) .objs/lua-dump.o .objs/lua-preface.o ../lua/liblua.a ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ \
 		$(LDFLAGS) -lgsl -lgslcblas -lm
 
