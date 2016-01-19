@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
+#include <mpi.h>
 
 #ifndef FASTPM_BEGIN_DECLS
 #ifdef __cplusplus
