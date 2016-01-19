@@ -165,15 +165,17 @@ pm_store_alloc(PMStore * p, size_t np_upper, int attributes)
     p->np = 0; 
     p->np_upper = np_upper;
     p->attributes = attributes;
-    if(attributes & PACK_POS)
-        p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
-    else
-        p->x = NULL;
 
     if(attributes & PACK_Q)
         p->q = p->iface.malloc(sizeof(p->q[0]) * np_upper);
     else
         p->q = NULL;
+
+    if(attributes & PACK_POS)
+        p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
+    else
+        p->x = NULL;
+
 
     if(attributes & PACK_VEL)
         p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);

@@ -96,7 +96,9 @@ int main(int argc, char * argv[]) {
     pm_free(solver->pm, rho_init_ktruth);
     pm_free(solver->pm, rho_final_xtruth);
     pm_free(solver->pm, Fk);
+    pm_free(solver->pm, rho_final_ktruth);
 
+    fastpm_2lpt_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;

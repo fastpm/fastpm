@@ -25,6 +25,15 @@ fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc
     return 0;
 }
 
+void
+fastpm_2lpt_destroy(FastPM2LPTSolver * solver) 
+{
+    pm_destroy(solver->pm);
+    pm_store_destroy(solver->p);
+    free(solver->pm);
+    free(solver->p);   
+}
+
 void 
 fastpm_2lpt_evolve(FastPM2LPTSolver * solver, 
         FastPMFloat * delta_k_i, double aout, double omega_m)
