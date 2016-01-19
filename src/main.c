@@ -57,6 +57,8 @@ int main(int argc, char ** argv) {
 
     MPI_Comm comm = MPI_COMM_WORLD; 
 
+    fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
+
     read_parameters(ParamFileName, &prr, comm);
 
     libfastpm_init();
