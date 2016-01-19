@@ -1,4 +1,6 @@
-include Makefile.local
+# Please create Makefile.local according to Makefile.local.example
+CONFIGFILE ?= Makefile.local
+include $(CONFIGFILE)
 include Makefile.rules
 
 .PHONY: all clean
