@@ -68,7 +68,7 @@ get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3])
     pos[2] = p->q[index][2];
 }
 
-void fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
+void fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, double sml) {
 
 #pragma omp parallel 
     {
@@ -76,12 +76,15 @@ void fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, i
         for(pm_kiter_init(pm, &kiter);
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
-
+            double kk = 0;
+            for(int d = 0; d < 3; d ++) {
+                kk += kiter.fac[d][kiter.iabs[d]].kk;
+            }
             double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
-
+            double smth = exp(-0.5 * kk * sml * sml);
             /* - i k[d] */
-            to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite);
-            to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite);
+            to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite) * smth;
+            to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite) * smth;
         }
     }
 }
@@ -120,7 +123,8 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFlo
 void 
 fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         FastPMFloat * data_x, /* rhop in x-space*/
-        FastPMFloat * Fk     /* (out) hmc force in fourier space */
+        FastPMFloat * Fk,    /* (out) hmc force in fourier space */
+        double sml
         )
 {
     int d;
@@ -146,7 +150,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
 
     for(d = 0; d < 3; d ++) {
-        fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
+        fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d, sml);
 
         /* workspace stores \Gamma(k) = -i k \rho_d */
 

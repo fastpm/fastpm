@@ -19,7 +19,8 @@ fastpm_2lpt_evolve(FastPM2LPTSolver * solver, FastPMFloat * delta_k_i, double a,
 void 
 fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver, 
         FastPMFloat * rhopx, /* (in), rho_p (the data) in x-space */
-        FastPMFloat * Fk     /* (out) hmc force in fourier space */
+        FastPMFloat * Fk,    /* (out) hmc force in fourier space */
+        double sml
         );
 
 FASTPM_END_DECLS
