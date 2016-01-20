@@ -13,6 +13,9 @@ fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); 
 void
 fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k);
 
+void
+fastpm_utils_smooth(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml);
+
 void 
 fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data);
 
