@@ -14,7 +14,7 @@ void
 fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k);
 
 void
-fastpm_utils_smooth(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml);
+fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml);
 
 void 
 fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data);

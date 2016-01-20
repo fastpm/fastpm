@@ -81,15 +81,15 @@ apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double s
 
             double smth = exp(-0.5 * kk * sml * sml);
             /* - i k[d] */
-            to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
-            to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
+            to[kiter.ind + 0] = from[kiter.ind + 0] * smth / pm->Norm;
+            to[kiter.ind + 1] = from[kiter.ind + 1] * smth / pm->Norm;
         }
     }
 }
 
 
 void
-fastpm_utils_smooth(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml) 
+fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml) 
 {
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
