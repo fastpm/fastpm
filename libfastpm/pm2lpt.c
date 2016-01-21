@@ -163,8 +163,8 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd->nghosts; i ++) {        
-            /* this ensures x = x0 + dx1(t) + 3/ 7 dx2(t) */
-            p->dx2[i][d] = pm_readout_one(pm, workspace, p, i) / pm->Norm ;
+            /* this ensures x = x0 + dx1(t) + dx2(t) */
+            p->dx2[i][d] = (3.0 / 7) * pm_readout_one(pm, workspace, p, i) / pm->Norm ;
         }
         pm_ghosts_reduce(pgd, DX2[d]);
     }
@@ -192,7 +192,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
 // Interpolate position and velocity for snapshot at a=aout
 void 
-pm_2lpt_evolve(double aout, PMStore * p, double Omega)
+pm_2lpt_evolve(double aout, PMStore * p, double Omega, int zaonly)
 {
     int np = p->np;
 
@@ -201,25 +201,18 @@ pm_2lpt_evolve(double aout, PMStore * p, double Omega)
             .OmegaLambda = 1 - Omega,
         };
 
-    const float Dplus = GrowthFactor(aout, c);
+    double D1 = GrowthFactor(aout, c);
+    double D2 = GrowthFactor2(aout, c);
 
-    const double omega=OmegaA(aout, c);
-    const double D2 = Dplus*Dplus*pow(omega/Omega, -1.0/143.0);
-    const double D20 = pow(Omega, -1.0/143.0);
-    
-
-    float Dv=DprimeQ(aout, 1.0, c); // dD_{za}/dy
-    float Dv2=GrowthFactor2v(aout, c);   // dD_{2lpt}/dy
+    double Dv=DprimeQ(aout, 1.0, c); // dD_{za}/dy
+    double Dv2=GrowthFactor2v(aout, c);   // dD_{2lpt}/dy
 
     int i;
 #pragma omp parallel for 
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
-            /* Use the more accurate 2LPT dx2 term */
-            p->dx2[i][d] *= 3.0 / 7.0 * D20;
-
-            p->x[i][d] += Dplus * p->dx1[i][d] + D2 * p->dx2[i][d];
+            p->x[i][d] += D1 * p->dx1[i][d] + D2 * p->dx2[i][d];
 
             p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
         }

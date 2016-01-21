@@ -231,8 +231,8 @@ read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
             if(disp < -0.5) disp += 1.0;
             if(disp > 0.5) disp -= 1.0;
             dx1[d] = (v[d] - disp * (2 * f2)) / (f1 - 2 * f2) / DplusIC;
-            /* this ensures  = x0 + dx1 + 3/7 dx2; we shift the positioni in pmsteps.c  */
-            dx2[d] = 7. / 3 * (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
+            /* no 7/3 here, this ensures  = x0 + dx1 + dx2; we shift the position in pm_2lpt_evolve  */
+            dx2[d] = (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
             double tmp = opos; 
             x[d] = tmp * fastpm->boxsize;
             while(x[d] < 0.0) x[d] += fastpm->boxsize;

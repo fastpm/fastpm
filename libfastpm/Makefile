@@ -13,6 +13,7 @@ LIBSOURCES = libfastpm.c \
     solver-pm.c \
     solver-pm-steps.c \
     solver-pm-grav.c \
+    transfer.c \
     utils.c \
     utils-ps.c \
     utils-ic.c \

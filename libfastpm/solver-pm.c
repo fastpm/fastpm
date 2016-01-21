@@ -124,7 +124,7 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit)
     }
 
     pm_store_summary(fastpm->p, fastpm->comm);
-    pm_2lpt_evolve(ainit, fastpm->p, fastpm->omega_m);
+    pm_2lpt_evolve(ainit, fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 }
 
 void

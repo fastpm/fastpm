@@ -8,6 +8,7 @@
 #include "pmstore.h"
 #include "pm2lpt.h"
 #include "pmghosts.h"
+#include "transfer.h"
 
 int 
 fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc_factor, MPI_Comm comm)
@@ -56,7 +57,7 @@ fastpm_2lpt_evolve(FastPM2LPTSolver * solver,
     /* now shift particles to the correct locations. */
 
     /* predict particle positions by 2lpt */
-    pm_2lpt_evolve(aout, solver->p, omega_m);
+    pm_2lpt_evolve(aout, solver->p, omega_m, solver->USE_DX1_ONLY);
 }
 
 static void 
@@ -66,27 +67,6 @@ get_lagrangian_position(void * pdata, ptrdiff_t index, double pos[3])
     pos[0] = p->q[index][0];
     pos[1] = p->q[index][1];
     pos[2] = p->q[index][2];
-}
-
-void fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, double sml) {
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            double kk = 0;
-            for(int d = 0; d < 3; d ++) {
-                kk += kiter.fac[d][kiter.iabs[d]].kk;
-            }
-            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
-            double smth = exp(-0.5 * kk * sml * sml);
-            /* - i k[d] */
-            to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite) * smth;
-            to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite) * smth;
-        }
-    }
 }
 
 void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
@@ -123,6 +103,7 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFlo
 void 
 fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         FastPMFloat * data_x, /* rhop in x-space*/
+        FastPMFloat * sigma_x, /* sigma_x in x-space*/
         FastPMFloat * Fk,    /* (out) hmc force in fourier space */
         double sml
         )
@@ -141,6 +122,8 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
 
     for(ind = 0; ind < solver->pm->allocsize; ind ++) {
         workspace[ind] -= data_x[ind];
+        if(sigma_x)
+            workspace[ind] /= sigma_x[ind] * sigma_x[ind];
     }
 
     pm_r2c(solver->pm, workspace, Fk);
@@ -150,7 +133,8 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
 
     for(d = 0; d < 3; d ++) {
-        fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d, sml);
+        fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
+        fastpm_apply_smoothing_transfer(solver->pm, workspace, workspace, sml);
 
         /* workspace stores \Gamma(k) = -i k \rho_d */
 

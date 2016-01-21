@@ -16,10 +16,12 @@ int main(int argc, char * argv[]) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
-    FastPM2LPTSolver * solver = alloca(sizeof(FastPM2LPTSolver));
+    FastPM2LPTSolver * solver = & (FastPM2LPTSolver) {
+        .USE_DX1_ONLY = 0,
+    };
 
     int nc = 128;
-    double boxsize = 128.;
+    double boxsize = 20480.;
     double alloc_factor = 2.0;
     double omega_m = 0.292;
 
@@ -41,8 +43,16 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 2004, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 300, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    rho_init_ktruth[4] *= 1.01;
+    fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
+    fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
+    fastpm_utils_dump(solver->pm, "rho_init_ktruth1.raw", rho_init_ktruth);
+    fastpm_utils_dump(solver->pm, "rho_final_ktruth1.raw", rho_final_ktruth);
+    fastpm_utils_dump(solver->pm, "rho_final_xtruth1.raw", rho_final_xtruth);
+
+    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 300, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
     fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
@@ -51,8 +61,9 @@ int main(int argc, char * argv[]) {
     fastpm_utils_dump(solver->pm, "rho_final_xtruth.raw", rho_final_xtruth);
 
     memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
-    fastpm_2lpt_hmc_force(solver, rho_final_x, Fk);
+    fastpm_2lpt_hmc_force(solver, rho_final_x, NULL, Fk, 20.);
     fastpm_utils_dump(solver->pm, "Fk.raw", Fk);
+    return 1;
 
     /* now a fake MCMC loop. */
     int mcmcstep;
@@ -86,7 +97,7 @@ int main(int argc, char * argv[]) {
         fastpm_utils_paint(solver->pm, solver->p, rho_final_x, rho_final_k);
 
         /* calculate the HMC force into Fk */
-        fastpm_2lpt_hmc_force(solver, rho_final_xtruth, Fk);
+        fastpm_2lpt_hmc_force(solver, rho_final_xtruth, NULL, Fk, 0);
     }
 
     pm_free(solver->pm, rho_final_x);

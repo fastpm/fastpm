@@ -10,6 +10,8 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 
+#include "transfer.h"
+
 static double RNDTABLE[8192];
 
 gsl_rng * random_generator;
@@ -64,30 +66,6 @@ fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * de
     pm_ghosts_free(pgd);
 }
 
-static void 
-apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double sml) 
-{
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            int dir;
-            double kk = 0;
-            for(dir = 0; dir < 3; dir++) 
-                kk += kiter.fac[dir][kiter.iabs[dir]].kk;
-
-            double smth = exp(-0.5 * kk * sml * sml);
-            /* - i k[d] */
-            to[kiter.ind + 0] = from[kiter.ind + 0] * smth / pm->Norm;
-            to[kiter.ind + 1] = from[kiter.ind + 1] * smth / pm->Norm;
-        }
-    }
-}
-
-
 void
 fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml) 
 {
@@ -97,8 +75,12 @@ fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, 
     FastPMFloat * delta_k = pm_alloc(pm);
 
     pm_r2c(pm, delta_x, delta_k);
-    apply_smoothing_transfer(pm, delta_k, delta_smooth, sml);
+    fastpm_apply_smoothing_transfer(pm, delta_k, delta_smooth, sml);
     pm_c2r(pm, delta_smooth);
+    ptrdiff_t i = 0;
+    for(i = 0; i < pm->allocsize; i ++) {
+        delta_smooth[i] /= pm->Norm;
+    }
     pm_free(pm, delta_k);
 }
 

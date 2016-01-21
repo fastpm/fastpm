@@ -59,7 +59,9 @@ double OmegaA(double a, Cosmology c) {
     return c.OmegaM/(c.OmegaM + (c.OmegaLambda)*a*a*a);
 }
 double DprimeQ(double a, double nGrowth, Cosmology c)
-{ // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Qfactor(a)
+{ 
+    /* This could have been 2 * Omega^(5/9) * Q / a * D1 for LCDM */ 
+    // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Qfactor(a)
     double nDecay = 0.0;// not interested in decay modes in this code.
     double Nn = 1.0 / growth(1.0, c);
     return (  pow(decayD(a, c), -1.0 + nDecay)
