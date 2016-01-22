@@ -57,11 +57,12 @@ int main(int argc, char ** argv) {
 
     MPI_Comm comm = MPI_COMM_WORLD; 
 
+    libfastpm_init();
+
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     read_parameters(ParamFileName, &prr, comm);
 
-    libfastpm_init();
 
     /* convert parameter files pm_nc_factor into VPMInit */
     VPMInit * vpminit = alloca(sizeof(VPMInit) * (prr.n_pm_nc_factor + 1));
