@@ -25,7 +25,7 @@ h       = 0.69
 -- Start with a power spectrum file
 -- Initial power spectrum: k P(k) in Mpc/h units
 -- Must be compatible with the Cosmology parameter
-powerspectrum= "powerspec.txt"
+read_powerspectrum= "powerspec.txt"
 random_seed= 100
 sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 
@@ -45,7 +45,7 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 -------- Output ---------------
 
 -- Dark matter particle outputs, in runpb format
-snapshot= "example-output/snp"       
+write_snapshot= "example-output/snp"       
 -- 1d power spectrum (raw), without shotnoise correction
-measure_power = "example-output/powerspec"
+write_powerspectrum = "example-output/powerspec"
 

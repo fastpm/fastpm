@@ -18,13 +18,13 @@ typedef struct {
 
     double * aout; int n_aout;
 
-    char * power_spectrum_filename;
-    char * measure_power_spectrum_filename; 
-    char * snapshot_filename;
-    char * readic_filename;
-    char * readwhitenoise_filename;
-    char * writenoisek_filename;
-    char * writenoise_filename;
+    char * read_powerspectrum;
+    char * write_powerspectrum; 
+    char * write_snapshot;
+    char * read_runpbic;
+    char * read_grafic;
+    char * write_noisek;
+    char * write_noise;
 
     int force_mode;
     int cola_stdda;

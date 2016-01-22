@@ -139,28 +139,28 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(ic);
 
-    if(prr->readic_filename) {
-        read_runpb_ic(fastpm, fastpm->p, prr->readic_filename);
+    if(prr->read_runpbic) {
+        read_runpb_ic(fastpm, fastpm->p, prr->read_runpbic);
         fastpm_setup_ic(fastpm, NULL, prr->time_step[0]);
     } else {
         FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
-        fastpm_info("Powerspecectrum file: %s\n", prr->power_spectrum_filename);
+        fastpm_info("Powerspecectrum file: %s\n", prr->read_powerspectrum);
 
-        power_init(prr->power_spectrum_filename, 
+        power_init(prr->read_powerspectrum, 
                 prr->time_step[0], 
                 prr->sigma8, 
                 prr->omega_m, 
                 1 - prr->omega_m, comm);
 
-        if(prr->readwhitenoise_filename) {
-            fastpm_info("Reading grafic white noise file from '%s'.\n", prr->readwhitenoise_filename);
+        if(prr->read_grafic) {
+            fastpm_info("Reading grafic white noise file from '%s'.\n", prr->read_grafic);
             fastpm_info("GrafIC noise is Fortran ordering. FastPM is in C ordering.\n");
             fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
             FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
 
-            read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->readwhitenoise_filename);
+            read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
 
             fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
             pm_free(fastpm->pm_2lpt, g_x);
@@ -169,17 +169,17 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
             fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL, FASTPM_DELTAK_GADGET);
         }
         
-        if(prr->writenoisek_filename) {
-            fastpm_info("Writing noisek file to %s\n", prr->writenoisek_filename);
-            fastpm_utils_dump(fastpm->pm_2lpt, prr->writenoisek_filename, delta_k);
+        if(prr->write_noisek) {
+            fastpm_info("Writing noisek file to %s\n", prr->write_noisek);
+            fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noisek, delta_k);
         }
-        if(prr->writenoise_filename) {
+        if(prr->write_noise) {
             FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
             pm_assign(fastpm->pm_2lpt, delta_k, g_x);
             pm_c2r(fastpm->pm_2lpt, g_x);
 
-            fastpm_info("Writing noise file to %s\n", prr->writenoise_filename);
-            fastpm_utils_dump(fastpm->pm_2lpt, prr->writenoise_filename, g_x);
+            fastpm_info("Writing noise file to %s\n", prr->write_noise);
+            fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
             pm_free(fastpm->pm_2lpt, g_x);
         }
 
@@ -205,7 +205,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
 static int check_snapshots(FastPM * fastpm, Parameters * prr) {
     char TEMPLATE[1024];
-    sprintf(TEMPLATE, "%s%05d_%%0.04f.bin", prr->snapshot_filename, prr->random_seed);
+    sprintf(TEMPLATE, "%s%05d_%%0.04f.bin", prr->write_snapshot, prr->random_seed);
     fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
     return 0;
 }
@@ -259,11 +259,11 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
     MPI_Barrier(fastpm->comm);
 
     ENTER(io);
-    if(prr->measure_power_spectrum_filename) {
+    if(prr->write_powerspectrum) {
         if(fastpm->ThisTask == 0) {
-            ensure_dir(prr->measure_power_spectrum_filename);
+            ensure_dir(prr->write_powerspectrum);
             char buf[1024];
-            sprintf(buf, "%s%05d_%0.04f.txt", prr->measure_power_spectrum_filename, prr->random_seed, a_x);
+            sprintf(buf, "%s%05d_%0.04f.txt", prr->write_powerspectrum, prr->random_seed, a_x);
             fastpm_power_spectrum_write(&ps, fastpm->pm, buf);
         }
     }

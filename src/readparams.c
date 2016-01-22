@@ -233,18 +233,23 @@ loads(char * confstr, Parameters * param, lua_State * L)
     param->np_alloc_factor = read_number(L, "np_alloc_factor");
 
     // File Names and optional parameters realated
-    param->readwhitenoise_filename = read_string_opt(L, "readwhitenoise", NULL);
-    param->readic_filename = read_string_opt(L, "readic", NULL);
-    param->writenoisek_filename = read_string_opt(L, "write_noisek", NULL);
-    param->writenoise_filename = read_string_opt(L, "write_noise", NULL);
+    param->read_grafic= read_string_opt(L, "read_grafic", NULL);
+    param->read_runpbic = read_string_opt(L, "read_runpbic", NULL);
 
-    if(!param->readic_filename) {
-        param->power_spectrum_filename = read_string(L, "powerspectrum");
+    /* compatible */
+    param->read_runpbic = read_string_opt(L, "readic", param->read_runpbic);
+
+    if(!param->read_runpbic) {
+        param->read_powerspectrum = read_string_opt(L, "read_powerspectrum", NULL);
+        param->read_powerspectrum = read_string_opt(L, "powerspectrum", param->read_powerspectrum);
     }
 
-    param->measure_power_spectrum_filename = read_string_opt(L, "measure_power", NULL);
+    param->write_powerspectrum = read_string_opt(L, "write_powerspectrum", NULL);
+    param->write_powerspectrum = read_string_opt(L, "measure_power", param->write_powerspectrum);
 
-    param->snapshot_filename = read_string_opt(L, "snapshot", NULL);
+    param->write_snapshot = read_string_opt(L, "snapshot", NULL);
+    param->write_noisek = read_string_opt(L, "write_noisek", NULL);
+    param->write_noise = read_string_opt(L, "write_noise", NULL);
 
     struct enum_entry table[] = {
         {"cola", FORCE_MODE_COLA},
