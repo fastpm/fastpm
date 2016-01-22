@@ -198,7 +198,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         }
 
         fastpm_info("Last Step: <P(k<%g)> = %g Linear Theory = %g, correction=%g, res=%g\n", 
-                          fastpm->K_LINEAR, Plin, Plin0, correction, Plin / Plin0); 
+                          fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Plin0, correction, Plin / Plin0); 
 
         ENTER(afterforce);
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];

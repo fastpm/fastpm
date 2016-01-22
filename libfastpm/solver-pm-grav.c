@@ -93,10 +93,10 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
     pm_ghosts_free(pgd);
 }    
 
-/* measure the linear scale power spectrum up to kmax, 
+/* measure the linear scale power spectrum up to Nmax, 
  * returns 1.0 if no such scale. k == 0 is skipped. */
 double
-pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
+pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax)
 {
     double sum = 0;
     double N   = 0;
@@ -108,6 +108,8 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax)
         for(pm_kiter_init(pm, &kiter);
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
+            /* Always use a fixed kmax */
+            double kmax = kiter.fac[0][Nmax].kk;
             int d;
             double kk = 0.;
             for(d = 0; d < 3; d++) {

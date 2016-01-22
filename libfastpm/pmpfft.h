@@ -124,5 +124,5 @@ void
 pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor);
 
 double 
-pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, double kmax);
+pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax);
 

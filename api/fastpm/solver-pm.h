@@ -20,7 +20,7 @@ typedef struct {
     int USE_NONSTDDA;
     int USE_LINEAR_THEORY;
     double nLPT;
-    double K_LINEAR;
+    int K_LINEAR;
 
     /* Extensions */
     FastPMExtension * exts[3];
