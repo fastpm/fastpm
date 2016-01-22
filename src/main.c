@@ -169,6 +169,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
         }
         
         if(prr->writenoisek_filename) {
+            fastpm_info("Writing noisek file to %s\n", prr->writenoisek_filename);
             fastpm_utils_dump(fastpm->pm_2lpt, prr->writenoisek_filename, delta_k);
         }
 
