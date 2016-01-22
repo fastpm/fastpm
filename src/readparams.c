@@ -247,7 +247,8 @@ loads(char * confstr, Parameters * param, lua_State * L)
     param->write_powerspectrum = read_string_opt(L, "write_powerspectrum", NULL);
     param->write_powerspectrum = read_string_opt(L, "measure_power", param->write_powerspectrum);
 
-    param->write_snapshot = read_string_opt(L, "snapshot", NULL);
+    param->write_snapshot = read_string_opt(L, "write_snapshot", NULL);
+    param->write_snapshot = read_string_opt(L, "snapshot", param->write_snapshot);
     param->write_noisek = read_string_opt(L, "write_noisek", NULL);
     param->write_noise = read_string_opt(L, "write_noise", NULL);
 
