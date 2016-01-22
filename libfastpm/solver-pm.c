@@ -76,6 +76,11 @@ void fastpm_init(FastPM * fastpm,
             .use_fftw = UseFFTW,
         };
 
+    PMInit pm_2lptinit = baseinit;
+    PMInit pm_linearinit = baseinit;
+
+    pm_linearinit.Nmesh = fastpm->nc / 4;
+
     fastpm->comm = comm;
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
@@ -93,9 +98,8 @@ void fastpm_init(FastPM * fastpm,
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, &fastpm->p->iface, comm);
 
-    pm_init_simple(fastpm->pm_2lpt, fastpm->p, fastpm->nc, fastpm->boxsize, comm);
-
-    pm_init_simple(fastpm->pm_linear, fastpm->p, fastpm->nc / 4, fastpm->boxsize, comm);
+    pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, comm);
+    pm_init(fastpm->pm_linear, &pm_linearinit, &fastpm->p->iface, comm);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {

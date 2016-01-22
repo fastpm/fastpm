@@ -102,18 +102,34 @@ fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data)
     fwrite(data, sizeof(FastPMFloat), pm->allocsize, fp);
     fclose(fp);
     fp = fopen(fn1, "w");
-    fprintf(fp, "%td %td %td\n", 
+    fprintf(fp, "# real\n");
+    fprintf(fp, "start: %td %td %td\n", 
                     pm->IRegion.start[0],
                     pm->IRegion.start[1],
                     pm->IRegion.start[2]);
-    fprintf(fp, "%td %td %td\n", 
+    fprintf(fp, "size: %td %td %td\n", 
                     pm->IRegion.size[0],
                     pm->IRegion.size[1],
                     pm->IRegion.size[2]);
-    fprintf(fp, "%td %td %td\n", 
+    fprintf(fp, "strides: %td %td %td\n", 
                     pm->IRegion.strides[0],
                     pm->IRegion.strides[1],
                     pm->IRegion.strides[2]);
+
+    fprintf(fp, "# complex\n");
+    fprintf(fp, "start: %td %td %td\n", 
+                    pm->ORegion.start[0],
+                    pm->ORegion.start[1],
+                    pm->ORegion.start[2]);
+    fprintf(fp, "size: %td %td %td\n", 
+                    pm->ORegion.size[0],
+                    pm->ORegion.size[1],
+                    pm->ORegion.size[2]);
+    fprintf(fp, "strides: %td %td %td\n", 
+                    pm->ORegion.strides[0],
+                    pm->ORegion.strides[1],
+                    pm->ORegion.strides[2]);
+
     fclose(fp);
 }
 
