@@ -327,22 +327,15 @@ find_correction(FastPM * fastpm, double Plin,
     double r = 0;
     double x_lo = 0.9;
     double x_hi = 1.1;
-
-    while(find_correction_eval(x_hi, &params) < 0) {
+    while((r = find_correction_eval(x_hi, &params)) < 0) {
         iter ++;
-        fastpm_info("iter = %d x_hi = %g\n", iter, x_hi);
-        x_hi *= 1.1;
-        if(iter > 30) {
-            fastpm_raise(-1, "Too many iterations finding lower bound\n");
-        }
+        fastpm_info("iter = %d x_hi = %g r = %g\n", iter, x_hi, r);
+        x_hi *= 1.2;
     }
-    while(find_correction_eval(x_lo, &params) > 0) {
+    while((r = find_correction_eval(x_lo, &params)) > 0) {
         iter ++;
-        fastpm_info("iter = %d x_lo = %g\n", iter, x_lo);
-        x_lo /= 1.1;
-        if(iter > 60) {
-            fastpm_raise(-1, "Too many iterations finding upper bound\n");
-        }
+        fastpm_info("iter = %d x_lo = %g r= %g\n", iter, x_lo, r);
+        x_lo /= 1.2;
     }
     int status;
     gsl_root_fsolver_set(s, &F, x_lo, x_hi);
@@ -355,7 +348,7 @@ find_correction(FastPM * fastpm, double Plin,
         x_hi = gsl_root_fsolver_x_upper (s);
         status = gsl_root_test_interval (x_lo, x_hi,
                 0, 1e-2);
-        fastpm_info("iter = %d correction = %g\n", iter, r);
+        fastpm_info("iter = %d r = %g\n", iter, r);
     }
     while (status == GSL_CONTINUE && iter < 10);
     gsl_root_fsolver_free(s);

@@ -109,12 +109,12 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax)
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             /* Always use a fixed kmax */
-            double kmax = kiter.fac[0][Nmax].kk;
+            double kkmax = kiter.fac[0][Nmax].kk;
             int d;
             double kk = 0.;
             for(d = 0; d < 3; d++) {
                 double kk1 = kiter.fac[d][kiter.iabs[d]].kk;
-                if(kk1 > kmax * kmax) {
+                if(kk1 > kkmax) {
                     goto next;
                 }
                 kk += kk1;
@@ -124,14 +124,13 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax)
             double real = delta_k[ind + 0];
             double imag = delta_k[ind + 1];
             double value = real * real + imag * imag;
-            double k = sqrt(kk);
-            if(k > 0.01 * kmax && k < kmax) {
+            if(kk > 0.0001 * kkmax && kk < kkmax) {
                 #pragma omp atomic
                 sum += value;
                 #pragma omp atomic
                 N += 1;
             }
-            if(k == 0) {
+            if(kk == 0) {
                 Norm = value;
             }
             next:
