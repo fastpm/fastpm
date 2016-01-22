@@ -50,10 +50,6 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
         for(pm_kiter_init(pm, &kiter);
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
-            double kk = 0;
-            for(int d = 0; d < 3; d ++) {
-                kk += kiter.fac[d][kiter.iabs[d]].kk;
-            }
             double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
             /* - i k[d] */
             to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite);

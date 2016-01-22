@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <alloca.h>
 #include <mpi.h>
@@ -13,20 +14,22 @@ int main(int argc, char * argv[]) {
 
     libfastpm_init();
     MPI_Comm comm = MPI_COMM_WORLD;
-
+    printf("%td\n", sizeof(FastPMFloat));
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPM2LPTSolver * solver = & (FastPM2LPTSolver) {
-        .USE_DX1_ONLY = 0,
+        .USE_DX1_ONLY = 1,
     };
 
-    int nc = 128;
-    double boxsize = 20480.;
+    int nc = 64;
+    double boxsize = 512.;
     double alloc_factor = 2.0;
     double omega_m = 0.292;
-
+    int mode = atoi(argv[1]);
+    printf("mode = %d %s\n", mode, argv[1]);
     fastpm_2lpt_init(solver, nc, boxsize, alloc_factor, comm);
 
+    FastPMFloat * sigma = pm_alloc(solver->pm);
     FastPMFloat * rho_final_ktruth = pm_alloc(solver->pm);
     FastPMFloat * Fk = pm_alloc(solver->pm);
     FastPMFloat * rho_final_xtruth = pm_alloc(solver->pm);
@@ -43,8 +46,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 300, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
-    rho_init_ktruth[4] *= 1.01;
+    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 301, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    rho_init_ktruth[mode * 2] *= 1.02;
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
     fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
@@ -52,7 +55,7 @@ int main(int argc, char * argv[]) {
     fastpm_utils_dump(solver->pm, "rho_final_ktruth1.raw", rho_final_ktruth);
     fastpm_utils_dump(solver->pm, "rho_final_xtruth1.raw", rho_final_xtruth);
 
-    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 300, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 301, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
     fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
@@ -61,7 +64,7 @@ int main(int argc, char * argv[]) {
     fastpm_utils_dump(solver->pm, "rho_final_xtruth.raw", rho_final_xtruth);
 
     memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
-    fastpm_2lpt_hmc_force(solver, rho_final_x, NULL, Fk, 20.);
+    fastpm_2lpt_hmc_force(solver, rho_final_x, NULL, Fk, 0.);
     fastpm_utils_dump(solver->pm, "Fk.raw", Fk);
     return 1;
 
@@ -108,6 +111,7 @@ int main(int argc, char * argv[]) {
     pm_free(solver->pm, rho_final_xtruth);
     pm_free(solver->pm, Fk);
     pm_free(solver->pm, rho_final_ktruth);
+    pm_free(solver->pm, sigma);
 
     fastpm_2lpt_destroy(solver);
     libfastpm_cleanup();
