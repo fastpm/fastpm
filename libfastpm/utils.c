@@ -103,13 +103,17 @@ fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data)
     fclose(fp);
     fp = fopen(fn1, "w");
     fprintf(fp, "%td %td %td\n", 
-                    pm->IRegion.strides[0],
-                    pm->IRegion.strides[1],
-                    pm->IRegion.strides[2]);
+                    pm->IRegion.start[0],
+                    pm->IRegion.start[1],
+                    pm->IRegion.start[2]);
     fprintf(fp, "%td %td %td\n", 
                     pm->IRegion.size[0],
                     pm->IRegion.size[1],
                     pm->IRegion.size[2]);
+    fprintf(fp, "%td %td %td\n", 
+                    pm->IRegion.strides[0],
+                    pm->IRegion.strides[1],
+                    pm->IRegion.strides[2]);
     fclose(fp);
 }
 
