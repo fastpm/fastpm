@@ -23,6 +23,7 @@ typedef struct {
     char * snapshot_filename;
     char * readic_filename;
     char * readnoise_filename;
+    char * writenoisek_filename;
 
     int force_mode;
     int cola_stdda;
