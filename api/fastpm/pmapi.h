@@ -78,4 +78,13 @@ int pm_kiter_stop(PMKIter * iter);
 
 void pm_kiter_next(PMKIter * iter);
 
+/* 
+ * r2c is out-of-place and c2r is in-place.
+ * */
+void 
+pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to);
+void 
+pm_c2r(PM * pm, FastPMFloat * inplace);
+
+
 FASTPM_END_DECLS

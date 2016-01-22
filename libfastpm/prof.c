@@ -143,6 +143,18 @@ next:
 
     head = h;
 }
+
+void fastpm_report_memory(MPI_Comm comm) 
+{
+    size_t max_used_bytes = 0;
+
+    MPI_Allreduce(&fastpm_allocator_max_used_bytes, 
+            &max_used_bytes, 1, MPI_LONG, MPI_MAX,
+            comm);
+
+    fastpm_log(INFO, "Peak memory usage on rank 0: %td bytes\n", max_used_bytes);
+
+}
 void fastpm_clock_stat(MPI_Comm comm)
 {
     FastPMClock * p;

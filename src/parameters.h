@@ -22,8 +22,9 @@ typedef struct {
     char * measure_power_spectrum_filename; 
     char * snapshot_filename;
     char * readic_filename;
-    char * readnoise_filename;
+    char * readwhitenoise_filename;
     char * writenoisek_filename;
+    char * writenoise_filename;
 
     int force_mode;
     int cola_stdda;

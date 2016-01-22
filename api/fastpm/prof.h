@@ -27,5 +27,6 @@ void fastpm_clock_out_barrier(FastPMClock * clock, MPI_Comm comm);
 #define LEAVEB(name, comm) fastpm_clock_out_barrier(CLK ## name, comm)
 
 void fastpm_clock_stat(MPI_Comm comm);
+void fastpm_report_memory(MPI_Comm comm);
 
 FASTPM_END_DECLS

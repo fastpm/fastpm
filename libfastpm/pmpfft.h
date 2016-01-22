@@ -74,14 +74,6 @@ pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
 
-/* 
- * r2c is out-of-place and c2r is in-place.
- * */
-void 
-pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to);
-void 
-pm_c2r(PM * pm, FastPMFloat * inplace);
-
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
 

@@ -74,6 +74,7 @@ int main(int argc, char ** argv) {
     /* mark the end */
     vpminit[i].pm_nc_factor = 0;
 
+    fastpm_info("np_alloc_factor = %g\n", prr.np_alloc_factor);
     FastPM * fastpm = & (FastPM) {
         .nc = prr.nc,
         .alloc_factor = prr.np_alloc_factor, 
@@ -152,14 +153,14 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
                 prr->omega_m, 
                 1 - prr->omega_m, comm);
 
-        if(prr->readnoise_filename) {
-            fastpm_info("Reading grafic white noise file from '%s'.\n", prr->readnoise_filename);
+        if(prr->readwhitenoise_filename) {
+            fastpm_info("Reading grafic white noise file from '%s'.\n", prr->readwhitenoise_filename);
             fastpm_info("GrafIC noise is Fortran ordering. FastPM is in C ordering.\n");
             fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
             FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
 
-            read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->readnoise_filename);
+            read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->readwhitenoise_filename);
 
             fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
             pm_free(fastpm->pm_2lpt, g_x);
@@ -171,6 +172,15 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
         if(prr->writenoisek_filename) {
             fastpm_info("Writing noisek file to %s\n", prr->writenoisek_filename);
             fastpm_utils_dump(fastpm->pm_2lpt, prr->writenoisek_filename, delta_k);
+        }
+        if(prr->writenoise_filename) {
+            FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
+            pm_assign(fastpm->pm_2lpt, delta_k, g_x);
+            pm_c2r(fastpm->pm_2lpt, g_x);
+
+            fastpm_info("Writing noise file to %s\n", prr->writenoise_filename);
+            fastpm_utils_dump(fastpm->pm_2lpt, prr->writenoise_filename, g_x);
+            pm_free(fastpm->pm_2lpt, g_x);
         }
 
         fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
@@ -232,6 +242,8 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
 {
     CLOCK(compute);
     CLOCK(io);
+
+    fastpm_report_memory(fastpm->comm);
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */

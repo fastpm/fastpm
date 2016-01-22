@@ -233,9 +233,10 @@ loads(char * confstr, Parameters * param, lua_State * L)
     param->np_alloc_factor = read_number(L, "np_alloc_factor");
 
     // File Names and optional parameters realated
-    param->readnoise_filename = read_string_opt(L, "readnoise", NULL);
+    param->readwhitenoise_filename = read_string_opt(L, "readwhitenoise", NULL);
     param->readic_filename = read_string_opt(L, "readic", NULL);
     param->writenoisek_filename = read_string_opt(L, "write_noisek", NULL);
+    param->writenoise_filename = read_string_opt(L, "write_noise", NULL);
 
     if(!param->readic_filename) {
         param->power_spectrum_filename = read_string(L, "powerspectrum");

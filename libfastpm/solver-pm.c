@@ -327,15 +327,22 @@ find_correction(FastPM * fastpm, double Plin,
     double r = 0;
     double x_lo = 0.9;
     double x_hi = 1.1;
+
     while(find_correction_eval(x_hi, &params) < 0) {
         iter ++;
         fastpm_info("iter = %d x_hi = %g\n", iter, x_hi);
-        x_hi *= 1.2;
+        x_hi *= 1.1;
+        if(iter > 30) {
+            fastpm_raise(-1, "Too many iterations finding lower bound\n");
+        }
     }
     while(find_correction_eval(x_lo, &params) > 0) {
         iter ++;
         fastpm_info("iter = %d x_lo = %g\n", iter, x_lo);
-        x_lo /= 1.2;
+        x_lo /= 1.1;
+        if(iter > 60) {
+            fastpm_raise(-1, "Too many iterations finding upper bound\n");
+        }
     }
     int status;
     gsl_root_fsolver_set(s, &F, x_lo, x_hi);

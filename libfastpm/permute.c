@@ -13,7 +13,10 @@
    invpermute: OUT[ind[i]] = IN[i]           i = 0 .. N-1
 */
 static void permute(void * data, int np, size_t elsize, int * ind){
-    unsigned char * done = alloca(np / 8 + 1);
+    unsigned char * done = malloc(np / 8 + 1);
+    if(!done) {
+        fastpm_raise(-1, "no memory for 'done'\n");
+    }
     char * q = data;
     char * temp1 = alloca(elsize);
     int j, i;
@@ -52,10 +55,14 @@ static void permute(void * data, int np, size_t elsize, int * ind){
         memcpy(&q[ii * elsize], temp1, elsize);
         done[ii >> 3] |= 1 << (ii & 7);
     }
+    free(done);
 }
 
 static void ipermute(void * data, int np, size_t elsize, int * ind){
-    unsigned char * done = alloca(np / 8 + 1);
+    unsigned char * done = malloc(np / 8 + 1);
+    if(!done) {
+        fastpm_raise(-1, "no memory for 'done'\n");
+    }
     char * q = data;
     char * temp1 = alloca(elsize);
     char * temp2 = alloca(elsize);
@@ -86,6 +93,7 @@ static void ipermute(void * data, int np, size_t elsize, int * ind){
         memcpy(&q[j * elsize], temp1, elsize);
         done[j >> 3] |= 1 << (j & 7);
     }
+    free(done);
 }
 
 #ifdef __TEST_PERMUTE__

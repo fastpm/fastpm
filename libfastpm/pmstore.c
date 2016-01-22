@@ -126,6 +126,9 @@ int NAllocTable = 0;
 static void * malloczero(size_t s) {
     used_bytes += s;
     void * p = pfft_malloc(s);
+    if(p == NULL) {
+        fastpm_raise(-1, "No memory for %td bytes\n", s);
+    }
     AllocTable[NAllocTable].s = s;
     AllocTable[NAllocTable].p = p;
     NAllocTable ++;
@@ -209,7 +212,7 @@ pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * 2), attributes);
+    pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
     return 0;
 }
 
@@ -235,6 +238,9 @@ void pm_store_write(PMStore * p, char * datasource) {
 
 static void permute(void * data, int np, size_t elsize, int * ind) {
     void * tmp = malloc(elsize * np);
+    if(!tmp) {
+        fastpm_raise(-1, "No memory for permuting\n");
+    }
     int i;
     for(i = 0; i < np; i ++) {
         memcpy(((char*) tmp) + i * elsize, ((char*) data) + ind[i] * elsize, elsize);
