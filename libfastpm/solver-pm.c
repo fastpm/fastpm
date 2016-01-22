@@ -325,6 +325,7 @@ find_correction(FastPM * fastpm, double Plin,
 
     int iter = 0;
     double r = 0;
+    double x = 0;
     double x_lo = 0.9;
     double x_hi = 1.1;
     while((r = find_correction_eval(x_hi, &params)) < 0) {
@@ -343,19 +344,19 @@ find_correction(FastPM * fastpm, double Plin,
     do {
         iter++;
         status = gsl_root_fsolver_iterate (s);
-        r = gsl_root_fsolver_root (s);
+        x = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
         status = gsl_root_test_interval (x_lo, x_hi,
                 0, 1e-2);
-        fastpm_info("iter = %d r = %g\n", iter, r);
+        fastpm_info("iter = %d x = %g\n", iter, x);
     }
     while (status == GSL_CONTINUE && iter < 10);
     gsl_root_fsolver_free(s);
 
     pm_store_destroy(po);
 
-    return r;
+    return x;
 }
 
 static double 
