@@ -234,6 +234,8 @@ loads(char * confstr, Parameters * param, lua_State * L)
 
     // File Names and optional parameters realated
     param->read_grafic= read_string_opt(L, "read_grafic", NULL);
+    param->read_noisek = read_string_opt(L, "read_noisek", NULL);
+    param->read_noise = read_string_opt(L, "read_noise", NULL);
     param->read_runpbic = read_string_opt(L, "read_runpbic", NULL);
 
     /* compatible */

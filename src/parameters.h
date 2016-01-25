@@ -23,6 +23,8 @@ typedef struct {
     char * write_snapshot;
     char * read_runpbic;
     char * read_grafic;
+    char * read_noisek;
+    char * read_noise;
     char * write_noisek;
     char * write_noise;
 

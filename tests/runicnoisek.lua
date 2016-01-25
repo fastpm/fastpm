@@ -17,9 +17,9 @@ nrealization= 1
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = {0.1}
+time_step = linspace(0.1, 1, 5)
 
-output_redshifts= {9.0}  -- redshifts of output
+output_redshifts= {0.0}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 1-0.708
@@ -28,12 +28,11 @@ h       = 0.69
 -- Start with a power spectrum file
 -- Initial power spectrum: k P(k) in Mpc/h units
 -- Must be compatible with the Cosmology parameter
-read_powerspectrum= "powerspec.txt"
 random_seed= 100
 sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 
 -- Alternatively, give a RunPB Initial conditions file
---readic="/scratch1/scratchdirs/yfeng1/PB01/tpmsph_ic.bin" 
+read_noisek="ic/noisek" 
 
 -------- Approximation Method ---------------
 force_mode = "pm"
@@ -47,8 +46,7 @@ loglevel=0                 -- 0=verbose increase value to reduce output msgs
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
-write_snapshot= "ic/snp"       -- comment out to suppress snapshot output
+write_snapshot= "runicnoisek/snp"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
-write_powerspectrum = "ic/powerspec"
-write_noisek = "ic/noisek"
-write_noise = "ic/noise"
+write_powerspectrum = "runicnoisek/powerspec"
+

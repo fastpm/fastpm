@@ -133,6 +133,24 @@ fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data)
     fclose(fp);
 }
 
+void 
+fastpm_utils_load(PM * pm , char * filename, FastPMFloat *data) 
+{
+    char fn1[1024];
+    char fn2[1024];
+    if(pm->NTask > 1) {
+        sprintf(fn1, "%s.%03d.geometry", filename, pm->ThisTask);
+        sprintf(fn2, "%s.%03d", filename, pm->ThisTask);
+    } else {
+        sprintf(fn1, "%s.geometry", filename);
+        sprintf(fn2, "%s", filename);
+    }
+    FILE * fp;
+    fp = fopen(fn2, "r");
+    fread(data, sizeof(FastPMFloat), pm->allocsize, fp);
+    fclose(fp);
+}
+
 static double 
 tk_eh(double k, struct fastpm_powerspec_eh_params * params)		/* from Martin White */
 {

@@ -103,6 +103,9 @@ check_snapshots(FastPM * fastpm, Parameters * prr);
 static int 
 measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
+static void 
+prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
+
 int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
     CLOCK(ic);
@@ -138,56 +141,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
     ENTER(ic);
-
-    if(prr->read_runpbic) {
-        read_runpb_ic(fastpm, fastpm->p, prr->read_runpbic);
-        fastpm_setup_ic(fastpm, NULL, prr->time_step[0]);
-    } else {
-        FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
-
-        fastpm_info("Powerspecectrum file: %s\n", prr->read_powerspectrum);
-
-        power_init(prr->read_powerspectrum, 
-                prr->time_step[0], 
-                prr->sigma8, 
-                prr->omega_m, 
-                1 - prr->omega_m, comm);
-
-        if(prr->read_grafic) {
-            fastpm_info("Reading grafic white noise file from '%s'.\n", prr->read_grafic);
-            fastpm_info("GrafIC noise is Fortran ordering. FastPM is in C ordering.\n");
-            fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
-
-            FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
-
-            read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
-
-            fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
-            pm_free(fastpm->pm_2lpt, g_x);
-        } else {
-
-            fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL, FASTPM_DELTAK_GADGET);
-        }
-        
-        if(prr->write_noisek) {
-            fastpm_info("Writing noisek file to %s\n", prr->write_noisek);
-            fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noisek, delta_k);
-        }
-        if(prr->write_noise) {
-            FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
-            pm_assign(fastpm->pm_2lpt, delta_k, g_x);
-            pm_c2r(fastpm->pm_2lpt, g_x);
-
-            fastpm_info("Writing noise file to %s\n", prr->write_noise);
-            fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
-            pm_free(fastpm->pm_2lpt, g_x);
-        }
-
-        fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
-
-        pm_free(fastpm->pm_2lpt, delta_k);
-
-    }
+    prepare_ic(fastpm, prr, comm);
     LEAVE(ic);
 
     MPI_Barrier(comm);
@@ -201,6 +155,93 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
     fastpm_clock_stat(comm);
     return 0;
+}
+
+static void 
+prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm) 
+{
+    /* we may need a read gadget ic here too */
+    if(prr->read_runpbic) {
+        read_runpb_ic(fastpm, fastpm->p, prr->read_runpbic);
+        fastpm_setup_ic(fastpm, NULL, prr->time_step[0]);
+        return;
+    } 
+
+    /* at this point generating the ic involves delta_k */
+    FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
+
+    if(prr->read_noisek) {
+        fastpm_info("Reading Fourier space noise from %s\n", prr->read_noisek);
+        fastpm_utils_load(fastpm->pm_2lpt, prr->read_noisek, delta_k);
+        goto finish;
+    } 
+
+    if(prr->read_noise) {
+        fastpm_info("Reading Real space noise from %s\n", prr->read_noise);
+
+        FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
+        fastpm_utils_load(fastpm->pm_2lpt, prr->read_noise, g_x);
+        pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
+        ptrdiff_t ind;
+        for(ind = 0; ind < pm_size(fastpm->pm_2lpt); ind++) {
+            delta_k[ind] /= pm_norm(fastpm->pm_2lpt);
+        }
+        pm_free(fastpm->pm_2lpt, g_x);
+        goto finish;
+    }
+
+    /* at this power we need a powerspectrum file to convolve the guassian */
+    if(!prr->read_powerspectrum) {
+        fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
+    }
+
+    fastpm_info("Powerspecectrum file: %s\n", prr->read_powerspectrum);
+
+    power_init(prr->read_powerspectrum, 
+            prr->time_step[0], 
+            prr->sigma8, 
+            prr->omega_m, 
+            1 - prr->omega_m, comm);
+
+    if(prr->read_grafic) {
+        fastpm_info("Reading grafic white noise file from '%s'.\n", prr->read_grafic);
+        fastpm_info("GrafIC noise is Fortran ordering. FastPM is in C ordering.\n");
+        fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
+
+        FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
+
+        read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
+
+        fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
+        pm_free(fastpm->pm_2lpt, g_x);
+        goto finish;
+    } 
+
+    /* Nothing to read from, just generate a gadget IC with the seed. */
+
+    fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL, FASTPM_DELTAK_GADGET);
+
+    /* our write out and clean up stuff.*/
+finish:
+
+    if(prr->write_noisek) {
+        fastpm_info("Writing fourier space noise to %s\n", prr->write_noisek);
+        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noisek, delta_k);
+    }
+
+    if(prr->write_noise) {
+        FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
+        pm_assign(fastpm->pm_2lpt, delta_k, g_x);
+        pm_c2r(fastpm->pm_2lpt, g_x);
+
+        fastpm_info("Writing real space noise to %s\n", prr->write_noise);
+        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
+        pm_free(fastpm->pm_2lpt, g_x);
+    }
+
+    fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
+
+    pm_free(fastpm->pm_2lpt, delta_k);
 }
 
 static int check_snapshots(FastPM * fastpm, Parameters * prr) {

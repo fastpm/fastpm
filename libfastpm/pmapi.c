@@ -36,6 +36,12 @@ pm_size(PM * pm)
     return pm->allocsize;
 }
 
+double 
+pm_norm(PM * pm)
+{
+    return pm->Norm;
+}
+
 ptrdiff_t * pm_nmesh(PM * pm) {
     return pm->Nmesh;
 }
