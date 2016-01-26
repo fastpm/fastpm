@@ -222,7 +222,7 @@ read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
         float * dx2 = p->dx2[ip];
         
         int64_t id = p->id[ip];
-        int64_t id0 = id;
+        //int64_t id0 = id;
         int d;
         for(d = 0; d < 3; d ++ ) {
             double opos = (id / strides[d]) * (1.0 / fastpm->nc) + offset0;
@@ -239,10 +239,11 @@ read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
             while(x[d] >= fastpm->boxsize) x[d] -= fastpm->boxsize;
             dx1[d] *= fastpm->boxsize;
 
+            /*
             if(dx1[d] > 100) {
                 printf("id = %ld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g DplusIC=%g\n", 
                     id0, dx1[d], v[d], x[d], disp, opos, f1, f2, DplusIC);
-            }
+            } */
             dx2[d] *= fastpm->boxsize;
 
             v[d] = 0.0;
