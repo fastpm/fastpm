@@ -66,9 +66,9 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_
 
             /* ensure the fourier space is a normal distribution */
             f /= sqrt(pm->Norm);
-            /* 2pi / k -- this matches the dimention of sqrt(p) but I always 
+            /* 1 / L  -- this matches the dimention of sqrt(p) but I always 
              * forget where it is from. */
-            f *= sqrt((8 * (M_PI * M_PI * M_PI) / pm->Volume));
+            f *= sqrt(1.0 / pm->Volume);
 
             delta_k[kiter.ind + 0] *= f;
             delta_k[kiter.ind + 1] *= f;
@@ -158,7 +158,7 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfun
     }
     gsl_rng_free(rng);
 
-    double fac = sqrt(pow(2 * M_PI, 3) / pm->Volume);
+    double fac = sqrt(1.0 / pm->Volume);
 
     ptrdiff_t irel[3];
     for(i = pm->ORegion.start[0]; 

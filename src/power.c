@@ -72,7 +72,7 @@ void read_power_table_camb(const char filename[])
 {
     //char buf[500];
     double k, p;
-    double fac= 1.0/(2.0*M_PI*M_PI);
+    double fac= 1.0;
     PowerNorm= 1.0;
 
     FILE* fp= fopen(filename, "r");
@@ -163,7 +163,7 @@ double PowerSpec(const double k)
 
     const double Delta2 = pow(10.0, logD);
 
-    double P = PowerNorm * Delta2 / (4.0*M_PI*k*k*k);
+    double P = PowerNorm * Delta2 / (k*k*k);
 
     // printf("%le %le\n", k, P);
 

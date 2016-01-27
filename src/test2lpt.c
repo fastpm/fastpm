@@ -21,6 +21,7 @@ int main(int argc, char * argv[]) {
         .USE_DX1_ONLY = 1,
     };
 
+
     int nc = 64;
     double boxsize = 512.;
     double alloc_factor = 2.0;
@@ -41,11 +42,18 @@ int main(int argc, char * argv[]) {
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
-        .Norm = 10000.0, /* FIXME: this is not any particular sigma8. */
+        .Norm = 5.0e6, /* FIXME: sigma8 ~ 0.8 */
         .hubble_param = 0.7,
         .omegam = 0.260,
         .omegab = 0.044,
     };
+    /*
+    double k;
+    for(k = 0; k < 1; k += 0.01) {
+        double p = fastpm_utils_powerspec_eh(k, &eh);
+        printf("%g %g\n", k, p);
+    } */
+
     fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 301, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
     rho_init_ktruth[mode * 2] *= 1.02;
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
