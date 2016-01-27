@@ -223,7 +223,7 @@ loads(char * confstr, Parameters * param, lua_State * L)
 
     param->omega_m = read_number(L, "omega_m");
     param->h = read_number(L, "h");
-    param->sigma8 = read_number(L, "sigma8");
+    param->sigma8 = read_number_opt(L, "sigma8", 0);
 
     param->pm_nc_factor = read_array_integer(L, "pm_nc_factor", &param->n_pm_nc_factor);
     param->change_pm = read_array_number(L, "change_pm", &param->n_change_pm);
