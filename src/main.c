@@ -226,6 +226,7 @@ finish:
 
     if(prr->write_noisek) {
         fastpm_info("Writing fourier space noise to %s\n", prr->write_noisek);
+        ensure_dir(prr->write_noisek);
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noisek, delta_k);
     }
 
@@ -235,6 +236,7 @@ finish:
         pm_c2r(fastpm->pm_2lpt, g_x);
 
         fastpm_info("Writing real space noise to %s\n", prr->write_noise);
+        ensure_dir(prr->write_noise);
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
         pm_free(fastpm->pm_2lpt, g_x);
     }
