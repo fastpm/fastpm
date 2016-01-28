@@ -137,8 +137,7 @@ pm_create_k_factors(PM * pm, PMKFactors * fac[3])
             fac[d][ind].kk_finite = k * k * ff * ff;
             fac[d][ind].kk = k * k;
             fac[d][ind].k = k;
-            double tmp = sin(0.5 * k * CellSize);
-            fac[d][ind].cic = 1 - 2. / 3 * tmp * tmp;
+            fac[d][ind].cic = ff;
         }
     } 
 }

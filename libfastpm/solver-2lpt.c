@@ -80,9 +80,10 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFlo
             int d;
             double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
             double kk_finite = 0.;
-            
+            double cic = 1.0;            
             for(d = 0; d < 3; d++) {
                 kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
+                cic *= kiter.fac[d][kiter.iabs[d]].cic;
             }
 
             if(kk_finite == 0)
@@ -93,8 +94,8 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFlo
             else
             {
                 /* - i k[d] / k**2 */
-                to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite / kk_finite);
-                to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite / kk_finite);
+                to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite / kk_finite / cic);
+                to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite / kk_finite / cic);
             }
         }
     }
