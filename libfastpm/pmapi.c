@@ -138,6 +138,8 @@ pm_create_k_factors(PM * pm, PMKFactors * fac[3])
             fac[d][ind].kk = k * k;
             fac[d][ind].k = k;
             fac[d][ind].cic = ff;
+            fac[d][ind].k_finite = k;
+            fac[d][ind].kk_finite = k * k;
         }
     } 
 }
