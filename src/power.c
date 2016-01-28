@@ -189,7 +189,7 @@ double sigma2_int(double k, void *param)
     w = 3 * (sin(kr) / kr3 - cos(kr) / kr2);
     x = 4 * M_PI * k * k * w * w * func(k, data);
 
-    return x;
+    return x / pow(2 * M_PI, 3);
 }
 
 double TopHatSigma2(double R, double (*func)(double, void*), void * param) {
