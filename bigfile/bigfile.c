@@ -202,8 +202,10 @@ ex_mkdir:
 
 #define EXT_HEADER "header"
 #define EXT_ATTR "attr"
+#define EXT_ATTR_V2 "attr-v2"
 #define EXT_DATA   "%06X"
 #define FILEID_ATTR -2
+#define FILEID_ATTR_V2 -3
 #define FILEID_HEADER -1
 
 static void sysvsum(unsigned int * sum, void * buf, size_t size);
@@ -218,6 +220,9 @@ static FILE * open_a_file(char * basename, int fileid, char * mode) {
     } else
     if(fileid == FILEID_ATTR) {
         sprintf(filename, "%s%s", basename, EXT_ATTR);
+    } else
+    if(fileid == FILEID_ATTR_V2) {
+        sprintf(filename, "%s%s", basename, EXT_ATTR_V2);
     } else {
         sprintf(filename, "%s" EXT_DATA, basename, fileid);
     }
@@ -229,8 +234,9 @@ static FILE * open_a_file(char * basename, int fileid, char * mode) {
 ex_fopen:
     return fp;
 }
-static int big_block_read_attr_set(BigBlock * bb);
-static int big_block_write_attr_set(BigBlock * bb);
+static int big_block_read_attr_set_v1(BigBlock * bb);
+static int big_block_read_attr_set_v2(BigBlock * bb);
+static int big_block_write_attr_set_v2(BigBlock * bb);
 
 int big_block_open(BigBlock * bb, const char * basename) {
     if(basename == NULL) basename = "";
@@ -279,7 +285,12 @@ int big_block_open(BigBlock * bb, const char * basename) {
     }
     bb->size = bb->foffset[bb->Nfile];
 
-    RAISEIF(0 != big_block_read_attr_set(bb),
+    /* COMPATIBLE WITH V1 ATTR FILES */
+    RAISEIF(0 != big_block_read_attr_set_v1(bb),
+            ex_readattr,
+            NULL);
+
+    RAISEIF(0 != big_block_read_attr_set_v2(bb),
             ex_readattr,
             NULL);
 
@@ -386,7 +397,7 @@ int big_block_flush(BigBlock * block) {
         block->dirty = 0;
     }
     if(block->attrset.dirty) {
-        RAISEIF(0 != big_block_write_attr_set(block),
+        RAISEIF(0 != big_block_write_attr_set_v2(block),
             ex_write_attr,
             NULL);
         block->attrset.dirty = 0;
@@ -421,7 +432,7 @@ ex_flush:
     goto finalize;
 }
 
-static int big_block_read_attr_set(BigBlock * bb) {
+static int big_block_read_attr_set_v1(BigBlock * bb) {
     bb->attrset.dirty = 0;
 
     FILE * fattr = open_a_file(bb->basename, FILEID_ATTR, "r");
@@ -464,28 +475,119 @@ ex_fread:
     fclose(fattr);
     return -1;
 }
-static int big_block_write_attr_set(BigBlock * bb) {
-    FILE * fattr = open_a_file(bb->basename, FILEID_ATTR, "w");
+
+static int _isblank(int ch) {
+    return ch == ' ' || ch == '\t';
+}
+static int big_block_read_attr_set_v2(BigBlock * bb) {
+    bb->attrset.dirty = 0;
+
+    FILE * fattr = open_a_file(bb->basename, FILEID_ATTR_V2, "r");
+    if(fattr == NULL) {
+        return 0;
+    }
+    fseek(fattr, 0, SEEK_END);
+    long size = ftell(fattr);
+    char * buffer = (char*) malloc(size + 1);
+    unsigned char * data = (unsigned char * ) malloc(size + 1);
+    fseek(fattr, 0, SEEK_SET);
+    RAISEIF(size != fread(buffer, 1, size, fattr),
+            ex_read_file,
+            "Failed to read attribute file\n");
+    fclose(fattr);
+    buffer[size] = 0;
+
+    /* now parse the v2 attr file.*/
+    long i = 0;
+    #define ATTRV2_EXPECT(variable) while(_isblank(buffer[i])) i++; \
+                    char * variable = buffer + i; \
+                    while(!_isblank(buffer[i])) i++; buffer[i] = 0; i++;
+    while(buffer[i]) {
+        ATTRV2_EXPECT(name);
+        ATTRV2_EXPECT(dtype);
+        ATTRV2_EXPECT(rawlength);
+        ATTRV2_EXPECT(rawdata);
+        /* skip the reset of the line */
+        while(buffer[i] != '\n' && buffer[i]) i ++;
+        if(buffer[i] == '\n') i++;
+
+        int nmemb = atoi(rawlength);
+        int itemsize = dtype_itemsize(dtype);
+
+        RAISEIF(nmemb * itemsize * 2!= strlen(rawdata),
+            ex_parse_attr,
+            "NMEMB and data mismiatch: %d x %d (%s) * 2 != %d",
+            nmemb, itemsize, dtype, strlen(rawdata));
+
+        int j, k;
+        for(k = 0, j = 0; k < nmemb * itemsize; k ++, j += 2) {
+            char buf[3];
+            buf[0] = rawdata[j];
+            buf[1] = rawdata[j+1];
+            buf[2] = 0;
+            unsigned int byte = strtoll(buf, NULL, 16);
+            data[k] = byte;
+        }
+        RAISEIF(0 != big_block_set_attr(bb, name, data, dtype, nmemb),
+            ex_set_attr,
+            NULL);
+    } 
+    free(buffer);
+    bb->attrset.dirty = 0;
+    return 0;
+
+ex_read_file:
+ex_parse_attr:
+ex_set_attr:
+    bb->attrset.dirty = 0;
+    free(buffer);
+    free(data);
+    return -1;
+}
+static int big_block_write_attr_set_v2(BigBlock * bb) {
+    static char conv[] = "0123456789ABCDEF";
+    bb->attrset.dirty = 0;
+
+    FILE * fattr = open_a_file(bb->basename, FILEID_ATTR_V2, "w");
     RAISEIF(fattr == NULL,
             ex_open,
             NULL);
+
     ptrdiff_t i;
     for(i = 0; i < bb->attrset.listused; i ++) {
         BigBlockAttr * a = & bb->attrset.attrlist[i];
-        int lname = strlen(a->name);
-        int ldata = dtype_itemsize(a->dtype) * a->nmemb;
-        RAISEIF(
-            (1 != fwrite(&a->nmemb, sizeof(int), 1, fattr)) ||
-            (1 != fwrite(&lname, sizeof(int), 1, fattr)) ||
-            (1 != fwrite(a->dtype, 8, 1, fattr)) ||
-            (1 != fwrite(a->name, lname, 1, fattr)) ||
-            (1 != fwrite(a->data, ldata, 1, fattr)),
+        int itemsize = dtype_itemsize(a->dtype);
+        int ldata = itemsize * a->nmemb;
+
+        char * rawdata = malloc(ldata * 2 + 1);
+        char * textual = malloc(a->nmemb * 32 + 1);
+        textual[0] = 0;
+        unsigned char * adata = (unsigned char*) a->data;
+        int j, k; 
+        for(j = 0, k = 0; k < ldata; k ++, j+=2) {
+            rawdata[j] = conv[adata[k] / 16];
+            rawdata[j + 1] = conv[adata[k] % 16];
+        }
+        rawdata[j] = 0;
+        for(j = 0; j < a->nmemb; j ++) {
+            char buf[128];
+            dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
+            strcat(textual, buf);
+            if(j != a->nmemb - 1) {
+                strcat(textual, ", ");
+            }
+        }
+        int rt = fprintf(fattr, "%s %s %d %s #HUMANE [ %s ]\n", 
+                a->name, a->dtype, a->nmemb, rawdata, textual
+               );
+        free(rawdata);
+        free(textual);
+        RAISEIF(rt <= 0,
             ex_write,
             "Failed to write to file");
     } 
     fclose(fattr);
     return 0;
-
 ex_write:
     fclose(fattr);
 ex_open:

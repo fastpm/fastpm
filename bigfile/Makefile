@@ -1,4 +1,4 @@
-CC=mpiicc
+CC=mpicc
 MPICC=mpicc
 PREFIX=/usr
 all: libbigfile.a libbigfile-mpi.a
