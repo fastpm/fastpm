@@ -281,11 +281,11 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
                 filebase, z_out, aout);
     }
-    if(prr->write_snapshot_runpb) {
+    if(prr->write_runpb_snapshot) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
 
-        sprintf(filebase, "%s_%0.04f.bin", prr->write_snapshot_runpb, aout);
+        sprintf(filebase, "%s_%0.04f.bin", prr->write_runpb_snapshot, aout);
         ENTER(meta);
         ensure_dir(filebase);
         LEAVE(meta);

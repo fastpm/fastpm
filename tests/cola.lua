@@ -46,7 +46,7 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
-write_snapshot= "cola/snp"       -- comment out to suppress snapshot output
+write_runpb_snapshot= "cola/snp"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "cola/powerspec"
 

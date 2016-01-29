@@ -46,7 +46,7 @@ loglevel=0                 -- 0=verbose increase value to reduce output msgs
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
-write_snapshot= "runicnoise/snp"       -- comment out to suppress snapshot output
+write_runpb_snapshot= "runicnoise/snp"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "runicnoise/powerspec"
 

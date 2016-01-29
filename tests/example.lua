@@ -45,7 +45,7 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 -------- Output ---------------
 
 -- Dark matter particle outputs, in runpb format
-write_snapshot= "example-output/snp"       
+write_runpb_snapshot= "example-output/snp"       
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "example-output/powerspec"
 
