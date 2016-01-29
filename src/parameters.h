@@ -10,7 +10,6 @@ typedef struct {
     double np_alloc_factor;
 
     int random_seed;
-    int nrealization;
 
     double boxsize;
 
