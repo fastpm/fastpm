@@ -23,8 +23,8 @@ time_step = {1.0}
 output_redshifts= {0.0}  -- redshifts of output
 
 -- Cosmology --
-omega_m = 1-0.708
-h       = 0.69
+omega_m = 0.307494
+h       = 0.6774
 
 -- Start with a power spectrum file
 -- Initial power spectrum: k P(k) in Mpc/h units
