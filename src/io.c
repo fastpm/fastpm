@@ -42,7 +42,19 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
  
     BigFile bf = {0};
     big_file_mpi_create(&bf, filebase, comm);
-
+    {
+        BigBlock bb = {0};
+        big_file_mpi_create_block(&bf, &bb, "header", "i8", 0, 1, 0, comm);
+        double ScalingFactor = p->a_x;
+        double OmegaM = fastpm->omega_m;
+        double BoxSize = fastpm->boxsize;
+        uint64_t NC = fastpm->nc;
+        big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
+        big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
+        big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
+        big_block_set_attr(&bb, "NC", &NC, "i8", 1);
+        big_block_mpi_close(&bb, comm);
+    }
     {
         BigBlock bb = {0};
         BigArray array = {0};
