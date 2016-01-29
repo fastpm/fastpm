@@ -248,7 +248,7 @@ finish:
 
 static int check_snapshots(FastPM * fastpm, Parameters * prr) {
     char TEMPLATE[1024];
-    sprintf(TEMPLATE, "%s%05d_%%0.04f.bin", prr->write_snapshot, prr->random_seed);
+    sprintf(TEMPLATE, "%s_%%0.04f.bin", prr->write_snapshot);
     fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
     return 0;
 }
@@ -306,7 +306,7 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
         if(fastpm->ThisTask == 0) {
             ensure_dir(prr->write_powerspectrum);
             char buf[1024];
-            sprintf(buf, "%s%05d_%0.04f.txt", prr->write_powerspectrum, prr->random_seed, a_x);
+            sprintf(buf, "%s_%0.04f.txt", prr->write_powerspectrum, a_x);
             fastpm_power_spectrum_write(&ps, fastpm->pm, buf);
         }
     }
