@@ -1,4 +1,5 @@
 typedef struct {
+    char * string;
     size_t nc;
     
     /* when to switch pm size, and to what */

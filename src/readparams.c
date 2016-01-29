@@ -200,14 +200,18 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
 static void 
 loads(char * confstr, Parameters * param, lua_State * L) 
 {
-    if(luaL_loadstring(L, confstr) || lua_pcall(L, 0, 1, 0)) {
+    char * confstr2 = malloc(strlen(confstr) + 128);
+    sprintf(confstr2, "return %s", confstr);
+    fastpm_log(-1, "Configuration %s\n", confstr);
+
+    if(luaL_loadstring(L, confstr2) || lua_pcall(L, 0, 1, 0)) {
         /* This shall never happen unless the dump library is brokean */
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
-    
-    fastpm_log(-1, "Configuration %s\n", confstr);
-
+    free(confstr2); 
     memset(param, 0, sizeof(*param));
+
+    param->string = strdup(confstr);
     param->nc = read_integer(L, "nc");
     param->boxsize = read_number(L, "boxsize");
 

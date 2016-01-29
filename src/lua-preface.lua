@@ -35,5 +35,5 @@ function parse_file(filename)
     env = setmetatable({}, {__index=_G})
     param = loadfile(filename, 'bt', env)
     param()
-    return dump.toscript(env)
+    return dump.tostring(env)
 end
