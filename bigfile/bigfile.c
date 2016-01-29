@@ -570,11 +570,22 @@ static int big_block_write_attr_set_v2(BigBlock * bb) {
         }
         rawdata[j] = 0;
         for(j = 0; j < a->nmemb; j ++) {
-            char buf[128];
-            dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
-            strcat(textual, buf);
-            if(j != a->nmemb - 1) {
-                strcat(textual, ", ");
+            if(a->dtype[1] != 'S') {
+                char buf[128];
+                dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
+                strcat(textual, buf);
+                if(j != a->nmemb - 1) {
+                    strcat(textual, " ");
+                }
+            } else {
+                char buf[] = {adata[j], 0};
+                if(buf[0] == '\n') {
+                    strcat(textual, "...");
+                    break;
+                } if(buf[0] == 0) {
+                    break;
+                }
+                strcat(textual, buf);
             }
         }
         int rt = fprintf(fattr, "%s %s %d %s #HUMANE [ %s ]\n", 
@@ -650,12 +661,25 @@ int big_block_add_attr(BigBlock * block, const char * attrname, const char * dty
 
     return 0;
 }
+
 BigBlockAttr * big_block_lookup_attr(BigBlock * block, const char * attrname) {
     BigBlockAttrSet * attrset = &block->attrset;
     BigBlockAttr lookup = {0};
     lookup.name = (char*) attrname;
     BigBlockAttr * found = bsearch(&lookup, attrset->attrlist, attrset->listused, sizeof(BigBlockAttr), attr_cmp);
     return found;
+}
+
+int big_block_remove_attr(BigBlock * block, const char * attrname) {
+    BigBlockAttrSet * attrset = &block->attrset;
+    BigBlockAttr *attr = big_block_lookup_attr(block, attrname);
+    if(attr) {
+        ptrdiff_t ind = attr - attrset->attrlist;
+        memmove(&attrset->attrlist[ind], &attrset->attrlist[ind + 1], 
+            (attrset->listused - ind - 1) * sizeof(BigBlockAttr));
+        attrset->listused -= 1;
+    }
+    return 0;
 }
 
 BigBlockAttr * big_block_list_attrs(BigBlock * block, size_t * count) {
@@ -666,18 +690,19 @@ BigBlockAttr * big_block_list_attrs(BigBlock * block, size_t * count) {
 
 int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb) {
     BigBlockAttrSet * attrset = &block->attrset;
+    BigBlockAttr * attr;
     attrset->dirty = 1;
-    BigBlockAttr * found = big_block_lookup_attr(block, attrname);
-    if(!found) {
-        RAISEIF(0 != big_block_add_attr(block, attrname, dtype, nmemb),
-                ex_add,
-                "Failed to add attr");
-    }
-    found = big_block_lookup_attr(block, attrname);
-    RAISEIF(found->nmemb != nmemb,
+
+    big_block_remove_attr(block, attrname);
+    /* add ensures the dtype has been normalized! */
+    RAISEIF(0 != big_block_add_attr(block, attrname, dtype, nmemb),
+            ex_add,
+            "Failed to add attr");
+    attr = big_block_lookup_attr(block, attrname);
+    RAISEIF(attr->nmemb != nmemb,
             ex_mismatch,
             "attr nmemb mismatch");
-    dtype_convert_simple(found->data, found->dtype, data, dtype, found->nmemb);
+    dtype_convert_simple(attr->data, attr->dtype, data, dtype, attr->nmemb);
     return 0;
 
 ex_mismatch:
@@ -1079,6 +1104,7 @@ void dtype_format(char * buffer, const char * dtype, const void * data, const ch
     char ndtype[8];
     char ndtype2[8];
     union {
+        char *S1;
         int64_t *i8;
         uint64_t *u8;
         double *f8;
@@ -1103,6 +1129,7 @@ void dtype_format(char * buffer, const char * dtype, const void * data, const ch
         sprintf(buffer, fmt, *p.dtype); \
     } else
 
+    _HANDLE_FMT_(S1, "%c")
     _HANDLE_FMT_(i8, "%ld")
     _HANDLE_FMT_(i4, "%d")
     _HANDLE_FMT_(u8, "%lu")
@@ -1118,6 +1145,7 @@ void dtype_parse(const char * buffer, const char * dtype, void * data, const cha
     char ndtype[8];
     char ndtype2[8];
     union {
+        char *S1;
         int64_t *i8;
         uint64_t *u8;
         double *f8;
@@ -1141,6 +1169,7 @@ void dtype_parse(const char * buffer, const char * dtype, void * data, const cha
         sscanf(buffer, fmt, p.dtype); \
     } else
 
+    _HANDLE_FMT_(S1, "%c")
     _HANDLE_FMT_(i8, "%ld")
     _HANDLE_FMT_(i4, "%d")
     _HANDLE_FMT_(u8, "%lu")
@@ -1303,6 +1332,9 @@ static void cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb) {
         CAST_CONVERTER("f4", float, "i8", int64_t);
         CAST_CONVERTER("f4", float, "u4", uint32_t);
         CAST_CONVERTER("f4", float, "u8", uint64_t);
+    } else
+    if(!strcmp(dst->array->dtype + 1, "S1")) {
+        CAST_CONVERTER("S1", char, "S1", char);
     }
     /* */
     fprintf(stderr, "Unsupported conversion from %s to %s\n", src->array->dtype, dst->array->dtype);

@@ -107,6 +107,7 @@ int big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
 int big_block_read_simple(BigBlock * bb, ptrdiff_t start, ptrdiff_t size, BigArray * array, const char * dtype);
 
 int big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
+int big_block_remove_attr(BigBlock * block, const char * attrname);
 int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb);
 int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb);
 BigBlockAttr * big_block_lookup_attr(BigBlock * block, const char * attrname);
