@@ -26,7 +26,7 @@ static void
 parse_args(int argc, char ** argv, Parameters * prr);
 
 static int 
-take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * template);
+take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * prr);
 
 static void 
 _mkdir(const char *dir);
@@ -41,6 +41,12 @@ read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename);
 
 int 
 write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+
+int 
+write_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+
+int 
+read_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
 
 int 
 read_parameters(char * filename, Parameters * param, MPI_Comm comm);
@@ -247,36 +253,53 @@ finish:
 }
 
 static int check_snapshots(FastPM * fastpm, Parameters * prr) {
-    char TEMPLATE[1024];
-    sprintf(TEMPLATE, "%s_%%0.04f.bin", prr->write_snapshot);
-    fastpm_interp(fastpm, prr->aout, prr->n_aout, take_a_snapshot, TEMPLATE);
+    fastpm_interp(fastpm, prr->aout, prr->n_aout, (fastpm_interp_action)take_a_snapshot, prr);
     return 0;
 }
 
 static int 
-take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, void * template) 
+take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * prr) 
 {
     CLOCK(io);
     CLOCK(meta);
 
-    char filebase[1024];
-    double z_out= 1.0/aout - 1.0;
+    if(prr->write_snapshot) {
+        char filebase[1024];
+        double z_out= 1.0/aout - 1.0;
 
-    sprintf(filebase, template, aout);
+        sprintf(filebase, "%s_%0.04f.bin", prr->write_snapshot, aout);
+        ENTER(meta);
+        ensure_dir(filebase);
+        LEAVE(meta);
 
-    ENTER(meta);
-    ensure_dir(filebase);
-    LEAVE(meta);
+        MPI_Barrier(fastpm->comm);
+        ENTER(io);
+        write_snapshot(fastpm, snapshot, filebase);
 
-    MPI_Barrier(fastpm->comm);
-    ENTER(io);
+        LEAVE(io);
 
-    write_runpb_snapshot(fastpm, snapshot, filebase);
+        fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
+                filebase, z_out, aout);
+    }
+    if(prr->write_snapshot_runpb) {
+        char filebase[1024];
+        double z_out= 1.0/aout - 1.0;
 
-    LEAVE(io);
+        sprintf(filebase, "%s_%0.04f.bin", prr->write_snapshot_runpb, aout);
+        ENTER(meta);
+        ensure_dir(filebase);
+        LEAVE(meta);
 
-    fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
-            filebase, z_out, aout);
+        MPI_Barrier(fastpm->comm);
+        ENTER(io);
+        write_runpb_snapshot(fastpm, snapshot, filebase);
+
+        LEAVE(io);
+
+        fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
+                filebase, z_out, aout);
+
+    }
     return 0;
 }
 
@@ -394,3 +417,4 @@ _mkdir(const char *dir)
         mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
         free(tmp);
 }
+

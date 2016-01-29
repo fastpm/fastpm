@@ -20,6 +20,7 @@ typedef struct {
 
     char * read_powerspectrum;
     char * write_powerspectrum; 
+    char * write_snapshot_runpb;
     char * write_snapshot;
     char * read_runpbic;
     char * read_grafic;

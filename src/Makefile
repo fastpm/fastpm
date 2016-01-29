@@ -8,18 +8,20 @@ DIR_PATH = $(GSL_DIR)
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-CPPFLAGS += -I../api/ -I../lua/ -I../depends/install
+CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install 
 
 
-FASTPM_SOURCES = main.c power.c readparams.c runpb.c readgrafic.c 
+FASTPM_SOURCES = main.c power.c readparams.c runpb.c readgrafic.c io.c
 TEST_SOURCES = test2lpt.c testpm.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
+FASTPM_LUASOURCES = lua-dump.lua lua-preface.lua
 
 all: fastpm test2lpt testpm
 
-fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) .objs/lua-dump.o .objs/lua-preface.o ../lua/liblua.a ../libfastpm/libfastpm.a
+fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) $(FASTPM_LUASOURCES:%.lua=.objs/%.o) \
+     ../lua/liblua.a ../libfastpm/libfastpm.a ../bigfile/libbigfile.a ../bigfile/libbigfile-mpi.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ \
 		$(LDFLAGS) -lgsl -lgslcblas -lm
 
