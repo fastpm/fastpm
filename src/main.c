@@ -43,7 +43,7 @@ int
 write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
 
 int 
-write_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters);
 
 int 
 read_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
@@ -267,14 +267,14 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
 
-        sprintf(filebase, "%s_%0.04f.bin", prr->write_snapshot, aout);
+        sprintf(filebase, "%s_%0.04f", prr->write_snapshot, aout);
         ENTER(meta);
         ensure_dir(filebase);
         LEAVE(meta);
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase);
+        write_snapshot(fastpm, snapshot, filebase, prr->string);
 
         LEAVE(io);
 

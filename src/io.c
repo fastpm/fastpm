@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <stdio.h>
+#include <string.h>
 #include <bigfile.h>
 #include <bigfile-mpi.h>
 
@@ -22,7 +23,7 @@ cumsum(int64_t offsets[], int N)
 }
 
 int 
-write_snapshot(FastPM * fastpm, PMStore * p, char * filebase) 
+write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters) 
 {
     MPI_Comm comm = fastpm->comm;
     int NTask;
@@ -53,6 +54,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
         big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
         big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
         big_block_set_attr(&bb, "NC", &NC, "i8", 1);
+        big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
         big_block_mpi_close(&bb, comm);
     }
     {
