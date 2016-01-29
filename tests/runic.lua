@@ -33,7 +33,7 @@ random_seed= 100
 sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 
 -- Alternatively, give a RunPB Initial conditions file
-read_runpbic="ic/snp00100_0.1000.bin" 
+read_runpbic="ic/snp_0.1000.bin" 
 
 -------- Approximation Method ---------------
 force_mode = "pm"

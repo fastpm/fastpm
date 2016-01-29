@@ -32,9 +32,6 @@ read_powerspectrum= "powerspec.txt"
 random_seed= 100
 sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 
--- Alternatively, give a RunPB Initial conditions file
--- readic="ic/snp00100_0.1000.bin" 
-
 -------- Approximation Method ---------------
 force_mode = "pm"
 
