@@ -8,6 +8,7 @@ include Makefile.rules
 all:
 	@(cd lua; CC="$(CC)" make generic)
 	@(cd depends; make "CC=$(CC)" -f Makefile.pfft)
+	@(cd bigfile; make "CC=$(CC)")
 	@(cd libfastpm; make)
 	@(cd src; make)
 
