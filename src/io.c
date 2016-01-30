@@ -7,6 +7,7 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
+#include <fastpm/cosmology.h>
 static void 
 cumsum(int64_t offsets[], int N) 
 {
@@ -20,6 +21,14 @@ cumsum(int64_t offsets[], int N)
     for(i = 0; i < N; i ++) {
         offsets[i] = tmp[i];
     }
+}
+
+static Cosmology CP(FastPM * fastpm) {
+    Cosmology c = {
+        .OmegaM = fastpm->omega_m,
+        .OmegaLambda = 1 - fastpm->omega_m,
+    };
+    return c;
 }
 
 int 
@@ -37,6 +46,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
     int64_t size = p->np;
     int64_t offsets[NTask];
 
+    double vfac = 100. / p->a_x;
+    double RSD = p->a_x / Qfactor(p->a_x, CP(fastpm)) / vfac;
+
     MPI_Allgather(&size, 1, MPI_LONG, offsets, 1, MPI_LONG, comm);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
     cumsum(offsets, NTask);
@@ -52,6 +64,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
         uint64_t NC = fastpm->nc;
         big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
         big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
+        big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
         big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
         big_block_set_attr(&bb, "NC", &NC, "i8", 1);
         big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
@@ -61,7 +74,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
         BigBlock bb = {0};
         BigArray array = {0};
         BigBlockPtr ptr = {0};
-        big_file_mpi_create_block(&bf, &bb, "Position", "f8", 3, Nfile, size, comm);
+        big_file_mpi_create_block(&bf, &bb, "Position", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->x, "f8", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
         big_block_write(&bb, &ptr, &array);
