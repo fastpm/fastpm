@@ -1,16 +1,9 @@
 -- parameter file
 ------ Size of the simulation -------- 
 
--- RunPB size
---nc = 2048
---boxsize = 1380.0
-
 -- For Testing
 nc = 128
-boxsize = 1280.0
-
--- Broken, always use 1
-nrealization= 1
+boxsize = 384.0
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -28,12 +21,8 @@ h       = 0.6774
 -- Start with a power spectrum file
 -- Initial power spectrum: k P(k) in Mpc/h units
 -- Must be compatible with the Cosmology parameter
-read_powerspectrum= "powerspec.txt"
-random_seed= 100
-sigma8  = 0.82 -- 0 if the power spectrum is already normalized
-
--- Alternatively, give a RunPB Initial conditions file
---readic="/scratch1/scratchdirs/yfeng1/PB01/tpmsph_ic.bin" 
+read_powerspectrum = "powerspec.txt"
+random_seed = 100
 
 -------- Approximation Method ---------------
 force_mode = "pm"

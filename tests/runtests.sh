@@ -1,5 +1,5 @@
-bash za.sh 
-bash 2lpt.sh 
-bash cola.sh
-bash pm.sh
-bash runic.sh
+bash za.sh || exit 1
+bash 2lpt.sh  || exit 1
+bash cola.sh || exit 1
+bash pm.sh || exit 1
+bash runic.sh || exit 1

@@ -1,16 +1,9 @@
 -- parameter file
 ------ Size of the simulation -------- 
 
--- RunPB size
---nc = 2048
---boxsize = 1380.0
-
 -- For Testing
 nc = 128
-boxsize = 1280.0
-
--- Broken, always use 1
-nrealization= 1
+boxsize = 384.0
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -25,12 +18,6 @@ output_redshifts= {0.0}  -- redshifts of output
 omega_m = 0.307494
 h       = 0.6774
 
--- Start with a power spectrum file
--- Initial power spectrum: k P(k) in Mpc/h units
--- Must be compatible with the Cosmology parameter
-random_seed= 100
-sigma8  = 0.82 -- 0 if the power spectrum is already normalized
-
 -- Alternatively, give a RunPB Initial conditions file
 read_noise="ic/noise" 
 
@@ -41,12 +28,11 @@ pm_nc_factor = {1,   2,   3, }            -- Particle Mesh grid pm_nc_factor*nc 
 change_pm =    {0, 0.2, 0.5, }            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
-loglevel=0                 -- 0=verbose increase value to reduce output msgs
 
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
-write_runpb_snapshot= "runicnoise/snp"       -- comment out to suppress snapshot output
+write_snapshot= "runicnoise/fastpm"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "runicnoise/powerspec"
 

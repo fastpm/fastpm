@@ -1,16 +1,9 @@
 -- parameter file
 ------ Size of the simulation -------- 
 
--- RunPB size
---nc = 2048
---boxsize = 1380.0
-
 -- For Testing
 nc = 128
-boxsize = 1280.0
-
--- Broken, always use 1
-nrealization= 1
+boxsize = 384.0
 
 za = true
 -------- Time Sequence ----
@@ -31,7 +24,6 @@ h       = 0.6774
 -- Must be compatible with the Cosmology parameter
 read_powerspectrum= "powerspec.txt"
 random_seed= 100
-sigma8  = 0.82 -- 0 if the power spectrum is already normalized
 
 -------- Approximation Method ---------------
 force_mode = "pm"
@@ -40,12 +32,11 @@ pm_nc_factor = {1, }            -- Particle Mesh grid pm_nc_factor*nc per dimens
 change_pm =    {0,}            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
-loglevel=0                 -- 0=verbose increase value to reduce output msgs
 
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
-write_runpb_snapshot= "za/snp"       -- comment out to suppress snapshot output
+write_snapshot= "za/fastpm"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "za/powerspec"
 

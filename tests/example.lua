@@ -1,13 +1,9 @@
 -- parameter file
 ------ Size of the simulation -------- 
 
--- RunPB size
---nc = 2048
---boxsize = 1380.0
-
 -- For Testing
 nc = 128
-boxsize = 1280.0
+boxsize = 384.0
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -26,11 +22,7 @@ h       = 0.6774
 -- Initial power spectrum: k P(k) in Mpc/h units
 -- Must be compatible with the Cosmology parameter
 read_powerspectrum= "powerspec.txt"
-random_seed= 100
-sigma8  = 0.82 -- 0 if the power spectrum is already normalized
-
--- Alternatively, give a RunPB Initial conditions file
---readic="/scratch1/scratchdirs/yfeng1/PB01/tpmsph_ic.bin" 
+random_seed = 100
 
 -------- Approximation Method ---------------
 force_mode = "pm" -- cola or pm
@@ -45,7 +37,8 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 -------- Output ---------------
 
 -- Dark matter particle outputs, in runpb format
-write_runpb_snapshot= "example-output/snp"       
+write_runpb_snapshot= "example-output/tpm"       
+write_snapshot= "example-output/fastpm"       
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "example-output/powerspec"
 
