@@ -223,11 +223,8 @@ loads(char * confstr, Parameters * param, lua_State * L)
     for(i = 0; i < param->n_aout; i ++) {
         param->aout[i] = 1 / (param->aout[i] + 1);
     }
-    param->random_seed = read_integer(L, "random_seed");
-
     param->omega_m = read_number(L, "omega_m");
     param->h = read_number(L, "h");
-    param->sigma8 = read_number_opt(L, "sigma8", 0);
 
     param->pm_nc_factor = read_array_integer(L, "pm_nc_factor", &param->n_pm_nc_factor);
     param->change_pm = read_array_number(L, "change_pm", &param->n_change_pm);
@@ -241,13 +238,14 @@ loads(char * confstr, Parameters * param, lua_State * L)
     param->read_noisek = read_string_opt(L, "read_noisek", NULL);
     param->read_noise = read_string_opt(L, "read_noise", NULL);
     param->read_runpbic = read_string_opt(L, "read_runpbic", NULL);
-
     /* compatible */
     param->read_runpbic = read_string_opt(L, "readic", param->read_runpbic);
 
-    if(!param->read_runpbic) {
+    if(!param->read_runpbic && !param->read_noisek && !param->read_noise) {
         param->read_powerspectrum = read_string_opt(L, "read_powerspectrum", NULL);
         param->read_powerspectrum = read_string_opt(L, "powerspectrum", param->read_powerspectrum);
+        param->sigma8 = read_number_opt(L, "sigma8", 0);
+        param->random_seed = read_integer(L, "random_seed");
     }
 
     param->write_powerspectrum = read_string_opt(L, "write_powerspectrum", NULL);
