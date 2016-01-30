@@ -40,7 +40,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
 
-    int Nfile = NTask / 32;
+    int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;
 
     int64_t size = p->np;
