@@ -1,0 +1,38 @@
+#! /bin/bash
+# join several archives into one
+
+function usage {
+    echo "$0 target.a source.a  [...]"
+    exit 0
+}
+
+if [ x"$1" == "x-h" ]; then
+    usage
+fi
+
+if [ "x$AR" == x ]; then
+    AR=ar
+fi
+
+function push {
+    local DEST
+    local BASENAME
+    if ! [ -f $2 ]; then
+        echo file $2 not found
+        exit 1
+    fi
+    echo pushing $2 to $1
+    DEST=`mktemp -d`
+    trap "rm -rf $DEST" EXIT
+    BASENAME=`basename $2`
+    cp $2 $DEST || exit 1
+    (cd $DEST; "$AR" x $BASENAME; for i in *.o; do mv $i $BASENAME-$i; done ) || exit 1
+    "$AR" rc $1 $DEST/*.o || exit 1
+}
+
+OUTPUT=$1
+shift
+for i in $*; do
+    push "$OUTPUT" "$i" || exit 1
+done
+

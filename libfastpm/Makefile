@@ -37,13 +37,8 @@ PFFTLIBS = $(PFFTLIBS0:%.a=../depends/install/lib/%.a)
 all: libfastpm.a 
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
-	echo create $@ > $@.mri
-	for i in $(PFFTLIBS); do echo addlib $$i >> $@.mri; done
-	for i in $(LIBSOURCES:%.c=.objs/%.o); do echo addmod $$i >> $@.mri; done
-	echo save >> $@.mri
-	echo end >> $@.mri
-	$(AR) -M < $@.mri
-
+	$(AR) rc $@ $^
+	../ar-join $@ $(PFFTLIBS)
 
 #libfastpm.so : libfastpm.a $(PFFTLIBS)
 #	$(CC) -shared -fvisibility=hidden -o $@ $^ 
