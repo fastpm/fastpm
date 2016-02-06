@@ -177,7 +177,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < solver->pm->allocsize; ind ++) {
-            Fk[ind] += 2 * workspace[ind] / solver->pm->Norm; 
+            Fk[ind] += - 2 * workspace[ind] / solver->pm->Norm; 
             /* Wang's magic factor of 2 in 1301.1348. 
              * We do not put it in in hmc_force_2lpt_transfer */
         }

@@ -77,9 +77,7 @@ void pm_destroy(PM * pm);
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
 
-void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
-void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
 
 void pm_paint(PM * pm, FastPMFloat * canvas, void * pdata, ptrdiff_t size, double weight);

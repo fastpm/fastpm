@@ -8,10 +8,6 @@
 /* For OpenMP threading */
 static void
 pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]);
-static void 
-pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
-static void 
-pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
 
 FastPMFloat * pm_alloc(PM * pm) 
 {
@@ -114,7 +110,7 @@ diff_kernel(double w)
     return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
 }
 
-static void 
+void 
 pm_create_k_factors(PM * pm, PMKFactors * fac[3]) 
 { 
     /* This function populates fac with precalculated values that
@@ -142,7 +138,7 @@ pm_create_k_factors(PM * pm, PMKFactors * fac[3])
     } 
 }
 
-static void 
+void 
 pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]) 
 {
     int d;

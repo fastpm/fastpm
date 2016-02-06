@@ -55,6 +55,9 @@ PMRegion * pm_o_region(PM * pm);
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 
+ptrdiff_t pm_ravel_o_index(PM * pm, ptrdiff_t i[3]);
+ptrdiff_t pm_ravel_i_index(PM * pm, ptrdiff_t i[3]);
+
 typedef struct {
     float k_finite; /* k, finite */
     float k; /* k */
@@ -63,6 +66,10 @@ typedef struct {
     float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/
     float extra;  /* any temporary variable that can be useful. */
 } PMKFactors;
+
+void pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
+void pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
+
 
 typedef struct {
     ptrdiff_t start;

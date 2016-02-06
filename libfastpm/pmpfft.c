@@ -408,6 +408,23 @@ void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
     unravel(tmp, i, 0, 1, 2, pm->IRegion.strides);
 }
 
+ptrdiff_t pm_ravel_o_index(PM * pm, ptrdiff_t i[3]) {
+    ptrdiff_t ind = 0;
+    int d;
+    for(d = 0; d < 3; d++) {
+        ind += pm->ORegion.strides[d] * i[d];
+    }
+    return ind;
+}
+ptrdiff_t pm_ravel_i_index(PM * pm, ptrdiff_t i[3]) {
+    ptrdiff_t ind = 0;
+    int d;
+    for(d = 0; d < 3; d++) {
+        ind += pm->IRegion.strides[d] * i[d];
+    }
+    return ind;
+}
+
 #define inc(i, d0, d1, d2, size) \
             i[d2] ++; \
             if(UNLIKELY(i[d2] == size[d2])) { \
