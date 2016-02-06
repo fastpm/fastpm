@@ -22,7 +22,8 @@ fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc
         alloc_factor, comm);
 
     pm_init_simple(solver->pm, solver->p, nc, boxsize, comm);
-
+    solver->boxsize = boxsize;
+    solver->nc = nc;
     return 0;
 }
 
@@ -40,7 +41,11 @@ fastpm_2lpt_evolve(FastPM2LPTSolver * solver,
         FastPMFloat * delta_k_i, double aout, double omega_m)
 {
     /* evolve particles by 2lpt to time a. pm->canvas contains rho(x, a) */
-    double shift[3] = {0, 0, 0};
+    double shift[3] = {
+            solver->boxsize / solver->nc * 0.5,
+            solver->boxsize / solver->nc * 0.5,
+            solver->boxsize / solver->nc * 0.5
+    };
 
     pm_store_set_lagrangian_position(solver->p, solver->pm, shift);
 
