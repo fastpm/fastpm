@@ -215,6 +215,17 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
         pm_free(fastpm->pm, delta_k);
 
+        /* correct for linear theory before kick and drift */
+        ENTER(correction);
+        if(fastpm->USE_LINEAR_THEORY) {
+
+            correction = find_correction(fastpm, Plin0sub, 
+                        a_x, a_x1, a_v, a_v1);
+
+            scale_acc(fastpm->p, correction, 1.0);
+            /* the value of correction is leaked to the next step for reporting. */
+        }
+        LEAVE(correction);
 
         ENTER(afterdrift);
         /* take snapshots if needed, before the kick */
@@ -228,18 +239,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
 
-        /* correct for linear theory before kick and drift */
-        ENTER(correction);
-        if(fastpm->USE_LINEAR_THEORY) {
-
-            correction = find_correction(fastpm, Plin0sub, 
-                        a_x, a_x1, a_v, a_v1);
-
-            scale_acc(fastpm->p, correction, 1.0);
-            /* the value of correction is leaked to the next step for reporting. */
-        }
-        LEAVE(correction);
-        
         // Leap-frog "kick" -- velocities updated
 
         ENTER(kick);
