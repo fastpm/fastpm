@@ -1,3 +1,5 @@
+#ifndef __FASTPM_PROF_H__
+#define __FASTPM_PROF_H__
 #ifndef FASTPM_BEGIN_DECLS
 #ifdef __cplusplus
 #define FASTPM_BEGIN_DECLS extern "C" {
@@ -30,3 +32,4 @@ void fastpm_clock_stat(MPI_Comm comm);
 void fastpm_report_memory(MPI_Comm comm);
 
 FASTPM_END_DECLS
+#endif

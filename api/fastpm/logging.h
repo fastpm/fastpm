@@ -1,3 +1,6 @@
+#ifndef __FASTPM_LOGGING_H__
+#define __FASTPM_LOGGING_H__
+
 #ifndef FASTPM_BEGIN_DECLS
 #ifdef __cplusplus
 #define FASTPM_BEGIN_DECLS extern "C" {
@@ -62,3 +65,5 @@ void fastpm_info(const char * fmt, ...);
 void fastpm_raise(const int code, const char * fmt, ...);
 
 FASTPM_END_DECLS
+
+#endif

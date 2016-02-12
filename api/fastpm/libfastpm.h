@@ -1,3 +1,6 @@
+#ifndef __FASTPM_H__
+#define __FASTPM_H__
+
 #include <stddef.h>
 #include <stdint.h>
 #include <mpi.h>
@@ -41,3 +44,5 @@ FASTPM_END_DECLS
 #include "utils-ic.h"
 
 #include "pmapi.h"
+
+#endif
