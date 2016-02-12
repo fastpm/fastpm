@@ -307,6 +307,11 @@ find_correction(FastPM * fastpm, double Plin,
         double a_x, double a_x1, double a_v, double a_v1) 
 {
 
+    if(a_x == a_x1) {
+        /* no correction is needed in this case*/
+        /* FIXME: when step size is sufficiently small, use 1.0 too */
+        return 1.0;
+    }
     PMStore * po = alloca(sizeof(PMStore));
     pm_store_init(po);
     pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 4, fastpm->nc);
