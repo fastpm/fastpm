@@ -24,6 +24,7 @@ fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc
     pm_init_simple(solver->pm, solver->p, nc, boxsize, comm);
     solver->boxsize = boxsize;
     solver->nc = nc;
+    solver->comm = comm;
     return 0;
 }
 
