@@ -141,7 +141,6 @@ loads_param(char * confstr, Parameters * param, lua_State * L)
 {
     char * confstr2 = malloc(strlen(confstr) + 128);
     sprintf(confstr2, "return %s", confstr);
-    fastpm_log(-1, "Configuration %s\n", confstr);
 
     if(luaL_loadstring(L, confstr2) || lua_pcall(L, 0, 1, 0)) {
         /* This shall never happen unless the dump library is brokean */
@@ -280,6 +279,7 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
     }
 
+    fastpm_info("Configuration %s\n", confstr);
     loads_param(confstr, param, L);
 
     free(confstr);
