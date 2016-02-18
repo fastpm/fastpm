@@ -220,7 +220,7 @@ loads_param(char * confstr, Parameters * param, lua_State * L)
 
 
 char * 
-run_paramfile(char * filename, lua_State * L) 
+run_paramfile(char * filename, char * mode, lua_State * L) 
 {
     extern char lua_preface_lua[];
     extern unsigned int lua_preface_lua_len;
@@ -242,8 +242,11 @@ run_paramfile(char * filename, lua_State * L)
     }
 
     lua_getglobal(L, "parse_file");
-    lua_pushstring(L, filename);
-    if(lua_pcall(L, 1, 1, 0)) {
+    char * real = realpath(filename, NULL);
+    lua_pushstring(L, real);
+    lua_pushstring(L, mode);
+    free(real);
+    if(lua_pcall(L, 2, 1, 0)) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
     confstr = strdup(lua_tostring(L, -1));
@@ -267,7 +270,7 @@ int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
      * other ranks use the serialized string to avoid duplicated
      * error reports */
     if(ThisTask == 0) {
-        confstr = run_paramfile(filename, L);
+        confstr = run_paramfile(filename, "run", L);
         confstr_len = strlen(confstr) + 1;
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);

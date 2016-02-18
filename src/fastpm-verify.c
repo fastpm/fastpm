@@ -14,7 +14,7 @@ extern void
 loads_param(char * confstr, Parameters * param, lua_State * L);
 
 extern char * 
-run_paramfile(char * filename, lua_State * L);
+run_paramfile(char * filename, char * mode, lua_State * L);
 
 static void _non_mpi_msg_handler(
             const enum FastPMLogLevel level,
@@ -45,7 +45,7 @@ int main(int argc, char * argv[]) {
 
         luaL_openlibs(L);
 
-        confstr = run_paramfile(filename, L);
+        confstr = run_paramfile(filename, "verify", L);
 
         Parameters param;
         loads_param(confstr, &param, L);

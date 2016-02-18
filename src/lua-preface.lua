@@ -31,8 +31,10 @@ function blendspace(start, e, a1, a2)
     return r
 end 
 
-function parse_file(filename)
+function parse_file(filename, mode)
     local namespace = setmetatable({}, {__index=_G})
+    namespace['__file__'] = filename
+    namespace['__mode__'] = mode
     local param = loadfile(filename, 'bt', namespace)
     if param == nil then
         error(string.format("Could not open file %s", filename))
