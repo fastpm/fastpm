@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <time.h>
+#include <sys/time.h>
 #include <mpi.h>
 
 #include <fastpm/logging.h>
@@ -62,9 +62,9 @@ void fastpm_set_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * us
 
 static double now()
 {
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    return ts.tv_sec + ts.tv_nsec * 1e-9;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return now.tv_sec + now.tv_usec * 1000;
 }
 
 static char * process(const char * fmt) {

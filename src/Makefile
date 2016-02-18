@@ -23,7 +23,7 @@ all: fastpm-verify fastpm test2lpt testpm
 fastpm-verify: fastpm-verify.o readparams.o $(FASTPM_LUASOURCES:%.lua=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-		$(LDFLAGS) 
+		$(LDFLAGS) -lm 
 
 fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) $(FASTPM_LUASOURCES:%.lua=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a ../bigfile/libbigfile.a ../bigfile/libbigfile-mpi.a
@@ -32,7 +32,7 @@ fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) $(FASTPM_LUASOURCES:%.lua=.objs/%.o) \
 
 test2lpt : test2lpt.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm 
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 testpm : testpm.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
