@@ -11,7 +11,7 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install 
 
 
-FASTPM_SOURCES = main.c power.c readparams.c runpb.c readgrafic.c io.c
+FASTPM_SOURCES = fastpm.c power.c readparams.c runpb.c readgrafic.c io.c
 TEST_SOURCES = test2lpt.c testpm.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
@@ -46,5 +46,5 @@ testpm : testpm.o ../libfastpm/libfastpm.a
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm testpm test2lpt
+	rm -rf fastpm fastpm-verify testpm test2lpt
 
