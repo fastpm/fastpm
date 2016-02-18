@@ -13,9 +13,6 @@
 #include "parameters.h"
 
 
-static void 
-loads(char * confstr, Parameters * param, lua_State * L);
-
 #define DEF_READ(my_typename, c_typename, lua_typename, transform) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue) { \
     lua_getfield(L, -1, name); \
@@ -139,66 +136,8 @@ DEF_READ(number, double, number, PLAIN)
 DEF_READ(string, char *, string, _strdup)
 DEF_READ2(enum, int, string, parse_enum, struct enum_entry *, enum_table)
 
-int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
-{
-    extern char lua_preface_lua[];
-    extern unsigned int lua_preface_lua_len;
-    extern char lua_dump_lua[];
-    extern unsigned int lua_dump_lua_len;
-
-    int ThisTask;
-    MPI_Comm_rank(comm, &ThisTask);
-
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
-
-    /* read the configuration file */
-    char * confstr;
-    int confstr_len;
-
-    if(ThisTask == 0) {
-
-        if(luaL_loadbuffer(L, lua_dump_lua, lua_dump_lua_len, "dump") 
-        || lua_pcall(L, 0, 1, 0)
-        ) {
-            fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
-            return -1;
-        }
-        lua_setglobal(L, "dump");
-
-        if(luaL_loadbuffer(L, lua_preface_lua, lua_preface_lua_len, "preface") 
-        || lua_pcall(L, 0, 0, 0)) {
-            fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
-            return -1;
-        }
-
-        lua_getglobal(L, "parse_file");
-        lua_pushstring(L, filename);
-        if(lua_pcall(L, 1, 1, 0)) {
-            fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
-        }
-        confstr = strdup(lua_tostring(L, -1));
-        confstr_len = strlen(confstr) + 1;
-        lua_pop(L, 1);
-        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
-        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-    } else {
-        /* other ranks use the serialized string to avoid duplicated
-         * error reports */
-        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
-        confstr = malloc(confstr_len);
-        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-    }
-
-    loads(confstr, param, L);
-
-    free(confstr);
-    lua_close(L);
-    return 0;
-}
-
-static void 
-loads(char * confstr, Parameters * param, lua_State * L) 
+void 
+loads_param(char * confstr, Parameters * param, lua_State * L) 
 {
     char * confstr2 = malloc(strlen(confstr) + 128);
     sprintf(confstr2, "return %s", confstr);
@@ -277,5 +216,71 @@ loads(char * confstr, Parameters * param, lua_State * L)
     param->enforce_broadband_kmax = read_integer_opt(L, "enforce_broadband_kmax", 4);
 
     param->use_dx1_only = read_boolean_opt(L, "za", 0);
+}
+
+
+char * 
+run_paramfile(char * filename, lua_State * L) 
+{
+    extern char lua_preface_lua[];
+    extern unsigned int lua_preface_lua_len;
+    extern char lua_dump_lua[];
+    extern unsigned int lua_dump_lua_len;
+
+    char * confstr;
+
+    if(luaL_loadbuffer(L, lua_dump_lua, lua_dump_lua_len, "dump") 
+    || lua_pcall(L, 0, 1, 0)
+    ) {
+        fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
+    }
+    lua_setglobal(L, "dump");
+
+    if(luaL_loadbuffer(L, lua_preface_lua, lua_preface_lua_len, "preface") 
+    || lua_pcall(L, 0, 0, 0)) {
+        fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
+    }
+
+    lua_getglobal(L, "parse_file");
+    lua_pushstring(L, filename);
+    if(lua_pcall(L, 1, 1, 0)) {
+        fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
+    }
+    confstr = strdup(lua_tostring(L, -1));
+    lua_pop(L, 1);
+    return confstr;
+}
+
+int read_parameters(char * filename, Parameters * param, MPI_Comm comm)
+{
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
+
+    lua_State *L = luaL_newstate();
+    luaL_openlibs(L);
+
+    /* read the configuration file */
+    char * confstr;
+    int confstr_len;
+
+    /* run the parameter file on root rank.
+     * other ranks use the serialized string to avoid duplicated
+     * error reports */
+    if(ThisTask == 0) {
+        confstr = run_paramfile(filename, L);
+        confstr_len = strlen(confstr) + 1;
+        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
+        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+    } else {
+        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
+        confstr = malloc(confstr_len);
+        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+    }
+
+    loads_param(confstr, param, L);
+
+    free(confstr);
+    lua_close(L);
+    return 0;
 }
 
