@@ -34,6 +34,9 @@ end
 function parse_file(filename)
     env = setmetatable({}, {__index=_G})
     param = loadfile(filename, 'bt', env)
+    if param == nil then
+        error(string.format("Could not open file %s", filename))
+    end
     param()
     return dump.tostring(env)
 end
