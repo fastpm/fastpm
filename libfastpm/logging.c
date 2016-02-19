@@ -64,7 +64,7 @@ static double now()
 {
     struct timeval now;
     gettimeofday(&now, NULL);
-    return now.tv_sec + now.tv_usec * 1e-3;
+    return now.tv_sec + now.tv_usec * 1e-6;
 }
 
 static char * process(const char * fmt) {
