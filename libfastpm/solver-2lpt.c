@@ -127,7 +127,14 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
 
     ptrdiff_t ind;
 
+    pm_r2c(solver->pm, workspace, Fk);
+
+    fastpm_apply_smoothing_transfer(solver->pm, Fk, workspace, sml);
+
+    pm_c2r(solver->pm, workspace);
+
     for(ind = 0; ind < solver->pm->allocsize; ind ++) {
+        workspace[ind] /= pm_norm(solver->pm);
         workspace[ind] -= data_x[ind];
         if(sigma_x)
             workspace[ind] /= sigma_x[ind] * sigma_x[ind];
@@ -141,7 +148,6 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
 
     for(d = 0; d < 3; d ++) {
         fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
-        fastpm_apply_smoothing_transfer(solver->pm, workspace, workspace, sml);
 
         /* workspace stores \Gamma(k) = -i k \rho_d */
 
