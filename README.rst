@@ -1,7 +1,8 @@
 fastPM
 ======
 
-CI-Status:
+CI-Status
+
 .. image:: https://api.travis-ci.org/rainwoodman/fastPM.svg
     :alt: Build Status
     :target: https://travis-ci.org/rainwoodman/fastPM/
