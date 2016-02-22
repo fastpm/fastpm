@@ -3,9 +3,9 @@ FastPM
 
 CI-Status
 
-.. image:: https://api.travis-ci.org/rainwoodman/FastPM.svg
+.. image:: https://api.travis-ci.org/rainwoodman/fastpm.svg
     :alt: Build Status
-    :target: https://travis-ci.org/rainwoodman/FastPM/
+    :target: https://travis-ci.org/rainwoodman/fastpm/
 
 Introduction
 ------------
