@@ -1,49 +1,57 @@
 fastPM
 ======
 
+CI-Status:
 .. image:: https://api.travis-ci.org/rainwoodman/fastPM.svg
     :alt: Build Status
     :target: https://travis-ci.org/rainwoodman/fastPM/
 
-Lastest power spectrum from 5 step test runs:
-
-.. image:: https://rainwoodman.github.io/fastPM/tests-result.png
-
 Introduction
 ------------
 
-fastPM is a simple Particle Mesh solver for N-body cosmological simulations.
+fastPM solves the gravity Possion equation with a boosted particle mesh. Arbitrary
+time steps can be used.  
 The code is indented to study the formation of large scale structure.
 
-fastPM solves the gravity Possion equation with an variable augumented particle mesh.
+Serious attempts are made to ensure the source code of FastPM is relatively 
+clear to read (mirroring the complicity of the algorithms).
+FastPM provides a library and a C-API (still unstable) to be reused at binary level
+in another application.
 
-2 parallel fourier transform backends are supported, slab-based FFTW and pencil-based PFFT. 
+fastPM supports plain PM and Comoving-Lagranian (COLA) solvers. 
+A broadband correction enforces the linear theory model growth
+factor at large scale. See the code paper [FIXME].
 
-- The PFFT backend enables fastPM to scale to hundred thousand MPI ranks, allows runs with significantly more than :math:`2048^3` particles. 
-
-- The FFTW backend allows one to run smaller simulations (<= :math:`2048^3` particles on 1024 ranks) slightly more efficiently.
-
+Thanks to the PFFT Fourier Transform library, fastPM scales extremely well, 
+to hundred thousand MPI ranks. 
 
 The size of mesh in fastPM can vary with time, allowing one to use coarse force mesh at high redshift
 with increase temporal resolution for accurate large scale modes.
 
-fastPM supports plain PM and Comoving-Lagranian (COLA) solvers. The finite differentiation kernel
-in fastPM is the 4 point low-noise super-lanzcos kernel. A discrete laplacian operator is used to solve
-Poisson's equation. These kernels, which suppresses artifical noise at small scales, should have been 
-used in all PM codes.
+The finite differentiation kernel in fastPM is the 4 point low-noise super-lanzcos kernel. 
+A discrete laplacian operator is used to solve Poisson's equation. 
+
+A parameter file interpreter is provided to validate and execute the configuration 
+files without running the simulation, allowing creative usages of the configuration files.
+
 
 IO and Compatibility
 --------------------
 
-The IO format of fastPM is identical that of TPM by Martin White.
-The post analysis chain nbodykit [NBODYKIT]_ natively support this format. 
-nbodykit [NBODYKIT]_ provides tools for calculating two point functions, generating QPM mocks, 
-and identifying Friends-of-Friends (DBSCAN)
+The snapshot format of fastPM is [bigfile]_. The format can be easily accessed by python, C, or Fortran.
+Alternatively, the snapshot can be written as TPM by Martin White, which can be subtly accessed by 
+Python, C, or Fortran.
+
+Due to unjustified complicity, snapshots in legacy GADGET format is not supported by FastPM. 
+
+The nbody post-analysis package [NBODYKIT]_ natively supports bigfile and TPM formats.
+
+[NBODYKIT]_ provides tools for calculating two point functions, 
+generating QPM mocks, and identifying Friends-of-Friends (DBSCAN)
 haloes and calculating spherical overdensity properties of subhalos.
 
-In addition to the snapshots, fastPM calculates and writes the power-spectrum at each time step. These
-power spectrum files are compatible with numpy plain text files, yet contains the same meta data present
-in power spectrum files written by nbodykit.
+In addition to the snapshots, fastPM calculates and writes the power-spectrum at each time step. 
+These power spectrum files are compatible with numpy plain text files. 
 
 Acknowledgement
 ---------------
@@ -75,6 +83,7 @@ lua directory distributed under any appropriate license of lua.
 .. [COLAHALO] http://github.com/junkoda/cola_halo
 .. [LUA] http://lua.org/
 .. [MP-GADGET] http://bluetides-project.org/code
+.. [bigfile] https://github.com/rainwoodman/bigfile
 
 Installation
 ------------
@@ -84,7 +93,7 @@ is provided in Makefile.local.example which shall work on a recent version of
 Fedora .
 
 gsl : Most super-computing facility have these already installed. Locate the
-path.  Point GSL_DIR to the installation dir.
+path.  Point GSL_DIR to the installation dir. (parent directory of lib and include)
 
 pfft : bundled and built statically via 
 
@@ -111,4 +120,11 @@ Examples
 --------
 
 Refer to tests/example.lua and tests/runtest.sh
+
+CI
+--
+
+Lastest power spectrum from TravisCI: 
+
+.. image:: https://rainwoodman.github.io/fastPM/tests-result.png
 
