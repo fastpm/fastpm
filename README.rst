@@ -1,16 +1,16 @@
-fastPM
+FastPM
 ======
 
 CI-Status
 
-.. image:: https://api.travis-ci.org/rainwoodman/fastPM.svg
+.. image:: https://api.travis-ci.org/rainwoodman/FastPM.svg
     :alt: Build Status
-    :target: https://travis-ci.org/rainwoodman/fastPM/
+    :target: https://travis-ci.org/rainwoodman/FastPM/
 
 Introduction
 ------------
 
-fastPM solves the gravity Possion equation with a boosted particle mesh. Arbitrary
+FastPM solves the gravity Possion equation with a boosted particle mesh. Arbitrary
 time steps can be used.  
 The code is indented to study the formation of large scale structure.
 
@@ -19,17 +19,17 @@ clear to read (mirroring the complicity of the algorithms).
 FastPM provides a library and a C-API (still unstable) to be reused at binary level
 in another application.
 
-fastPM supports plain PM and Comoving-Lagranian (COLA) solvers. 
+FastPM supports plain PM and Comoving-Lagranian (COLA) solvers. 
 A broadband correction enforces the linear theory model growth
 factor at large scale. See the code paper [FIXME].
 
-Thanks to the PFFT Fourier Transform library, fastPM scales extremely well, 
+Thanks to the PFFT Fourier Transform library, FastPM scales extremely well, 
 to hundred thousand MPI ranks. 
 
-The size of mesh in fastPM can vary with time, allowing one to use coarse force mesh at high redshift
+The size of mesh in FastPM can vary with time, allowing one to use coarse force mesh at high redshift
 with increase temporal resolution for accurate large scale modes.
 
-The finite differentiation kernel in fastPM is the 4 point low-noise super-lanzcos kernel. 
+The finite differentiation kernel in FastPM is the 4 point low-noise super-lanzcos kernel. 
 A discrete laplacian operator is used to solve Poisson's equation. 
 
 A parameter file interpreter is provided to validate and execute the configuration 
@@ -39,7 +39,7 @@ files without running the simulation, allowing creative usages of the configurat
 IO and Compatibility
 --------------------
 
-The snapshot format of fastPM is [bigfile]_. The format can be easily accessed by python, C, or Fortran.
+The snapshot format of FastPM is [bigfile]_. The format can be easily accessed by python, C, or Fortran.
 Alternatively, the snapshot can be written as TPM by Martin White, which can be subtly accessed by 
 Python, C, or Fortran.
 
@@ -51,20 +51,20 @@ The nbody post-analysis package [NBODYKIT]_ natively supports bigfile and TPM fo
 generating QPM mocks, and identifying Friends-of-Friends (DBSCAN)
 haloes and calculating spherical overdensity properties of subhalos.
 
-In addition to the snapshots, fastPM calculates and writes the power-spectrum at each time step. 
+In addition to the snapshots, FastPM calculates and writes the power-spectrum at each time step. 
 These power spectrum files are compatible with numpy plain text files. 
 
 Acknowledgement
 ---------------
 
-fastPM is based on publicly avaiable codes ([PFFT]_
+FastPM uses or references publicly avaiable codes ([PFFT]_
 [2LPT]_, [COLAHALO]_, [LUA]_, [NBODYKIT]_, [MP-GADGET]_)
-and previously private codes (QPM and ic_2lpt by Martin White). 
+and private codes (mpipm and ic_2lpt by Martin White). 
 
-The Particle Mesh solver and 2LPT initial condition generator in fastPM are written from scratch
+The Particle Mesh solver and 2LPT initial condition generator in FastPM are written from scratch
 to properly support pencil / stencil domain decomposition schemes.
 
-The following files distributed in fastPM are originally from other projects:
+The following files distributed in FastPM are originally from other projects:
 
 - fastpm-steps.c : COLA stepping [COLAHALO]_ [COLA]_ 
 
@@ -74,7 +74,7 @@ The following files distributed in fastPM are originally from other projects:
 
 - lua : Lua library [LUA]_
 
-The source code of fastPM is distributed under GPLv3, with the exception files in
+The source code of FastPM is distributed under GPLv3, with the exception files in
 lua directory distributed under any appropriate license of lua. 
 
 .. [PFFT] http://github.com/mpip/pfft
@@ -127,5 +127,5 @@ CI
 
 Lastest power spectrum from TravisCI: 
 
-.. image:: https://rainwoodman.github.io/fastPM/tests-result.png
+.. image:: https://rainwoodman.github.io/fastpm/tests-result.png
 
