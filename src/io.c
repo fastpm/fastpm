@@ -79,9 +79,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_file_mpi_create_block(&bf, &bb, "Position", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->x, "f8", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        for(i = 0; i < Nwriters; i ++) {
+        for(i = 0; i < (NTask + Nwriters - 1)/ Nwriters; i ++) {
             MPI_Barrier(comm);
-            if(ThisTask % Nwriters != i) continue;
+            if(ThisTask / Nwriters != i) continue;
             big_block_write(&bb, &ptr, &array);
         }
         big_block_mpi_close(&bb, comm);
@@ -93,9 +93,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_file_mpi_create_block(&bf, &bb, "Velocity", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->v, "f4", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        for(i = 0; i < Nwriters; i ++) {
+        for(i = 0; i < (NTask + Nwriters - 1)/ Nwriters; i ++) {
             MPI_Barrier(comm);
-            if(ThisTask % Nwriters != i) continue;
+            if(ThisTask / Nwriters != i) continue;
             big_block_write(&bb, &ptr, &array);
         }
         big_block_mpi_close(&bb, comm);
@@ -107,9 +107,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_file_mpi_create_block(&bf, &bb, "ID", "i8", 1, Nfile, size, comm);
         big_array_init(&array, p->id, "i8", 2, (size_t[]) {p->np, 1}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        for(i = 0; i < Nwriters; i ++) {
+        for(i = 0; i < (NTask + Nwriters - 1)/ Nwriters; i ++) {
             MPI_Barrier(comm);
-            if(ThisTask % Nwriters != i) continue;
+            if(ThisTask / Nwriters != i) continue;
             big_block_write(&bb, &ptr, &array);
         }
         big_block_mpi_close(&bb, comm);
