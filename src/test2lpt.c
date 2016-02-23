@@ -74,7 +74,8 @@ int main(int argc, char * argv[]) {
     memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
     fastpm_2lpt_hmc_force(solver, rho_final_x, NULL, Fk, 0.);
     fastpm_utils_dump(solver->pm, "Fk.raw", Fk);
-    return 1;
+
+    goto byebye;
 
     /* now a fake MCMC loop. */
     int mcmcstep;
@@ -110,6 +111,7 @@ int main(int argc, char * argv[]) {
         /* calculate the HMC force into Fk */
         fastpm_2lpt_hmc_force(solver, rho_final_xtruth, NULL, Fk, 0);
     }
+byebye:
 
     pm_free(solver->pm, rho_final_x);
     pm_free(solver->pm, rho_final_k);
