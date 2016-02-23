@@ -43,7 +43,7 @@ int
 write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
 
 int 
-write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters);
+write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters);
 
 int 
 read_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
@@ -266,20 +266,25 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
     if(prr->write_snapshot) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
-
+        int Nwriters = prr->Nwriters;
+        if(Nwriters == 0) {
+            MPI_Comm_size(fastpm->comm, &Nwriters);
+        }
         sprintf(filebase, "%s_%0.04f", prr->write_snapshot, aout);
+
+        fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
+                filebase, z_out, aout, Nwriters);
+
         ENTER(meta);
         ensure_dir(filebase);
         LEAVE(meta);
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, prr->string);
-
+        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters);
         LEAVE(io);
 
-        fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
-                filebase, z_out, aout);
+        fastpm_info("snapshot %s written\n", filebase);
     }
     if(prr->write_runpb_snapshot) {
         char filebase[1024];
@@ -349,13 +354,17 @@ parse_args(int argc, char ** argv, Parameters * prr)
     prr->UseFFTW = 0;
     ParamFileName = NULL;
     prr->NprocY = 0;    
-    while ((opt = getopt(argc, argv, "h?y:f")) != -1) {
+    prr->Nwriters = 0;
+    while ((opt = getopt(argc, argv, "h?y:fn:")) != -1) {
         switch(opt) {
             case 'y':
                 prr->NprocY = atoi(optarg);
             break;
             case 'f':
                 prr->UseFFTW = 1;
+            break;
+            case 'n':
+                prr->Nwriters = atoi(optarg);
             break;
             case 'h':
             case '?':
@@ -372,9 +381,10 @@ parse_args(int argc, char ** argv, Parameters * prr)
     return;
 
 usage:
-    printf("Usage: fastpm [-f] [-y NprocY] paramfile\n"
+    printf("Usage: fastpm [-n Nwriters] [-f] [-y NprocY] paramfile\n"
     "-f Use FFTW \n"
     "-y Set the number of processes in the 2D mesh\n"
+    "-n Throttle IO (bigfile only) \n"
 );
     MPI_Finalize();
     exit(1);

@@ -32,7 +32,7 @@ static Cosmology CP(FastPM * fastpm) {
 }
 
 int 
-write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters) 
+write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
     MPI_Comm comm = fastpm->comm;
     int NTask;
@@ -40,9 +40,10 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
 
+    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
+
     int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;
-
     int64_t size = p->np;
     int64_t offsets[NTask];
 
@@ -52,7 +53,8 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
     MPI_Allgather(&size, 1, MPI_LONG, offsets, 1, MPI_LONG, comm);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
     cumsum(offsets, NTask);
- 
+
+    int i;
     BigFile bf = {0};
     big_file_mpi_create(&bf, filebase, comm);
     {
@@ -77,7 +79,11 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
         big_file_mpi_create_block(&bf, &bb, "Position", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->x, "f8", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        big_block_write(&bb, &ptr, &array);
+        for(i = 0; i < Nwriters; i ++) {
+            MPI_Barrier(comm);
+            if(ThisTask % Nwriters != i) continue;
+            big_block_write(&bb, &ptr, &array);
+        }
         big_block_mpi_close(&bb, comm);
     }
     {
@@ -87,7 +93,11 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
         big_file_mpi_create_block(&bf, &bb, "Velocity", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->v, "f4", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        big_block_write(&bb, &ptr, &array);
+        for(i = 0; i < Nwriters; i ++) {
+            MPI_Barrier(comm);
+            if(ThisTask % Nwriters != i) continue;
+            big_block_write(&bb, &ptr, &array);
+        }
         big_block_mpi_close(&bb, comm);
     }
     {
@@ -97,7 +107,11 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters)
         big_file_mpi_create_block(&bf, &bb, "ID", "i8", 1, Nfile, size, comm);
         big_array_init(&array, p->id, "i8", 2, (size_t[]) {p->np, 1}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        big_block_write(&bb, &ptr, &array);
+        for(i = 0; i < Nwriters; i ++) {
+            MPI_Barrier(comm);
+            if(ThisTask % Nwriters != i) continue;
+            big_block_write(&bb, &ptr, &array);
+        }
         big_block_mpi_close(&bb, comm);
     }
     big_file_mpi_close(&bf, comm);

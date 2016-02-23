@@ -38,6 +38,7 @@ typedef struct {
     int enforce_broadband_kmax;
     int UseFFTW;
     int NprocY;
+    int Nwriters;
 } Parameters;
 
 #define PM_MOND_NONE 0
