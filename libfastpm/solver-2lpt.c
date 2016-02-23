@@ -165,7 +165,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
 
     /* now we paint \Psi by the lagrangian position q */
 
-    pgd = pm_ghosts_create(solver->pm, solver->p, PACK_Q, get_lagrangian_position);
+    pgd = pm_ghosts_create(solver->pm, solver->p, PACK_Q | PACK_ACC, get_lagrangian_position);
 
     memset(Fk, 0, sizeof(Fk[0]) * solver->pm->allocsize);
 
