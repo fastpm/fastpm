@@ -355,7 +355,7 @@ parse_args(int argc, char ** argv, Parameters * prr)
     ParamFileName = NULL;
     prr->NprocY = 0;    
     prr->Nwriters = 0;
-    while ((opt = getopt(argc, argv, "h?y:fn:")) != -1) {
+    while ((opt = getopt(argc, argv, "h?y:fW:")) != -1) {
         switch(opt) {
             case 'y':
                 prr->NprocY = atoi(optarg);
@@ -363,7 +363,7 @@ parse_args(int argc, char ** argv, Parameters * prr)
             case 'f':
                 prr->UseFFTW = 1;
             break;
-            case 'n':
+            case 'W':
                 prr->Nwriters = atoi(optarg);
             break;
             case 'h':
