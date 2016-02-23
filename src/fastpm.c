@@ -69,7 +69,6 @@ int main(int argc, char ** argv) {
 
     read_parameters(ParamFileName, &prr, comm);
 
-
     /* convert parameter files pm_nc_factor into VPMInit */
     VPMInit * vpminit = alloca(sizeof(VPMInit) * (prr.n_pm_nc_factor + 1));
     int i;
@@ -281,7 +280,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters);
+        write_snapshot(fastpm, snapshot, filebase, prr->string, Nwriters);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
@@ -381,7 +380,7 @@ parse_args(int argc, char ** argv, Parameters * prr)
     return;
 
 usage:
-    printf("Usage: fastpm [-n Nwriters] [-f] [-y NprocY] paramfile\n"
+    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] paramfile\n"
     "-f Use FFTW \n"
     "-y Set the number of processes in the 2D mesh\n"
     "-n Throttle IO (bigfile only) \n"
