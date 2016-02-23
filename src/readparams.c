@@ -147,7 +147,6 @@ loads_param(char * confstr, Parameters * param, lua_State * L)
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
     free(confstr2); 
-    memset(param, 0, sizeof(*param));
 
     param->string = strdup(confstr);
     param->nc = read_integer(L, "nc");

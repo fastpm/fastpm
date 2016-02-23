@@ -57,7 +57,7 @@ int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
-    Parameters prr;
+    Parameters prr = {0};
 
     parse_args(argc, argv, &prr);
 
