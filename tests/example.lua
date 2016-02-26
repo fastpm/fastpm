@@ -1,3 +1,12 @@
+
+print("The list of arguments passed from commandline are stored in global variable `args`")
+for k,v in pairs(args) do
+    print(k, v)
+end
+
+print("This is an example configuration file that uses scripting.")
+print("If a `main` function defined, `fastpm-lua` will execute it. The function is ignored by `fastpm`.")
+--
 -- parameter file
 ------ Size of the simulation -------- 
 
@@ -41,4 +50,8 @@ write_runpb_snapshot= "example-output/tpm"
 write_snapshot= "example-output/fastpm"       
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "example-output/powerspec"
+
+function main()
+    print("np_alloc_factor is", np_alloc_factor)
+end
 

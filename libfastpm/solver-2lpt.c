@@ -89,9 +89,8 @@ void fastpm_apply_hmc_force_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFlo
             double cic = 1.0;            
             for(d = 0; d < 3; d++) {
                 kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
-                cic *= 1.0; /*kiter.fac[d][kiter.iabs[d]].cic;*/
+                /*  cic *= kiter.fac[d][kiter.iabs[d]].cic; */
             }
-
             if(kk_finite == 0)
             {
                 to[kiter.ind + 0] = 0;

@@ -31,13 +31,13 @@ function blendspace(start, e, a1, a2)
     return r
 end 
 
-function parse_file(filename, mode)
+function parse_file(filename, runmain, ...)
     local namespace = setmetatable({}, {__index=_G})
     namespace['__file__'] = filename
-    namespace['__mode__'] = mode
-    local param = loadfile(filename, 'bt', namespace)
+    namespace['args'] = {...}
+    local param, err = loadfile(filename, 'bt', namespace)
     if param == nil then
-        error(string.format("Could not open file %s", filename))
+        error(err)
     end
     param()
     local required = {
@@ -72,7 +72,23 @@ function parse_file(filename, mode)
     }
     check_schema(namespace, required, true)
     check_schema(namespace, optional, false)
-    return dump.tostring(namespace)
+    local main = namespace['main']
+    if main ~= nil then
+        if runmain then
+            main()
+        end
+        namespace['main'] = nil
+    end    
+    for k,t in pairs(namespace) do
+        if type(t) == 'function' then
+            error(string.format("in `%s`, function `%s` shall be local", filename, k))
+        end
+    end
+    local ret, err = dump.tostring(namespace)
+    if ret == nil then
+        error(err)
+    end
+    return ret
 end
 
 function check_schema(namespace, schema, required)

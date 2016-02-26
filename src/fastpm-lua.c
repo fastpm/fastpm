@@ -14,7 +14,7 @@ extern void
 loads_param(char * confstr, Parameters * param, lua_State * L);
 
 extern char * 
-run_paramfile(char * filename, char * mode, lua_State * L);
+run_paramfile(char * filename, lua_State * L, int runmain, int argc, char ** argv);
 
 static void _non_mpi_msg_handler(
             const enum FastPMLogLevel level,
@@ -26,7 +26,7 @@ static void _non_mpi_msg_handler(
     fprintf(stdout, "%s", message);
     fflush(stdout);
 
-    if(level == ERROR) abort();
+    if(level == ERROR) exit(1);
 
 }
 
@@ -35,23 +35,24 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(_non_mpi_msg_handler, (MPI_Comm) 0, NULL);
 
     if(argc < 2) {
-        fastpm_raise(-1, "Usage: fastpm-validate filename\n");
+        fastpm_raise(-1, 
+"Usage: fastpm-lua parameterfile [...] \n"
+"\n"
+"if main function is defined in the parameter file, execute it.\n"
+);
     }
-    int i;
-    for(i = 1; i < argc; i ++) {
-        char * filename = argv[i];
+    char * filename = argv[1];
 
-        lua_State *L = luaL_newstate();
+    lua_State *L = luaL_newstate();
 
-        luaL_openlibs(L);
+    luaL_openlibs(L);
 
-        confstr = run_paramfile(filename, "verify", L);
+    confstr = run_paramfile(filename, L, 1, argc - 1, argv + 1);
 
-        Parameters param;
-        loads_param(confstr, &param, L);
+    Parameters param;
+    loads_param(confstr, &param, L);
 
-        free(confstr);
-        lua_close(L);
-    }
+    free(confstr);
+    lua_close(L);
 }
 

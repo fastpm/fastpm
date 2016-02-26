@@ -23,7 +23,7 @@
 static char * ParamFileName;
 
 static void 
-parse_args(int argc, char ** argv, Parameters * prr);
+parse_args(int * argc, char *** argv, Parameters * prr);
 
 static int 
 take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * prr);
@@ -49,7 +49,7 @@ int
 read_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
 
 int 
-read_parameters(char * filename, Parameters * param, MPI_Comm comm);
+read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
 
 int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
 
@@ -59,7 +59,7 @@ int main(int argc, char ** argv) {
 
     Parameters prr = {0};
 
-    parse_args(argc, argv, &prr);
+    parse_args(&argc, &argv, &prr);
 
     MPI_Comm comm = MPI_COMM_WORLD; 
 
@@ -67,7 +67,7 @@ int main(int argc, char ** argv) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
-    read_parameters(ParamFileName, &prr, comm);
+    read_parameters(ParamFileName, &prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
     VPMInit * vpminit = alloca(sizeof(VPMInit) * (prr.n_pm_nc_factor + 1));
@@ -345,7 +345,7 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
 }
 
 static void 
-parse_args(int argc, char ** argv, Parameters * prr) 
+parse_args(int * argc, char *** argv, Parameters * prr) 
 {
     char opt;
     extern int optind;
@@ -354,7 +354,7 @@ parse_args(int argc, char ** argv, Parameters * prr)
     ParamFileName = NULL;
     prr->NprocY = 0;    
     prr->Nwriters = 0;
-    while ((opt = getopt(argc, argv, "h?y:fW:")) != -1) {
+    while ((opt = getopt(*argc, *argv, "h?y:fW:")) != -1) {
         switch(opt) {
             case 'y':
                 prr->NprocY = atoi(optarg);
@@ -372,11 +372,13 @@ parse_args(int argc, char ** argv, Parameters * prr)
             break;
         }
     }
-    if(optind >= argc) {
+    if(optind >= *argc) {
         goto usage;
     }
 
-    ParamFileName = argv[optind];
+    ParamFileName = (*argv)[optind];
+    *argv += optind;
+    *argc -= optind; 
     return;
 
 usage:

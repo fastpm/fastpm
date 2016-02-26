@@ -18,9 +18,9 @@ SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
 FASTPM_LUASOURCES = lua-dump.lua lua-preface.lua
 
-all: fastpm-verify fastpm test2lpt testpm
+all: fastpm-lua fastpm test2lpt testpm
 
-fastpm-verify: fastpm-verify.o readparams.o $(FASTPM_LUASOURCES:%.lua=.objs/%.o) \
+fastpm-lua: fastpm-lua.o readparams.o $(FASTPM_LUASOURCES:%.lua=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 		$(LDFLAGS) -lm 
@@ -46,5 +46,5 @@ testpm : testpm.o ../libfastpm/libfastpm.a
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm fastpm-verify testpm test2lpt
+	rm -rf fastpm fastpm-lua testpm test2lpt
 
