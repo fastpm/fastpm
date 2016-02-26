@@ -216,10 +216,10 @@ loads_param(char * confstr, Parameters * param, lua_State * L)
     param->use_dx1_only = read_boolean_opt(L, "za", 0);
 }
 
-extern char lua_preface_lua[];
-extern unsigned int lua_preface_lua_len;
-extern char lua_dump_lua[];
-extern unsigned int lua_dump_lua_len;
+extern char lua_runtime_library_lua[];
+extern unsigned int lua_runtime_library_lua_len;
+extern char lua_runtime_dump_lua[];
+extern unsigned int lua_runtime_dump_lua_len;
 
 char * 
 run_paramfile(char * filename, lua_State * L, int runmain, int argc, char ** argv) 
@@ -227,14 +227,14 @@ run_paramfile(char * filename, lua_State * L, int runmain, int argc, char ** arg
 
     char * confstr;
 
-    if(luaL_loadbuffer(L, lua_dump_lua, lua_dump_lua_len, "dump") 
+    if(luaL_loadbuffer(L, lua_runtime_dump_lua, lua_runtime_dump_lua_len, "runtime_dump") 
     || lua_pcall(L, 0, 1, 0)
     ) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
     lua_setglobal(L, "dump");
 
-    if(luaL_loadbuffer(L, lua_preface_lua, lua_preface_lua_len, "preface") 
+    if(luaL_loadbuffer(L, lua_runtime_library_lua, lua_runtime_library_lua_len, "runtime_library") 
     || lua_pcall(L, 0, 0, 0)) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
