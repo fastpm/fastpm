@@ -1,8 +1,17 @@
 #! /bin/bash
-# join several archives into one
+
+#
+# This tool is released AS-IS. You are free to copy, modify, or shred it.
+# 
+# Author: Yu Feng <rainwoodman@gmail.com> 2016
+# 
 
 function usage {
-    echo "$0 target.a source.a  [...]"
+    echo "ar-join target.a source.a [ additional library archives .... ]"
+    echo
+    echo "Join multiple library archives into one."
+    echo "This script works around the lack of -M option on Mac systems."
+    echo "It depends on a posix 'ar' command."
     exit 0
 }
 
@@ -18,10 +27,10 @@ function push {
     local DEST
     local BASENAME
     if ! [ -f $2 ]; then
-        echo file $2 not found
+        echo Archive file $2 not found.
         exit 1
     fi
-    echo pushing $2 to $1
+    echo Adding $2 to $1 ...
     DEST=`mktemp -d`
     trap "rm -rf $DEST" EXIT
     BASENAME=`basename $2`
@@ -35,4 +44,5 @@ shift
 for i in $*; do
     push "$OUTPUT" "$i" || exit 1
 done
+echo Done.
 
