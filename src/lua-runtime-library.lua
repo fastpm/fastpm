@@ -1,25 +1,35 @@
--- Define a few time stepping schemes
+----------------------------------------------------
+-- This is the main LUA runtime library of FastPM.
+--
+-- Author: Yu Feng <rainwoodman@gmail.com> 2016
+----------------------------------------------------
 
-function linspace(start, e, N)
+function linspace(a, e, N)
+-- Similar to numpy.linspace, but always append the end
+-- point to the result, returning N + 1 elements.
+--
+-- https://mail.scipy.org/pipermail/numpy-discussion/2016-February/075065.html
     local r = {} 
     N1 = N + 1 
     for i=1,N1 do
-        r[i] = 1.0 * (e - start) * (i - 1) / N + start
+        r[i] = 1.0 * (e - a) * (i - 1) / N + a
     end 
     r[N1] = e 
     return r
 end 
-function logspace(start, e, N)
+function logspace(a, e, N)
+-- a and end are in log10.
+-- Returns N+1 elements, including e.
     local r 
-    r = linspace(start, e, N)
+    r = linspace(a, e, N)
     for i, j in pairs(r) do
         r[i] = math.pow(10, j)
     end 
     return r
 end
-function blendspace(start, e, a1, a2)
+function blendspace(a, e, a1, a2)
     local r = {}
-    a = start
+    a = a
     i = 1 
     while a < e do 
         r[i] = a 
@@ -32,6 +42,15 @@ function blendspace(start, e, a1, a2)
 end 
 
 function parse_file(filename, runmain, ...)
+-- Parse(run) a lua file
+--
+-- This is the first function we land off from the
+-- C part of fastpm/fastpm-lua.
+--
+-- filename: the filename of the lua file
+-- runmain: if true, the main function in the file is executed
+-- ... : args
+
     local namespace = setmetatable({}, {__index=_G})
     namespace['__file__'] = filename
     namespace['args'] = {...}

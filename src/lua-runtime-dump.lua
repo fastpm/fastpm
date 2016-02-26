@@ -1,3 +1,9 @@
+-- The LUA serialization library
+--
+-- Retrieved from 
+-- https://bitbucket.org/doub/dump/src
+--
+
 local _M = {}
 local _NAME = ... or 'test'
 
