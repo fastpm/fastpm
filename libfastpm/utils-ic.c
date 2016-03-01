@@ -65,7 +65,7 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_
             double f = sqrt(pk(knorm, pkdata));
 
             /* ensure the fourier space is a normal distribution */
-            f /= sqrt(pm->Norm);
+            f *= sqrt(pm->Norm);
             /* 1 / L  -- this matches the dimention of sqrt(p) but I always 
              * forget where it is from. */
             f *= sqrt(1.0 / pm->Volume);

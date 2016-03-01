@@ -187,10 +187,6 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
         fastpm_utils_load(fastpm->pm_2lpt, prr->read_noise, g_x);
         pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
-        ptrdiff_t ind;
-        for(ind = 0; ind < pm_size(fastpm->pm_2lpt); ind++) {
-            delta_k[ind] /= pm_norm(fastpm->pm_2lpt);
-        }
         pm_free(fastpm->pm_2lpt, g_x);
         goto finish;
     }

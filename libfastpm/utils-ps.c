@@ -11,11 +11,9 @@ fastpm_utils_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, FastPMPower
 {
     ps->ntotal = ntotal;
     double Volume = 1.0;
-    double Norm = 1.0;
     int d;
     for (d = 0; d < 3; d ++) {
         Volume *= pm_boxsize(pm)[d];
-        Norm *= pm_nmesh(pm)[d];
     }
     memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
     memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
@@ -65,7 +63,7 @@ fastpm_utils_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, FastPMPower
     for(ind = 0; ind < ps->size; ind++) {
         ps->k[ind] /= ps->N[ind];
         ps->p[ind] /= ps->N[ind];
-        ps->p[ind] *= Volume / (Norm * Norm);
+        ps->p[ind] *= Volume;
     }
 }
 

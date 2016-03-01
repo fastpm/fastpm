@@ -370,6 +370,11 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     } else {
         execute_dft_r2c(pm->r2c, from, (void*)to);
     }
+    ptrdiff_t i;
+#pragma omp parallel for
+    for(i = 0; i < pm->allocsize; i ++) {
+        to[i] *= (1 / pm->Norm);
+    }
 }
 
 void pm_c2r(PM * pm, FastPMFloat * inplace) {

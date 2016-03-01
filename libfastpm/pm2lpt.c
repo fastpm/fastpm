@@ -164,7 +164,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd->nghosts; i ++) {        
             /* this ensures x = x0 + dx1(t) + dx2(t) */
-            p->dx2[i][d] = (3.0 / 7) * pm_readout_one(pm, workspace, p, i) / pm->Norm ;
+            p->dx2[i][d] = (3.0 / 7) * pm_readout_one(pm, workspace, p, i);
         }
         pm_ghosts_reduce(pgd, DX2[d]);
     }

@@ -133,7 +133,6 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
     pm_c2r(solver->pm, workspace);
 
     for(ind = 0; ind < solver->pm->allocsize; ind ++) {
-        workspace[ind] /= pm_norm(solver->pm);
         workspace[ind] -= data_x[ind];
         if(sigma_x)
             workspace[ind] /= sigma_x[ind] * sigma_x[ind];
@@ -155,7 +154,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         int i;
         /* acc stores \Gamma(x) := \Psi(q) */
         for(i = 0; i < solver->p->np + pgd->nghosts; i ++) {
-            solver->p->acc[i][d] = pm_readout_one(solver->pm, workspace, solver->p, i) / solver->pm->Norm;
+            solver->p->acc[i][d] = pm_readout_one(solver->pm, workspace, solver->p, i);
         }
         pm_ghosts_reduce(pgd, ACC[d]);
     }
@@ -183,7 +182,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < solver->pm->allocsize; ind ++) {
-            Fk[ind] += - 2 * workspace[ind] / solver->pm->Norm; 
+            Fk[ind] += - 2 * workspace[ind]; 
             /* Wang's magic factor of 2 in 1301.1348. 
              * We do not put it in in hmc_force_2lpt_transfer */
         }

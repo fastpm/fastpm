@@ -73,10 +73,6 @@ fastpm_utils_paint(PM * pm, PMStore * p,
 
     if(delta_k) {
         pm_r2c(pm, canvas, delta_k);
-        ptrdiff_t i = 0;
-        for(i = 0; i < pm->allocsize; i ++) {
-            delta_k[i] /= pm->Norm;
-        }
     }
     pm_free(pm, canvas);
     pm_ghosts_free(pgd);
@@ -117,10 +113,6 @@ fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, 
     pm_r2c(pm, delta_x, delta_k);
     fastpm_apply_smoothing_transfer(pm, delta_k, delta_smooth, sml);
     pm_c2r(pm, delta_smooth);
-    ptrdiff_t i = 0;
-    for(i = 0; i < pm->allocsize; i ++) {
-        delta_smooth[i] /= pm->Norm;
-    }
     pm_free(pm, delta_k);
 }
 

@@ -79,7 +79,7 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
         CLOCK(readout);
 #pragma omp parallel for
         for(i = 0; i < p->np + pgd->nghosts; i ++) {
-            p->acc[i][d] = pm_readout_one(pm, canvas, p, i) / pm->Norm;
+            p->acc[i][d] = pm_readout_one(pm, canvas, p, i);
         }
         LEAVE(readout);
 
