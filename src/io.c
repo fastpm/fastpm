@@ -54,6 +54,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
     cumsum(offsets, NTask);
 
+
     int i;
     BigFile bf = {0};
     big_file_mpi_create(&bf, filebase, comm);
@@ -64,11 +65,15 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         double OmegaM = fastpm->omega_m;
         double BoxSize = fastpm->boxsize;
         uint64_t NC = fastpm->nc;
+        double rho_crit = 27.7455;
+        double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+
         big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
         big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
         big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
         big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
         big_block_set_attr(&bb, "NC", &NC, "i8", 1);
+        big_block_set_attr(&bb, "M0", &M0, "f8", 1);
         big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
         big_block_mpi_close(&bb, comm);
     }
