@@ -7,6 +7,83 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/transfer.h>
+
+static void 
+get_lagrangian_position(PMStore * p, ptrdiff_t index, double pos[3]) 
+{
+    pos[0] = p->q[index][0];
+    pos[1] = p->q[index][1];
+    pos[2] = p->q[index][2];
+}
+static void 
+get_position(PMStore * p, ptrdiff_t index, double pos[3]) 
+{
+    pos[0] = p->x[index][0];
+    pos[1] = p->x[index][1];
+    pos[2] = p->x[index][2];
+}
+
+void 
+fastpm_za_hmc_force(FastPM2LPTSolver * solver,
+        FastPMFloat * data_x, /* rhop in x-space*/
+        FastPMFloat * sigma_x, /* sigma_x in x-space*/
+        FastPMFloat * Fk,    /* (out) hmc force in fourier space */
+        double sml
+        )
+{
+    int d;
+
+    FastPMFloat * workspace = pm_alloc(solver->pm);
+    FastPMFloat * workspace2 = pm_alloc(solver->pm);
+
+    /* First obtain a smoothed version of model */
+    fastpm_utils_paint(solver->pm, solver->p, NULL, Fk, get_position, 0);
+    fastpm_apply_smoothing_transfer(solver->pm, Fk, workspace, sml);
+    pm_c2r(solver->pm, workspace);
+    ptrdiff_t ind;
+    for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        workspace[ind] -= data_x[ind];
+        if(sigma_x)
+            workspace[ind] /= sigma_x[ind] * sigma_x[ind];
+    }
+
+    pm_r2c(solver->pm, workspace, Fk);
+
+    /* Fk contains rhod_k at this point */
+
+    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+    for(d = 0; d < 3; d ++) { 
+        fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
+
+        /* workspace stores \Gamma(k) = -i k \rho_d */
+
+        pm_c2r(solver->pm, workspace);
+        
+        fastpm_utils_readout(solver->pm, solver->p, workspace, get_position, ACC[d]);
+        fastpm_info("d= %d ACC = %d\n", d, ACC[d]);
+    }
+
+    /* now we paint \Psi by the lagrangian position q */
+
+    memset(Fk, 0, sizeof(Fk[0]) * pm_size(solver->pm));
+
+    for(d = 0; d < 3; d ++) {
+        fastpm_utils_paint(solver->pm, solver->p, NULL, workspace2, get_lagrangian_position, ACC[d]);
+        fastpm_apply_za_hmc_force_transfer(solver->pm, workspace2, workspace, d);
+
+        /* add HMC force component to to Fk */
+        ptrdiff_t ind;
+        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+            /* Wang's magic factor of 2 in 1301.1348. 
+             * We do not put it in in hmc_force_2lpt_transfer */
+            Fk[ind] += - 2 * workspace[ind]; 
+        }
+    }
+    pm_free(solver->pm, workspace2);
+    pm_free(solver->pm, workspace);
+}
+
 
 int main(int argc, char * argv[]) {
 
@@ -74,6 +151,8 @@ int main(int argc, char * argv[]) {
     memset(rho_final_x, 0, sizeof(FastPMFloat) * pm_size(solver->pm));
     fastpm_2lpt_hmc_force(solver, rho_final_x, NULL, Fk, 0.);
     fastpm_utils_dump(solver->pm, "Fk.raw", Fk);
+    fastpm_za_hmc_force(solver, rho_final_x, NULL, Fk, 0.);
+    fastpm_utils_dump(solver->pm, "Fk2.raw", Fk);
 
     goto byebye;
 
