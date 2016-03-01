@@ -58,7 +58,7 @@ int main(int argc, char * argv[]) {
     rho_init_ktruth[mode * 2] *= 1.02;
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
-    fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
+    fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth, NULL, 0);
     fastpm_utils_dump(solver->pm, "rho_init_ktruth1.raw", rho_init_ktruth);
     fastpm_utils_dump(solver->pm, "rho_final_ktruth1.raw", rho_final_ktruth);
     fastpm_utils_dump(solver->pm, "rho_final_xtruth1.raw", rho_final_xtruth);
@@ -66,7 +66,7 @@ int main(int argc, char * argv[]) {
     fastpm_utils_fill_deltak(solver->pm, rho_init_ktruth, 301, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
     fastpm_2lpt_evolve(solver, rho_init_ktruth, 1.0, omega_m);
 
-    fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth);
+    fastpm_utils_paint(solver->pm, solver->p, rho_final_xtruth, rho_final_ktruth, NULL, 0);
     fastpm_utils_dump(solver->pm, "rho_init_ktruth.raw", rho_init_ktruth);
     fastpm_utils_dump(solver->pm, "rho_final_ktruth.raw", rho_final_ktruth);
     fastpm_utils_dump(solver->pm, "rho_final_xtruth.raw", rho_final_xtruth);
@@ -106,7 +106,7 @@ int main(int argc, char * argv[]) {
 
         /* Evolve to rho_final_k */
         fastpm_2lpt_evolve(solver, rho_init_k, 1.0, omega_m);
-        fastpm_utils_paint(solver->pm, solver->p, rho_final_x, rho_final_k);
+        fastpm_utils_paint(solver->pm, solver->p, rho_final_x, rho_final_k, NULL, 0);
 
         /* calculate the HMC force into Fk */
         fastpm_2lpt_hmc_force(solver, rho_final_xtruth, NULL, Fk, 0);

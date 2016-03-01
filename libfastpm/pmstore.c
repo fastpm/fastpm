@@ -116,6 +116,60 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
+static double to_double(void * pdata, ptrdiff_t index, int flags) {
+    PMStore * p = (PMStore *)pdata;
+    double rt = 0.;
+    #define DISPATCHC(f, field, i) \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
+            rt = p->field[index][i]; \
+            flags &= ~f; \
+            goto byebye; \
+        } \
+    }
+    DISPATCHC(PACK_ACC_X, acc, 0);
+    DISPATCHC(PACK_ACC_Y, acc, 1);
+    DISPATCHC(PACK_ACC_Z, acc, 2);
+    DISPATCHC(PACK_DX1_X, dx1, 0)
+    DISPATCHC(PACK_DX1_Y, dx1, 1)
+    DISPATCHC(PACK_DX1_Z, dx1, 2)
+    DISPATCHC(PACK_DX2_X, dx2, 0)
+    DISPATCHC(PACK_DX2_Y, dx2, 1)
+    DISPATCHC(PACK_DX2_Z, dx2, 2)
+    #undef DISPATCHC
+byebye:
+    if(flags != 0) {
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
+        return 0;
+    } else {
+        return rt;
+    }
+}
+static void from_double(void * pdata, ptrdiff_t index, int flags, double value) {
+    PMStore * p = (PMStore *)pdata;
+    #define DISPATCHC(f, field, i) \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
+            p->field[index][i] = value; \
+            flags &= ~f; \
+            goto byebye; \
+        } \
+    }
+    DISPATCHC(PACK_ACC_X, acc, 0);
+    DISPATCHC(PACK_ACC_Y, acc, 1);
+    DISPATCHC(PACK_ACC_Z, acc, 2);
+    DISPATCHC(PACK_DX1_X, dx1, 0)
+    DISPATCHC(PACK_DX1_Y, dx1, 1)
+    DISPATCHC(PACK_DX1_Z, dx1, 2)
+    DISPATCHC(PACK_DX2_X, dx2, 0)
+    DISPATCHC(PACK_DX2_Y, dx2, 1)
+    DISPATCHC(PACK_DX2_Z, dx2, 2)
+    #undef DISPATCHC
+byebye:
+    if(flags != 0) {
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
+    }
+}
 static struct {
     void * p;
     size_t s;
@@ -158,6 +212,8 @@ pm_store_init(PMStore * p)
     p->iface.unpack = unpack;
     p->iface.reduce = reduce;
     p->iface.get_position = get_position;
+    p->iface.to_double = to_double;
+    p->iface.from_double = from_double;
 }
 
 void 

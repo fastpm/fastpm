@@ -18,7 +18,9 @@ typedef struct {
     void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
     size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
     void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
-    void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int method);
+    void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int attributes);
+    double (*to_double)(void * pdata, ptrdiff_t index, int attribute);
+    void   (*from_double)(void * pdata, ptrdiff_t index, int attribute, double value);
 } PMIFace;
 
 

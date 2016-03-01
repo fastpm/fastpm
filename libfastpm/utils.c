@@ -43,15 +43,31 @@ fastpm_utils_get_random(uint64_t id)
 }
 
 void
-fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k) 
+fastpm_utils_paint(PM * pm, PMStore * p, 
+    FastPMFloat * delta_x, 
+    FastPMFloat * delta_k,
+    fastpm_pos_func getpos, 
+    int attribute
+    ) 
 {
-
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, (void*) getpos);
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
     FastPMFloat * canvas = pm_alloc(pm);
-    pm_paint(pm, canvas, p, p->np + pgd->nghosts, 1.0);
+
+    if(getpos == NULL)
+        getpos = (fastpm_pos_func) pm->iface.get_position;
+    ptrdiff_t i;
+    memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
+#pragma omp parallel for
+    for (i = 0; i < p->np + pgd->nghosts; i ++) {
+        double pos[3];
+        double weight = attribute? pm->iface.to_double(p, i, attribute): 1.0;
+        getpos(p, i, pos);
+        pm_paint_pos(pm, canvas, pos, weight);
+    }
+    
     if(delta_x) 
         pm_assign(pm, canvas, delta_x);
 
@@ -63,6 +79,30 @@ fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * de
         }
     }
     pm_free(pm, canvas);
+    pm_ghosts_free(pgd);
+}
+
+void
+fastpm_utils_readout(PM * pm, PMStore * p, 
+    FastPMFloat * delta_x, 
+    fastpm_pos_func getpos, 
+    int attribute
+    ) 
+{
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, (void*)getpos);
+
+    /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
+     * otherwise increase this to (Nmesh / Ngrid) **3 */
+    ptrdiff_t i;
+#pragma omp parallel for
+    for (i = 0; i < p->np + pgd->nghosts; i ++) {
+        double pos[3];
+        getpos(p, i, pos);
+        double weight = pm_readout_pos(pm, delta_x, pos);
+        pm->iface.from_double(p, i, attribute, weight);
+    }
+    
+    pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);
 }
 
