@@ -6,11 +6,12 @@
 #include <gsl/gsl_rng.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/transfer.h>
+
 #include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
 
-#include "transfer.h"
 
 static double RNDTABLE[8192];
 
@@ -42,29 +43,43 @@ fastpm_utils_get_random(uint64_t id)
     return RNDTABLE[ind];
 }
 
+static void  _hijack_pos(PMStore * p, void * buf, fastpm_pos_func getpos) {
+    if(getpos == NULL) 
+        getpos = (fastpm_pos_func) p->iface.get_position;
+    memcpy(buf, &p->x[0], sizeof(p->x[0]) * p->np);
+    ptrdiff_t i;
+    for(i = 0; i < p->np; i ++) {
+        double pos[3];
+        getpos(p, i, pos);
+        p->x[i][0] = pos[0];
+        p->x[i][1] = pos[1];
+        p->x[i][2] = pos[2];
+    }
+}
+
 void
 fastpm_utils_paint(PM * pm, PMStore * p, 
     FastPMFloat * delta_x, 
     FastPMFloat * delta_k,
     fastpm_pos_func getpos, 
-    int attribute
-    ) 
+    int attribute) 
 {
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, (void*) getpos);
+    ptrdiff_t i;
+    double * buf = p->iface.malloc(sizeof(p->x[0]) * p->np);
+    _hijack_pos(p, buf, getpos);
+
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, NULL);
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
     FastPMFloat * canvas = pm_alloc(pm);
 
-    if(getpos == NULL)
-        getpos = (fastpm_pos_func) pm->iface.get_position;
-    ptrdiff_t i;
     memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
 #pragma omp parallel for
     for (i = 0; i < p->np + pgd->nghosts; i ++) {
         double pos[3];
         double weight = attribute? pm->iface.to_double(p, i, attribute): 1.0;
-        getpos(p, i, pos);
+        p->iface.get_position(p, i, pos);
         pm_paint_pos(pm, canvas, pos, weight);
     }
     
@@ -76,6 +91,9 @@ fastpm_utils_paint(PM * pm, PMStore * p,
     }
     pm_free(pm, canvas);
     pm_ghosts_free(pgd);
+
+    memcpy(&p->x[0], buf, sizeof(p->x[0]) * p->np);
+    p->iface.free(buf);
 }
 
 void
@@ -85,7 +103,10 @@ fastpm_utils_readout(PM * pm, PMStore * p,
     int attribute
     ) 
 {
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, (void*)getpos);
+    double * buf = p->iface.malloc(sizeof(p->x[0]) * p->np);
+    _hijack_pos(p, buf, getpos);
+
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, NULL);
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
@@ -93,13 +114,16 @@ fastpm_utils_readout(PM * pm, PMStore * p,
 #pragma omp parallel for
     for (i = 0; i < p->np + pgd->nghosts; i ++) {
         double pos[3];
-        getpos(p, i, pos);
+        p->iface.get_position(p, i, pos);
         double weight = pm_readout_pos(pm, delta_x, pos);
         pm->iface.from_double(p, i, attribute, weight);
     }
     
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);
+
+    memcpy(&p->x[0], buf, sizeof(p->x[0]) * p->np);
+    p->iface.free(buf);
 }
 
 void

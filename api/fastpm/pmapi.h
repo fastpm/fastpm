@@ -24,6 +24,25 @@ typedef struct {
 } PMIFace;
 
 
+#define PACK_POS   (1 << 0)
+#define PACK_VEL   (1 << 1)
+#define PACK_DX1   (1 << 2)
+#define PACK_DX2   (1 << 3)
+#define PACK_ACC   (1 << 4)
+#define PACK_ID    (1 << 5)
+#define PACK_Q     (1 << 6)
+
+
+#define PACK_ACC_X (1 << 10)
+#define PACK_ACC_Y (1 << 11)
+#define PACK_ACC_Z (1 << 12)
+#define PACK_DX1_X   (1 << 13)
+#define PACK_DX1_Y   (1 << 14)
+#define PACK_DX1_Z   (1 << 15)
+#define PACK_DX2_X   (1 << 16)
+#define PACK_DX2_Y   (1 << 17)
+#define PACK_DX2_Z   (1 << 18)
+
 struct PMStore {
     PMIFace iface;
 
