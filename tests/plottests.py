@@ -20,7 +20,8 @@ for fn in sorted(glob.glob('cola/powerspec_*.txt')):
 ax.set_ylim(0, 2)
 ax.set_xscale('log')
 ax.set_yscale('linear')
-ax.set_title('cola: ' + TRAVIS_BUILD_NUMBER + ':' + TRAVIS_COMMIT)
+ax.set_ylabel('P/P_lin')
+ax.set_title('cola: ' + TRAVIS_BUILD_NUMBER + '\n' + TRAVIS_COMMIT)
 
 ax = fig.add_subplot(122)
 for fn in sorted(glob.glob('pm/powerspec_*.txt')):
@@ -29,7 +30,8 @@ for fn in sorted(glob.glob('pm/powerspec_*.txt')):
 ax.set_ylim(0, 2)
 ax.set_xscale('log')
 ax.set_yscale('linear')
-ax.set_title('pm: ' + TRAVIS_BUILD_NUMBER + ':' + TRAVIS_COMMIT)
+ax.set_ylabel('P/P_lin')
+ax.set_title('pm: ' + TRAVIS_BUILD_NUMBER + '\n' + TRAVIS_COMMIT)
 
 canvas = FigureCanvasAgg(fig)
 fig.savefig('tests-result.png', dpi=72)
