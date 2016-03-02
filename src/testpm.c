@@ -54,7 +54,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
-    fastpm_utils_paint(solver->pm_2lpt, solver->p, rho_final_xtruth, rho_final_ktruth);
+    fastpm_utils_paint(solver->pm_2lpt, solver->p, rho_final_xtruth, rho_final_ktruth, NULL, 0);
     fastpm_utils_dump(solver->pm_2lpt, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
 
     pm_free(solver->pm_2lpt, rho_final_xtruth);
