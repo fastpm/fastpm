@@ -225,6 +225,7 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfun
                 double tmp[3];
                 double k2 = index_to_k2(pm, irel, tmp);
                 double kmag = sqrt(k2);
+                /* we want two numbers that are of std ~ 1/sqrt(2) */
                 double p_of_k = - log(ampl);
 
                 for(d = 0; d < 3; d ++) {
@@ -284,7 +285,8 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc 
             ampl = gsl_rng_uniform(random_generator);
         while(ampl == 0.0);
 
-        ampl = sqrt(-log(ampl));
+        /* we need two gaussians of std=1.0 in real space */
+        ampl = sqrt(-2.0 * log(ampl));
         g_x[ind] = ampl * sin(phase);
         g_x[ind + 1] = ampl * cos(phase);
     }
@@ -319,7 +321,8 @@ pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc 
             ii[d] = i[d] - pm->IRegion.start[d];
             ind += ii[d] * pm->IRegion.strides[d];
         }
-        ampl = sqrt(-log(ampl));
+        /* we need two gaussians of std=1.0 in real space */
+        ampl = sqrt(-2.0 * log(ampl));
         g_x[ind] = ampl * sin(phase);
         next:
         continue;
