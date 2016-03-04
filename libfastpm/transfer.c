@@ -51,9 +51,9 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
-            /* - i k[d] */
-            to[kiter.ind + 0] =   from[kiter.ind + 1] * (k_finite);
-            to[kiter.ind + 1] = - from[kiter.ind + 0] * (k_finite);
+            /* i k[d] */
+            to[kiter.ind + 0] = - from[kiter.ind + 1] * (k_finite);
+            to[kiter.ind + 1] =   from[kiter.ind + 0] * (k_finite);
         }
     }
 }

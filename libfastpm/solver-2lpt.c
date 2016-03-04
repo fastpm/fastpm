@@ -116,7 +116,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
     for(d = 0; d < 3; d ++) {
         fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
 
-        /* workspace stores \Gamma(k) = -i k \rho_d */
+        /* workspace stores \Gamma(k) = i k \rho_d */
 
         pm_c2r(solver->pm, workspace);
         
@@ -151,7 +151,7 @@ fastpm_2lpt_hmc_force(FastPM2LPTSolver * solver,
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < solver->pm->allocsize; ind ++) {
-            Fk[ind] += - 2 * workspace[ind]; 
+            Fk[ind] += 2 * workspace[ind]; 
             /* Wang's magic factor of 2 in 1301.1348. 
              * We do not put it in in hmc_force_2lpt_transfer */
         }
