@@ -39,6 +39,52 @@ fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, d
         }
     }
 }
+static double sinc_unnormed(double x) {
+    if(x < 1e-5 && x > -1e-5) {
+        double x2 = x * x;
+        return 1.0 - x2 / 6. + x2  * x2 / 120.;
+    } else {
+        return sin(x) / x;
+    }
+}
+
+
+void 
+fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to) 
+{
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        int d;
+        int i;
+        double *kernel[3];
+        for(d = 0; d < 3; d ++) {
+            kernel[d] = malloc(sizeof(double) * pm->Nmesh[d]);
+            for(i = 0; i < pm->Nmesh[d]; i ++) {
+                double w = kiter.k[d][i] * pm->BoxSize[d] / pm->Nmesh[d];
+                double cic = sinc_unnormed(0.5 * w);                
+                kernel[d][i] = 1.0 / pow(cic, 2);
+            }
+        }
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int dir;
+            double smth = 1.0;
+            for(dir = 0; dir < 3; dir++) 
+                smth *= kernel[dir][kiter.iabs[dir]];
+
+            /* - i k[d] */
+            to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
+            to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
+        }
+        for(d = 0; d < 3; d ++) {
+            free(kernel[d]);
+        }
+    }
+}
 
 void 
 fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
