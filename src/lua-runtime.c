@@ -15,7 +15,7 @@
 
 #define DEF_READ(my_typename, c_typename, lua_typename, transform) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue) { \
-    lua_getfield(L, -1, name); \
+    luaL_eval(L, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
         lua_pop(L, 1); \
         return defvalue; \
@@ -25,7 +25,7 @@ c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_type
     return  retvalue; \
 } \
 c_typename read_## my_typename (lua_State * L, const char * name) { \
-    lua_getfield(L, -1, name); \
+    luaL_eval(L, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
         fastpm_raise(1030, "Error: Parameter %s not found in the parameter file\n", name); \
     } \
@@ -35,7 +35,7 @@ c_typename read_## my_typename (lua_State * L, const char * name) { \
 } \
 c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *len) \
 { \
-    lua_getfield(L, -1, name); \
+    luaL_eval(L, name); \
     if(!lua_istable(L, -1)) { \
         fastpm_raise(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
@@ -56,7 +56,7 @@ c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *le
 
 #define DEF_READ2(my_typename, c_typename, lua_typename, transform, argtype, argname) \
 c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_typename defvalue, argtype argname){ \
-    lua_getfield(L, -1, name); \
+    luaL_eval(L, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
         lua_pop(L, 1); \
         return defvalue; \
@@ -66,7 +66,7 @@ c_typename read_## my_typename ## _opt (lua_State * L, const char * name, c_type
     return  retvalue; \
 } \
 c_typename read_## my_typename (lua_State * L, const char * name, argtype argname) { \
-    lua_getfield(L, -1, name); \
+    luaL_eval(L, name); \
     if (!lua_is ## lua_typename (L, -1)) { \
         fastpm_raise(1030, "Error: Parameter %s not found in the parameter file\n", name); \
     } \
@@ -76,7 +76,7 @@ c_typename read_## my_typename (lua_State * L, const char * name, argtype argnam
 } \
 c_typename * read_array_ ## my_typename(lua_State* L, const char * name, int *len, argtype argname) \
 { \
-    lua_getfield(L, -1, name); \
+    luaL_eval(L, name); \
     if(!lua_istable(L, -1)) { \
         fastpm_raise(1031, "Error: Parameter %s not found or not an array in the parameter file\n", name); \
     } \
@@ -130,23 +130,39 @@ static int parse_enum(const char * str, struct enum_entry * enum_table) {
         str, options);
     return 0;
 }
+
+static int luaL_eval(lua_State * L, const char * string) {
+    lua_getglobal(L, "eval");
+    lua_pushstring(L, string);
+    lua_pushvalue(L, -3);
+    return lua_pcall(L, 2, 1, 0);
+}
 DEF_READ(boolean, int, boolean, PLAIN)
 DEF_READ(integer, int, integer, PLAIN)
 DEF_READ(number, double, number, PLAIN)
 DEF_READ(string, char *, string, _strdup)
 DEF_READ2(enum, int, string, parse_enum, struct enum_entry *, enum_table)
 
-void 
-loads_param(char * confstr, Parameters * param, lua_State * L) 
-{
-    char * confstr2 = malloc(strlen(confstr) + 128);
-    sprintf(confstr2, "return %s", confstr);
+extern char lua_runtime_library_lua[];
+extern unsigned int lua_runtime_library_lua_len;
+extern char lua_runtime_dump_lua[];
+extern unsigned int lua_runtime_dump_lua_len;
 
-    if(luaL_loadstring(L, confstr2) || lua_pcall(L, 0, 1, 0)) {
-        /* This shall never happen unless the dump library is brokean */
+void 
+loads_param(char * confstr, Parameters * param) 
+{
+    lua_State *L = luaL_newstate();
+    luaL_openlibs(L);
+
+    if(luaL_loadbuffer(L, lua_runtime_library_lua, lua_runtime_library_lua_len, "runtime_library") 
+    || lua_pcall(L, 0, 0, 0)) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
-    free(confstr2); 
+
+    if(luaL_eval(L, confstr)) {
+        /* This shall never happen unless the dump library is brokean */
+        fastpm_raise(-1, "Error: %s\n", lua_tostring(L, -1));
+    }
 
     param->string = strdup(confstr);
     param->nc = read_integer(L, "nc");
@@ -214,18 +230,18 @@ loads_param(char * confstr, Parameters * param, lua_State * L)
     param->enforce_broadband_kmax = read_integer_opt(L, "enforce_broadband_kmax", 4);
 
     param->use_dx1_only = read_boolean_opt(L, "za", 0);
+
+    lua_close(L);
 }
 
-extern char lua_runtime_library_lua[];
-extern unsigned int lua_runtime_library_lua_len;
-extern char lua_runtime_dump_lua[];
-extern unsigned int lua_runtime_dump_lua_len;
-
 char * 
-run_paramfile(char * filename, lua_State * L, int runmain, int argc, char ** argv) 
+run_paramfile(char * filename, int runmain, int argc, char ** argv) 
 {
 
     char * confstr;
+
+    lua_State *L = luaL_newstate();
+    luaL_openlibs(L);
 
     if(luaL_loadbuffer(L, lua_runtime_dump_lua, lua_runtime_dump_lua_len, "runtime_dump") 
     || lua_pcall(L, 0, 1, 0)
@@ -255,6 +271,8 @@ run_paramfile(char * filename, lua_State * L, int runmain, int argc, char ** arg
     }
     confstr = strdup(lua_tostring(L, -1));
     lua_pop(L, 1);
+
+    lua_close(L);
     return confstr;
 }
 
@@ -262,9 +280,6 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
 {
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
-
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
 
     /* read the configuration file */
     char * confstr;
@@ -274,7 +289,7 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
      * other ranks use the serialized string to avoid duplicated
      * error reports */
     if(ThisTask == 0) {
-        confstr = run_paramfile(filename, L, 0, argc, argv);
+        confstr = run_paramfile(filename, 0, argc, argv);
         confstr_len = strlen(confstr) + 1;
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
@@ -285,10 +300,10 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
     }
 
     fastpm_info("Configuration %s\n", confstr);
-    loads_param(confstr, param, L);
+
+    loads_param(confstr, param);
 
     free(confstr);
-    lua_close(L);
     return 0;
 }
 

@@ -4,6 +4,8 @@
 -- Author: Yu Feng <rainwoodman@gmail.com> 2016
 ----------------------------------------------------
 
+fastpm = {}
+
 function linspace(a, e, N)
 -- Similar to numpy.linspace, but always append the end
 -- point to the result, returning N + 1 elements.
@@ -135,3 +137,12 @@ function check_schema(namespace, schema, required)
         end
     end 
 end
+
+function eval(string, env)
+    local s = 'return ' .. string
+    return load(s, s, 'bt', env)()
+end
+
+fastpm.FORCE_MODE_PM = "pm"
+fastpm.FORCE_MODE_COLA = "cola"
+

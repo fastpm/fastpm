@@ -3,18 +3,14 @@
 #include <string.h>
 #include <mpi.h>
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
 #include <fastpm/logging.h>
 #include "parameters.h"
 
 extern void 
-loads_param(char * confstr, Parameters * param, lua_State * L);
+loads_param(char * confstr, Parameters * param);
 
 extern char * 
-run_paramfile(char * filename, lua_State * L, int runmain, int argc, char ** argv);
+run_paramfile(char * filename, int runmain, int argc, char ** argv);
 
 static void _non_mpi_msg_handler(
             const enum FastPMLogLevel level,
@@ -43,16 +39,11 @@ int main(int argc, char * argv[]) {
     }
     char * filename = argv[1];
 
-    lua_State *L = luaL_newstate();
-
-    luaL_openlibs(L);
-
-    confstr = run_paramfile(filename, L, 1, argc - 1, argv + 1);
+    confstr = run_paramfile(filename, 1, argc - 1, argv + 1);
 
     Parameters param;
-    loads_param(confstr, &param, L);
+    loads_param(confstr, &param);
 
     free(confstr);
-    lua_close(L);
 }
 

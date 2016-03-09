@@ -34,7 +34,7 @@ read_powerspectrum= "powerspec.txt"
 random_seed = 100
 
 -------- Approximation Method ---------------
-force_mode = "pm" -- cola or pm
+force_mode = fastpm.FORCE_MODE_PM -- cola or pm
 cola_stdda = false -- default is true for cola, and ignored for pm
 enforce_broadband = true -- default is true for pm, and false for cola
 
