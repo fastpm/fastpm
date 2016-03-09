@@ -53,11 +53,16 @@ PMRegion * pm_o_region(PM * pm) {
     return &pm->ORegion;
 }
 
+static void 
+pm_create_k_factors(PM * pm, PMKIter * iter);
+
+static void 
+pm_destroy_k_factors(PMKIter * iter);
 
 void 
 pm_kiter_init(PM * pm, PMKIter * iter) 
 {
-    pm_create_k_factors(pm, iter->fac);
+    pm_create_k_factors(pm, iter);
     pm_prepare_omp_loop(pm, &iter->start, &iter->end, iter->i);
     iter->ind = iter->start;
     iter->pm = pm;
@@ -71,7 +76,7 @@ int pm_kiter_stop(PMKIter * iter)
 {
     int stop = !(iter->ind < iter->end);
     if(stop) {
-        pm_destroy_k_factors(iter->pm, iter->fac);
+        pm_destroy_k_factors(iter);
     }
     return stop;
 }
@@ -110,8 +115,8 @@ diff_kernel(double w)
     return 1 / 6.0 * (8 * sin (w) - sin (2 * w));
 }
 
-void 
-pm_create_k_factors(PM * pm, PMKFactors * fac[3]) 
+static void 
+pm_create_k_factors(PM * pm, PMKIter * iter) 
 { 
     /* This function populates fac with precalculated values that
      * are useful for force calculation. 
@@ -122,28 +127,35 @@ pm_create_k_factors(PM * pm, PMKFactors * fac[3])
     int d;
     ptrdiff_t ind;
     for(d = 0; d < 3; d++) {
-        fac[d] = malloc(sizeof(fac[0][0]) * pm->Nmesh[d]);
         double CellSize = pm->BoxSize[d] / pm->Nmesh[d];
+
+        iter->k[d] = malloc(sizeof(float) * pm->Nmesh[d]);
+        iter->k_finite[d] = malloc(sizeof(float) * pm->Nmesh[d]);
+        iter->kk[d] = malloc(sizeof(float) * pm->Nmesh[d]);
+        iter->kk_finite[d] = malloc(sizeof(float) * pm->Nmesh[d]);
+
         for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
             float k = pm->MeshtoK[d][ind];
             float w = k * CellSize;
             float ff = sinc_unnormed(0.5 * w);
 
-            fac[d][ind].k_finite = 1 / CellSize * diff_kernel(w);
-            fac[d][ind].kk_finite = k * k * ff * ff;
-            fac[d][ind].kk = k * k;
-            fac[d][ind].k = k;
-            fac[d][ind].cic = ff;
+            iter->k[d][ind] = k;
+            iter->kk[d][ind] = k * k;
+            iter->k_finite[d][ind] = 1 / CellSize * diff_kernel(w);
+            iter->kk_finite[d][ind] = k * k * ff * ff;
         }
     } 
 }
 
 void 
-pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]) 
+pm_destroy_k_factors(PMKIter * iter) 
 {
     int d;
     for(d = 0; d < 3; d ++) {
-        free(fac[d]);
+        free(iter->k_finite[d]);
+        free(iter->k[d]);
+        free(iter->kk_finite[d]);
+        free(iter->kk[d]);
     }
 }
 

@@ -59,7 +59,7 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_
             double k2 = 0;
             int d;
             for(d = 0; d < 3; d++) {
-                k2 += kiter.fac[d][kiter.iabs[d]].kk;
+                k2 += kiter.kk[d][kiter.iabs[d]];
             }
             double knorm = sqrt(k2);
             double f = sqrt(pk(knorm, pkdata));

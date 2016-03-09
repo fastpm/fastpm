@@ -154,44 +154,6 @@ int main(int argc, char * argv[]) {
     fastpm_za_hmc_force(solver, rho_final_x, NULL, Fk, 0.);
     fastpm_utils_dump(solver->pm, "Fk2.raw", Fk);
 
-    goto byebye;
-
-    /* now a fake MCMC loop. */
-    int mcmcstep;
-
-    for(mcmcstep = 0; mcmcstep < 1; mcmcstep++) {
-        /* example looping over ks */
-        double fac = sqrt(pow(2 * M_PI, 3) / pow(boxsize, 3));
-        PMKIter kiter;
-        for(pm_kiter_init(solver->pm, &kiter); 
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-
-            int d;
-            double k[3];
-            double kk = 0.0;
-            for(d = 0; d < 3; d ++) {
-                /* where to get k and k^2 */
-                k[d] = kiter.fac[d][kiter.iabs[d]].k_finite;
-                kk += kiter.fac[d][kiter.iabs[d]].kk_finite;
-            }
-         
-            k[d] *= 1.0; /* shut up compiler warning */
-
-            double P = fastpm_utils_powerspec_eh(sqrt(kk), &eh);
-            rho_init_k[kiter.ind + 0] = fac * sqrt(P) * 1.0; /* real */
-            rho_init_k[kiter.ind + 1] = fac * sqrt(P) * 1.0; /* imag */
-        }
-
-        /* Evolve to rho_final_k */
-        fastpm_2lpt_evolve(solver, rho_init_k, 1.0, omega_m);
-        fastpm_utils_paint(solver->pm, solver->p, rho_final_x, rho_final_k, NULL, 0);
-
-        /* calculate the HMC force into Fk */
-        fastpm_2lpt_hmc_force(solver, rho_final_xtruth, NULL, Fk, 0);
-    }
-byebye:
-
     pm_free(solver->pm, rho_final_x);
     pm_free(solver->pm, rho_final_k);
     pm_free(solver->pm, rho_init_k);
