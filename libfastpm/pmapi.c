@@ -5,10 +5,6 @@
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 
-/* For OpenMP threading */
-static void
-pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]);
-
 FastPMFloat * pm_alloc(PM * pm) 
 {
     return pm->iface.malloc(sizeof(FastPMFloat) * pm->allocsize);
@@ -62,14 +58,39 @@ pm_destroy_k_factors(PMKIter * iter);
 void 
 pm_kiter_init(PM * pm, PMKIter * iter) 
 {
-    pm_create_k_factors(pm, iter);
-    pm_prepare_omp_loop(pm, &iter->start, &iter->end, iter->i);
+    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
+     *
+     * i is in units of complex numbers.
+     *
+     * We call pm_unravel_o_index to set the initial i[] for each threads,
+     * then rely on pm_inc_o_index to increment i, because the former is 
+     * much slower than pm_inc_o_index and would eliminate threading advantage.
+     *
+     * */
+    int nth = omp_get_num_threads();
+    int ith = omp_get_thread_num();
+
+    iter->start = ith * pm->ORegion.total / nth * 2;
+    iter->end = (ith + 1) * pm->ORegion.total / nth * 2;
+
+    /* do not unravel if we are not looping at all. 
+     * This fixes a FPE when
+     * the rank has ORegion.total == 0 
+     * -- with PFFT the last transposed dimension
+     * on some ranks will be 0 */
+    if(iter->end > iter->start) 
+        pm_unravel_o_index(pm, iter->start / 2, iter->i);
+
     iter->ind = iter->start;
     iter->pm = pm;
+
     int d;
     for(d = 0; d < 3; d ++) {
         iter->iabs[d] = iter->i[d] + pm->ORegion.start[d];
     }
+
+    pm_create_k_factors(pm, iter);
+
 }
 
 int pm_kiter_stop(PMKIter * iter) 
@@ -88,6 +109,47 @@ void pm_kiter_next(PMKIter * iter)
     int d;
     for(d = 0; d < 3; d ++) {
         iter->iabs[d] = iter->i[d] + iter->pm->ORegion.start[d];
+    }
+}
+
+void 
+pm_xiter_init(PM * pm, PMXIter * iter) 
+{
+    int nth = omp_get_num_threads();
+    int ith = omp_get_thread_num();
+
+    iter->start = ith * pm->IRegion.total / nth;
+    iter->end = (ith + 1) * pm->IRegion.total / nth;
+
+    /* do not unravel if we are not looping at all. 
+     * This fixes a FPE when
+     * the rank has ORegion.total == 0 
+     * -- with PFFT the last transposed dimension
+     * on some ranks will be 0 */
+    if(iter->end > iter->start) 
+        pm_unravel_i_index(pm, iter->start, iter->i);
+
+    iter->ind = iter->start;
+    iter->pm = pm;
+    int d;
+    for(d = 0; d < 3; d ++) {
+        iter->iabs[d] = iter->i[d] + pm->IRegion.start[d];
+    }
+}
+
+int pm_xiter_stop(PMXIter * iter) 
+{
+    int stop = !(iter->ind < iter->end);
+
+    return stop;
+}
+
+void pm_xiter_next(PMXIter * iter) 
+{
+    iter->ind += pm_inc_i_index(iter->pm, iter->i);
+    int d;
+    for(d = 0; d < 3; d ++) {
+        iter->iabs[d] = iter->i[d] + iter->pm->IRegion.start[d];
     }
 }
 
@@ -158,41 +220,3 @@ pm_destroy_k_factors(PMKIter * iter)
         free(iter->kk[d]);
     }
 }
-
-static void
-pm_prepare_omp_loop(PM * pm, ptrdiff_t * start, ptrdiff_t * end, ptrdiff_t i[3]) 
-{ 
-    /* static schedule the openmp loops. start, end is in units of 'real' numbers.
-     *
-     * i is in units of complex numbers.
-     *
-     * We call pm_unravel_o_index to set the initial i[] for each threads,
-     * then rely on pm_inc_o_index to increment i, because the former is 
-     * much slower than pm_inc_o_index and would eliminate threading advantage.
-     *
-     * */
-    int nth = omp_get_num_threads();
-    int ith = omp_get_thread_num();
-
-    *start = ith * pm->ORegion.total / nth * 2;
-    *end = (ith + 1) * pm->ORegion.total / nth * 2;
-
-    /* do not unravel if we are not looping at all. 
-     * This fixes a FPE when
-     * the rank has ORegion.total == 0 
-     * -- with PFFT the last transposed dimension
-     * on some ranks will be 0 */
-    if(*end > *start) 
-        pm_unravel_o_index(pm, *start / 2, i);
-
-#if 0
-        msg_aprintf(info, "ith %d nth %d start %td end %td pm->ORegion.strides = %td %td %td\n", ith, nth,
-            *start, *end,
-            pm->ORegion.strides[0],
-            pm->ORegion.strides[1],
-            pm->ORegion.strides[2]
-            );
-#endif
-
-}
-

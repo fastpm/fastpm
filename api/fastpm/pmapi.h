@@ -79,6 +79,10 @@ void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 ptrdiff_t pm_ravel_o_index(PM * pm, ptrdiff_t i[3]);
 ptrdiff_t pm_ravel_i_index(PM * pm, ptrdiff_t i[3]);
 
+int pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
+int pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
+
+
 typedef struct {
     ptrdiff_t start;
     ptrdiff_t end;
@@ -100,6 +104,23 @@ pm_kiter_init(PM * pm, PMKIter * iter);
 int pm_kiter_stop(PMKIter * iter);
 
 void pm_kiter_next(PMKIter * iter);
+
+typedef struct {
+    ptrdiff_t start;
+    ptrdiff_t end;
+    ptrdiff_t ind;
+    ptrdiff_t i[3];
+    ptrdiff_t iabs[3];
+
+    PM * pm;
+} PMXIter;
+
+void 
+pm_xiter_init(PM * pm, PMXIter * iter);
+
+int pm_xiter_stop(PMXIter * iter);
+
+void pm_xiter_next(PMXIter * iter);
 
 /* 
  * r2c is out-of-place and c2r is in-place.

@@ -26,7 +26,8 @@ LIBSOURCES = libfastpm.c \
     pmpaint.c \
     pmstore.c \
     pm2lpt.c \
-    pmapi.c 
+    pmapi.c \
+	hmc.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
 PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a
