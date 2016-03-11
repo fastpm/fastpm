@@ -100,7 +100,7 @@ fastpm_hmc_za_chisq(
         chi2 += diff;
         //printf("%td\n", iter.ind);
     }
-
+    MPI_Allreduce(MPI_IN_PLACE, &chi2, 1, MPI_DOUBLE, MPI_SUM, self->solver.comm);
     return chi2; 
 }
 

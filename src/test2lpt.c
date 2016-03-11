@@ -20,7 +20,7 @@ int main(int argc, char * argv[]) {
 
 
     FastPMHMCZA * self = alloca(sizeof(FastPMHMCZA));
-    fastpm_hmc_za_init(self, 128, 512, 0.304, 12.0, comm);
+    fastpm_hmc_za_init(self, 64, 512, 0.304, 12.0, comm);
 
     FastPMFloat * sigma = pm_alloc(self->pm);
     FastPMFloat * Fk = pm_alloc(self->pm);
@@ -38,7 +38,7 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {1, 3, 1});
+    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {1, 3, 4}) + 1;
 
 
     fastpm_utils_fill_deltak(self->pm, rho_init_ktruth, 101, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
@@ -74,6 +74,7 @@ int main(int argc, char * argv[]) {
     double analytic = Fk[mode];
     double numerical = (chisq2 - chisq1) / (0.1 * delta);
     fastpm_info("analytic = %g, numerical = %g, rat = %g\n", analytic, numerical, numerical / analytic);
+    fastpm_info("analytic[0] = %g\n", Fk[0]);
 
     pm_free(self->pm, rho_final_x);
     pm_free(self->pm, rho_init_k);

@@ -77,6 +77,14 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
             flags &= ~f; \
         } \
     }
+    #define DISPATCHC(f, field, c) \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
+            memcpy(&p->field[index][c], &ptr[s], sizeof(p->field[0][0])); \
+            s += sizeof(p->field[0][0]); \
+            flags &= ~f; \
+        } \
+    }
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
@@ -84,7 +92,11 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
     DISPATCH(PACK_ACC, acc)
+    DISPATCHC(PACK_ACC_X, acc, 0)
+    DISPATCHC(PACK_ACC_Y, acc, 1)
+    DISPATCHC(PACK_ACC_Z, acc, 2)
     #undef DISPATCH
+    #undef DISPATCHC
     if(flags != 0) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }

@@ -1,5 +1,8 @@
 #ifndef _FASTPM_HMC_H_
 #define _FASTPM_HMC_H_
+
+FASTPM_BEGIN_DECLS
+
 typedef struct {
     FastPM2LPTSolver solver;
     double OmegaM;
@@ -43,4 +46,5 @@ fastpm_hmc_za_force(
     FastPMFloat * Fk    /* (out) hmc force in fourier space */
     );
 
+FASTPM_END_DECLS
 #endif
