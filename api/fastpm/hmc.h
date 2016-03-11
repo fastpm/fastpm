@@ -7,6 +7,7 @@ typedef struct {
     FastPM2LPTSolver solver;
     double OmegaM;
     double sml;
+    double kth;
     int decic;
     PM * pm;
 } FastPMHMCZA;
@@ -16,7 +17,6 @@ fastpm_hmc_za_init(FastPMHMCZA * self,
     int nc,
     double boxsize,
     double OmegaM, 
-    double sml,
     MPI_Comm comm);
 
 void 

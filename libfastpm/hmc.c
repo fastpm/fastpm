@@ -30,12 +30,12 @@ fastpm_hmc_za_init(FastPMHMCZA * self,
     int nc,
     double boxsize,
     double OmegaM, 
-    double sml,
     MPI_Comm comm) 
 {
     double alloc_factor = 2.0;
     self->OmegaM = OmegaM;
-    self->sml = sml;
+    self->sml = 0;
+    self->kth = 0;
     self->solver.USE_DX1_ONLY = 1;
     fastpm_2lpt_init(&self->solver, nc, boxsize, alloc_factor, comm);
     self->decic = 0;
@@ -60,15 +60,13 @@ fastpm_hmc_za_evolve(
     fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
     fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final, NULL, 0);
 
-    FastPMFloat * tmp = pm_alloc(solver->pm);
-
-    //pm_r2c(solver->pm, delta_final, tmp);
-    fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->sml);
-
-    pm_free(solver->pm, tmp);
-
+    if(self->sml > 0)
+        fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->sml);
+    if(self->kth > 0)
+        fastpm_apply_lowpass_transfer(solver->pm, delta_final, delta_final, self->kth);
     if(self->decic)
         fastpm_apply_decic_transfer(solver->pm, delta_final, delta_final);
+
     pm_c2r(solver->pm, delta_final);
     ptrdiff_t ind;
     /* inv volume of a cell, to convert to density */
@@ -128,7 +126,10 @@ fastpm_hmc_za_force(
 
     pm_r2c(solver->pm, workspace, Fk);
 
-    fastpm_apply_smoothing_transfer(solver->pm, Fk, Fk, self->sml);
+    if(self->sml > 0)
+        fastpm_apply_smoothing_transfer(solver->pm, Fk, Fk, self->sml);
+    if(self->kth > 0)
+        fastpm_apply_lowpass_transfer(solver->pm, Fk, Fk, self->kth);
 
     if(self->decic)
         fastpm_apply_decic_transfer(solver->pm, Fk, Fk);

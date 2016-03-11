@@ -2,6 +2,9 @@ void
 fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double sml);
 
 void 
+fastpm_apply_lowpass_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double kth);
+
+void 
 fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 
 void 

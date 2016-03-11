@@ -20,7 +20,11 @@ int main(int argc, char * argv[]) {
 
 
     FastPMHMCZA * self = alloca(sizeof(FastPMHMCZA));
-    fastpm_hmc_za_init(self, 64, 512, 0.304, 12.0, comm);
+    fastpm_hmc_za_init(self, 64, 512, 0.304, comm);
+
+    self->sml = 12.;
+    self->kth = 0;
+    self->decic = 0;
 
     FastPMFloat * sigma = pm_alloc(self->pm);
     FastPMFloat * Fk = pm_alloc(self->pm);

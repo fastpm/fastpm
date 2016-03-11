@@ -39,6 +39,31 @@ fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, d
         }
     }
 }
+void 
+fastpm_apply_lowpass_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double kth) 
+{
+    double kth2 = kth * kth;
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int dir;
+            double smth = 1.0;
+            double kk = 0;
+            for(dir = 0; dir < 3; dir++) {
+                kk += kiter.kk[dir][kiter.iabs[dir]];
+            }
+            if(kk < kth2) smth = 1;
+            else smth = 0;
+            /* - i k[d] */
+            to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
+            to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
+        }
+    }
+}
 static double sinc_unnormed(double x) {
     if(x < 1e-5 && x > -1e-5) {
         double x2 = x * x;
