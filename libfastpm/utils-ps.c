@@ -30,7 +30,7 @@ fastpm_utils_calculate_powerspectrum(PM * pm, FastPMFloat * delta_k, FastPMPower
             int d;
             double kk = 0.;
             for(d = 0; d < 3; d++) {
-                kk += kiter.fac[d][kiter.iabs[d]].kk;
+                kk += kiter.kk[d][kiter.iabs[d]];
             }
 
             ptrdiff_t ind = kiter.ind;

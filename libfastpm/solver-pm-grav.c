@@ -22,10 +22,10 @@ apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
-            double k_finite = kiter.fac[dir][kiter.iabs[dir]].k_finite;
+            double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
             double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                kk_finite += kiter.fac[d][kiter.iabs[d]].kk_finite;
+                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
             }
             ptrdiff_t ind = kiter.ind;
             /* - i k[d] / k2 */
@@ -109,11 +109,11 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax)
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             /* Always use a fixed kmax */
-            double kkmax = kiter.fac[0][Nmax].kk;
+            double kkmax = kiter.kk[0][Nmax];
             int d;
             double kk = 0.;
             for(d = 0; d < 3; d++) {
-                double kk1 = kiter.fac[d][kiter.iabs[d]].kk;
+                double kk1 = kiter.kk[d][kiter.iabs[d]];
                 if(kk1 > kkmax) {
                     goto next;
                 }

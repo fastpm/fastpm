@@ -437,59 +437,6 @@ fastpm_decompose(FastPM * fastpm) {
 
 }
 
-#if 0
-static void 
-smooth_density(PM * pm, double r_s) 
-{
-    /* 
-     *  This function smooth density by scale r_s. There could be a factor of sqrt(2)
-     *  It is not used. */
-
-    PMKFactors * fac[3];
-
-    pm_create_k_factors(pm, fac);
-    {
-        /* fill in the extra 'smoothing kernels' we will take the product */
-        ptrdiff_t ind;
-        int d;
-        for(d = 0; d < 3; d++)
-        for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
-            fac[d][ind].extra = exp(-0.5 * fac[d][ind].kk * r_s * r_s);
-        }
-    }
-
-#pragma omp parallel 
-    {
-        ptrdiff_t ind;
-        ptrdiff_t start, end;
-        ptrdiff_t i[3];
-
-        pm_prepare_omp_loop(pm, &start, &end, i);
-
-        for(ind = start; ind < end; ind += 2) {
-            int d;
-            double smth = 1.;
-            double kk = 0.;
-            for(d = 0; d < 3; d++) {
-                smth *= fac[d][i[d] + pm->ORegion.start[d]].extra;
-                kk += fac[d][i[d] + pm->ORegion.start[d]].kk;
-            }
-            /* - i k[d] / k2 */
-            if(LIKELY(kk> 0)) {
-                pm->workspace[ind + 0] = pm->canvas[ind + 0] * smth;
-                pm->workspace[ind + 1] = pm->canvas[ind + 1] * smth;
-            } else {
-                pm->workspace[ind + 0] = 0;
-                pm->workspace[ind + 1] = 0;
-            }
-            pm_inc_o_index(pm, i);
-        }
-    }
-
-    pm_destroy_k_factors(pm, fac);
-}
-#endif
-
 void 
 fastpm_interp(FastPM * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata) 

@@ -79,17 +79,8 @@ void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 ptrdiff_t pm_ravel_o_index(PM * pm, ptrdiff_t i[3]);
 ptrdiff_t pm_ravel_i_index(PM * pm, ptrdiff_t i[3]);
 
-typedef struct {
-    float k_finite; /* k, finite */
-    float k; /* k */
-    float kk_finite; /* k ** 2, on a mesh */
-    float kk;  /* k ** 2 */
-    float cic;  /* 1 - 2 / 3 sin^2 ( 0.5 k L / N)*/
-    float extra;  /* any temporary variable that can be useful. */
-} PMKFactors;
-
-void pm_create_k_factors(PM * pm, PMKFactors * fac[3]);
-void pm_destroy_k_factors(PM * pm, PMKFactors * fac[3]);
+int pm_inc_o_index(PM * pm, ptrdiff_t i[3]);
+int pm_inc_i_index(PM * pm, ptrdiff_t i[3]);
 
 
 typedef struct {
@@ -98,10 +89,14 @@ typedef struct {
     ptrdiff_t ind;
     ptrdiff_t i[3];
     ptrdiff_t iabs[3];
-    PMKFactors * fac[3];
+
+    float *k_finite[3]; /* k, finite */
+    float *k[3]; /* k */
+    float *kk_finite[3]; /* k ** 2, on a mesh */
+    float *kk[3];  /* k ** 2 */
+
     PM * pm;
 } PMKIter;
-
 
 void 
 pm_kiter_init(PM * pm, PMKIter * iter);
@@ -109,6 +104,23 @@ pm_kiter_init(PM * pm, PMKIter * iter);
 int pm_kiter_stop(PMKIter * iter);
 
 void pm_kiter_next(PMKIter * iter);
+
+typedef struct {
+    ptrdiff_t start;
+    ptrdiff_t end;
+    ptrdiff_t ind;
+    ptrdiff_t i[3];
+    ptrdiff_t iabs[3];
+
+    PM * pm;
+} PMXIter;
+
+void 
+pm_xiter_init(PM * pm, PMXIter * iter);
+
+int pm_xiter_stop(PMXIter * iter);
+
+void pm_xiter_next(PMXIter * iter);
 
 /* 
  * r2c is out-of-place and c2r is in-place.

@@ -106,7 +106,7 @@ fastpm_utils_readout(PM * pm, PMStore * p,
     double * buf = p->iface.malloc(sizeof(p->x[0]) * p->np);
     _hijack_pos(p, buf, getpos);
 
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, NULL);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */

@@ -440,7 +440,8 @@ ptrdiff_t pm_ravel_i_index(PM * pm, ptrdiff_t i[3]) {
                 } \
             }
 
-void pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
+/* returns number of items moved in linear index */
+int pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
     if(pm->init.transposed) {
         if(pm->init.use_fftw) {
             /* y, x, z */
@@ -453,12 +454,16 @@ void pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
         /* x, y, z*/
         inc(i, 0, 1, 2, pm->ORegion.size);
     }
+    return 1;
 }
 
-void pm_inc_i_index(PM * pm, ptrdiff_t i[3]) {
+/* returns number of items moved in linear index */
+int pm_inc_i_index(PM * pm, ptrdiff_t i[3]) {
     /* can't use the macro because of the padding */
+    int rt = 1;
     i[2] ++;
     if(UNLIKELY(i[2] == pm->IRegion.strides[1])) { /* the padding !*/
+        rt += 2;
         i[2] = 0;
         i[1] ++;
         if(UNLIKELY(i[1] == pm->IRegion.size[1])) {
@@ -466,6 +471,7 @@ void pm_inc_i_index(PM * pm, ptrdiff_t i[3]) {
             i[0] ++;
         }
     }
+    return rt;
 }
 
 int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
