@@ -103,7 +103,7 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPM * fastpm, Parameters * prr);
+check_snapshots(FastPM * fastpm, void * unused, Parameters * prr);
 
 static int 
 measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
@@ -135,12 +135,12 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
         prr);
 
     fastpm_add_extension(fastpm,
-        FASTPM_EXT_AFTER_KICK,
+        FASTPM_EXT_BEFORE_KICK,
         check_snapshots,
         prr);
 
     fastpm_add_extension(fastpm,
-        FASTPM_EXT_AFTER_DRIFT,
+        FASTPM_EXT_BEFORE_DRIFT,
         check_snapshots,
         prr);
 
@@ -247,7 +247,7 @@ finish:
     pm_free(fastpm->pm_2lpt, delta_k);
 }
 
-static int check_snapshots(FastPM * fastpm, Parameters * prr) {
+static int check_snapshots(FastPM * fastpm, void * unused, Parameters * prr) {
     fastpm_interp(fastpm, prr->aout, prr->n_aout, (fastpm_interp_action)take_a_snapshot, prr);
     return 0;
 }

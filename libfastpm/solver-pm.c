@@ -139,8 +139,8 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
     CLOCK(kick);
     CLOCK(drift);
     CLOCK(afterforce);
-    CLOCK(afterkick);
-    CLOCK(afterdrift);
+    CLOCK(beforekick);
+    CLOCK(beforedrift);
     CLOCK(correction);
 
     FastPMExtension * ext;
@@ -227,14 +227,19 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         }
         LEAVE(correction);
 
-        ENTER(afterdrift);
+        ENTER(beforekick);
+        FastPMKick kick;
+        fastpm_kick_init(&kick, fastpm, fastpm->p, a_v1);
+        FastPMDrift drift;
+        fastpm_drift_init(&drift, fastpm, fastpm->p, a_v1);
+
         /* take snapshots if needed, before the kick */
-        for(ext = fastpm->exts[FASTPM_EXT_AFTER_DRIFT];
+        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
             ext; ext = ext->next) {
-                ((fastpm_ext_after_drift) ext->function) 
-                    (fastpm, ext->userdata);
+                ((fastpm_ext_before_kick) ext->function) 
+                    (fastpm, &kick, ext->userdata);
         }
-        LEAVE(afterdrift);
+        LEAVE(beforekick);
 
         /* never go beyond 1.0 */
         if(a_x >= 1.0) break; 
@@ -245,15 +250,15 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         fastpm_kick_store(fastpm, fastpm->p, fastpm->p, a_v1);
         LEAVE(kick);
 
-        ENTER(afterkick);
+        ENTER(beforedrift);
         /* take snapshots if needed, before the drift */
-        for(ext = fastpm->exts[FASTPM_EXT_AFTER_KICK];
+        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_DRIFT];
             ext; ext = ext->next) {
-                ((fastpm_ext_after_kick) ext->function) 
-                    (fastpm, ext->userdata);
+                ((fastpm_ext_before_drift) ext->function)
+                    (fastpm, &drift, ext->userdata);
         }
-        LEAVE(afterkick);
-        
+        LEAVE(beforedrift);
+
         // Leap-frog "drift" -- positions updated
 
         ENTER(drift);

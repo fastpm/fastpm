@@ -7,6 +7,7 @@ typedef struct VPMInit {
 } VPMInit;
 
 typedef struct FastPMDrift FastPMDrift;
+typedef struct FastPMKick FastPMKick;
 typedef struct FastPMExtension FastPMExtension;
 
 typedef struct {
@@ -42,8 +43,7 @@ typedef struct {
 
 enum FastPMExtensionPoint {
     FASTPM_EXT_AFTER_FORCE,
-    FASTPM_EXT_AFTER_KICK,
-    FASTPM_EXT_AFTER_DRIFT,
+    FASTPM_EXT_BEFORE_KICK,
     FASTPM_EXT_BEFORE_DRIFT,
     FASTPM_EXT_MAX,
 };
@@ -52,11 +52,8 @@ typedef int
     (* fastpm_ext_after_force) 
     (FastPM * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
 typedef int 
-    (* fastpm_ext_after_kick) 
-    (FastPM * fastpm, void * userdata);
-typedef int 
-    (* fastpm_ext_after_drift) 
-    (FastPM * fastpm, void * userdata);
+    (* fastpm_ext_before_kick) 
+    (FastPM * fastpm, FastPMKick * kick, void * userdata);
 typedef int
     (* fastpm_ext_before_drift) 
     (FastPM * fastpm, FastPMDrift * drift, void * userdata);
