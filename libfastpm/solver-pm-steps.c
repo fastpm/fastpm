@@ -57,15 +57,9 @@ void
 fastpm_kick_store(FastPM * fastpm, 
               PMStore * pi, PMStore * po, double af)
 {
-    double ai = pi->a_v;
-    double ac = pi->a_x;
-    double Om143 = pow(OmegaA(ac, CP(fastpm)), 1.0/143.0);
-    double dda = Sphi(ai, af, ac, fastpm);
-    double growth1 = GrowthFactor(ac, CP(fastpm));
-    double OmegaM = fastpm->omega_m;
+    FastPMKick * kick = alloca(sizeof(FastPMKick));
 
-    double q2 = 1.5*OmegaM*growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    double q1 = 1.5*OmegaM*growth1;
+    fastpm_kick_init(kick, fastpm, pi, af);
 
     int np = pi->np;
 
@@ -76,12 +70,10 @@ fastpm_kick_store(FastPM * fastpm,
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
+        float vo[3];
+        fastpm_kick_one(kick, i, vo);
         for(d = 0; d < 3; d++) {
-            float ax= -1.5 * OmegaM * pi->acc[i][d];
-            if(fastpm->USE_COLA) {
-                ax -= (pi->dx1[i][d]*q1 + pi->dx2[i][d]*q2);
-            }
-            po->v[i][d] = pi->v[i][d] + ax * dda;
+            po->v[i][d] = vo[d];
         }
     }
 
@@ -89,7 +81,24 @@ fastpm_kick_store(FastPM * fastpm,
     po->a_v = af;
 }
 
-void 
+void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double af)
+{
+    double ai = pi->a_v;
+    double ac = pi->a_x;
+    double OmegaM = fastpm->omega_m;
+
+    double Om143 = pow(OmegaA(ac, CP(fastpm)), 1.0/143.0);
+    double growth1 = GrowthFactor(ac, CP(fastpm));
+
+    kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
+    kick->q1 = growth1;
+    kick->dda = -1.5 * OmegaM * Sphi(ai, af, ac, fastpm);
+    kick->fastpm = fastpm;
+    kick->p = pi;
+    kick->af = af;
+}
+
+void
 fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
                double af)
 {

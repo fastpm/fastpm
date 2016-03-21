@@ -6,6 +6,7 @@ typedef struct VPMInit {
     int pm_nc_factor;
 } VPMInit;
 
+typedef struct FastPMDrift FastPMDrift;
 typedef struct FastPMExtension FastPMExtension;
 
 typedef struct {
@@ -23,7 +24,7 @@ typedef struct {
     int K_LINEAR;
 
     /* Extensions */
-    FastPMExtension * exts[3];
+    FastPMExtension * exts[12];
 
     /* internal variables */
     MPI_Comm comm;
@@ -40,10 +41,11 @@ typedef struct {
 } FastPM;
 
 enum FastPMExtensionPoint {
-    FASTPM_EXT_AFTER_FORCE = 0,
-    FASTPM_EXT_AFTER_KICK = 1,
-    FASTPM_EXT_AFTER_DRIFT = 2,
-    FASTPM_EXT_MAX = 3,
+    FASTPM_EXT_AFTER_FORCE,
+    FASTPM_EXT_AFTER_KICK,
+    FASTPM_EXT_AFTER_DRIFT,
+    FASTPM_EXT_BEFORE_DRIFT,
+    FASTPM_EXT_MAX,
 };
 
 typedef int 
@@ -55,6 +57,9 @@ typedef int
 typedef int 
     (* fastpm_ext_after_drift) 
     (FastPM * fastpm, void * userdata);
+typedef int
+    (* fastpm_ext_before_drift) 
+    (FastPM * fastpm, FastPMDrift * drift, void * userdata);
 
 typedef struct FastPMExtension {
     void * function; /* The function signature must match the types above */
@@ -70,6 +75,15 @@ typedef struct FastPMDrift {
     double da2;
     double af;
 } FastPMDrift;
+
+typedef struct FastPMKick {
+    FastPM * fastpm;
+    PMStore * p;
+    float q1;
+    float q2;
+    float dda;
+    double af;
+} FastPMKick;
 
 void fastpm_init(FastPM * fastpm, 
     int NprocY,  /* Use 0 for auto */
@@ -100,6 +114,7 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
             fastpm_interp_action action, void * userdata);
 
 void fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi, double af);
+void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double af);
 
 inline void
 fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
@@ -113,6 +128,16 @@ fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
     }
 
 }
-
-
+inline void
+fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
+{
+    int d;
+    for(d = 0; d < 3; d++) {
+        float ax = kick->p->acc[i][d];
+        if(kick->fastpm->USE_COLA) {
+            ax += (kick->p->dx1[i][d]*kick->q1 + kick->p->dx2[i][d]*kick->q2);
+        }
+        vo[d] = kick->p->v[i][d] + ax * kick->dda;
+    }
+}
 FASTPM_END_DECLS
