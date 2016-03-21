@@ -37,12 +37,12 @@ void libfastpm_cleanup();
 
 FASTPM_END_DECLS
 
+#include "pmapi.h"
+
 #include "solver-2lpt.h"
 #include "solver-pm.h"
 #include "utils.h"
 #include "utils-ps.h"
 #include "utils-ic.h"
-
-#include "pmapi.h"
 
 #endif

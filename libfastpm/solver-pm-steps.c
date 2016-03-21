@@ -54,8 +54,8 @@ fastpm_growth_factor(FastPM * fastpm, double a)
 // Leap frog time integration
 
 void 
-fastpm_kick(FastPM * fastpm, 
-              PMStore * pi, PMStore * po, double af, int verbose)
+fastpm_kick_store(FastPM * fastpm, 
+              PMStore * pi, PMStore * po, double af)
 {
     double ai = pi->a_v;
     double ac = pi->a_x;
@@ -64,10 +64,6 @@ fastpm_kick(FastPM * fastpm,
     double growth1 = GrowthFactor(ac, CP(fastpm));
     double OmegaM = fastpm->omega_m;
 
-    if(verbose) {
-        fastpm_info("Kick %6.4f -> %6.4f\n", ai, af);
-        fastpm_info("growth factor %g dda=%g\n", growth1, dda);
-    }
     double q2 = 1.5*OmegaM*growth1*growth1*(1.0 + 7.0/3.0*Om143);
     double q1 = 1.5*OmegaM*growth1;
 
@@ -94,35 +90,43 @@ fastpm_kick(FastPM * fastpm,
 }
 
 void 
-fastpm_drift(FastPM * fastpm,
-               PMStore * pi, PMStore * po,
-               double af, int verbose)
+fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
+               double af)
 {
     double ai = pi->a_x;
     double ac = pi->a_v;
 
+    drift->dyyy = Sq(ai, af, ac, fastpm);
+
+    drift->da1 = GrowthFactor(af, CP(fastpm)) - GrowthFactor(ai, CP(fastpm));    // change in D_1lpt
+    drift->da2 = GrowthFactor2(af, CP(fastpm)) - GrowthFactor2(ai, CP(fastpm));  // change in D_2lpt
+
+    drift->fastpm = fastpm;
+    drift->p = pi;
+    drift->af = af;
+}
+
+void
+fastpm_drift_store(FastPM * fastpm,
+               PMStore * pi, PMStore * po,
+               double af)
+{
+
+    FastPMDrift * drift = alloca(sizeof(FastPMDrift));
+
+    fastpm_drift_init(drift, fastpm, pi, af);
+
     int np = pi->np;
-
-    double dyyy = Sq(ai, af, ac, fastpm);
-
-    double da1 = GrowthFactor(af, CP(fastpm)) - GrowthFactor(ai, CP(fastpm));    // change in D_1lpt
-    double da2 = GrowthFactor2(af, CP(fastpm)) - GrowthFactor2(ai, CP(fastpm));  // change in D_2lpt
-
-    if(verbose) {
-        fastpm_info("Drift %6.4f -> %6.4f\n", ai, af);
-        fastpm_info("dyyy = %g \n", dyyy);
-    }
 
     int i;
     // Drift
 #pragma omp parallel for
     for(i=0; i<np; i++) {
+        double xo[3];
+        fastpm_drift_one(drift, i, xo);
         int d;
         for(d = 0; d < 3; d ++) {
-            po->x[i][d] = pi->x[i][d] + pi->v[i][d]*dyyy;
-            if(fastpm->USE_COLA) {
-                po->x[i][d] += pi->dx1[i][d]*da1 + pi->dx2[i][d]*da2;
-            }
+            po->x[i][d] = xo[d];
         }
     }
     po->a_x = af;
@@ -255,9 +259,9 @@ fastpm_set_snapshot(FastPM * fastpm,
     fastpm_info("velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
     fastpm_info("RSD factor %e\n", aout/Qfactor(aout, CP(fastpm))/vfac);
 
-    fastpm_kick(fastpm, p, po, aout, 0);
+    fastpm_kick_store(fastpm, p, po, aout);
 
-    fastpm_drift(fastpm, p, po, aout, 0);
+    fastpm_drift_store(fastpm, p, po, aout);
 
     int i;
 #pragma omp parallel for 

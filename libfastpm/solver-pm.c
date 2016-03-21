@@ -31,14 +31,14 @@ static void
 fastpm_decompose(FastPM * fastpm);
 
 void 
-fastpm_kick(FastPM * fastpm, 
+fastpm_kick_store(FastPM * fastpm, 
               PMStore * pi, PMStore * po,
-              double af, int verbose);
+              double af);
 
 void 
-fastpm_drift(FastPM * fastpm,
+fastpm_drift_store(FastPM * fastpm,
                PMStore * pi, PMStore * po,
-               double af, int verbose);
+               double af);
 
 void 
 fastpm_set_snapshot(FastPM * fastpm,
@@ -242,7 +242,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         // Leap-frog "kick" -- velocities updated
 
         ENTER(kick);
-        fastpm_kick(fastpm, fastpm->p, fastpm->p, a_v1, 1);
+        fastpm_kick_store(fastpm, fastpm->p, fastpm->p, a_v1);
         LEAVE(kick);
 
         ENTER(afterkick);
@@ -257,7 +257,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         // Leap-frog "drift" -- positions updated
 
         ENTER(drift);
-        fastpm_drift(fastpm, fastpm->p, fastpm->p, a_x1, 1);
+        fastpm_drift_store(fastpm, fastpm->p, fastpm->p, a_x1);
         LEAVE(drift);
 
 
@@ -290,12 +290,12 @@ find_correction_eval(double correction, void * params)
 
     scale_acc(po, correction, 1.0);
 
-    fastpm_kick(fastpm, po, po, p->a_v1, 0);
-    fastpm_drift(fastpm, po, po, p->a_x1, 0);
+    fastpm_kick_store(fastpm, po, po, p->a_v1);
+    fastpm_drift_store(fastpm, po, po, p->a_x1);
 
     double Plin = measure_linear_power(fastpm, po, p->a_x1);
-    fastpm_drift(fastpm, po, po, p->a_x, 0);
-    fastpm_kick(fastpm, po, po, p->a_v, 0);
+    fastpm_drift_store(fastpm, po, po, p->a_x);
+    fastpm_kick_store(fastpm, po, po, p->a_v);
     scale_acc(po, 1.0 / correction, 1.0);
 
     double res = Plin / p->Plin0;

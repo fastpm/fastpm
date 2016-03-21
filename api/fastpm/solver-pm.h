@@ -62,6 +62,14 @@ typedef struct FastPMExtension {
     struct FastPMExtension * next;
 } FastPMExtension;
 
+typedef struct FastPMDrift {
+    FastPM * fastpm;
+    PMStore * p;
+    double dyyy;
+    double da1;
+    double da2;
+    double af;
+} FastPMDrift;
 
 void fastpm_init(FastPM * fastpm, 
     int NprocY,  /* Use 0 for auto */
@@ -90,5 +98,21 @@ typedef int
 void 
 fastpm_interp(FastPM * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata);
+
+void fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi, double af);
+
+inline void
+fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
+{
+    int d;
+    for(d = 0; d < 3; d ++) {
+        xo[d] = drift->p->x[i][d] + drift->p->v[i][d]*drift->dyyy;
+        if(drift->fastpm->USE_COLA) {
+            xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
+        }
+    }
+
+}
+
 
 FASTPM_END_DECLS
