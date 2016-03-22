@@ -113,7 +113,7 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 void fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi, double af);
 void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double af);
 
-inline void
+static inline void
 fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
 {
     int d;
@@ -125,7 +125,7 @@ fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
     }
 
 }
-inline void
+static inline void
 fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
 {
     int d;
