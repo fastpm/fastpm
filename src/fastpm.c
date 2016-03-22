@@ -241,7 +241,12 @@ finish:
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
         pm_free(fastpm->pm_2lpt, g_x);
     }
-
+    if(prr->inverted_ic) {
+        ptrdiff_t i;
+        for(i = 0; i < pm_size(fastpm->pm_2lpt); i ++) {
+            delta_k[i] *= -1;
+        }
+    }
     fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
 
     pm_free(fastpm->pm_2lpt, delta_k);

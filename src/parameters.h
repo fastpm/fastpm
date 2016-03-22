@@ -11,6 +11,7 @@ typedef struct {
     double np_alloc_factor;
 
     int random_seed;
+    int inverted_ic;
 
     double boxsize;
 
