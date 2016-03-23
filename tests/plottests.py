@@ -34,4 +34,4 @@ ax.set_ylabel('P/P_lin')
 ax.set_title('pm: ' + TRAVIS_BUILD_NUMBER + '\n' + TRAVIS_COMMIT)
 
 canvas = FigureCanvasAgg(fig)
-fig.savefig('tests-result-1.png', dpi=72)
+fig.savefig('tests-result.png', dpi=72)
