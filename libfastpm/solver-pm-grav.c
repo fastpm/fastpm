@@ -125,10 +125,12 @@ pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax)
             double imag = delta_k[ind + 1];
             double value = real * real + imag * imag;
             if(kk > 0.0001 * kkmax && kk < kkmax) {
+                int w = 2;
+                if(kiter.iabs[2] == 0) w = 1;
                 #pragma omp atomic
-                sum += value;
+                sum += w * value;
                 #pragma omp atomic
-                N += 1;
+                N += w;
             }
             if(kk == 0) {
                 Norm = value;
