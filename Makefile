@@ -6,13 +6,13 @@ include Makefile.rules
 .PHONY: all clean
 
 all:
-	@(cd lua; CC="$(CC)" make generic)
-	@(cd depends; make "CC=$(CC)" -f Makefile.pfft)
-	@(cd bigfile; make "CC=$(CC)" "MPICC=$(CC)")
-	@(cd libfastpm; make)
-	@(cd src; make)
+	@(cd lua; CC="$(CC)" $(MAKE) generic)
+	@(cd depends; $(MAKE) "CC=$(CC)" -f Makefile.pfft)
+	@(cd bigfile; $(MAKE) "CC=$(CC)" "MPICC=$(CC)")
+	@(cd libfastpm; $(MAKE))
+	@(cd src; $(MAKE))
 
 clean:
-	@(cd libfastpm; make clean)
-	@(cd src; make clean)
+	@(cd libfastpm; $(MAKE) clean)
+	@(cd src; $(MAKE) clean)
 
