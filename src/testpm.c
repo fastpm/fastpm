@@ -28,7 +28,7 @@ int main(int argc, char * argv[]) {
         },
         .USE_COLA = 0,
         .USE_NONSTDDA = 0,
-        .USE_LINEAR_THEORY = 0,
+        .USE_MODEL = 0,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };
@@ -50,7 +50,7 @@ int main(int argc, char * argv[]) {
 
     
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
-    fastpm_setup_ic(solver, rho_init_ktruth, time_step[0]);
+    fastpm_setup_ic(solver, rho_init_ktruth);
 
     fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 

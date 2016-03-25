@@ -45,5 +45,6 @@ int main(int argc, char * argv[]) {
     loads_param(confstr, &param);
 
     free(confstr);
+    return 0;
 }
 
