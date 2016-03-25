@@ -42,16 +42,17 @@ static double growth(double a, Cosmology c)
     return hubble_a * result;
 }
 
+/*
 static double decayD(double a, Cosmology c){ // D_{-}, the decaying mode
     return sqrt(c.OmegaM/(a*a*a)+1.0-c.OmegaM);
 }
-
+*/
 static double growthD(double a, Cosmology c) { // growth factor for LCDM
     return growth(a, c) / growth(1.0, c);
 }
 
 static double growthD2temp(double a, Cosmology c){
-    double d= growthD(a, c);
+    double d = growthD(a, c);
     return d*d*pow(OmegaA(a, c), -1.0/143.);
 }
 
@@ -59,14 +60,20 @@ double OmegaA(double a, Cosmology c) {
     return c.OmegaM/(c.OmegaM + (c.OmegaLambda)*a*a*a);
 }
 double DprimeQ(double a, double nGrowth, Cosmology c)
-{ 
-    /* This could have been 2 * Omega^(5/9) * Q / a * D1 for LCDM */ 
+{
+    /* This could have been Omega^(5/9) * Q / a * D1 for LCDM */ 
     // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Qfactor(a)
+    double d = GrowthFactor(a, c);
+    double r1 = Qfactor(a, c)*(d/a) * pow(OmegaA(a, c), 5.0 / 9);
+/*
     double nDecay = 0.0;// not interested in decay modes in this code.
     double Nn = 1.0 / growth(1.0, c);
-    return (  pow(decayD(a, c), -1.0 + nDecay)
+    double r2 = (  pow(decayD(a, c), -1.0 + nDecay)
             * pow(growthD(a, c),-1.0 + nGrowth)
-            * (nGrowth*Nn - (3.0*(nDecay + nGrowth)*c.OmegaM *growthD(a, c))/(2.*a)));  
+            * (nGrowth*Nn - (3.0*(nDecay + nGrowth)*c.OmegaM *growthD(a, c))/(2.*a)));
+//    printf("r1 = %g r2 = %g\n", r1, r2);
+*/
+    return r1;
 }
 
 double 
@@ -86,7 +93,7 @@ double GrowthFactor2v(double a, Cosmology c){ // explanation is in main()
      * D20 is absorbed to GrowthFactor2. */
     double d2= GrowthFactor2(a, c);
     return Qfactor(a, c)*(d2/a)*2.0
-         * pow(OmegaA(a, c), 6.0/11.) * pow(c.OmegaM, -1.0/143.0);
+         * pow(OmegaA(a, c), 6.0/11.);
 }
 
 double Qfactor(double a, Cosmology c) {
