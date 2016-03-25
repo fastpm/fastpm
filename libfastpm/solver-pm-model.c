@@ -59,7 +59,7 @@ void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit)
     pm_store_wrap(psub, model->pm->BoxSize);
     model->Pexpect = measure_large_scale_power(model, psub);
     /* We no longer need to store the subsample once the initial linear power is calculated */
-    model->a_x = p->a_x;
+    model->a_x = ainit;
     model->psub = psub;
 }
 
@@ -197,7 +197,7 @@ fastpm_model_find_correction(FastPMModel * model,
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
         status = gsl_root_test_interval (x_lo, x_hi,
-                0, 1e-2);
+                0, 1e-4);
         fastpm_info("iter = %d x = %g\n", iter, x);
     }
     while (status == GSL_CONTINUE && iter < 10);
