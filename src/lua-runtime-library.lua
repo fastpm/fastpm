@@ -91,6 +91,7 @@ function parse_file(filename, runmain, ...)
         enforce_broadband_kmax = 'number',
         za = 'boolean',
         inverted_ic = 'boolean',
+        remove_cosmic_variance = 'boolean',
     }
     check_schema(namespace, required, true)
     check_schema(namespace, optional, false)

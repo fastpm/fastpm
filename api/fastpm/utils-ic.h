@@ -14,4 +14,7 @@ fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k,
 void 
 fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
 
+void 
+fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
+
 FASTPM_END_DECLS

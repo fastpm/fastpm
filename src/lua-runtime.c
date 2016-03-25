@@ -200,6 +200,7 @@ loads_param(char * confstr, Parameters * param)
         param->sigma8 = read_number_opt(L, "sigma8", 0);
         param->random_seed = read_integer(L, "random_seed");
         param->inverted_ic = read_boolean_opt(L, "inverted_ic", 0);
+        param->remove_cosmic_variance = read_boolean_opt(L, "remove_cosmic_variance", 0);
     }
 
     param->write_powerspectrum = read_string_opt(L, "write_powerspectrum", NULL);

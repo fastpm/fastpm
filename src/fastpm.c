@@ -224,6 +224,15 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
 
     /* our write out and clean up stuff.*/
 finish:
+    if(prr->inverted_ic) {
+        ptrdiff_t i;
+        for(i = 0; i < pm_size(fastpm->pm_2lpt); i ++) {
+            delta_k[i] *= -1;
+        }
+    }
+    if(prr->remove_cosmic_variance) {
+        fastpm_utils_remove_cosmic_variance(fastpm->pm_2lpt, delta_k, PowerSpecWithData, NULL);
+    }
 
     if(prr->write_noisek) {
         fastpm_info("Writing fourier space noise to %s\n", prr->write_noisek);
@@ -240,12 +249,6 @@ finish:
         ensure_dir(prr->write_noise);
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
         pm_free(fastpm->pm_2lpt, g_x);
-    }
-    if(prr->inverted_ic) {
-        ptrdiff_t i;
-        for(i = 0; i < pm_size(fastpm->pm_2lpt); i ++) {
-            delta_k[i] *= -1;
-        }
     }
     fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
 

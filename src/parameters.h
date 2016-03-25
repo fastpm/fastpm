@@ -12,6 +12,7 @@ typedef struct {
 
     int random_seed;
     int inverted_ic;
+    int remove_cosmic_variance;
 
     double boxsize;
 

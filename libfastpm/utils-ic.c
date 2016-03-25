@@ -78,6 +78,42 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_
     }
 }
 
+void 
+fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
+{
+
+    fastpm_info("Remove Cosmic variance from initial condition.\n");
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            double k2 = 0;
+            int d;
+            for(d = 0; d < 3; d++) {
+                k2 += kiter.kk[d][kiter.iabs[d]];
+            }
+            double knorm = sqrt(k2);
+            double f = sqrt(pk(knorm, pkdata));
+
+            /* 1 / L  -- this matches the dimention of sqrt(p) but I always 
+             * forget where it is from. */
+            f *= sqrt(1.0 / pm->Volume);
+
+            /* https://en.wikipedia.org/wiki/Atan2 */
+            double phase = atan2(delta_k[kiter.ind + 1], delta_k[kiter.ind + 0]);
+
+            delta_k[kiter.ind + 0] = f * cos(phase);
+            delta_k[kiter.ind + 1] = f * sin(phase);
+
+        }
+
+    }
+}
+
 
 static double 
 index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
