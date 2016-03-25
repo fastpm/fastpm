@@ -88,11 +88,20 @@ int main(int argc, char ** argv) {
         .omega_m = prr.omega_m,
         .USE_COLA = prr.force_mode == FORCE_MODE_COLA,
         .USE_NONSTDDA = !prr.cola_stdda,
-        .USE_LINEAR_THEORY = prr.enforce_broadband,
+        .USE_MODEL = prr.enforce_broadband,
         .USE_DX1_ONLY = prr.use_dx1_only,
         .nLPT = -2.5f,
         .K_LINEAR = prr.enforce_broadband_kmax,
     };
+
+    if(prr.enforce_broadband_mode == MODEL_LINEAR) {
+        fastpm->model_type = FASTPM_MODEL_LINEAR;
+    } else
+    if(prr.enforce_broadband_mode == MODEL_2LPT) {
+        fastpm->model_type = FASTPM_MODEL_2LPT;
+    } else {
+        fastpm_raise(-1, "wrong model type!\n");
+    }
 
     run_fastpm(fastpm, &prr, comm);
 
@@ -168,7 +177,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     /* we may need a read gadget ic here too */
     if(prr->read_runpbic) {
         read_runpb_ic(fastpm, fastpm->p, prr->read_runpbic);
-        fastpm_setup_ic(fastpm, NULL, prr->time_step[0]);
+        fastpm_setup_ic(fastpm, NULL);
         return;
     } 
 
@@ -250,7 +259,7 @@ finish:
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
         pm_free(fastpm->pm_2lpt, g_x);
     }
-    fastpm_setup_ic(fastpm, delta_k, prr->time_step[0]);
+    fastpm_setup_ic(fastpm, delta_k);
 
     pm_free(fastpm->pm_2lpt, delta_k);
 }

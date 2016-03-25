@@ -214,7 +214,8 @@ pm_2lpt_evolve(double aout, PMStore * p, double Omega, int zaonly)
         for(d = 0; d < 3; d ++) {
             p->x[i][d] += D1 * p->dx1[i][d] + D2 * p->dx2[i][d];
 
-            p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
+            if(p->v)
+                p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
         }
     }
     p->a_x = p->a_v = aout;

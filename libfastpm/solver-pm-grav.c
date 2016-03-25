@@ -84,14 +84,14 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
         LEAVE(readout);
 
         CLOCK(reduce);
-        pm_ghosts_reduce(pgd, ACC[d]); 
+        pm_ghosts_reduce(pgd, ACC[d]);
         LEAVE(reduce);
     }
 
     pm_free(pm, canvas);
 
     pm_ghosts_free(pgd);
-}    
+}
 
 /* measure the linear scale power spectrum up to Nmax, 
  * returns 1.0 if no such scale. k == 0 is skipped. */

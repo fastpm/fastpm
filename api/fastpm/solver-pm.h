@@ -9,6 +9,9 @@ typedef struct VPMInit {
 typedef struct FastPMDrift FastPMDrift;
 typedef struct FastPMKick FastPMKick;
 typedef struct FastPMExtension FastPMExtension;
+typedef struct FastPMModel FastPMModel;
+
+typedef enum { FASTPM_MODEL_LINEAR, FASTPM_MODEL_2LPT } FastPMModelType;
 
 typedef struct {
     /* input parameters */
@@ -20,9 +23,11 @@ typedef struct {
     int USE_COLA;
     int USE_DX1_ONLY;
     int USE_NONSTDDA;
-    int USE_LINEAR_THEORY;
     double nLPT;
+
+    int USE_MODEL;
     int K_LINEAR;
+    FastPMModelType model_type;
 
     /* Extensions */
     FastPMExtension * exts[12];
@@ -34,9 +39,9 @@ typedef struct {
 
     PMStore * p;
     PM * pm_2lpt;
-    PM * pm_linear;
     VPM * vpm_list;
 
+    FastPMModel * model;
     /* Pointer to the current PM object */
     PM * pm;
 } FastPM;
@@ -96,7 +101,7 @@ void
 fastpm_destroy(FastPM * fastpm);
 
 void 
-fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit);
+fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic);
 
 void
 fastpm_evolve(FastPM * fastpm, double * time_step, int nstep);
@@ -125,6 +130,17 @@ fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
     }
 
 }
+
+static inline void
+fastpm_drift_one_2lpt(FastPMDrift * drift, ptrdiff_t i, double xo[3])
+{
+    int d;
+    for(d = 0; d < 3; d ++) {
+        xo[d] = drift->p->x[i][d];
+        xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
+    }
+}
+
 static inline void
 fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
 {

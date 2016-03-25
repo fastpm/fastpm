@@ -212,6 +212,7 @@ loads_param(char * confstr, Parameters * param)
     param->write_noisek = read_string_opt(L, "write_noisek", NULL);
     param->write_noise = read_string_opt(L, "write_noise", NULL);
 
+    {
     struct enum_entry table[] = {
         {"cola", FORCE_MODE_COLA},
         {"pm", FORCE_MODE_PM},
@@ -219,7 +220,8 @@ loads_param(char * confstr, Parameters * param)
     };
 
     param->force_mode = read_enum(L, "force_mode", table);
-    
+    }
+
     if(param->force_mode == FORCE_MODE_PM) {
         param->cola_stdda = 1;
         param->enforce_broadband = 1;
@@ -229,6 +231,15 @@ loads_param(char * confstr, Parameters * param)
     }
     param->cola_stdda = read_boolean_opt(L, "cola_stdda", param->cola_stdda);
     param->enforce_broadband = read_boolean_opt(L, "enforce_broadband", param->enforce_broadband);
+    {
+    struct enum_entry table[] = {
+        {"linear", MODEL_LINEAR},
+        {"2lpt", MODEL_2LPT},
+        {NULL, -1},
+    };
+    param->enforce_broadband_mode = read_enum_opt(L, "enforce_broadband_mode", MODEL_LINEAR, table);
+    }
+
     param->enforce_broadband_kmax = read_integer_opt(L, "enforce_broadband_kmax", 4);
 
     param->use_dx1_only = read_boolean_opt(L, "za", 0);

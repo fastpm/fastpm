@@ -21,7 +21,7 @@ typedef struct {
     double * aout; int n_aout;
 
     char * read_powerspectrum;
-    char * write_powerspectrum; 
+    char * write_powerspectrum;
     char * write_runpb_snapshot;
     char * write_snapshot;
     char * read_runpbic;
@@ -36,7 +36,8 @@ typedef struct {
     int use_dx1_only;
 
     double * time_step; int n_time_step;
-    int enforce_broadband; 
+    int enforce_broadband;
+    int enforce_broadband_mode;
     int enforce_broadband_kmax;
     int UseFFTW;
     int NprocY;
@@ -50,3 +51,6 @@ typedef struct {
 /* Important that modes with PM have the bit set */
 #define FORCE_MODE_PM 8
 #define FORCE_MODE_COLA 10
+
+#define MODEL_LINEAR 1
+#define MODEL_2LPT 2

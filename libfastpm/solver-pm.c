@@ -16,6 +16,7 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "vpm.h"
+#include "solver-pm-internal.h"
 
 static void 
 fastpm_set_time(FastPM * fastpm, 
@@ -30,34 +31,12 @@ fastpm_set_time(FastPM * fastpm,
 static void
 fastpm_decompose(FastPM * fastpm);
 
-void 
-fastpm_kick_store(FastPM * fastpm, 
-              PMStore * pi, PMStore * po,
-              double af);
-
-void 
-fastpm_drift_store(FastPM * fastpm,
-               PMStore * pi, PMStore * po,
-               double af);
-
-void 
-fastpm_set_snapshot(FastPM * fastpm,
-                PMStore * p, PMStore * po,
-                double aout);
-
-double fastpm_growth_factor(FastPM * fastpm, double a);
-
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
 
 static void
 scale_acc(PMStore * po, double correction, double fudge);
-static double
-measure_linear_power(FastPM * fastpm, PMStore * p, double a_x);
-static double
-find_correction(FastPM * fastpm, double Plin, 
-        double a_x, double a_x1, double a_v, double a_v1);
 
 /* Useful stuff */
 static int 
@@ -77,9 +56,6 @@ void fastpm_init(FastPM * fastpm,
         };
 
     PMInit pm_2lptinit = baseinit;
-    PMInit pm_linearinit = baseinit;
-
-    pm_linearinit.Nmesh = fastpm->nc / 4;
 
     fastpm->comm = comm;
     MPI_Comm_rank(comm, &fastpm->ThisTask);
@@ -87,19 +63,19 @@ void fastpm_init(FastPM * fastpm,
 
     fastpm->p= malloc(sizeof(PMStore));
     fastpm->pm_2lpt = malloc(sizeof(PM));
-    fastpm->pm_linear = malloc(sizeof(PM));
+    fastpm->model = malloc(sizeof(FastPMModel));
 
     pm_store_init(fastpm->p);
 
-    pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3), 
-        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC, 
+    pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
+        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC,
         fastpm->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, &fastpm->p->iface, comm);
 
     pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, comm);
-    pm_init(fastpm->pm_linear, &pm_linearinit, &fastpm->p->iface, comm);
+    fastpm_model_init(fastpm->model, fastpm, fastpm->model_type);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {
@@ -109,7 +85,7 @@ void fastpm_init(FastPM * fastpm,
 }
 
 void 
-fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit)
+fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
 {
     if(delta_k_ic) {
         double shift[3] = {
@@ -123,12 +99,11 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic, double ainit)
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(fastpm->pm_2lpt, delta_k_ic, fastpm->p, shift);
     }
+
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(fastpm->p->dx2, 0, sizeof(fastpm->p->dx2[0]) * fastpm->p->np);
     }
 
-    pm_store_summary(fastpm->p, fastpm->comm);
-    pm_2lpt_evolve(ainit, fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 }
 
 void
@@ -145,6 +120,10 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
     FastPMExtension * ext;
 
+    fastpm_model_build(fastpm->model, fastpm->p, time_step[0]);
+
+    pm_2lpt_evolve(time_step[0], fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
+
     MPI_Barrier(fastpm->comm);
 
     CLOCK(warmup);
@@ -158,10 +137,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
     MPI_Barrier(fastpm->comm);
 
-
-
     double correction = 1.0;
-    double Plin0sub = 0;
     double Plin0 = 0;
     /* The last step is the 'terminal' step */
     int istep;
@@ -190,15 +166,13 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         LEAVE(force);
 
         double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
+
+        fastpm_info("Simulation Plarge = %g\n", Plin);
+
         Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
 
         if(istep == 0) {
             Plin0 = Plin;
-            PMStore * po = alloca(sizeof(PMStore));
-            pm_store_init(po);
-            pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 4, fastpm->nc);
-            Plin0sub = measure_linear_power(fastpm, po, a_x);
-            pm_store_destroy(po);
         }
 
         fastpm_info("Last Step: <P(k<%g)> = %g Linear Theory = %g, correction=%g, res=%g\n", 
@@ -217,11 +191,11 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
         /* correct for linear theory before kick and drift */
         ENTER(correction);
-        if(fastpm->USE_LINEAR_THEORY) {
+        if(fastpm->USE_MODEL) {
+            fastpm_model_evolve(fastpm->model, a_x1);
 
-            correction = find_correction(fastpm, Plin0sub, 
-                        a_x, a_x1, a_v, a_v1);
-
+            correction = fastpm_model_find_correction(fastpm->model, a_x, a_x1, a_v, a_v1);
+            if(fastpm->USE_COLA) correction = 1.0;
             scale_acc(fastpm->p, correction, 1.0);
             /* the value of correction is leaked to the next step for reporting. */
         }
@@ -231,7 +205,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         FastPMKick kick;
         fastpm_kick_init(&kick, fastpm, fastpm->p, a_v1);
         FastPMDrift drift;
-        fastpm_drift_init(&drift, fastpm, fastpm->p, a_v1);
+        fastpm_drift_init(&drift, fastpm, fastpm->p, a_x1);
 
         /* take snapshots if needed, before the kick */
         for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
@@ -264,145 +238,17 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         ENTER(drift);
         fastpm_drift_store(fastpm, fastpm->p, fastpm->p, a_x1);
         LEAVE(drift);
-
-
     }
 
 }
 
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_math.h>
-#include <gsl/gsl_roots.h>
-
-struct find_correction_params {
-    FastPM * fastpm;
-    PMStore * po;
-    double Plin0;
-    double a_x;
-    double a_x1;
-    double a_v;
-    double a_v1;
-};
-
-static double 
-find_correction_eval(double correction, void * params) 
-{
-    struct find_correction_params * p = 
-        (struct find_correction_params*) params;
-
-    FastPM * fastpm = p->fastpm;
-    PMStore * po = p->po;
-
-    scale_acc(po, correction, 1.0);
-
-    fastpm_kick_store(fastpm, po, po, p->a_v1);
-    fastpm_drift_store(fastpm, po, po, p->a_x1);
-
-    double Plin = measure_linear_power(fastpm, po, p->a_x1);
-    fastpm_drift_store(fastpm, po, po, p->a_x);
-    fastpm_kick_store(fastpm, po, po, p->a_v);
-    scale_acc(po, 1.0 / correction, 1.0);
-
-    double res = Plin / p->Plin0;
-    return res - 1.0;
-}
-
-static double
-find_correction(FastPM * fastpm, double Plin, 
-        double a_x, double a_x1, double a_v, double a_v1) 
-{
-
-    if(a_x == a_x1) {
-        /* no correction is needed in this case*/
-        /* FIXME: when step size is sufficiently small, use 1.0 too */
-        return 1.0;
-    }
-    PMStore * po = alloca(sizeof(PMStore));
-    pm_store_init(po);
-    pm_store_create_subsample(po, fastpm->p, PACK_POS| PACK_VEL | PACK_ACC | PACK_ID, 4, fastpm->nc);
-
-    gsl_root_fsolver * s;
-    gsl_function F;
-    struct find_correction_params params = {
-        fastpm, po, Plin, a_x, a_x1, a_v, a_v1
-    };
-
-    F.function = find_correction_eval;
-    F.params = &params;
-
-    s = gsl_root_fsolver_alloc(gsl_root_fsolver_brent);
-
-    int iter = 0;
-    double r = 0;
-    double x = 0;
-    double x_lo = 0.9;
-    double x_hi = 1.1;
-    while((r = find_correction_eval(x_hi, &params)) < 0) {
-        iter ++;
-        fastpm_info("iter = %d x_hi = %g r = %g\n", iter, x_hi, r);
-        x_hi *= 1.2;
-    }
-    while((r = find_correction_eval(x_lo, &params)) > 0) {
-        iter ++;
-        fastpm_info("iter = %d x_lo = %g r= %g\n", iter, x_lo, r);
-        x_lo /= 1.2;
-    }
-    int status;
-    gsl_root_fsolver_set(s, &F, x_lo, x_hi);
-
-    do {
-        iter++;
-        status = gsl_root_fsolver_iterate (s);
-        x = gsl_root_fsolver_root (s);
-        x_lo = gsl_root_fsolver_x_lower (s);
-        x_hi = gsl_root_fsolver_x_upper (s);
-        status = gsl_root_test_interval (x_lo, x_hi,
-                0, 1e-2);
-        fastpm_info("iter = %d x = %g\n", iter, x);
-    }
-    while (status == GSL_CONTINUE && iter < 10);
-    gsl_root_fsolver_free(s);
-
-    pm_store_destroy(po);
-
-    return x;
-}
-
-static double 
-measure_linear_power(FastPM * fastpm, PMStore * p, double a_x) 
-{
-    PM * pm = fastpm->pm_linear;
-
-    FastPMFloat * canvas = pm_alloc(pm);
-    FastPMFloat * delta_k = pm_alloc(pm);
-
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
-
-    /* Note that pm_calculate_linear_power will divide by the 0-th mode
-     * thus we do not need to set the mass of particles correctly */
-    pm_paint(pm, canvas, p, p->np + pgd->nghosts, 1.0);
-
-    pm_r2c(pm, canvas, delta_k);
-
-    pm_ghosts_free(pgd);
-
-    double Plin = pm_calculate_linear_power(pm, delta_k, fastpm->K_LINEAR);
-
-    /* normalize to z=0 for comparison */
-    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
-
-    pm_free(pm, delta_k);
-    pm_free(pm, canvas);
-    return Plin;
-}
-void 
+void
 fastpm_destroy(FastPM * fastpm) 
 {
+    fastpm_model_destroy(fastpm->model);
     pm_store_destroy(fastpm->p);
     vpm_free(fastpm->vpm_list);
     pm_destroy(fastpm->pm_2lpt);
-    pm_destroy(fastpm->pm_linear);
-    free(fastpm->pm_linear);
     free(fastpm->pm_2lpt);
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;

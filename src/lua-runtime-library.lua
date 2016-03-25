@@ -88,6 +88,7 @@ function parse_file(filename, runmain, ...)
         read_write_noise = 'string',
         cola_stdda = 'boolean',
         enforce_broadband = 'boolean',
+        enforce_broadband_mode = 'string',
         enforce_broadband_kmax = 'number',
         za = 'boolean',
         inverted_ic = 'boolean',
