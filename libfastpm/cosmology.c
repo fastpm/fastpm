@@ -81,9 +81,12 @@ double GrowthFactor2(double a, Cosmology c) {// Second order growth factor
 
 
 double GrowthFactor2v(double a, Cosmology c){ // explanation is in main()
+    /* This mess needs to be cleaned up. The extra pow is to match up
+     * the original cola factor, since we no longer absorb D20 into dx2; 
+     * D20 is absorbed to GrowthFactor2. */
     double d2= GrowthFactor2(a, c);
     return Qfactor(a, c)*(d2/a)*2.0
-         * pow(OmegaA(a, c), 6.0/11.);
+         * pow(OmegaA(a, c), 6.0/11.) * pow(c.OmegaM, -1.0/143.0);
 }
 
 double Qfactor(double a, Cosmology c) {
