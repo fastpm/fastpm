@@ -31,10 +31,10 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
     if (fastpm->nc <= 256) {
         model->factor = 1;
         /* For LCDM cosmology, smaller mesh introduces too much aliasing noise. not good! */
-        pminit.Nmesh = fastpm->nc;
+        pminit.Nmesh = fastpm->nc * 2;
     } else {
         model->factor = 4;
-        pminit.Nmesh = fastpm->nc / model->factor;
+        pminit.Nmesh = fastpm->nc / 2;
     }
 
     model->pm = malloc(sizeof(PM));
@@ -89,11 +89,11 @@ void fastpm_model_evolve(FastPMModel * model, double af)
             model->psub->a_x = af;
             model->psub->a_v = af;
             model->Pexpect = measure_large_scale_power(model, model->psub);
-            fastpm_info("Pexpect = %g, af=%g\n", model->Pexpect, af);
         }
         break;
 
     }
+    fastpm_info("Pexpect = %g, af=%g\n", model->Pexpect, af);
     model->a_x = af;
 }
 
@@ -197,8 +197,9 @@ fastpm_model_find_correction(FastPMModel * model,
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
         status = gsl_root_test_interval (x_lo, x_hi,
-                0, 1e-4);
-        fastpm_info("iter = %d x = %g\n", iter, x);
+                0, 1e-5);
+        double r = find_correction_eval(x, model);
+        fastpm_info("iter = %d x = %g r = %g\n", iter, x, r);
     }
     while (status == GSL_CONTINUE && iter < 10);
     gsl_root_fsolver_free(s);
