@@ -54,6 +54,23 @@ haloes and calculating spherical overdensity properties of subhalos.
 In addition to the snapshots, FastPM calculates and writes the power-spectrum at each time step. 
 These power spectrum files are compatible with numpy plain text files. 
 
+Internal Units
+--------------
+
+*FastPM format*
+
+- Position is in units of Mpc/h.
+- Velocity is :math:`v_s = \frac{a^2}{H_0}\dot{x}`
+
+To convert velocity to RSD, use
+:math:`\delta x_{rsd} = \frac{a\dot{x}}{H} = \frac{H_0}{aH} v_s`
+This number is saved in the header.
+
+*RunPB format*
+
+- Position is between 0 and 1.
+- Velocity is in RSD units, between 0 and 1.
+
 Acknowledgement
 ---------------
 
