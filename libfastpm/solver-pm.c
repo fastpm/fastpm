@@ -75,7 +75,7 @@ void fastpm_init(FastPM * fastpm,
                            &baseinit, &fastpm->p->iface, comm);
 
     pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, comm);
-    fastpm_model_init(fastpm->model, fastpm, fastpm->model_type);
+    fastpm_model_init(fastpm->model, fastpm, fastpm->USE_MODEL);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {
@@ -191,14 +191,12 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
         /* correct for linear theory before kick and drift */
         ENTER(correction);
-        if(fastpm->USE_MODEL) {
-            fastpm_model_evolve(fastpm->model, a_x1);
+        fastpm_model_evolve(fastpm->model, a_x1);
 
-            correction = fastpm_model_find_correction(fastpm->model, a_x, a_x1, a_v, a_v1);
-            if(fastpm->USE_COLA) correction = 1.0;
-            scale_acc(fastpm->p, correction, 1.0);
-            /* the value of correction is leaked to the next step for reporting. */
-        }
+        correction = fastpm_model_find_correction(fastpm->model, a_x, a_x1, a_v, a_v1);
+        scale_acc(fastpm->p, correction, 1.0);
+        /* the value of correction is leaked to the next step for reporting. */
+
         LEAVE(correction);
 
         ENTER(beforekick);
@@ -325,6 +323,8 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 static void
 scale_acc(PMStore * po, double correction, double fudge)
 {
+    /* skip scaling if there is no correction. */
+    if(correction == 1.0) return;
     ptrdiff_t i;
     correction = pow(correction, fudge);
 

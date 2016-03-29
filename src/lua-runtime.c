@@ -224,20 +224,21 @@ loads_param(char * confstr, Parameters * param)
 
     if(param->force_mode == FORCE_MODE_PM) {
         param->cola_stdda = 1;
-        param->enforce_broadband = 1;
+        param->enforce_broadband_mode = MODEL_LINEAR;
     } else {
         param->cola_stdda = 0;
-        param->enforce_broadband = 0;
+        param->enforce_broadband_mode = MODEL_NONE;
     }
+
     param->cola_stdda = read_boolean_opt(L, "cola_stdda", param->cola_stdda);
-    param->enforce_broadband = read_boolean_opt(L, "enforce_broadband", param->enforce_broadband);
     {
     struct enum_entry table[] = {
         {"linear", MODEL_LINEAR},
         {"2lpt", MODEL_2LPT},
+        {"none", MODEL_NONE},
         {NULL, -1},
     };
-    param->enforce_broadband_mode = read_enum_opt(L, "enforce_broadband_mode", MODEL_LINEAR, table);
+    param->enforce_broadband_mode = read_enum_opt(L, "enforce_broadband_mode", param->enforce_broadband_mode, table);
     }
 
     param->enforce_broadband_kmax = read_integer_opt(L, "enforce_broadband_kmax", 4);

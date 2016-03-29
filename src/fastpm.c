@@ -88,17 +88,19 @@ int main(int argc, char ** argv) {
         .omega_m = prr.omega_m,
         .USE_COLA = prr.force_mode == FORCE_MODE_COLA,
         .USE_NONSTDDA = !prr.cola_stdda,
-        .USE_MODEL = prr.enforce_broadband,
         .USE_DX1_ONLY = prr.use_dx1_only,
         .nLPT = -2.5f,
         .K_LINEAR = prr.enforce_broadband_kmax,
     };
 
     if(prr.enforce_broadband_mode == MODEL_LINEAR) {
-        fastpm->model_type = FASTPM_MODEL_LINEAR;
+        fastpm->USE_MODEL = FASTPM_MODEL_LINEAR;
     } else
     if(prr.enforce_broadband_mode == MODEL_2LPT) {
-        fastpm->model_type = FASTPM_MODEL_2LPT;
+        fastpm->USE_MODEL = FASTPM_MODEL_2LPT;
+    } else 
+    if(prr.enforce_broadband_mode == MODEL_NONE) {
+        fastpm->USE_MODEL = FASTPM_MODEL_NONE;
     } else {
         fastpm_raise(-1, "wrong model type!\n");
     }

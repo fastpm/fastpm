@@ -27,6 +27,11 @@ measure_large_scale_power(FastPMModel * model, PMStore * p);
 void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType type)
 {
     model->type = type;
+    model->psub = NULL;
+    model->pm = NULL;
+    if(type == FASTPM_MODEL_NONE) {
+        return;
+    }
     PMInit pminit = fastpm->pm_2lpt->init;
     if (fastpm->nc <= 256) {
         model->factor = 1;
@@ -44,14 +49,21 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
 
 void fastpm_model_destroy(FastPMModel * model)
 {
-    pm_store_destroy(model->psub);
-    free(model->psub);
-    pm_destroy(model->pm);
-    free(model->pm);
+    if(model->psub) {
+        pm_store_destroy(model->psub);
+        free(model->psub);
+    }
+    if(model->pm) {
+        pm_destroy(model->pm);
+        free(model->pm);
+    }
 }
 
 void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit)
 {
+    if(model->type == FASTPM_MODEL_NONE) {
+        return;
+    }
     PMStore * psub = malloc(sizeof(PMStore));
     pm_store_init(psub);
     pm_store_create_subsample(psub, p, PACK_POS | PACK_DX1 | PACK_DX2, model->factor, model->fastpm->nc);
@@ -66,6 +78,10 @@ void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit)
 void fastpm_model_evolve(FastPMModel * model, double af)
 {
     switch(model->type) {
+        case FASTPM_MODEL_NONE:
+        {
+        }
+        break;
         case FASTPM_MODEL_LINEAR:
         {
             model->Pexpect /= pow(fastpm_growth_factor(model->fastpm, model->a_x), 2);
@@ -139,12 +155,16 @@ double
 fastpm_model_find_correction(FastPMModel * model,
         double a_x, double a_x1, double a_v, double a_v1)
 {
+    if(model->type == FASTPM_MODEL_NONE) {
+        return 1.0;
+    }
 
     if(a_x == a_x1) {
         /* no correction is needed in this case*/
         /* FIXME: when step size is sufficiently small, use 1.0 too */
         return 1.0;
     }
+
     PMStore * po = alloca(sizeof(PMStore));
     pm_store_init(po);
 

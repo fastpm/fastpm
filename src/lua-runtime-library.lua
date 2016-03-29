@@ -87,7 +87,6 @@ function parse_file(filename, runmain, ...)
         read_write_noisek = 'string',
         read_write_noise = 'string',
         cola_stdda = 'boolean',
-        enforce_broadband = 'boolean',
         enforce_broadband_mode = 'string',
         enforce_broadband_kmax = 'number',
         za = 'boolean',
@@ -102,7 +101,7 @@ function parse_file(filename, runmain, ...)
             main()
         end
         namespace['main'] = nil
-    end    
+    end
     for k,t in pairs(namespace) do
         if type(t) == 'function' then
             error(string.format("in `%s`, function `%s` shall be local", filename, k))

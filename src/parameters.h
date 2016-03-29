@@ -36,7 +36,6 @@ typedef struct {
     int use_dx1_only;
 
     double * time_step; int n_time_step;
-    int enforce_broadband;
     int enforce_broadband_mode;
     int enforce_broadband_kmax;
     int UseFFTW;
@@ -54,3 +53,4 @@ typedef struct {
 
 #define MODEL_LINEAR 1
 #define MODEL_2LPT 2
+#define MODEL_NONE 0
