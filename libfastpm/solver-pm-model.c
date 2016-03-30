@@ -88,6 +88,25 @@ void fastpm_model_evolve(FastPMModel * model, double af)
             model->Pexpect *= pow(fastpm_growth_factor(model->fastpm, af), 2);
         }
         break;
+        case FASTPM_MODEL_ZA:
+        {
+            FastPMDrift drift;
+            fastpm_drift_init(&drift, model->fastpm, model->psub, af);
+            int i;
+            for(i = 0; i < model->psub->np; i ++) {
+                double xo[3];
+                fastpm_drift_one_za(&drift, i, xo);
+                int d;
+                for(d = 0; d < 3; d ++) {
+                    model->psub->x[i][d] = xo[d];
+                }
+            }
+            pm_store_wrap(model->psub, model->pm->BoxSize);
+            model->psub->a_x = af;
+            model->psub->a_v = af;
+            model->Pexpect = measure_large_scale_power(model, model->psub);
+        }
+        break;
         case FASTPM_MODEL_2LPT:
         {
             FastPMDrift drift;

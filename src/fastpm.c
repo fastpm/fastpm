@@ -99,6 +99,9 @@ int main(int argc, char ** argv) {
     if(prr.enforce_broadband_mode == MODEL_2LPT) {
         fastpm->USE_MODEL = FASTPM_MODEL_2LPT;
     } else 
+    if(prr.enforce_broadband_mode == MODEL_ZA) {
+        fastpm->USE_MODEL = FASTPM_MODEL_ZA;
+    } else 
     if(prr.enforce_broadband_mode == MODEL_NONE) {
         fastpm->USE_MODEL = FASTPM_MODEL_NONE;
     } else {

@@ -235,6 +235,7 @@ loads_param(char * confstr, Parameters * param)
     struct enum_entry table[] = {
         {"linear", MODEL_LINEAR},
         {"2lpt", MODEL_2LPT},
+        {"za", MODEL_ZA},
         {"none", MODEL_NONE},
         {NULL, -1},
     };

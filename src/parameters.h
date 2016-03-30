@@ -53,4 +53,5 @@ typedef struct {
 
 #define MODEL_LINEAR 1
 #define MODEL_2LPT 2
+#define MODEL_ZA   3
 #define MODEL_NONE 0
