@@ -120,7 +120,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
     FastPMExtension * ext;
 
-    fastpm_model_build(fastpm->model, fastpm->p, time_step[0]);
+    fastpm_model_build(fastpm->model, fastpm->p, time_step[0], time_step[nstep - 1]);
 
     pm_2lpt_evolve(time_step[0], fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 

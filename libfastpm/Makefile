@@ -14,6 +14,8 @@ LIBSOURCES = libfastpm.c \
     solver-pm-steps.c \
     solver-pm-grav.c \
     solver-pm-model.c \
+    solver-pm-model-pt.c \
+    solver-pm-model-linear.c \
     transfer.c \
     utils.c \
     utils-ps.c \

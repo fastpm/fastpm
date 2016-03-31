@@ -21,17 +21,11 @@
 #include "pm2lpt.h"
 #include "solver-pm-internal.h"
 
-static double
-measure_large_scale_power(FastPMModel * model, PMStore * p);
-
 void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType type)
 {
     model->type = type;
-    model->psub = NULL;
     model->pm = NULL;
-    if(type == FASTPM_MODEL_NONE) {
-        return;
-    }
+
     PMInit pminit = fastpm->pm_2lpt->init;
     if (fastpm->nc <= 256) {
         model->factor = 1;
@@ -44,92 +38,50 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
 
     model->pm = malloc(sizeof(PM));
     model->fastpm = fastpm;
+    model->build = NULL;
+    model->evolve = NULL;
+    model->destroy = NULL;
     pm_init(model->pm, &pminit, &fastpm->p->iface, fastpm->comm);
+
+    switch(type) {
+        case FASTPM_MODEL_NONE:
+            break;
+        case FASTPM_MODEL_LINEAR:
+            fastpm_model_linear_init(model);
+            break;
+        case FASTPM_MODEL_ZA:
+        case FASTPM_MODEL_2LPT:
+            fastpm_model_pt_init(model);
+            break;
+        case FASTPM_MODEL_PM:
+            break;
+    }
+}
+
+void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub, int attributes)
+{
+    pm_store_init(psub);
+    pm_store_create_subsample(psub, model->fastpm->p, attributes, model->factor, model->fastpm->nc);
 }
 
 void fastpm_model_destroy(FastPMModel * model)
 {
-    if(model->psub) {
-        pm_store_destroy(model->psub);
-        free(model->psub);
-    }
-    if(model->pm) {
-        pm_destroy(model->pm);
-        free(model->pm);
-    }
+    if(model->destroy) 
+        model->destroy(model);
+    pm_destroy(model->pm);
+    free(model->pm);
 }
 
-void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit)
+void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit, double afinal)
 {
-    if(model->type == FASTPM_MODEL_NONE) {
-        return;
-    }
-    PMStore * psub = malloc(sizeof(PMStore));
-    pm_store_init(psub);
-    pm_store_create_subsample(psub, p, PACK_POS | PACK_DX1 | PACK_DX2, model->factor, model->fastpm->nc);
-    pm_2lpt_evolve(ainit, psub, model->fastpm->omega_m, 0);
-    pm_store_wrap(psub, model->pm->BoxSize);
-    model->Pexpect = measure_large_scale_power(model, psub);
-    /* We no longer need to store the subsample once the initial linear power is calculated */
-    model->a_x = ainit;
-    model->psub = psub;
+    if(!model->build) return;
+    model->build(model, p, ainit, afinal);
 }
 
 void fastpm_model_evolve(FastPMModel * model, double af)
 {
-    switch(model->type) {
-        case FASTPM_MODEL_NONE:
-        {
-        }
-        break;
-        case FASTPM_MODEL_LINEAR:
-        {
-            model->Pexpect /= pow(fastpm_growth_factor(model->fastpm, model->a_x), 2);
-            model->Pexpect *= pow(fastpm_growth_factor(model->fastpm, af), 2);
-        }
-        break;
-        case FASTPM_MODEL_ZA:
-        {
-            FastPMDrift drift;
-            fastpm_drift_init(&drift, model->fastpm, model->psub, af);
-            int i;
-            for(i = 0; i < model->psub->np; i ++) {
-                double xo[3];
-                fastpm_drift_one_za(&drift, i, xo);
-                int d;
-                for(d = 0; d < 3; d ++) {
-                    model->psub->x[i][d] = xo[d];
-                }
-            }
-            pm_store_wrap(model->psub, model->pm->BoxSize);
-            model->psub->a_x = af;
-            model->psub->a_v = af;
-            model->Pexpect = measure_large_scale_power(model, model->psub);
-        }
-        break;
-        case FASTPM_MODEL_2LPT:
-        {
-            FastPMDrift drift;
-            fastpm_drift_init(&drift, model->fastpm, model->psub, af);
-            int i;
-            for(i = 0; i < model->psub->np; i ++) {
-                double xo[3];
-                fastpm_drift_one_2lpt(&drift, i, xo);
-                int d;
-                for(d = 0; d < 3; d ++) {
-                    model->psub->x[i][d] = xo[d];
-                }
-            }
-            pm_store_wrap(model->psub, model->pm->BoxSize);
-            model->psub->a_x = af;
-            model->psub->a_v = af;
-            model->Pexpect = measure_large_scale_power(model, model->psub);
-        }
-        break;
-
-    }
-    fastpm_info("Pexpect = %g, af=%g\n", model->Pexpect, af);
-    model->a_x = af;
+    if(!model->evolve) return;
+    model->evolve(model, af);
 }
 
 static void
@@ -160,7 +112,7 @@ find_correction_eval(double correction, void * data)
     fastpm_kick_store(fastpm, po, po, model->ev.a_v1);
     fastpm_drift_store(fastpm, po, po, model->ev.a_x1);
 
-    double Plarge = measure_large_scale_power(model, po);
+    double Plarge = fastpm_model_measure_large_scale_power(model, po);
 
     fastpm_drift_store(fastpm, po, po, model->ev.a_x);
     fastpm_kick_store(fastpm, po, po, model->ev.a_v);
@@ -187,9 +139,8 @@ fastpm_model_find_correction(FastPMModel * model,
     PMStore * po = alloca(sizeof(PMStore));
     pm_store_init(po);
 
-    /* Watch out: the same subsample as fastpm->pmodel */
-    pm_store_create_subsample(po, model->fastpm->p,
-            PACK_POS| PACK_VEL | PACK_ACC | PACK_DX1 | PACK_DX2, model->factor, model->fastpm->nc);
+    /* FIXME: get rid of DX1 DX2, since we do not need a model for COLA */
+    fastpm_model_create_subsample(model, po, PACK_POS| PACK_VEL | PACK_ACC | PACK_DX1 | PACK_DX2);
 
     gsl_root_fsolver * s;
     gsl_function F;
@@ -248,10 +199,12 @@ fastpm_model_find_correction(FastPMModel * model,
     return x;
 }
 
-static double 
-measure_large_scale_power(FastPMModel * model, PMStore * p)
+double
+fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
 {
     PM * pm = model->pm;
+
+    pm_store_wrap(p, pm->BoxSize);
 
     FastPMFloat * canvas = pm_alloc(pm);
     FastPMFloat * delta_k = pm_alloc(pm);

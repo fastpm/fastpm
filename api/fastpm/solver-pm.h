@@ -11,7 +11,7 @@ typedef struct FastPMKick FastPMKick;
 typedef struct FastPMExtension FastPMExtension;
 typedef struct FastPMModel FastPMModel;
 
-typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT } FastPMModelType;
+typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
 
 typedef struct {
     /* input parameters */
@@ -128,26 +128,6 @@ fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
         }
     }
 
-}
-
-static inline void
-fastpm_drift_one_2lpt(FastPMDrift * drift, ptrdiff_t i, double xo[3])
-{
-    int d;
-    for(d = 0; d < 3; d ++) {
-        xo[d] = drift->p->x[i][d];
-        xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
-    }
-}
-
-static inline void
-fastpm_drift_one_za(FastPMDrift * drift, ptrdiff_t i, double xo[3])
-{
-    int d;
-    for(d = 0; d < 3; d ++) {
-        xo[d] = drift->p->x[i][d];
-        xo[d] += drift->p->dx1[i][d]*drift->da1;
-    }
 }
 
 static inline void
