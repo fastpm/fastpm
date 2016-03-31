@@ -27,14 +27,8 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
     model->pm = NULL;
 
     PMInit pminit = fastpm->pm_2lpt->init;
-    if (fastpm->nc <= 256) {
-        model->factor = 1;
-        /* For LCDM cosmology, smaller mesh introduces too much aliasing noise. not good! */
-        pminit.Nmesh = fastpm->nc * 2;
-    } else {
-        model->factor = 4;
-        pminit.Nmesh = fastpm->nc / 2;
-    }
+    model->factor = 4;
+    pminit.Nmesh = fastpm->nc / 2;
 
     model->pm = malloc(sizeof(PM));
     model->fastpm = fastpm;
@@ -55,6 +49,10 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
             break;
         case FASTPM_MODEL_PM:
             break;
+    }
+
+    if (type != FASTPM_MODEL_NONE && fastpm->nc <= 256) {
+        fastpm_info("The mesh resolution is too low to to calibrate the correction model. The growth rate will be biased. \n");
     }
 }
 
