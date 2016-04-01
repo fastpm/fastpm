@@ -105,6 +105,8 @@ int pm_kiter_stop(PMKIter * iter);
 
 void pm_kiter_next(PMKIter * iter);
 
+double pm_kiter_get_kmag(PMKIter * iter);
+
 typedef struct {
     ptrdiff_t start;
     ptrdiff_t end;

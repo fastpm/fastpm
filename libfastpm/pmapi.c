@@ -93,6 +93,16 @@ pm_kiter_init(PM * pm, PMKIter * iter)
 
 }
 
+double pm_kiter_get_kmag(PMKIter * iter)
+{
+    int d = 0;
+    double kk = 0;
+    for(d = 0; d < 3; d ++) {
+        kk += iter->k[d][iter->iabs[d]];
+    }
+    return sqrt(kk);
+}
+
 int pm_kiter_stop(PMKIter * iter) 
 {
     int stop = !(iter->ind < iter->end);
