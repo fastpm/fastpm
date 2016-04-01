@@ -55,14 +55,11 @@ void fastpm_init(FastPM * fastpm,
             .use_fftw = UseFFTW,
         };
 
-    PMInit pm_2lptinit = baseinit;
-
     fastpm->comm = comm;
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
-    fastpm->p= malloc(sizeof(PMStore));
-    fastpm->pm_2lpt = malloc(sizeof(PM));
+    fastpm->p = malloc(sizeof(PMStore));
     fastpm->model = malloc(sizeof(FastPMModel));
 
     pm_store_init(fastpm->p);
@@ -74,7 +71,6 @@ void fastpm_init(FastPM * fastpm,
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, &fastpm->p->iface, comm);
 
-    pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, comm);
     fastpm_model_init(fastpm->model, fastpm, fastpm->USE_MODEL);
 
     int i = 0;
@@ -82,11 +78,23 @@ void fastpm_init(FastPM * fastpm,
         fastpm->exts[i] = NULL;
     }
 
+    PMInit pm_2lptinit = {
+            .Nmesh = fastpm->nc,
+            .BoxSize = fastpm->boxsize,
+            .NprocY = 0, /* 0 for auto, 1 for slabs */
+            .transposed = 1,
+            .use_fftw = 0,
+        };
+
+    fastpm->pm_2lpt = malloc(sizeof(PM));
+    pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, fastpm->comm);
 }
 
 void 
 fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
 {
+
+    PM * pm_2lpt = fastpm->pm_2lpt;
     if(delta_k_ic) {
         double shift[3] = {
             fastpm->boxsize / fastpm->nc * 0.5,
@@ -94,16 +102,15 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
             fastpm->boxsize / fastpm->nc * 0.5,
             };
 
-        pm_store_set_lagrangian_position(fastpm->p, fastpm->pm_2lpt, shift);
+        pm_store_set_lagrangian_position(fastpm->p, pm_2lpt, shift);
 
         /* read out values at locations with an inverted shift */
-        pm_2lpt_solve(fastpm->pm_2lpt, delta_k_ic, fastpm->p, shift);
+        pm_2lpt_solve(pm_2lpt, delta_k_ic, fastpm->p, shift);
     }
 
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(fastpm->p->dx2, 0, sizeof(fastpm->p->dx2[0]) * fastpm->p->np);
     }
-
 }
 
 void
@@ -167,16 +174,14 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
         double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
 
-        fastpm_info("Simulation Plarge = %g\n", Plin);
-
         Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
 
         if(istep == 0) {
             Plin0 = Plin;
         }
 
-        fastpm_info("Last Step: <P(k<%g)> = %g Linear Theory = %g, correction=%g, res=%g\n", 
-                          fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Plin0, correction, Plin / Plin0); 
+        fastpm_info("Last Step: <P(k<%g)> = %g Linear Theory = %g, Correction=%g\n",
+                          fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Plin0, correction);
 
         ENTER(afterforce);
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
@@ -243,11 +248,11 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 void
 fastpm_destroy(FastPM * fastpm) 
 {
+    pm_destroy(fastpm->pm_2lpt);
+    free(fastpm->pm_2lpt);
     fastpm_model_destroy(fastpm->model);
     pm_store_destroy(fastpm->p);
     vpm_free(fastpm->vpm_list);
-    pm_destroy(fastpm->pm_2lpt);
-    free(fastpm->pm_2lpt);
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;
     int i;

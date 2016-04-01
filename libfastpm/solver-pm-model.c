@@ -24,11 +24,15 @@
 void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType type)
 {
     model->type = type;
-    model->pm = NULL;
 
-    PMInit pminit = fastpm->pm_2lpt->init;
+    PMInit pminit = {
+        .Nmesh = fastpm->nc / 2,
+        .BoxSize = fastpm->boxsize,
+        .NprocY = 0,
+        .transposed = 1,
+        .use_fftw = 0,
+    };
     model->factor = 4;
-    pminit.Nmesh = fastpm->nc / 2;
 
     model->pm = malloc(sizeof(PM));
     model->fastpm = fastpm;
@@ -48,6 +52,7 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
             fastpm_model_pt_init(model);
             break;
         case FASTPM_MODEL_PM:
+            fastpm_model_pm_init(model);
             break;
     }
 

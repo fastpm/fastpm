@@ -44,6 +44,12 @@ void
 fastpm_set_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * userdata);
 
 void 
+fastpm_push_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * userdata);
+
+void 
+fastpm_pop_msg_handler();
+
+void 
 fastpm_default_msg_handler(
         const enum FastPMLogLevel level,
         const enum FastPMLogType type,

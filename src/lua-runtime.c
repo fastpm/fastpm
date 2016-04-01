@@ -236,6 +236,7 @@ loads_param(char * confstr, Parameters * param)
         {"linear", MODEL_LINEAR},
         {"2lpt", MODEL_2LPT},
         {"za", MODEL_ZA},
+        {"pm", MODEL_PM},
         {"none", MODEL_NONE},
         {NULL, -1},
     };

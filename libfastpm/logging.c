@@ -8,9 +8,21 @@
 #include <fastpm/logging.h>
 
 
-static fastpm_msg_handler msg_handler = NULL;
-static void * msg_handler_userdata = NULL;
-static MPI_Comm msg_handler_comm = (MPI_Comm) 0;
+typedef struct FastPMMSGHandler FastPMMSGHandler;
+
+struct FastPMMSGHandler {
+    fastpm_msg_handler handler;
+    void * userdata;
+    MPI_Comm comm;
+    FastPMMSGHandler * prev;
+};
+
+static FastPMMSGHandler handler_data = {
+    .handler = NULL,
+    .userdata = NULL,
+    .comm = (MPI_Comm) 0,
+    .prev = NULL
+};
 
 void fastpm_void_msg_handler(
             const enum FastPMLogLevel level,
@@ -55,9 +67,26 @@ void fastpm_default_msg_handler(
 
 void fastpm_set_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * userdata)
 {
-    msg_handler = handler;
-    msg_handler_userdata = userdata;
-    msg_handler_comm = comm;
+    handler_data.handler = handler;
+    handler_data.userdata = userdata;
+    handler_data.comm = comm;
+}
+
+void fastpm_push_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * userdata)
+{
+    FastPMMSGHandler * prev = malloc(sizeof(FastPMMSGHandler));
+    *prev = handler_data;
+    handler_data.prev = prev;
+    handler_data.handler = handler;
+    handler_data.userdata = userdata;
+    handler_data.comm = comm;
+}
+
+void fastpm_pop_msg_handler()
+{
+    FastPMMSGHandler * prev = handler_data.prev;
+    handler_data = *prev;
+    free(prev);
 }
 
 static double now()
@@ -87,12 +116,12 @@ void fastpm_log2(const enum FastPMLogLevel level,
     char buffer[4096];
     char * newfmt = process(fmt);
 
-    if (msg_handler == NULL) {
+    if (handler_data.handler == NULL) {
         fastpm_set_msg_handler(fastpm_default_msg_handler, MPI_COMM_WORLD, NULL);
     }
 
     vsprintf(buffer, newfmt, argp);
-    msg_handler(level, type, code, buffer, msg_handler_comm, msg_handler_userdata);
+    handler_data.handler(level, type, code, buffer, handler_data.comm, handler_data.userdata);
 
     free(newfmt);
 }

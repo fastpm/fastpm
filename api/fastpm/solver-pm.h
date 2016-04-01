@@ -37,12 +37,12 @@ typedef struct {
     int NTask;
 
     PMStore * p;
-    PM * pm_2lpt;
     VPM * vpm_list;
 
     FastPMModel * model;
     /* Pointer to the current PM object */
     PM * pm;
+    PM * pm_2lpt;
 } FastPM;
 
 enum FastPMExtensionPoint {

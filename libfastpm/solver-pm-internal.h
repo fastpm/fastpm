@@ -25,6 +25,7 @@ fastpm_model_find_correction(FastPMModel * model,
 
 void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType type);
 void fastpm_model_pt_init(FastPMModel * model);
+void fastpm_model_pm_init(FastPMModel * model);
 void fastpm_model_linear_init(FastPMModel * model);
 
 void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub, int attributes);
