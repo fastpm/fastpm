@@ -224,7 +224,7 @@ loads_param(char * confstr, Parameters * param)
 
     if(param->force_mode == FORCE_MODE_PM) {
         param->cola_stdda = 1;
-        param->enforce_broadband_mode = MODEL_LINEAR;
+        param->enforce_broadband_mode = MODEL_PM;
     } else {
         param->cola_stdda = 0;
         param->enforce_broadband_mode = MODEL_NONE;
