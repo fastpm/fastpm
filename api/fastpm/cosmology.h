@@ -16,7 +16,7 @@ double
 GrowthFactor2v(double a, Cosmology c);
 
 double DprimeQ(double a, double nGrowth, Cosmology c);
-double Qfactor(double a, Cosmology c);
+double HubbleEa(double a, Cosmology c);
 double OmegaA(double a, Cosmology c);
 
 #ifdef __cplusplus

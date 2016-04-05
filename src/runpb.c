@@ -284,8 +284,8 @@ static void write_mine(char * filebase,
     float * fscratch = (float*) scratch;
     int64_t * lscratch = (int64_t *) scratch;
 
-    double vfac = 100. / aa;
-    double RSD = aa / Qfactor(aa, c) / vfac;
+    double H0 = 100.;
+    double RSD = 1 / (aa * HubbleEa(aa, c) * H0);
 
 
     size_t chunksize = scratch_bytes;

@@ -47,8 +47,8 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
     int64_t size = p->np;
     int64_t offsets[NTask];
 
-    double vfac = 100. / p->a_x;
-    double RSD = p->a_x / Qfactor(p->a_x, CP(fastpm)) / vfac;
+    double H0 = 100.;
+    double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, CP(fastpm)));
 
     MPI_Allgather(&size, 1, MPI_LONG, offsets, 1, MPI_LONG, comm);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);

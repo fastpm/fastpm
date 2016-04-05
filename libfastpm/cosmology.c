@@ -20,9 +20,6 @@ static double growth(double a, Cosmology c)
     /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
 
     int WORKSIZE = 100000;
-    double hubble_a;
-
-    hubble_a = Qfactor(a, c) / (a * a * a);
 
     double result, abserr;
     gsl_integration_workspace *workspace;
@@ -39,7 +36,7 @@ static double growth(double a, Cosmology c)
 
     gsl_integration_workspace_free(workspace);
 
-    return hubble_a * result;
+    return HubbleEa(a, c) * result;
 }
 
 /*
@@ -62,9 +59,9 @@ double OmegaA(double a, Cosmology c) {
 double DprimeQ(double a, double nGrowth, Cosmology c)
 {
     /* This could have been Omega^(5/9) * Q / a * D1 for LCDM */ 
-    // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Qfactor(a)
+    // returns Q*d(D_{+}^nGrowth*D_{-}^nDecay)/da, where Q=Ea(a) a^3
     double d = GrowthFactor(a, c);
-    double r1 = Qfactor(a, c)*(d/a) * pow(OmegaA(a, c), 5.0 / 9);
+    double r1 = HubbleEa(a, c) * pow(a, 2) * d * pow(OmegaA(a, c), 5.0 / 9);
 /*
     double nDecay = 0.0;// not interested in decay modes in this code.
     double Nn = 1.0 / growth(1.0, c);
@@ -91,16 +88,16 @@ double GrowthFactor2v(double a, Cosmology c){ // explanation is in main()
     /* This mess needs to be cleaned up. The extra pow is to match up
      * the original cola factor, since we no longer absorb D20 into dx2; 
      * D20 is absorbed to GrowthFactor2. */
-    double d2= GrowthFactor2(a, c);
-    return Qfactor(a, c)*(d2/a)*2.0
+    double d2 = GrowthFactor2(a, c);
+    return HubbleEa(a, c) * pow(a, 2) * (d2)*2.0
          * pow(OmegaA(a, c), 6.0/11.);
 }
 
-double Qfactor(double a, Cosmology c) {
- // Q\equiv a^3 H(a)/H0.
-    return sqrt(c.OmegaM/(a*a*a)+c.OmegaLambda)*a*a*a;
+double HubbleEa(double a, Cosmology c)
+{
+    /* H(a) / H0 */
+    return sqrt(c.OmegaM/(a*a*a)+c.OmegaLambda);
 }
-
 #ifdef TEST_COSMOLOGY
 int main() {
     /* the old COLA growthDtemp is 6 * pow(1 - c.OmegaM, 1.5) times growth */

@@ -150,15 +150,15 @@ double gpQ(double a, double nLPT) {
 }
 
 static double stddriftfunc (double a, FastPM * fastpm) {
-    return 1.0/Qfactor(a, CP(fastpm));
+    return 1 / (pow(a, 3) * HubbleEa(a, CP(fastpm)));
 }
 
 static double nonstddriftfunc (double a, FastPM * fastpm) {
-    return gpQ(a, fastpm->nLPT)/Qfactor(a, CP(fastpm));
+    return gpQ(a, fastpm->nLPT)/(pow(a, 3) * HubbleEa(a, CP(fastpm)));
 }
 
 static double stdkickfunc (double a, FastPM * fastpm) {
-    return a/Qfactor(a, CP(fastpm));
+    return 1/ (pow(a, 2) * HubbleEa(a, CP(fastpm)));
 }
 
 static double integrand(double a, void * params) {
@@ -172,9 +172,9 @@ double integrate(double ai, double af,
         FastPM * fastpm,
         double (*func)(double , FastPM * )) {
 
-    gsl_integration_workspace * w 
+    gsl_integration_workspace * w
         = gsl_integration_workspace_alloc (5000);
-    
+
     gsl_function F;
     double error;
     double result;
@@ -228,9 +228,8 @@ Sphi(double ai, double af, double aRef, FastPM * fastpm)
     double result;
     double resultstd;
 
-    /* Qfactor is a**2 da / dt */
     result = (gpQ(af, fastpm->nLPT) - gpQ(ai, fastpm->nLPT)) * aRef 
-        / (Qfactor(aRef, CP(fastpm)) * DERgpQ(aRef, fastpm->nLPT));
+        / (pow(aRef, 3) * HubbleEa(aRef, CP(fastpm)) * DERgpQ(aRef, fastpm->nLPT));
 
     resultstd = integrate(ai, af, fastpm, stdkickfunc);
 
@@ -258,15 +257,14 @@ fastpm_set_snapshot(FastPM * fastpm,
 
     fastpm_info("Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
-    float vfac= 100.0f/aout;   // km/s; H0= 100 km/s/(h^-1 Mpc)
+    double H0 = 100.0f; // H0= 100 km/s/(h^-1 Mpc)
 
     fastpm_info("Growth factor of snapshot %f (a=%.3f)\n", fastpm_growth_factor(fastpm, aout), aout);
 
     double Dv=DprimeQ(aout, 1.0, CP(fastpm)); // dD_{za}/dy
     double Dv2=GrowthFactor2v(aout, CP(fastpm));   // dD_{2lpt}/dy
 
-    fastpm_info("velocity factor %e %e\n", vfac*Dv, vfac*Dv2);
-    fastpm_info("RSD factor %e\n", aout/Qfactor(aout, CP(fastpm))/vfac);
+    fastpm_info("RSD factor %e\n", 1 /(aout * HubbleEa(aout, CP(fastpm)) *H0));
 
     fastpm_kick_store(fastpm, p, po, aout);
 
@@ -282,8 +280,8 @@ fastpm_set_snapshot(FastPM * fastpm,
             if(fastpm->USE_COLA)
                 po->v[i][d] += p->dx1[i][d]*Dv 
                              + p->dx2[i][d]*Dv2;
-            /* convert the unit to km/s */
-            po->v[i][d] *= vfac;
+            /* convert the unit from a**2 dx/dt in Mpc/h to a dx/dt km/s */
+            po->v[i][d] *= H0 / aout;
         }    
         po->id[i] = p->id[i];
     }
