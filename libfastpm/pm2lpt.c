@@ -204,18 +204,18 @@ pm_2lpt_evolve(double aout, PMStore * p, double Omega, int zaonly)
     double D1 = GrowthFactor(aout, c);
     double D2 = GrowthFactor2(aout, c);
 
-    double Dv=DprimeQ(aout, 1.0, c); // dD_{za}/dy
-    double Dv2=GrowthFactor2v(aout, c);   // dD_{2lpt}/dy
+    double Dv1 = D1 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
+    double Dv2 = D2 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
 
     int i;
-#pragma omp parallel for 
+#pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
             p->x[i][d] += D1 * p->dx1[i][d] + D2 * p->dx2[i][d];
 
             if(p->v)
-                p->v[i][d] = (p->dx1[i][d]*Dv + p->dx2[i][d]*Dv2);
+                p->v[i][d] = (p->dx1[i][d]* Dv1 + p->dx2[i][d]*Dv2);
         }
     }
     p->a_x = p->a_v = aout;

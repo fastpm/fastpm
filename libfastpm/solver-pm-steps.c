@@ -261,28 +261,30 @@ fastpm_set_snapshot(FastPM * fastpm,
 
     fastpm_info("Growth factor of snapshot %f (a=%.3f)\n", fastpm_growth_factor(fastpm, aout), aout);
 
-    double Dv=DprimeQ(aout, 1.0, CP(fastpm)); // dD_{za}/dy
-    double Dv2=GrowthFactor2v(aout, CP(fastpm));   // dD_{2lpt}/dy
+    Cosmology c = CP(fastpm);
 
-    fastpm_info("RSD factor %e\n", 1 /(aout * HubbleEa(aout, CP(fastpm)) *H0));
+    double Dv1 = GrowthFactor(aout, c) * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
+    double Dv2 = GrowthFactor2(aout, c) * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
+
+    fastpm_info("RSD factor %e\n", 1 /(aout * HubbleEa(aout, c) *H0));
 
     fastpm_kick_store(fastpm, p, po, aout);
 
     fastpm_drift_store(fastpm, p, po, aout);
 
     int i;
-#pragma omp parallel for 
+#pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
-            /* For cola, 
+            /* For cola,
              * add the lpt velocity to the residual velocity v*/
             if(fastpm->USE_COLA)
-                po->v[i][d] += p->dx1[i][d]*Dv 
+                po->v[i][d] += p->dx1[i][d]*Dv1
                              + p->dx2[i][d]*Dv2;
             /* convert the unit from a**2 dx/dt in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= H0 / aout;
-        }    
+        }
         po->id[i] = p->id[i];
     }
 
