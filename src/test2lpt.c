@@ -20,11 +20,11 @@ int main(int argc, char * argv[]) {
 
 
     FastPMHMCZA * self = alloca(sizeof(FastPMHMCZA));
-    fastpm_hmc_za_init(self, 64, 512, 0.304, comm);
+    fastpm_hmc_za_init(self, 128, 512, 0.304, 1, comm);
 
-    self->sml = 12.;
+    self->sml = 8.;
     self->kth = 0;
-    self->decic = 0;
+    self->decic = 1;
 
     FastPMFloat * sigma = pm_alloc(self->pm);
     FastPMFloat * Fk = pm_alloc(self->pm);
@@ -55,7 +55,7 @@ int main(int argc, char * argv[]) {
     double delta = 1e-2;
     ptrdiff_t i;
     for(i = 0; i < pm_size(self->pm); i ++) {
-        sigma[i] = 1.0;
+        sigma[i] = 3.0;
     }
     fastpm_utils_fill_deltak(self->pm, rho_init_k, 101, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
     rho_init_k[mode] += 1.0 * delta;
