@@ -89,8 +89,9 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
             kernel[d] = malloc(sizeof(double) * pm->Nmesh[d]);
             for(i = 0; i < pm->Nmesh[d]; i ++) {
                 double w = kiter.k[d][i] * pm->BoxSize[d] / pm->Nmesh[d];
-                double cic = sinc_unnormed(0.5 * w);                
-                kernel[d][i] = 1.0 / pow(cic, 2);
+                double cic = sinc_unnormed(0.5 * w);
+                /* Watchout: this does divide by sinc, not sinc 2, */
+                kernel[d][i] = 1.0 / pow(cic, 1);
             }
         }
         for(;

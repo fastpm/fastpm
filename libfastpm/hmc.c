@@ -88,7 +88,7 @@ fastpm_hmc_za_chisq(
     double chi2 = 0;
 
     PMXIter iter;
-    for(pm_xiter_init(solver->pm, &iter);
+    for(pm_xiter_init(solver->pm, &iter); 
        !pm_xiter_stop(&iter);
         pm_xiter_next(&iter)) {
         double diff = (model_x[iter.ind] - data_x[iter.ind]);
@@ -99,11 +99,10 @@ fastpm_hmc_za_chisq(
         //printf("%td\n", iter.ind);
     }
     MPI_Allreduce(MPI_IN_PLACE, &chi2, 1, MPI_DOUBLE, MPI_SUM, self->solver.comm);
-    chi2 /= pm_norm(solver->pm);
-    return chi2;
+    return chi2; 
 }
 
-void
+void 
 fastpm_hmc_za_force(
     FastPMHMCZA * self,
     FastPMFloat * data_x, /* rhop in x-space*/
@@ -138,29 +137,14 @@ fastpm_hmc_za_force(
     /* Fk contains rhod_k at this point */
 
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
-    for(d = 0; d < 3; d ++) {
+    for(d = 0; d < 3; d ++) { 
         fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
 
         /* workspace stores \Gamma(k) = i k \rho_d */
 
         pm_c2r(solver->pm, workspace);
-
+        
         fastpm_utils_readout(solver->pm, solver->p, workspace, get_position, ACC[d]);
-
-        /*FIXME: Add RSD f */
-        if(self->IncludeRSD && d == 2) {
-            Cosmology c = {
-                        .OmegaM = self->OmegaM,
-                        .OmegaLambda = 1 - self->OmegaM,
-            };
-
-            double f1 = DLogGrowthFactor(1.0, c);
-            double D1 = GrowthFactor(1.0, c);
-            ptrdiff_t i;
-            for(i = 0; i < solver->p->np; i ++) {
-                solver->p->acc[i][d] *= (1 + f1 * D1);
-            }
-        }
         fastpm_info("d= %d ACC = %d\n", d, ACC[d]);
     }
 
@@ -168,7 +152,7 @@ fastpm_hmc_za_force(
 
     memset(Fk, 0, sizeof(Fk[0]) * pm_size(solver->pm));
 
-    double fac = pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3);
+    double fac = pm_norm(solver->pm) * pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3);
 
     for(d = 0; d < 3; d ++) {
         fastpm_utils_paint(solver->pm, solver->p, NULL, workspace2, get_lagrangian_position, ACC[d]);
@@ -177,9 +161,9 @@ fastpm_hmc_za_force(
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < pm_size(solver->pm); ind ++) {
-            /* Wang's magic factor of 2 in 1301.1348.
+            /* Wang's magic factor of 2 in 1301.1348. 
              * We do not put it in in hmc_force_2lpt_transfer */
-            Fk[ind] += 2 * fac * workspace[ind];
+            Fk[ind] += 2 * fac * workspace[ind]; 
         }
     }
     pm_free(solver->pm, workspace2);
