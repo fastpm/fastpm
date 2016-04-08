@@ -9,14 +9,16 @@ typedef struct {
     double sml;
     double kth;
     int decic;
+    int IncludeRSD;
     PM * pm;
 } FastPMHMCZA;
 
-void 
-fastpm_hmc_za_init(FastPMHMCZA * self, 
+void
+fastpm_hmc_za_init(FastPMHMCZA * self,
     int nc,
     double boxsize,
-    double OmegaM, 
+    double OmegaM,
+    int IncludeRSD,
     MPI_Comm comm);
 
 void 
