@@ -39,32 +39,24 @@ static double growth(double a, Cosmology c)
     return HubbleEa(a, c) * result;
 }
 
-/*
-static double decayD(double a, Cosmology c){ // D_{-}, the decaying mode
-    return sqrt(c.OmegaM/(a*a*a)+1.0-c.OmegaM);
+double OmegaA(double a, Cosmology c) {
+    return c.OmegaM/(c.OmegaM + (c.OmegaLambda)*a*a*a);
 }
-*/
+
 double GrowthFactor(double a, Cosmology c) { // growth factor for LCDM
     return growth(a, c) / growth(1.0, c);
 }
 
-static double growthD2temp(double a, Cosmology c){
-    double d = GrowthFactor(a, c);
-    return d*d*pow(OmegaA(a, c), -1.0/143.);
-}
-
-double OmegaA(double a, Cosmology c) {
-    return c.OmegaM/(c.OmegaM + (c.OmegaLambda)*a*a*a);
-}
 double DLogGrowthFactor(double a, Cosmology c) {
     /* Or OmegaA^(5/9) */
     return pow(OmegaA(a, c), 5.0 / 9);
 }
 
 double GrowthFactor2(double a, Cosmology c) {// Second order growth factor
-    return growthD2temp(a, c)/growthD2temp(1.0, c); // **???
+    /* 7 / 3. is absorbed into dx2 */
+    double d = GrowthFactor(a, c);
+    return d * d * pow(OmegaA(a, c) / OmegaA(1.0, c), -1.0/143.);
 }
-
 
 double DLogGrowthFactor2(double a, Cosmology c) {
     return 2 * pow(OmegaA(a, c), 6.0/11.);
@@ -75,6 +67,7 @@ double HubbleEa(double a, Cosmology c)
     /* H(a) / H0 */
     return sqrt(c.OmegaM/(a*a*a)+c.OmegaLambda);
 }
+
 #ifdef TEST_COSMOLOGY
 int main() {
     /* the old COLA growthDtemp is 6 * pow(1 - c.OmegaM, 1.5) times growth */
