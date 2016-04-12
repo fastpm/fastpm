@@ -12,6 +12,9 @@ struct fastpm_powerspec_eh_params {
 double 
 fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param); /* Eisenstein & Hu */
 
+double 
+fastpm_utils_powerspec_white(double k, double * amplitude); /* white noise. */
+
 void
 fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k, 
         fastpm_pos_func getpos, int attribute);

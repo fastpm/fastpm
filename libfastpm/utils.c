@@ -239,3 +239,9 @@ fastpm_utils_powerspec_eh(double k, struct fastpm_powerspec_eh_params * param)	/
     return param->Norm * k * pow(tk_eh(k, param), 2);
 }
 
+double 
+fastpm_utils_powerspec_white(double k, double * amplitude) 	/* White Noise*/
+{
+    return *amplitude;
+}
+
