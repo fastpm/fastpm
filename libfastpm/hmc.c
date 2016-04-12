@@ -112,7 +112,7 @@ fastpm_hmc_za_chisq(
         double diff = (model_x[iter.ind] - data_x[iter.ind]);
         diff *= diff;
         if(sigma_x)
-            diff /= (2 * sigma_x[iter.ind] * sigma_x[iter.ind]);
+            diff /= (sigma_x[iter.ind] * sigma_x[iter.ind]);
         chi2 += diff;
         //printf("%td\n", iter.ind);
     }
@@ -195,9 +195,9 @@ fastpm_hmc_za_force(
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < pm_size(solver->pm); ind ++) {
-            /* Wang's magic factor of 2 in 1301.1348.
+            /* Wang's magic factor of 2 in 1301.1348 is cancelled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
-            Fk[ind] += 2 * fac * workspace[ind];
+            Fk[ind] += fac * workspace[ind];
         }
     }
     pm_free(solver->pm, workspace2);
