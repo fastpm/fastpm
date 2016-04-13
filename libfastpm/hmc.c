@@ -195,9 +195,9 @@ fastpm_hmc_za_force(
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < pm_size(solver->pm); ind ++) {
-            /* Wang's magic factor of 2 in 1301.1348 is cancelled because our chisq per ddof is approaching 1, not half.
+            /* Wang's magic factor of 2 in 1301.1348 is doubled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
-            Fk[ind] += fac * workspace[ind];
+            Fk[ind] += 2 * 2 * fac * workspace[ind];
         }
     }
     pm_free(solver->pm, workspace2);
