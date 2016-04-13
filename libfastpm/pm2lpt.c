@@ -206,6 +206,10 @@ pm_2lpt_evolve(double aout, PMStore * p, double Omega, int zaonly)
 
     double Dv1 = D1 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
     double Dv2 = D2 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
+    if(zaonly) {
+        D2 = 0;
+        Dv2 = 0;
+    }
 
     int i;
 #pragma omp parallel for

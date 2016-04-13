@@ -52,6 +52,15 @@ fastpm_2lpt_evolve(FastPM2LPTSolver * solver,
 
     pm_2lpt_solve(solver->pm, delta_k_i, solver->p, shift);
 
+    if(solver->USE_DX1_ONLY) {
+        ptrdiff_t i;
+        for(i = 0; i < solver->p->np; i ++) {
+            int d;
+            for(d = 0; d < 3; d ++) {
+                solver->p->dx2[i][d] = 0;
+            }
+        }
+    }
     pm_store_summary(solver->p, solver->pm->Comm2D);
 
     /* pdata->dx1 and pdata->dx2 are s1 and s2 terms 

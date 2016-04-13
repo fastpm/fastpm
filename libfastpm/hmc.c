@@ -63,6 +63,7 @@ fastpm_hmc_za_evolve(
     fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
 
     if(self->IncludeRSD) {
+        fastpm_info("Using RSD along z\n");
         Cosmology c = {
                     .OmegaM = self->OmegaM,
                     .OmegaLambda = 1 - self->OmegaM,
@@ -114,7 +115,6 @@ fastpm_hmc_za_chisq(
         if(sigma_x)
             diff /= (sigma_x[iter.ind] * sigma_x[iter.ind]);
         chi2 += diff;
-        //printf("%td\n", iter.ind);
     }
     MPI_Allreduce(MPI_IN_PLACE, &chi2, 1, MPI_DOUBLE, MPI_SUM, self->solver.comm);
     chi2 /= pm_norm(solver->pm);
@@ -167,6 +167,7 @@ fastpm_hmc_za_force(
 
         /*FIXME: Add RSD f */
         if(self->IncludeRSD && d == 2) {
+            fastpm_info("Using RSD along z\n");
             Cosmology c = {
                         .OmegaM = self->OmegaM,
                         .OmegaLambda = 1 - self->OmegaM,
@@ -179,7 +180,6 @@ fastpm_hmc_za_force(
                 solver->p->acc[i][d] *= (1 + f1 * D1);
             }
         }
-        fastpm_info("d= %d ACC = %d\n", d, ACC[d]);
     }
 
     /* now we paint \Psi by the lagrangian position q */
