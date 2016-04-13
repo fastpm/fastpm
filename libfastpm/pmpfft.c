@@ -462,7 +462,7 @@ int pm_inc_i_index(PM * pm, ptrdiff_t i[3]) {
     /* can't use the macro because of the padding */
     int rt = 1;
     i[2] ++;
-    if(UNLIKELY(i[2] == pm->IRegion.strides[1])) { /* the padding !*/
+    if(UNLIKELY(i[2] == pm->IRegion.size[2])) { /* the padding !*/
         rt += 2;
         i[2] = 0;
         i[1] ++;

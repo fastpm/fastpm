@@ -427,7 +427,6 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3])
 {
     /* fill pdata with a uniform grid, respecting domain given by pm */
     
-    ptrdiff_t ind;
     int d;
     p->np = 1;
     for(d = 0; d < 3; d++) {
@@ -437,20 +436,20 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3])
         fastpm_raise(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
     }
     ptrdiff_t ptrmax = 0;
-    ptrdiff_t i[3] = {0};
     ptrdiff_t ptr = 0;
-    for(ind = 0; ind < pm->IRegion.total; ind ++, pm_inc_i_index(pm, i)){
+    PMXIter iter;
+    for(pm_xiter_init(pm, &iter);
+       !pm_xiter_stop(&iter);
+        pm_xiter_next(&iter)){
         uint64_t id;
-        /* avoid the padded region */
-        if(i[2] >= pm->IRegion.size[2]) continue;
-
+        
         id = 0;
         for(d = 0; d < 3; d ++) {
-            id = id * pm->Nmesh[d] + i[d] + pm->IRegion.start[d];
+            id = id * pm->Nmesh[d] + iter.iabs[d];
         }
 //        msg_aprintf(debug, "Creating particle at offset %td i = %td %td %td\n", ptr, i[0], i[1], i[2]);
         for(d = 0; d < 3; d ++) {
-            p->x[ptr][d] = (i[d] + pm->IRegion.start[d]) * (pm->BoxSize[d] / pm->Nmesh[d]) + shift[d];
+            p->x[ptr][d] = (iter.iabs[d]) * (pm->BoxSize[d] / pm->Nmesh[d]) + shift[d];
 
             p->id[ptr]  = id;
 
