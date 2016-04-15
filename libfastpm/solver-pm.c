@@ -102,7 +102,8 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
             fastpm->boxsize / fastpm->nc * 0.5,
             };
 
-        pm_store_set_lagrangian_position(fastpm->p, pm_2lpt, shift);
+        int nc[3] = {fastpm->nc, fastpm->nc, fastpm->nc};
+        pm_store_set_lagrangian_position(fastpm->p, pm_2lpt, shift, nc);
 
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(pm_2lpt, delta_k_ic, fastpm->p, shift);

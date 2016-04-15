@@ -11,44 +11,46 @@
 #include "pmghosts.h"
 
 int 
-fastpm_2lpt_init(FastPM2LPTSolver * solver, int nc, double boxsize, double alloc_factor, MPI_Comm comm)
+fastpm_2lpt_init(FastPM2LPTSolver * solver, int nmesh, int nc, double boxsize, double alloc_factor, MPI_Comm comm)
 {
     solver->p = malloc(sizeof(PMStore));
     solver->pm = malloc(sizeof(PM));
     pm_store_init(solver->p);
 
-    pm_store_alloc_evenly(solver->p, pow(nc, 3), 
+    pm_store_alloc_evenly(solver->p, pow(nc, 3),
         PACK_POS | PACK_VEL | PACK_ID | PACK_ACC | PACK_DX1 | PACK_DX2 | PACK_Q,
         alloc_factor, comm);
 
-    pm_init_simple(solver->pm, solver->p, nc, boxsize, comm);
-    solver->boxsize = boxsize;
     solver->nc = nc;
+    solver->nmesh = nmesh;
+    pm_init_simple(solver->pm, solver->p, nmesh, boxsize, comm);
+    solver->boxsize = boxsize;
     solver->comm = comm;
     return 0;
 }
 
 void
-fastpm_2lpt_destroy(FastPM2LPTSolver * solver) 
+fastpm_2lpt_destroy(FastPM2LPTSolver * solver)
 {
     pm_destroy(solver->pm);
     pm_store_destroy(solver->p);
     free(solver->pm);
-    free(solver->p);   
+    free(solver->p);
 }
 
-void 
-fastpm_2lpt_evolve(FastPM2LPTSolver * solver, 
+void
+fastpm_2lpt_evolve(FastPM2LPTSolver * solver,
         FastPMFloat * delta_k_i, double aout, double omega_m)
 {
     /* evolve particles by 2lpt to time a. pm->canvas contains rho(x, a) */
-    double shift[3] = {0, 0, 0
-            //solver->boxsize / solver->nc * 0.5,
-            //solver->boxsize / solver->nc * 0.5,
-            //solver->boxsize / solver->nc * 0.5
+    double shift[3] = {
+    0, //   solver->boxsize / solver->nc * 0.5,
+    0,  //  solver->boxsize / solver->nc * 0.5,
+    0,   // solver->boxsize / solver->nc * 0.5,
     };
+    int nc[3] = {solver->nc, solver->nc, solver->nc};
 
-    pm_store_set_lagrangian_position(solver->p, solver->pm, shift);
+    pm_store_set_lagrangian_position(solver->p, solver->pm, shift, nc);
 
     pm_2lpt_solve(solver->pm, delta_k_i, solver->p, shift);
 

@@ -28,6 +28,7 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
 
 void 
 fastpm_hmc_za_init(FastPMHMCZA * self,
+    int nmesh,
     int nc,
     double boxsize,
     double OmegaM,
@@ -39,7 +40,7 @@ fastpm_hmc_za_init(FastPMHMCZA * self,
     self->sml = 0;
     self->kth = 0;
     self->solver.USE_DX1_ONLY = 1;
-    fastpm_2lpt_init(&self->solver, nc, boxsize, alloc_factor, comm);
+    fastpm_2lpt_init(&self->solver, nmesh, nc, boxsize, alloc_factor, comm);
     self->decic = 1;
     self->pm = self->solver.pm;
     self->IncludeRSD = IncludeRSD;
@@ -187,7 +188,14 @@ fastpm_hmc_za_force(
     memset(Fk, 0, sizeof(Fk[0]) * pm_size(solver->pm));
 
     double fac = pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3);
-
+    ptrdiff_t i;
+    for(i = 0; i < solver->p->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+        //    solver->p->q[i][d] += 0.25 * solver->boxsize / solver->nc;
+        }
+    }
+    fastpm_utils_paint(solver->pm, solver->p, workspace2, NULL, get_lagrangian_position, 0);
+    fastpm_utils_dump(solver->pm, "dump", workspace2);
     for(d = 0; d < 3; d ++) {
         fastpm_utils_paint(solver->pm, solver->p, NULL, workspace2, get_lagrangian_position, ACC[d]);
         fastpm_apply_za_hmc_force_transfer(solver->pm, workspace2, workspace, d);
@@ -198,6 +206,11 @@ fastpm_hmc_za_force(
             /* Wang's magic factor of 2 in 1301.1348 is doubled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
             Fk[ind] += 2 * 2 * fac * workspace[ind];
+        }
+    }
+    for(i = 0; i < solver->p->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+         //   solver->p->q[i][d] -= 0.25 * solver->boxsize / solver->nc;
         }
     }
     pm_free(solver->pm, workspace2);

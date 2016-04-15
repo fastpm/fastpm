@@ -15,6 +15,7 @@ typedef struct {
 
 void
 fastpm_hmc_za_init(FastPMHMCZA * self,
+    int nmesh,
     int nc,
     double boxsize,
     double OmegaM,

@@ -423,49 +423,60 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 }
 
 void 
-pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3]) 
+pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3], int Nc[3])
 {
-    /* fill pdata with a uniform grid, respecting domain given by pm */
-    
+    /* fill pdata with a uniform grid, respecting domain given by pm. use a subsample ratio. 
+     * (every subsample grid points) */
+
     int d;
     p->np = 1;
     for(d = 0; d < 3; d++) {
-        p->np *= pm->IRegion.size[d];
+        int start = pm->IRegion.start[d] * Nc[d] / pm->Nmesh[d];
+        int end = (pm->IRegion.start[d] + pm->IRegion.size[d]) * Nc[d] / pm->Nmesh[d];
+        p->np *= end - start;
     }
     if(p->np > p->np_upper) {
         fastpm_raise(-1, "Need %td particles; %td allocated\n", p->np, p->np_upper);
     }
-    ptrdiff_t ptrmax = 0;
     ptrdiff_t ptr = 0;
+
     PMXIter iter;
     for(pm_xiter_init(pm, &iter);
        !pm_xiter_stop(&iter);
         pm_xiter_next(&iter)){
         uint64_t id;
-        
-        id = 0;
-        for(d = 0; d < 3; d ++) {
-            id = id * pm->Nmesh[d] + iter.iabs[d];
-        }
-//        msg_aprintf(debug, "Creating particle at offset %td i = %td %td %td\n", ptr, i[0], i[1], i[2]);
-        for(d = 0; d < 3; d ++) {
-            p->x[ptr][d] = (iter.iabs[d]) * (pm->BoxSize[d] / pm->Nmesh[d]) + shift[d];
+        ptrdiff_t pabs_start[3];
+        ptrdiff_t pabs_end[3];
+        ptrdiff_t ii, jj, kk;
 
-            p->id[ptr]  = id;
-
-            /* set q if it is allocated. */
-            if(p->q) p->q[ptr][d] = p->x[ptr][d];
+        for(d = 0; d < 3; d ++) {
+            pabs_start[d] = iter.iabs[d] * Nc[d] / pm->Nmesh[d];
+            pabs_end[d] = (iter.iabs[d] + 1) * Nc[d] / pm->Nmesh[d];
         }
-        if(ptr > ptrmax) ptrmax = ptr;
-        ptr ++;
+        for(ii = pabs_start[0]; ii < pabs_end[0]; ii ++)
+        for(jj = pabs_start[1]; jj < pabs_end[1]; jj ++)
+        for(kk = pabs_start[2]; kk < pabs_end[2]; kk ++) {
+            ptrdiff_t pabs[3] = {ii, jj, kk};
+
+            id = ii * Nc[1] * Nc[2] + jj * Nc[2] + kk;
+
+            for(d = 0; d < 3; d ++) {
+                p->x[ptr][d] = pabs[d] * (pm->BoxSize[d] / Nc[d]) + shift[d];
+
+                p->id[ptr]  = id;
+
+                /* set q if it is allocated. */
+                if(p->q) p->q[ptr][d] = p->x[ptr][d];
+            }
+            ptr ++;
+        }
     }
-    if(ptrmax + 1 != p->np) {
+    if(ptr != p->np) {
         fastpm_raise(-1, "This is an internal error, particle number mismatched with grid. %td != %td, allocsize=%td, shape=(%td %td %td)\n", 
-            ptrmax + 1, p->np, pm->allocsize, 
+            ptr, p->np, pm->allocsize,
             pm->IRegion.size[0],
             pm->IRegion.size[1],
             pm->IRegion.size[2]
-
             );
     }
     p->a_x = p->a_v = 0.;
