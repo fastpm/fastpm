@@ -35,8 +35,11 @@ apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
             ptrdiff_t ind = kiter.ind;
             /* - i k[d] / k2 */
             if(LIKELY(kk_finite > 0)) {
-                to[ind + 0] = - from[ind + 1] * (k_finite / kk_finite);
-                to[ind + 1] = + from[ind + 0] * (k_finite / kk_finite);
+                FastPMFloat tmp[2];
+                tmp[0] = - from[ind + 1] * (k_finite / kk_finite);
+                tmp[1] = + from[ind + 0] * (k_finite / kk_finite);
+                to[ind + 0] = tmp[0];
+                to[ind + 1] = tmp[1];
             } else {
                 to[ind + 0] = 0;
                 to[ind + 1] = 0;
