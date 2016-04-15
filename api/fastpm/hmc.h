@@ -4,30 +4,30 @@
 FASTPM_BEGIN_DECLS
 
 typedef struct {
-    FastPM2LPTSolver solver;
     double OmegaM;
-    double sml;
-    double kth;
-    int decic;
+    double SmoothingLength;
+    double KThreshold;
+    int DeconvolveCIC;
     int IncludeRSD;
+    int LPTOrder;
+
+    int Nmesh;
+    int Ngrid;
+    double BoxSize;
+
     PM * pm;
+    FastPM2LPTSolver solver;
     FastPMFloat * delta_ic_k;
     FastPMFloat * rho_final_x;
 } FastPMHMCZA;
 
 void
-fastpm_hmc_za_init(FastPMHMCZA * self,
-    int nmesh,
-    int nc,
-    double boxsize,
-    double OmegaM,
-    int IncludeRSD,
-    MPI_Comm comm);
+fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm);
 
-void 
+void
 fastpm_hmc_za_destroy(FastPMHMCZA * self);
 
-void 
+void
 fastpm_hmc_za_evolve(
     FastPMHMCZA * self,
     FastPMFloat * delta_ic /* IC in k-space*/

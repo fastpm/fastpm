@@ -19,12 +19,18 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
 
-    FastPMHMCZA * self = alloca(sizeof(FastPMHMCZA));
-    fastpm_hmc_za_init(self, 256, 128, 512., 0.304, 0, comm);
+    FastPMHMCZA * self = &(FastPMHMCZA) {
+            .BoxSize = 512.,
+            .Nmesh = 256.,
+            .Ngrid = 128.,
+            .OmegaM = 0.304,
+            .KThreshold = 0.0,
+            .DeconvolveCIC = 1,
+            .LPTOrder = 1,
+            .SmoothingLength = 2,
+        };
 
-    self->sml = 2.;
-    self->kth = 0;
-    self->decic = 1;
+    fastpm_hmc_za_init(self, comm);
 
     FastPMFloat * sigma = pm_alloc(self->pm);
     FastPMFloat * Fk = pm_alloc(self->pm);

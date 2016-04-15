@@ -27,23 +27,16 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
 }
 
 void 
-fastpm_hmc_za_init(FastPMHMCZA * self,
-    int nmesh,
-    int nc,
-    double boxsize,
-    double OmegaM,
-    int IncludeRSD, /* RSD in Z direction, always */
-    MPI_Comm comm)
+fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 {
+    if(self->LPTOrder == 1)
+        self->solver.USE_DX1_ONLY = 1;
+    else
+        self->solver.USE_DX1_ONLY = 0;
+
     double alloc_factor = 2.0;
-    self->OmegaM = OmegaM;
-    self->sml = 0;
-    self->kth = 0;
-    self->solver.USE_DX1_ONLY = 1;
-    fastpm_2lpt_init(&self->solver, nmesh, nc, boxsize, alloc_factor, comm);
-    self->decic = 1;
+    fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
     self->pm = self->solver.pm;
-    self->IncludeRSD = IncludeRSD;
     self->delta_ic_k = pm_alloc(self->solver.pm);
     self->rho_final_x = pm_alloc(self->solver.pm);
 }
@@ -87,11 +80,11 @@ fastpm_hmc_za_evolve(
 
     fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final ,NULL, 0);
 
-    if(self->sml > 0)
-        fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->sml);
-    if(self->kth > 0)
-        fastpm_apply_lowpass_transfer(solver->pm, delta_final, delta_final, self->kth);
-    if(self->decic)
+    if(self->SmoothingLength > 0)
+        fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->SmoothingLength);
+    if(self->KThreshold > 0)
+        fastpm_apply_lowpass_transfer(solver->pm, delta_final, delta_final, self->KThreshold);
+    if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(solver->pm, delta_final, delta_final);
 
     pm_c2r(solver->pm, delta_final);
@@ -155,12 +148,13 @@ fastpm_hmc_za_force(
 
     pm_r2c(solver->pm, workspace, Fk);
 
-    if(self->sml > 0)
-        fastpm_apply_smoothing_transfer(solver->pm, Fk, Fk, self->sml);
-    if(self->kth > 0)
-        fastpm_apply_lowpass_transfer(solver->pm, Fk, Fk, self->kth);
+    if(self->SmoothingLength > 0)
+        fastpm_apply_smoothing_transfer(solver->pm, Fk, Fk, self->SmoothingLength);
 
-    if(self->decic)
+    if(self->KThreshold > 0)
+        fastpm_apply_lowpass_transfer(solver->pm, Fk, Fk, self->KThreshold);
+
+    if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(solver->pm, Fk, Fk);
 
     /* Fk contains rhod_k at this point */
