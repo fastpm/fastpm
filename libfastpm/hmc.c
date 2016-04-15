@@ -44,24 +44,29 @@ fastpm_hmc_za_init(FastPMHMCZA * self,
     self->decic = 1;
     self->pm = self->solver.pm;
     self->IncludeRSD = IncludeRSD;
+    self->delta_ic_k = pm_alloc(self->solver.pm);
+    self->rho_final_x = pm_alloc(self->solver.pm);
 }
 
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self)
 {
+    pm_free(self->solver.pm, self->rho_final_x);
+    pm_free(self->solver.pm, self->delta_ic_k);
     fastpm_2lpt_destroy(&self->solver);
 }
 
 void 
 fastpm_hmc_za_evolve(
     FastPMHMCZA * self,
-    FastPMFloat * delta_ic, /* IC in k-space*/
-    FastPMFloat * delta_final /* final in x-space*/
-    ) 
+    FastPMFloat * delta_ic /* IC in k-space*/
+    )
 {
     FastPM2LPTSolver * solver = &self->solver;
     /* Evolve with ZA for HMC, smoothed by sml and deconvolve CIC */
     fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
+
+    pm_assign(solver->pm, delta_ic, self->delta_ic_k);
 
     if(self->IncludeRSD) {
         fastpm_info("Using RSD along z\n");
@@ -78,7 +83,9 @@ fastpm_hmc_za_evolve(
         }
     }
 
-    fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final, NULL, 0);
+    FastPMFloat * delta_final = self->rho_final_x;
+
+    fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final ,NULL, 0);
 
     if(self->sml > 0)
         fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->sml);
@@ -100,11 +107,12 @@ double
 fastpm_hmc_za_chisq(
     FastPMHMCZA * self,
     FastPMFloat * data_x, /* rhop in x-space*/
-    FastPMFloat * model_x, /* rhop in x-space*/
     FastPMFloat * sigma_x /* sigma_x in x-space*/
     )
 {
     FastPM2LPTSolver * solver = &self->solver;
+    FastPMFloat * model_x = self->rho_final_x;
+
     double chi2 = 0;
 
     PMXIter iter;
@@ -126,12 +134,13 @@ void
 fastpm_hmc_za_force(
     FastPMHMCZA * self,
     FastPMFloat * data_x, /* rhop in x-space*/
-    FastPMFloat * model_x, /* rhop in x-space*/
     FastPMFloat * sigma_x, /* sigma_x in x-space*/
     FastPMFloat * Fk    /* (out) hmc force in fourier space */
     )
 {
     FastPM2LPTSolver * solver = &self->solver;
+
+    FastPMFloat * model_x = self->rho_final_x;
     int d;
 
     FastPMFloat * workspace = pm_alloc(solver->pm);
