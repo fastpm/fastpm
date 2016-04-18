@@ -145,6 +145,8 @@ fastpm_hmc_za_force(
 
     fastpm_hmc_za_force_rhodk(self, data_x, sigma_x, rhodk);
 
+    memset(Fk, 0, sizeof(Fk[0]) * pm_size(solver->pm));
+
     /* First order */
     if(self->LPTOrder >= 1) {
         fastpm_hmc_za_force_s1(self, rhodk, workspace);
