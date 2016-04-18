@@ -21,24 +21,29 @@ int main(int argc, char * argv[]) {
 
     FastPMHMCZA * self = &(FastPMHMCZA) {
             .BoxSize = 512.,
-            .Nmesh = 256.,
+            .Nmesh = 128.,
             .Ngrid = 128.,
             .OmegaM = 0.304,
             .KThreshold = 0.0,
             .DeconvolveCIC = 1,
-            .LPTOrder = 1,
-            .SmoothingLength = 2,
+            .LPTOrder = 2,
+            .SmoothingLength = 4,
+            .IncludeRSD = 0,
         };
 
     fastpm_hmc_za_init(self, comm);
 
     FastPMFloat * sigma = pm_alloc(self->pm);
-    FastPMFloat * Fk = pm_alloc(self->pm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(self->pm);
     FastPMFloat * rho_final_xtruth = pm_alloc(self->pm);
 
+    FastPMFloat * rho_init_k0 = pm_alloc(self->pm);
     FastPMFloat * rho_init_k = pm_alloc(self->pm);
+
+    FastPMFloat * Fk1 = pm_alloc(self->pm);
+    FastPMFloat * Fk2 = pm_alloc(self->pm);
+    FastPMFloat * rhodk = pm_alloc(self->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -47,10 +52,12 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {0, 0, 1}) + 0;
+    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {30, 20, 10}) + 0;
     int seed = 2999;
 
-    fastpm_utils_fill_deltak(self->pm, rho_init_ktruth, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    double amplitude = 10000;
+    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+//    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_white, &amplitude, FASTPM_DELTAK_GADGET);
     memset(rho_init_ktruth, 0, pm_size(self->pm) * sizeof(FastPMFloat));
 
     fastpm_hmc_za_evolve(self, rho_init_ktruth);
@@ -65,33 +72,48 @@ int main(int argc, char * argv[]) {
     for(i = 0; i < pm_size(self->pm); i ++) {
         sigma[i] = 1.0;
     }
-    fastpm_utils_fill_deltak(self->pm, rho_init_k, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    /* Analytic */
+    pm_assign(self->pm, rho_init_k0, rho_init_k);
+    rho_init_k[mode] += 1.0005 * delta;
+
+    fastpm_hmc_za_evolve(self, rho_init_k);
+    fastpm_hmc_za_force_rhodk(self, rho_final_xtruth, sigma, rhodk);
+    fastpm_hmc_za_force_s1(self, rhodk, Fk1);
+    fastpm_hmc_za_force_s2(self, Fk1, Fk2);
+    fastpm_utils_dump(self->pm, "Fk1.raw", Fk1);
+    fastpm_utils_dump(self->pm, "Fk2.raw", Fk2);
+
+    /* Numeric */
+    pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.0 * delta;
     fastpm_hmc_za_evolve(self, rho_init_k);
     double chisq1 = fastpm_hmc_za_chisq(self, rho_final_xtruth, sigma);
 
-    fastpm_utils_fill_deltak(self->pm, rho_init_k, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.001 * delta;
 
     fastpm_hmc_za_evolve(self, rho_init_k);
     double chisq2 = fastpm_hmc_za_chisq(self, rho_final_xtruth, sigma);
 
-    fastpm_utils_fill_deltak(self->pm, rho_init_k, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
-    rho_init_k[mode] += 1.0005 * delta;
-
-    fastpm_hmc_za_evolve(self, rho_init_k);
-    fastpm_hmc_za_force(self, rho_final_xtruth, sigma, Fk);
-
-    fastpm_utils_dump(self->pm, "Fk.raw", Fk);
-    double analytic = Fk[mode];
+    double analytic1 = Fk1[mode];
+    double analytic2 = Fk2[mode];
+    double analytic = Fk1[mode] + Fk2[mode];
     double numerical = (chisq2 - chisq1) / (0.001 * delta);
-    fastpm_info("analytic = %g, numerical = %g, rat = %g\n", analytic, numerical, numerical / analytic);
-    fastpm_info("analytic[0] = %g\n", Fk[0]);
+
+    fastpm_info("analytic1 = %g, numerical = %g, rat = %g\n", analytic1, numerical, analytic1 / numerical);
+    fastpm_info("analytic2 = %g, numerical = %g, rat = %g\n", analytic2, numerical, analytic2 / numerical);
+    fastpm_info("analytic = %g, numerical = %g, rat = %g\n", analytic, numerical, analytic / numerical);
+    fastpm_info("analytic1[0] = %g\n", Fk1[0]);
+    fastpm_info("analytic2[0] = %g\n", Fk2[0]);
+
+    pm_free(self->pm, rhodk);
+    pm_free(self->pm, Fk2);
+    pm_free(self->pm, Fk1);
 
     pm_free(self->pm, rho_init_k);
+    pm_free(self->pm, rho_init_k0);
     pm_free(self->pm, rho_final_xtruth);
     pm_free(self->pm, rho_init_ktruth);
-    pm_free(self->pm, Fk);
     pm_free(self->pm, sigma);
 
     fastpm_hmc_za_destroy(self);

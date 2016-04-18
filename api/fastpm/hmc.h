@@ -48,5 +48,27 @@ fastpm_hmc_za_force(
     FastPMFloat * Fk    /* (out) hmc force in fourier space */
     );
 
+void
+fastpm_hmc_za_force_rhodk(
+    FastPMHMCZA * self,
+    FastPMFloat * data_x, /* rhop in x-space*/
+    FastPMFloat * sigma_x, /* sigma_x in x-space*/
+    FastPMFloat * rhodk    /* (out) rhodk in fourier space */
+    );
+
+void
+fastpm_hmc_za_force_s1(
+    FastPMHMCZA * self,
+    FastPMFloat * rhodk,
+    FastPMFloat * Fk1    /* (out) hmc force for s2 in fourier space */
+    );
+
+void
+fastpm_hmc_za_force_s2(
+    FastPMHMCZA * self,
+    FastPMFloat * Fk1,
+    FastPMFloat * Fk2    /* (out) hmc force for s2 in fourier space */
+    );
+
 FASTPM_END_DECLS
 #endif

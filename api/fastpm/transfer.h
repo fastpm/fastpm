@@ -10,4 +10,8 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void 
 fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) ;
 
-void fastpm_apply_za_hmc_force_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir);
+void 
+fastpm_apply_za_hmc_force_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir);
+
+void
+fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);

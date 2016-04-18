@@ -164,3 +164,29 @@ void fastpm_apply_za_hmc_force_transfer(PM * pm, FastPMFloat * from, FastPMFloat
     }
 }
 
+void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to) {
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int d;
+            double kk_finite = 0.;
+            for(d = 0; d < 3; d++) {
+                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
+            }
+            if(kk_finite == 0)
+            {
+                to[kiter.ind + 0] = 0;
+                to[kiter.ind + 1] = 0;
+            }
+            else
+            {
+                /* 1 / k**2 */
+                to[kiter.ind + 0] =  from[kiter.ind + 0]  / kk_finite;
+                to[kiter.ind + 1] =  from[kiter.ind + 1]  / kk_finite;
+            }
+        }
+    }
+}

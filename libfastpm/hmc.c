@@ -29,13 +29,19 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
 void 
 fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 {
-    if(self->LPTOrder == 1)
-        self->solver.USE_DX1_ONLY = 1;
-    else
-        self->solver.USE_DX1_ONLY = 0;
-
+    switch(self->LPTOrder) {
+        case 1:
+            self->solver.USE_DX1_ONLY = 1;
+        break;
+        case 2:
+            self->solver.USE_DX1_ONLY = 0;
+        break;
+        default:
+            fastpm_raise(-1, "Wrong LPT Order, can only be 1 or 2\n");
+    }
     double alloc_factor = 2.0;
     fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
+
     self->pm = self->solver.pm;
     self->delta_ic_k = pm_alloc(self->solver.pm);
     self->rho_final_x = pm_alloc(self->solver.pm);
@@ -131,13 +137,48 @@ fastpm_hmc_za_force(
     FastPMFloat * Fk    /* (out) hmc force in fourier space */
     )
 {
+    ptrdiff_t ind;
+    FastPM2LPTSolver * solver = &self->solver;
+
+    FastPMFloat * rhodk = pm_alloc(solver->pm);
+    FastPMFloat * workspace = pm_alloc(solver->pm);
+
+    fastpm_hmc_za_force_rhodk(self, data_x, sigma_x, rhodk);
+
+    /* First order */
+    if(self->LPTOrder >= 1) {
+        fastpm_hmc_za_force_s1(self, rhodk, workspace);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind++) {
+            Fk[ind] += workspace[ind];
+        }
+    }
+    /* Second order */
+    if(self->LPTOrder >= 2) {
+        fastpm_hmc_za_force_s2(self, Fk, workspace);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind++) {
+            Fk[ind] += workspace[ind];
+        }
+    }
+
+    pm_free(solver->pm, workspace);
+    pm_free(solver->pm, rhodk);
+}
+
+void
+fastpm_hmc_za_force_rhodk(
+    FastPMHMCZA * self,
+    FastPMFloat * data_x, /* rhop in x-space*/
+    FastPMFloat * sigma_x, /* sigma_x in x-space*/
+    FastPMFloat * rhodk    /* (out) rhodk in fourier space */
+    )
+{
     FastPM2LPTSolver * solver = &self->solver;
 
     FastPMFloat * model_x = self->rho_final_x;
-    int d;
 
     FastPMFloat * workspace = pm_alloc(solver->pm);
-    FastPMFloat * workspace2 = pm_alloc(solver->pm);
 
     ptrdiff_t ind;
     for(ind = 0; ind < pm_size(solver->pm); ind ++) {
@@ -146,22 +187,37 @@ fastpm_hmc_za_force(
             workspace[ind] /= sigma_x[ind] * sigma_x[ind];
     }
 
-    pm_r2c(solver->pm, workspace, Fk);
+    pm_r2c(solver->pm, workspace, rhodk);
+
+    pm_free(solver->pm, workspace);
 
     if(self->SmoothingLength > 0)
-        fastpm_apply_smoothing_transfer(solver->pm, Fk, Fk, self->SmoothingLength);
+        fastpm_apply_smoothing_transfer(solver->pm, rhodk, rhodk, self->SmoothingLength);
 
     if(self->KThreshold > 0)
-        fastpm_apply_lowpass_transfer(solver->pm, Fk, Fk, self->KThreshold);
+        fastpm_apply_lowpass_transfer(solver->pm, rhodk, rhodk, self->KThreshold);
 
     if(self->DeconvolveCIC)
-        fastpm_apply_decic_transfer(solver->pm, Fk, Fk);
+        fastpm_apply_decic_transfer(solver->pm, rhodk, rhodk);
 
-    /* Fk contains rhod_k at this point */
+
+}
+void
+fastpm_hmc_za_force_s1(
+    FastPMHMCZA * self,
+    FastPMFloat * rhodk,
+    FastPMFloat * Fk1    /* (out) hmc force for s2 in fourier space */
+    )
+{
+    int d;
+
+    FastPM2LPTSolver * solver = &self->solver;
+
+    FastPMFloat * workspace = pm_alloc(solver->pm);
 
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
-        fastpm_apply_diff_transfer(solver->pm, Fk, workspace, d);
+        fastpm_apply_diff_transfer(solver->pm, rhodk, workspace, d);
 
         /* workspace stores \Gamma(k) = i k \rho_d */
 
@@ -186,37 +242,126 @@ fastpm_hmc_za_force(
         }
     }
 
+    fastpm_info(" Psi calculated\n");
     /* now we paint \Psi by the lagrangian position q */
 
-    memset(Fk, 0, sizeof(Fk[0]) * pm_size(solver->pm));
+    memset(Fk1, 0, sizeof(Fk1[0]) * pm_size(solver->pm));
 
     double fac = pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3);
-    ptrdiff_t i;
-    for(i = 0; i < solver->p->np; i ++) {
-        for(d = 0; d < 3; d ++) {
-        //    solver->p->q[i][d] += 0.25 * solver->boxsize / solver->nc;
-        }
-    }
-    fastpm_utils_paint(solver->pm, solver->p, workspace2, NULL, get_lagrangian_position, 0);
-    fastpm_utils_dump(solver->pm, "dump", workspace2);
+
     for(d = 0; d < 3; d ++) {
-        fastpm_utils_paint(solver->pm, solver->p, NULL, workspace2, get_lagrangian_position, ACC[d]);
-        fastpm_apply_za_hmc_force_transfer(solver->pm, workspace2, workspace, d);
+        fastpm_utils_paint(solver->pm, solver->p, NULL, workspace, get_lagrangian_position, ACC[d]);
+        fastpm_apply_za_hmc_force_transfer(solver->pm, workspace, workspace, d);
 
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < pm_size(solver->pm); ind ++) {
             /* Wang's magic factor of 2 in 1301.1348 is doubled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
-            Fk[ind] += 2 * 2 * fac * workspace[ind];
+            Fk1[ind] += 2 * 2 * fac * workspace[ind];
         }
     }
-    for(i = 0; i < solver->p->np; i ++) {
-        for(d = 0; d < 3; d ++) {
-         //   solver->p->q[i][d] -= 0.25 * solver->boxsize / solver->nc;
-        }
-    }
-    pm_free(solver->pm, workspace2);
     pm_free(solver->pm, workspace);
+}
+
+void
+fastpm_hmc_za_force_s2(
+    FastPMHMCZA * self,
+    FastPMFloat * Fk1,   /* (in) hmc force for s1 in fourier space */
+    FastPMFloat * Fk2    /* (out) hmc force for s2 in fourier space */
+    )
+{
+    /* This function is originally written by Chirag Modi. <chirag@berkeley.edu> */
+
+    int d;
+    ptrdiff_t ind;
+
+    FastPM2LPTSolver * solver = &self->solver;
+
+    FastPMFloat * Fpsi = pm_alloc(solver->pm);
+    FastPMFloat * source = pm_alloc(solver->pm);
+    FastPMFloat * workspace = pm_alloc(solver->pm);
+
+    pm_assign(solver->pm, Fk1, Fpsi);
+    for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        /* FIXME: put in D2 */
+        Fpsi[ind] *= 3.0 / 7.0;
+    }
+    fastpm_info(" starting 2LPT \n");
+
+    /* 2LPT derivative begins here , carrying over Fk2 from above */
+
+    pm_c2r(solver->pm, Fpsi);
+
+    memset(Fk2, 0, sizeof(Fk2[0]) * pm_size(solver->pm));
+
+    fastpm_info(" starting diagonal elements \n");
+
+    /* diagonal elements */
+    for(d = 0; d < 3; d++){
+
+        fastpm_apply_laplace_transfer(solver->pm, self->delta_ic_k, workspace);
+
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, d);
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, d);
+        pm_c2r(solver->pm, workspace);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+            workspace[ind]  = Fpsi[ind] * workspace[ind];
+        }
+
+        pm_r2c(solver->pm, workspace, source);
+
+        fastpm_apply_laplace_transfer(solver->pm, source, source);
+
+
+        fastpm_apply_diff_transfer(solver->pm, source, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+1)%3);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+            Fk2[ind] += workspace[ind];
+        }
+
+        fastpm_apply_diff_transfer(solver->pm, source, workspace, (d+2)%3);
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+2)%3);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+            Fk2[ind] += workspace[ind];
+
+        }
+    }
+
+    fastpm_info(" starting off diagonal elements \n");
+
+    /* off - diagonal elements */
+    for(d = 0; d < 3; d++){
+
+        fastpm_apply_laplace_transfer(solver->pm, self->delta_ic_k, workspace);
+
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+2)%3);
+
+        pm_c2r(solver->pm, workspace);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+            workspace[ind]  = Fpsi[ind] * workspace[ind];
+        }
+
+        pm_r2c(solver->pm, workspace, source);
+
+        fastpm_apply_laplace_transfer(solver->pm, source, source);
+
+
+        fastpm_apply_diff_transfer(solver->pm, source, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+2)%3);
+
+        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+            Fk2[ind] -= 2 * workspace[ind];
+        }
+    }
+
+    pm_free(solver->pm, workspace);
+    pm_free(solver->pm, source);
+    pm_free(solver->pm, Fpsi);
 }
 
