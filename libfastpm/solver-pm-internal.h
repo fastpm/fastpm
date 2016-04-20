@@ -35,6 +35,7 @@ void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit, double a
 void fastpm_model_evolve(FastPMModel * model, double af);
 double fastpm_growth_factor(FastPM * fastpm, double a);
 
+void fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k);
 
 void 
 fastpm_kick_store(FastPM * fastpm, 

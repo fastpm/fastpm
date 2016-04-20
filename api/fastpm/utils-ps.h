@@ -20,4 +20,7 @@ fastpm_power_spectrum_destroy(FastPMPowerSpectrum * ps);
 void
 fastpm_power_spectrum_write(FastPMPowerSpectrum * ps, PM * pm, char * filename);
 
+double
+fastpm_calculate_large_scale_power(PM * pm, FastPMFloat * delta_k, int Nmax);
+
 FASTPM_END_DECLS

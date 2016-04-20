@@ -214,7 +214,7 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
-    /* Note that pm_calculate_linear_power will divide by the 0-th mode
+    /* Note that power will divide by the 0-th mode
      * thus we do not need to set the mass of particles correctly */
     pm_paint(pm, canvas, p, p->np + pgd->nghosts, 1.0);
 
@@ -222,7 +222,7 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
 
     pm_ghosts_free(pgd);
 
-    double Plin = pm_calculate_linear_power(pm, delta_k, model->fastpm->K_LINEAR);
+    double Plin = fastpm_calculate_large_scale_power(pm, delta_k, model->fastpm->K_LINEAR);
 
     pm_free(pm, delta_k);
     pm_free(pm, canvas);

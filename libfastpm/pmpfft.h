@@ -106,10 +106,3 @@ static inline size_t cumsum(int * out, int * in, size_t nitems) {
     return total;
 }
 
-/* Gravity and power spectrum */
-void 
-pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor);
-
-double 
-pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax);
-

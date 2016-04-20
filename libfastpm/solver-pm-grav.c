@@ -40,9 +40,14 @@ apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
     }
 }
 
-void 
-pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_factor)
+void
+fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
 {
+    PMStore * p = fastpm->p;
+    PM * pm = fastpm->pm;
+
+    /* watch out: boost the density since mesh is finer than grid */
+    double density_factor = fastpm->pm->Norm / pow(1.0 * fastpm->nc, 3);
 
     CLOCK(ghosts);
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL); 
@@ -57,7 +62,7 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
     CLOCK(paint);
     pm_paint(pm, canvas, p, p->np + pgd->nghosts, density_factor);
     LEAVE(paint);
- 
+
     CLOCK(r2c);
     pm_r2c(pm, canvas, delta_k);
     LEAVE(r2c);
@@ -93,64 +98,4 @@ pm_calculate_forces(PMStore * p, PM * pm, FastPMFloat * delta_k, double density_
     pm_ghosts_free(pgd);
 }
 
-/* measure the linear scale power spectrum up to Nmax, 
- * returns 1.0 if no such scale. k == 0 is skipped. */
-double
-pm_calculate_linear_power(PM * pm, FastPMFloat * delta_k, int Nmax)
-{
-    double sum = 0;
-    double N   = 0;
-    double Norm = 0;
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            /* Always use a fixed kmax */
-            double kkmax = kiter.kk[0][Nmax];
-            int d;
-            double kk = 0.;
-            for(d = 0; d < 3; d++) {
-                double kk1 = kiter.kk[d][kiter.iabs[d]];
-                if(kk1 > kkmax) {
-                    goto next;
-                }
-                kk += kk1;
-            }
-            ptrdiff_t ind = kiter.ind;
-
-            double real = delta_k[ind + 0];
-            double imag = delta_k[ind + 1];
-            double value = real * real + imag * imag;
-            if(kk > 0.0001 * kkmax && kk < kkmax) {
-                int w = 2;
-                if(kiter.iabs[2] == 0) w = 1;
-                #pragma omp atomic
-                sum += w * value;
-                #pragma omp atomic
-                N += w;
-            }
-            if(kk == 0) {
-                Norm = value;
-            }
-            next:
-            continue;
-        }
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, &Norm, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-
-    double rt;
-    if(N > 1) {
-        rt = sum / N * pm->Volume / Norm;
-    } else {
-        rt = 1.0;
-    }
-/*    fastpm_info("norm factor = Norm / pm->Norm = %g power=%g\n", sqrt(Norm) / pm->Norm, rt); */
-    return rt;
-}
 

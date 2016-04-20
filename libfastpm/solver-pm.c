@@ -166,14 +166,11 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         /* Calculate PM forces. */
         FastPMFloat * delta_k = pm_alloc(fastpm->pm);
 
-        /* watch out: boost the density since mesh is finer than grid */
-        double density_factor = fastpm->pm->Norm / pow(1.0 * fastpm->nc, 3);
-
         ENTER(force);
-        pm_calculate_forces(fastpm->p, fastpm->pm, delta_k, density_factor);
+        fastpm_calculate_forces(fastpm, delta_k);
         LEAVE(force);
 
-        double Plin = pm_calculate_linear_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
+        double Plin = fastpm_calculate_large_scale_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
 
         Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
 
