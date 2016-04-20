@@ -91,7 +91,7 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
                 double w = kiter.k[d][i] * pm->BoxSize[d] / pm->Nmesh[d];
                 double cic = sinc_unnormed(0.5 * w);
                 /* Watchout: this does divide by sinc, not sinc 2, */
-                kernel[d][i] = 1.0 / pow(cic, 1);
+                kernel[d][i] = 1.0 / pow(cic, 2);
             }
         }
         for(;
@@ -112,11 +112,11 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
     }
 }
 
-void 
+void
 fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
 {
 
-#pragma omp parallel 
+#pragma omp parallel
     {
         PMKIter kiter;
         for(pm_kiter_init(pm, &kiter);
@@ -133,37 +133,6 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
     }
 }
 
-void fastpm_apply_za_hmc_force_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) {
-#pragma omp parallel
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            int d;
-            double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
-            double kk_finite = 0.;
-            for(d = 0; d < 3; d++) {
-                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
-            }
-            if(kk_finite == 0)
-            {
-                to[kiter.ind + 0] = 0;
-                to[kiter.ind + 1] = 0;
-            }
-            else
-            {
-                FastPMFloat tmp[2];
-                /* - i k[d] / k**2 */
-                tmp[0] =   from[kiter.ind + 1] * (k_finite / kk_finite);
-                tmp[1] = - from[kiter.ind + 0] * (k_finite / kk_finite);
-                to[kiter.ind + 0] = tmp[0];
-                to[kiter.ind + 1] = tmp[1];
-            }
-        }
-    }
-}
-
 void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to) {
 #pragma omp parallel
     {
@@ -174,6 +143,14 @@ void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to
             int d;
             double kk_finite = 0.;
             for(d = 0; d < 3; d++) {
+                /* Referee says 1 / kk is better than 1 / sin(kk);
+                 *
+                 * In reality kk_finite seems to give a better agreement on
+                 * HMC derivatives. The difference is ~ 0.1%
+                 *
+                 * On large scales this does not matter.
+                 * */
+                /* 2-point Finite differentiation */
                 kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
             }
             if(kk_finite == 0)

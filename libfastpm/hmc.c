@@ -253,14 +253,17 @@ fastpm_hmc_za_force_s1(
 
     for(d = 0; d < 3; d ++) {
         fastpm_utils_paint(solver->pm, solver->p, NULL, workspace, get_lagrangian_position, ACC[d]);
-        fastpm_apply_za_hmc_force_transfer(solver->pm, workspace, workspace, d);
+        fastpm_apply_laplace_transfer(solver->pm, workspace, workspace);
+        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, d);
 
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
         for(ind = 0; ind < pm_size(solver->pm); ind ++) {
             /* Wang's magic factor of 2 in 1301.1348 is doubled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
-            Fk1[ind] += 2 * 2 * fac * workspace[ind];
+
+            /* negative sign because the force is - grad */
+            Fk1[ind] += - 2 * 2 * fac * workspace[ind];
         }
     }
     pm_free(solver->pm, workspace);
