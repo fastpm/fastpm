@@ -52,7 +52,8 @@ double DLogGrowthFactor(double a, Cosmology c) {
     return pow(OmegaA(a, c), 5.0 / 9);
 }
 
-double GrowthFactor2(double a, Cosmology c) {// Second order growth factor
+double GrowthFactor2(double a, Cosmology c) {
+    /* Second order growth factor */
     /* 7 / 3. is absorbed into dx2 */
     double d = GrowthFactor(a, c);
     return d * d * pow(OmegaA(a, c) / OmegaA(1.0, c), -1.0/143.);
@@ -67,6 +68,34 @@ double HubbleEa(double a, Cosmology c)
     /* H(a) / H0 */
     return sqrt(c.OmegaM/(a*a*a)+c.OmegaLambda);
 }
+double DHubbleEaDa(double a, Cosmology c) {
+    /* d E / d a*/
+    double E = HubbleEa(a, c);
+    return 0.5 / E * (-3 * c.OmegaM / (a * a * a * a));
+}
+double D2HubbleEaDa2(double a, Cosmology c) {
+    double E = HubbleEa(a, c);
+    double dEda = DHubbleEaDa(a, c);
+    return - dEda * dEda / E + dEda * (-4 / a);
+}
+double DGrowthFactorDa(double a, Cosmology c) {
+    double E = HubbleEa(a, c);
+
+    double EI = growth(1.0, c);
+
+    double t1 = DHubbleEaDa(a, c) * GrowthFactor(a, c) / E;
+    double t2 = E * pow(a * E, -3) / EI;
+    return t1 + t2;
+}
+double D2GrowthFactorDa2(double a, Cosmology c) {
+    double d2Eda2 = D2HubbleEaDa2(a, c);
+    double dEda = DHubbleEaDa(a, c);
+    double E = HubbleEa(a, c);
+    double EI = growth(1.0, c);
+    double t1 = d2Eda2 * GrowthFactor(a, c) / E;
+    double t2 = (dEda + 3 / a * E) * pow(a * E, -3) / EI;
+    return t1 - t2;
+}
 
 #ifdef TEST_COSMOLOGY
 int main() {
@@ -77,16 +106,22 @@ int main() {
         .OmegaLambda = 0.7
     };
 
+    printf("OmegaM D dD/da d2D/da2 D2 E dE/dA d2E/da2 \n");
     for(c.OmegaM = 0.1; c.OmegaM < 0.6; c.OmegaM += 0.1) {
         double f = 6 * pow(1 - c.OmegaM, 1.5);
         c.OmegaLambda = 1 - c.OmegaM;
-        double a = 0.1;
-        printf("%g %g %g \n",
+        double a = 0.8;
+        printf("%g %g %g %g %g %g %g %g\n",
             c.OmegaM, 
-                growth(a, c),
-                GrowthFactor(a, c)
+            GrowthFactor(a, c),
+            DGrowthFactorDa(a, c),
+            D2GrowthFactorDa2(a, c),
+
+            GrowthFactor2(a, c),
+            HubbleEa(a, c),
+            DHubbleEaDa(a, c),
+            D2HubbleEaDa2(a, c)
             );
-    
     }
 }
 
