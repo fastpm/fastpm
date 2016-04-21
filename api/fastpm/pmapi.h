@@ -90,9 +90,10 @@ typedef struct {
     ptrdiff_t i[3];
     ptrdiff_t iabs[3];
 
-    float *k_finite[3]; /* k, finite */
+    float *k_finite[3]; /* k, 4 point central */
     float *k[3]; /* k */
-    float *kk_finite[3]; /* k ** 2, on a mesh */
+    float *kk_finite[3]; /* k ** 2, 3 point central */
+    float *kk_finite2[3]; /* k ** 2, 5 point central */
     float *kk[3];  /* k ** 2 */
 
     PM * pm;

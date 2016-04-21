@@ -3,6 +3,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
+#include <fastpm/transfer.h>
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
@@ -12,7 +13,7 @@
 static void 
 apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
 {
-    /* This is the force in fourier space. - i k[dir] / k2 */
+    /* This is the potential gradient in fourier space. - i k[dir] / k2 */
 
 #pragma omp parallel 
     {
@@ -38,6 +39,104 @@ apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
             }
         }
     }
+}
+
+static void 
+apply_force_kernel_5_4(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
+{
+    /* This is the potential gradient in fourier space. - i k[dir] / k2 */
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int d;
+            double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
+            double kk_finite = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += kiter.kk_finite2[d][kiter.iabs[d]];
+            }
+            ptrdiff_t ind = kiter.ind;
+            /* - i k[d] / k2 */
+            if(LIKELY(kk_finite > 0)) {
+                to[ind + 0] =   from[ind + 1] * (k_finite / kk_finite);
+                to[ind + 1] = - from[ind + 0] * (k_finite / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            }
+        }
+    }
+}
+
+static void 
+apply_force_kernel_3_2(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
+{
+    /* This is the potential gradient in fourier space. - i k[dir] / k2 */
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int d;
+            double k_finite = kiter.k[dir][kiter.iabs[dir]];
+            double kk_finite = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
+            }
+            ptrdiff_t ind = kiter.ind;
+            /* - i k[d] / k2 */
+            if(LIKELY(kk_finite > 0)) {
+                to[ind + 0] =   from[ind + 1] * (k_finite / kk_finite);
+                to[ind + 1] = - from[ind + 0] * (k_finite / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            }
+        }
+    }
+}
+
+static void 
+apply_force_kernel_eastwood(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
+{
+    /* This is the potential gradient in fourier space. - i k[dir] / k2 */
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int d;
+            double k_finite = kiter.k[dir][kiter.iabs[dir]];
+            double kk_finite = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += kiter.kk[d][kiter.iabs[d]];
+            }
+            ptrdiff_t ind = kiter.ind;
+            /* - i k[d] / k2 */
+            if(LIKELY(kk_finite > 0)) {
+                to[ind + 0] =   from[ind + 1] * (k_finite / kk_finite);
+                to[ind + 1] = - from[ind + 0] * (k_finite / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            }
+        }
+    }
+    /* now sharpen for mass assignment */
+    /* L1 */
+    fastpm_apply_decic_transfer(pm, to, to);
+    /* L2 */
+    fastpm_apply_decic_transfer(pm, to, to);
 }
 
 void
@@ -74,7 +173,22 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
         CLOCK(transfer);
-        apply_force_kernel(pm, delta_k, canvas, d);
+        switch(fastpm->KERNEL_TYPE) {
+            case FASTPM_KERNEL_EASTWOOD:
+                apply_force_kernel_eastwood(pm, delta_k, canvas, d);
+            break;
+            case FASTPM_KERNEL_3_4:
+                apply_force_kernel(pm, delta_k, canvas, d);
+            break;
+            case FASTPM_KERNEL_5_4:
+                apply_force_kernel_5_4(pm, delta_k, canvas, d);
+            break;
+            case FASTPM_KERNEL_3_2:
+                apply_force_kernel_3_2(pm, delta_k, canvas, d);
+            break;
+            default:
+                fastpm_raise(-1, "Wrong kernel type\n");
+        }
         LEAVE(transfer);
 
         CLOCK(c2r);

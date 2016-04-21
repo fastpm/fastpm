@@ -12,6 +12,7 @@ typedef struct FastPMExtension FastPMExtension;
 typedef struct FastPMModel FastPMModel;
 
 typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
+typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4, FASTPM_KERNEL_EASTWOOD } FastPMKernelType;
 
 typedef struct {
     /* input parameters */
@@ -25,6 +26,7 @@ typedef struct {
     int USE_NONSTDDA;
     double nLPT;
 
+    FastPMKernelType KERNEL_TYPE;
     FastPMModelType USE_MODEL;
     int K_LINEAR;
 

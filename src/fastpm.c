@@ -111,6 +111,20 @@ int main(int argc, char ** argv) {
         fastpm_raise(-1, "wrong model type!\n");
     }
 
+    if(prr.kernel_type == KERNEL_3_4) {
+        fastpm->KERNEL_TYPE = FASTPM_KERNEL_3_4;
+    } else
+    if(prr.kernel_type == KERNEL_5_4) {
+        fastpm->KERNEL_TYPE = FASTPM_KERNEL_5_4;
+    } else
+    if(prr.kernel_type == KERNEL_3_2) {
+        fastpm->KERNEL_TYPE = FASTPM_KERNEL_3_2;
+    } else
+    if(prr.kernel_type == KERNEL_EASTWOOD) {
+        fastpm->KERNEL_TYPE = FASTPM_KERNEL_EASTWOOD;
+    } else {
+        fastpm_raise(-1, "wrong kernel type!\n");
+    }
     run_fastpm(fastpm, &prr, comm);
 
     libfastpm_cleanup();

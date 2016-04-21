@@ -247,6 +247,17 @@ loads_param(char * confstr, Parameters * param)
 
     param->use_dx1_only = read_boolean_opt(L, "za", 0);
 
+    param->kernel_type = KERNEL_3_4;
+    {
+    struct enum_entry table[] = {
+        {"eastwood", KERNEL_EASTWOOD},
+        {"3_4", KERNEL_3_4},
+        {"5_4", KERNEL_5_4},
+        {"3_2", KERNEL_3_2},
+        {NULL, -1},
+    };
+    param->kernel_type = read_enum_opt(L, "kernel_type", param->kernel_type, table);
+    }
     lua_close(L);
 }
 

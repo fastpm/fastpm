@@ -205,16 +205,27 @@ pm_create_k_factors(PM * pm, PMKIter * iter)
         iter->k_finite[d] = malloc(sizeof(float) * pm->Nmesh[d]);
         iter->kk[d] = malloc(sizeof(float) * pm->Nmesh[d]);
         iter->kk_finite[d] = malloc(sizeof(float) * pm->Nmesh[d]);
+        iter->kk_finite2[d] = malloc(sizeof(float) * pm->Nmesh[d]);
 
         for(ind = 0; ind < pm->Nmesh[d]; ind ++) {
             float k = pm->MeshtoK[d][ind];
             float w = k * CellSize;
-            float ff = sinc_unnormed(0.5 * w);
+            float ff1 = sinc_unnormed(0.5 * w);
+            float ff2 = sinc_unnormed(w);
 
             iter->k[d][ind] = k;
             iter->kk[d][ind] = k * k;
+/* 4 point central diff */
             iter->k_finite[d][ind] = 1 / CellSize * diff_kernel(w);
-            iter->kk_finite[d][ind] = k * k * ff * ff;
+/* naive */
+//            iter->k_finite[d][ind] = k;
+
+/* 5 point central diff */
+            iter->kk_finite2[d][ind] = k * k * ( 4 / 3.0 * ff1 * ff1 - 1 / 3.0 * ff2 * ff2);
+/* 3 point central diff */
+            iter->kk_finite[d][ind] = k * k * (ff1 * ff1);
+/* naive */
+//            iter->kk_finite[d][ind] = k * k;
         }
     } 
 }
@@ -226,6 +237,7 @@ pm_destroy_k_factors(PMKIter * iter)
     for(d = 0; d < 3; d ++) {
         free(iter->k_finite[d]);
         free(iter->k[d]);
+        free(iter->kk_finite2[d]);
         free(iter->kk_finite[d]);
         free(iter->kk[d]);
     }

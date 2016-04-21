@@ -90,6 +90,7 @@ function parse_file(filename, runmain, ...)
         enforce_broadband_mode = 'string',
         enforce_broadband_kmax = 'number',
         za = 'boolean',
+        kernel_type = 'string',
         inverted_ic = 'boolean',
         remove_cosmic_variance = 'boolean',
     }

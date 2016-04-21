@@ -15,72 +15,6 @@
 #include "pmghosts.h"
 #include "pm2lpt.h"
 
-static void 
-apply_za_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
-{
-    /* This is the force in fourier space. - i k[dir] / k2 */
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            int d;
-            double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
-            double kk_finite = 0;
-            for(d = 0; d < 3; d++) {
-                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
-            }
-            ptrdiff_t ind = kiter.ind;
-            /* - i k[d] / k2 */
-            if(LIKELY(kk_finite > 0)) {
-                FastPMFloat tmp[2];
-                tmp[0] = - from[ind + 1] * (k_finite / kk_finite);
-                tmp[1] = + from[ind + 0] * (k_finite / kk_finite);
-                to[ind + 0] = tmp[0];
-                to[ind + 1] = tmp[1];
-            } else {
-                to[ind + 0] = 0;
-                to[ind + 1] = 0;
-            }
-        }
-    }
-}
-
-
-static void 
-apply_2lpt_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir1, int dir2) 
-{
-    /* This is the force in fourier space. - i k[dir] / k2 */
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-
-            int d;
-            double k1_finite = kiter.k_finite[dir1][kiter.iabs[dir1]];
-            double k2_finite = kiter.k_finite[dir2][kiter.iabs[dir2]];
-            double kk_finite = 0;
-            for(d = 0; d < 3; d++) {
-                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
-            }
-            ptrdiff_t ind = kiter.ind;
-            if(kk_finite > 0) {
-                to[ind + 0] = from[ind + 0] * (-k1_finite * k2_finite / kk_finite);
-                to[ind + 1] = from[ind + 1] * (-k1_finite * k2_finite / kk_finite);
-            } else {
-                to[ind + 0] = 0;
-                to[ind + 1] = 0;
-            }
-        }
-    }
-}
-
-
 void 
 pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3]) 
 {
@@ -118,18 +52,22 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
     for(d = 0; d < 3; d++) {
 
-        apply_za_transfer(pm, delta_k, workspace, d);
+        fastpm_apply_laplace_transfer(pm, delta_k, workspace);
+        fastpm_apply_diff_transfer(pm, workspace, workspace, d);
 
         pm_c2r(pm, workspace);
 #pragma omp parallel for
-        for(i = 0; i < p->np + pgd->nghosts; i ++) {        
+        for(i = 0; i < p->np + pgd->nghosts; i ++) {
             p->dx1[i][d] = pm_readout_one(pm, workspace, p, i);
         }
         pm_ghosts_reduce(pgd, DX1[d]);
     } 
 
     for(d = 0; d< 3; d++) {
-        apply_2lpt_transfer(pm, delta_k, field[d], d, d);
+        fastpm_apply_laplace_transfer(pm, delta_k, field[d]);
+        fastpm_apply_diff_transfer(pm, field[d], field[d], d);
+        fastpm_apply_diff_transfer(pm, field[d], field[d], d);
+
         pm_c2r(pm, field[d]);
     }
 
@@ -139,14 +77,17 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 #pragma omp parallel for
         for(i = 0; i < pm->IRegion.total; i ++) {
             source[i] += field[d1][i] * field[d2][i];
-        }    
+        }
     }
 
     for(d = 0; d < 3; d++) {
         int d1 = D1[d];
         int d2 = D2[d];
 
-        apply_2lpt_transfer(pm, delta_k, workspace, d1, d2);
+        fastpm_apply_laplace_transfer(pm, delta_k, workspace);
+        fastpm_apply_diff_transfer(pm, workspace, workspace, d1);
+        fastpm_apply_diff_transfer(pm, workspace, workspace, d2);
+
         pm_c2r(pm, workspace);
 #pragma omp parallel for
         for(i = 0; i < pm->IRegion.total; i ++) {
@@ -161,7 +102,9 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
          * We absorb some the negative factor in za transfer to below;
          *
          * */
-        apply_za_transfer(pm, source, workspace, d);
+        fastpm_apply_laplace_transfer(pm, source, workspace);
+        fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+
         pm_c2r(pm, workspace);
 
 #pragma omp parallel for
