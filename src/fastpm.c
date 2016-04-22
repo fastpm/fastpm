@@ -87,6 +87,7 @@ int main(int argc, char ** argv) {
         .boxsize = prr.boxsize,
         .omega_m = prr.omega_m,
         .USE_COLA = prr.force_mode == FORCE_MODE_COLA,
+        .USE_ZOLA = prr.force_mode == FORCE_MODE_ZOLA,
         .USE_NONSTDDA = !prr.cola_stdda,
         .USE_DX1_ONLY = prr.use_dx1_only,
         .nLPT = -2.5f,

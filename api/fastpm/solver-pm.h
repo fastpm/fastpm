@@ -24,6 +24,7 @@ typedef struct {
     int USE_COLA;
     int USE_DX1_ONLY;
     int USE_NONSTDDA;
+    int USE_ZOLA;
     double nLPT;
 
     FastPMKernelType KERNEL_TYPE;

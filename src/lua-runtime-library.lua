@@ -147,5 +147,6 @@ function eval(string, env)
 end
 
 fastpm.FORCE_MODE_PM = "pm"
+fastpm.FORCE_MODE_ZOLA = "zola"
 fastpm.FORCE_MODE_COLA = "cola"
 

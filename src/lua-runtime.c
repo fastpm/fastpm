@@ -216,6 +216,7 @@ loads_param(char * confstr, Parameters * param)
     struct enum_entry table[] = {
         {"cola", FORCE_MODE_COLA},
         {"pm", FORCE_MODE_PM},
+        {"zola", FORCE_MODE_ZOLA},
         {NULL, -1},
     };
 
@@ -225,7 +226,12 @@ loads_param(char * confstr, Parameters * param)
     if(param->force_mode == FORCE_MODE_PM) {
         param->cola_stdda = 1;
         param->enforce_broadband_mode = MODEL_PM;
-    } else {
+    } else
+    if(param->force_mode == FORCE_MODE_ZOLA) {
+        param->cola_stdda = 1;
+        param->enforce_broadband_mode = MODEL_NONE;
+    } else
+    {
         param->cola_stdda = 0;
         param->enforce_broadband_mode = MODEL_NONE;
     }

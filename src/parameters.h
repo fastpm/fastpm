@@ -33,6 +33,7 @@ typedef struct {
 
     int force_mode;
     int cola_stdda;
+    int use_zola;
     int use_dx1_only;
     int kernel_type;
 
@@ -51,6 +52,7 @@ typedef struct {
 /* Important that modes with PM have the bit set */
 #define FORCE_MODE_PM 8
 #define FORCE_MODE_COLA 10
+#define FORCE_MODE_ZOLA 100
 
 #define KERNEL_EASTWOOD 1
 #define KERNEL_3_4 2

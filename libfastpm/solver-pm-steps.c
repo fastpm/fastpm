@@ -81,18 +81,52 @@ fastpm_kick_store(FastPM * fastpm,
     po->a_v = af;
 }
 
+static double G_p(double a, Cosmology c)
+{
+    /* integral of G_p */
+    return GrowthFactor(a, c);
+}
+static double g_p(double a, Cosmology c)
+{
+    return DGrowthFactorDa(a, c);
+}
+
+static double G_f(double a, Cosmology c)
+{
+    /* integral of g_f */
+    return a * a * a * HubbleEa(a, c) * g_p(a, c);
+}
+
+static double g_f(double a, Cosmology c)
+{
+    double dDda = DGrowthFactorDa(a, c);
+    double E = HubbleEa(a, c);
+    double dEda = DHubbleEaDa(a, c);
+    double d2Dda2 = D2GrowthFactorDa2(a, c);
+
+    double g_f = 3 * a * a * E * dDda
+                   + a * a * a * dEda * dDda
+                   + a * a * a * E * d2Dda2;
+    return g_f;
+}
 void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double af)
 {
     double ai = pi->a_v;
     double ac = pi->a_x;
     double OmegaM = fastpm->omega_m;
-
-    double Om143 = pow(OmegaA(ac, CP(fastpm)), 1.0/143.0);
-    double growth1 = GrowthFactor(ac, CP(fastpm));
+    Cosmology c = CP(fastpm);
+    double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
+    double growth1 = GrowthFactor(ac, c);
 
     kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
     kick->q1 = growth1;
-    kick->dda = -1.5 * OmegaM * Sphi(ai, af, ac, fastpm);
+    if(fastpm->USE_ZOLA) {
+        kick->dda = -1.5 * OmegaM
+           * 1 / (ac * ac * HubbleEa(ac, c))
+           * (G_f(af, c) - G_f(ai, c)) / g_f(ac, c);
+    } else {
+        kick->dda = -1.5 * OmegaM * Sphi(ai, af, ac, fastpm);
+    }
     kick->fastpm = fastpm;
     kick->p = pi;
     kick->af = af;
@@ -105,10 +139,16 @@ fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
     double ai = pi->a_x;
     double ac = pi->a_v;
 
-    drift->dyyy = Sq(ai, af, ac, fastpm);
+    Cosmology c = CP(fastpm);
 
-    drift->da1 = GrowthFactor(af, CP(fastpm)) - GrowthFactor(ai, CP(fastpm));    // change in D_1lpt
-    drift->da2 = GrowthFactor2(af, CP(fastpm)) - GrowthFactor2(ai, CP(fastpm));  // change in D_2lpt
+    if(fastpm->USE_ZOLA) {
+        drift->dyyy = 1 / (ac * ac * ac * HubbleEa(ac, c))
+                    * (G_p(af, c) - G_p(ai, c)) / g_p(ac, c);
+    } else {
+        drift->dyyy = Sq(ai, af, ac, fastpm);
+    }
+    drift->da1 = GrowthFactor(af, c) - GrowthFactor(ai, c);    // change in D_1lpt
+    drift->da2 = GrowthFactor2(af, c) - GrowthFactor2(ai, c);  // change in D_2lpt
 
     drift->fastpm = fastpm;
     drift->p = pi;
