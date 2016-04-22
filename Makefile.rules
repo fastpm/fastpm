@@ -1,12 +1,12 @@
 DEPCMD ?= gcc -MG -MT .objs/$(<:%.c=%.o) -MM 
 
 .objs/%.o : %.c
-	@if ! [ -d .objs ]; then mkdir .objs; fi
+	@if ! [ -d .objs ]; then mkdir -p .objs; fi
 	@echo Compiling $@
 	@$(CC) $(OPTIMIZE) $(OPENMP) -c $(CPPFLAGS) -o $@ $<
 
 .deps/%.d : %.c
-	@if ! [ -d .deps ]; then mkdir .deps; fi
+	@if ! [ -d .deps ]; then mkdir -p .deps; fi
 	@if ! $(DEPCMD) $(CPPFLAGS) -o $@ $< ; then \
 		rm $@; \
 	fi;
