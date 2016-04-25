@@ -6,6 +6,9 @@
 
 #include <fastpm/cosmology.h>
 
+double HubbleDistance = 2997.92458; /* Mpc/h */
+double HubbleConstant = 100.0; /* Mpc/h / km/s*/
+
 static double growth_int(double a, void *param)
 {
     double * p = (double*) param;
@@ -97,6 +100,32 @@ double D2GrowthFactorDa2(double a, Cosmology c) {
     return t1 - t2;
 }
 
+double comoving_distance_int(double a, void * params)
+{
+    Cosmology * c = (Cosmology * ) params;
+    return 1 / (a * a * HubbleEa(a, *c));
+}
+
+/* In Hubble Distance */
+double ComovingDistance(double a, Cosmology c) {
+    int WORKSIZE = 100000;
+
+    double result, abserr;
+    gsl_integration_workspace *workspace;
+    gsl_function F;
+
+    workspace = gsl_integration_workspace_alloc(WORKSIZE);
+
+    F.function = &comoving_distance_int;
+    F.params = (void*) &c;
+
+    gsl_integration_qag(&F, a, 1, 0, 1.0e-9, WORKSIZE, GSL_INTEG_GAUSS41,
+            workspace, &result, &abserr);
+
+    gsl_integration_workspace_free(workspace);
+
+    return result;
+}
 #ifdef TEST_COSMOLOGY
 int main() {
     /* the old COLA growthDtemp is 6 * pow(1 - c.OmegaM, 1.5) times growth */
@@ -111,8 +140,9 @@ int main() {
         double f = 6 * pow(1 - c.OmegaM, 1.5);
         c.OmegaLambda = 1 - c.OmegaM;
         double a = 0.8;
-        printf("%g %g %g %g %g %g %g %g\n",
+        printf("%g %g %g %g %g %g %g %g %g\n",
             c.OmegaM, 
+            ComovingDistance(a, c),
             GrowthFactor(a, c),
             DGrowthFactorDa(a, c),
             D2GrowthFactorDa2(a, c),

@@ -1,6 +1,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+extern double HubbleConstant;
+extern double HubbleDistance;
+
 typedef struct {
     double OmegaM;
     double OmegaLambda;
@@ -18,6 +21,7 @@ double D2HubbleEaDa2(double a, Cosmology c);
 double DGrowthFactorDa(double a, Cosmology c);
 double D2GrowthFactorDa2(double a, Cosmology c);
 
+double ComovingDistance(double a, Cosmology c);
 double OmegaA(double a, Cosmology c);
 
 #ifdef __cplusplus
