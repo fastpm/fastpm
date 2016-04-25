@@ -1,7 +1,7 @@
-#include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
 #include <omp.h>
+
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 

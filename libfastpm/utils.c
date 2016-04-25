@@ -1,8 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <mpi.h>
+
 #include <gsl/gsl_rng.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>

@@ -1,15 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <math.h>
 #include <mpi.h>
-#include <signal.h>
 #include <omp.h>
 
 #include <fftw3.h>
 #include <fftw3-mpi.h>
+#include <pfft.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>

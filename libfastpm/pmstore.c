@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include <mpi.h>
+#include <pfft.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>

@@ -1,11 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
-#include <stdarg.h>
 #include <math.h>
 #include <mpi.h>
-#include <signal.h>
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"

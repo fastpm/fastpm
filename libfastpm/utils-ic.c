@@ -1,11 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
-#include <stdarg.h>
 #include <math.h>
 #include <mpi.h>
-#include <signal.h>
+
 #include <gsl/gsl_rng.h>
 
 #include <fastpm/libfastpm.h>
