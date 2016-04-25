@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
+#include <math.h>
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"

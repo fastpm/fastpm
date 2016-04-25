@@ -164,7 +164,7 @@ loads_param(char * confstr, Parameters * param)
         fastpm_raise(-1, "Error: %s\n", lua_tostring(L, -1));
     }
 
-    param->string = strdup(confstr);
+    param->string = _strdup(confstr);
     param->nc = read_integer(L, "nc");
     param->boxsize = read_number(L, "boxsize");
 
@@ -289,7 +289,7 @@ run_paramfile(char * filename, int runmain, int argc, char ** argv)
     }
 
     lua_getglobal(L, "parse_file");
-    char * real = realpath(filename, NULL);
+    char * real = _strdup(filename); //realpath(filename, NULL);
     lua_pushstring(L, real);
     lua_pushboolean(L, runmain);
 
@@ -302,7 +302,7 @@ run_paramfile(char * filename, int runmain, int argc, char ** argv)
     if(lua_pcall(L, 2 + argc, 1, 0)) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
-    confstr = strdup(lua_tostring(L, -1));
+    confstr = _strdup(lua_tostring(L, -1));
     lua_pop(L, 1);
 
     lua_close(L);

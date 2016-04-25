@@ -109,7 +109,7 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
         if(p->field) { \
-            p->field[index][i] += * ((typeof(p->field[index][i])*) &ptr[s]); \
+            p->field[index][i] += * ((__typeof__(p->field[index][i])*) &ptr[s]); \
             s += sizeof(p->field[index][i]); \
             flags &= ~f; \
         } \

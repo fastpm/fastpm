@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <alloca.h>
 #include <mpi.h>
 #include <math.h>
 #include <signal.h>
@@ -431,7 +432,8 @@ static void
 ensure_dir(char * path) 
 {
     int i = strlen(path);
-    char * dup = strdup(path);
+    char * dup = alloca(strlen(path) + 1);
+    strcpy(dup, path);
     char * p;
     for(p = i + dup; p >= dup && *p != '/'; p --) {
         continue;
@@ -442,26 +444,25 @@ ensure_dir(char * path)
     /* p == '/', so set it to NULL, dup is the dirname */
     *p = 0;
     _mkdir(dup);
-    free(dup);
 }
 
 static void 
 _mkdir(const char *dir) 
 {
-        char * tmp = strdup(dir);
-        char *p = NULL;
-        size_t len;
+    char * tmp = alloca(strlen(dir) + 1);
+    strcpy(tmp, dir);
+    char *p = NULL;
+    size_t len;
 
-        len = strlen(tmp);
-        if(tmp[len - 1] == '/')
-                tmp[len - 1] = 0;
-        for(p = tmp + 1; *p; p++)
-                if(*p == '/') {
-                        *p = 0;
-                        mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
-                        *p = '/';
-                }
-        mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
-        free(tmp);
+    len = strlen(tmp);
+    if(tmp[len - 1] == '/')
+            tmp[len - 1] = 0;
+    for(p = tmp + 1; *p; p++)
+            if(*p == '/') {
+                    *p = 0;
+                    mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
+                    *p = '/';
+            }
+    mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
 }
 

@@ -18,7 +18,9 @@
 #include <math.h>
 #include <string.h>
 #include <assert.h>
+#include <alloca.h>
 #include <mpi.h>
+
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_sf_hyperg.h> 
