@@ -32,38 +32,6 @@ static char * _strdup(const char * str)
     return ret;
 }
 
-struct enum_entry {
-    char * str;
-    int value;
-};
-
-static int parse_enum(const char * str, struct enum_entry * enum_table)
-{
-    struct enum_entry * p;
-    for(p = enum_table; p->str; p ++) {
-        if(!strcmp(str, p->str)) {
-            return p->value;
-        }
-    }
-    int n = 10;
-    for(p = enum_table; p->str; p ++) {
-        n += strlen(p->str) + 10;
-    }
-    char * options = malloc(n);
-    options[0] = 0;
-    for(p = enum_table; p->str; p ++) {
-        if(p != enum_table)
-            strcat(options, ", ");
-        strcat(options, "`");
-        strcat(options, p->str);
-        strcat(options, "`");
-    }
-
-    fastpm_raise(9999, "value `%s` is not recognized. Options are %s \n",
-        str, options);
-    return 0;
-}
-
 /* evals the expression with -1 as env */
 static char * read_string(lua_State * L, const char * name) 
 {
@@ -72,12 +40,6 @@ static char * read_string(lua_State * L, const char * name)
     lua_pop(L, 1);
     if(val) return _strdup(val);
     return NULL;
-}
-static int read_enum(lua_State * L, const char * name, struct enum_entry * enumtype) {
-    luaL_eval(L, name);
-    const char * val = lua_tostring(L, -1);
-    lua_pop(L, 1);
-    return parse_enum(val, enumtype);
 }
 static int read_boolean(lua_State * L, const char * name) {
     luaL_eval(L, name);
@@ -217,44 +179,16 @@ loads_param(char * confstr, Parameters * param)
     param->write_noisek = read_string(L, "write_noisek");
     param->write_noise = read_string(L, "write_noise");
 
-    {
-    struct enum_entry table[] = {
-        {"cola", FORCE_MODE_COLA},
-        {"pm", FORCE_MODE_PM},
-        {"zola", FORCE_MODE_ZOLA},
-        {NULL, -1},
-    };
 
-    param->force_mode = read_enum(L, "force_mode", table);
-    }
-
+    param->force_mode = read_string(L, "force_mode");
     param->cola_stdda = read_boolean(L, "cola_stdda");
-    {
-    struct enum_entry table[] = {
-        {"linear", MODEL_LINEAR},
-        {"2lpt", MODEL_2LPT},
-        {"za", MODEL_ZA},
-        {"pm", MODEL_PM},
-        {"none", MODEL_NONE},
-        {NULL, -1},
-    };
-    param->enforce_broadband_mode = read_enum(L, "enforce_broadband_mode", table);
-    }
 
+    param->enforce_broadband_mode = read_string(L, "enforce_broadband_mode");
     param->enforce_broadband_kmax = read_integer(L, "enforce_broadband_kmax");
 
     param->use_dx1_only = read_boolean(L, "za");
+    param->kernel_type = read_string(L, "kernel_type");
 
-    {
-    struct enum_entry table[] = {
-        {"eastwood", KERNEL_EASTWOOD},
-        {"3_4", KERNEL_3_4},
-        {"5_4", KERNEL_5_4},
-        {"3_2", KERNEL_3_2},
-        {NULL, -1},
-    };
-    param->kernel_type = read_enum(L, "kernel_type", table);
-    }
     lua_close(L);
 }
 

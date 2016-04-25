@@ -54,6 +54,39 @@ read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI
 
 int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
 
+struct enum_entry {
+    char * str;
+    int value;
+};
+
+static int parse_enum(const char * str, struct enum_entry * enum_table)
+{
+    struct enum_entry * p;
+    for(p = enum_table; p->str; p ++) {
+        if(!strcmp(str, p->str)) {
+            return p->value;
+        }
+    }
+    int n = 10;
+    for(p = enum_table; p->str; p ++) {
+        n += strlen(p->str) + 10;
+    }
+    char * options = malloc(n);
+    options[0] = 0;
+    for(p = enum_table; p->str; p ++) {
+        if(p != enum_table)
+            strcat(options, ", ");
+        strcat(options, "`");
+        strcat(options, p->str);
+        strcat(options, "`");
+    }
+
+    fastpm_raise(9999, "value `%s` is not recognized. Options are %s \n",
+        str, options);
+    return 0;
+}
+
+
 int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
@@ -87,46 +120,50 @@ int main(int argc, char ** argv) {
         .vpminit = vpminit,
         .boxsize = prr.boxsize,
         .omega_m = prr.omega_m,
-        .USE_COLA = prr.force_mode == FORCE_MODE_COLA,
-        .USE_ZOLA = prr.force_mode == FORCE_MODE_ZOLA,
         .USE_NONSTDDA = !prr.cola_stdda,
         .USE_DX1_ONLY = prr.use_dx1_only,
         .nLPT = -2.5f,
         .K_LINEAR = prr.enforce_broadband_kmax,
     };
 
-    if(prr.enforce_broadband_mode == MODEL_LINEAR) {
-        fastpm->USE_MODEL = FASTPM_MODEL_LINEAR;
-    } else
-    if(prr.enforce_broadband_mode == MODEL_2LPT) {
-        fastpm->USE_MODEL = FASTPM_MODEL_2LPT;
-    } else
-    if(prr.enforce_broadband_mode == MODEL_ZA) {
-        fastpm->USE_MODEL = FASTPM_MODEL_ZA;
-    } else
-    if(prr.enforce_broadband_mode == MODEL_PM) {
-        fastpm->USE_MODEL = FASTPM_MODEL_PM;
-    } else
-    if(prr.enforce_broadband_mode == MODEL_NONE) {
-        fastpm->USE_MODEL = FASTPM_MODEL_NONE;
-    } else {
-        fastpm_raise(-1, "wrong model type!\n");
+    {
+        if(!strcmp(prr.force_mode, "cola")) {
+            fastpm->USE_COLA = 1;
+            fastpm->USE_ZOLA = 0;
+        } else
+        if(!strcmp(prr.force_mode, "zola")) {
+            fastpm->USE_COLA = 1;
+            fastpm->USE_ZOLA = 0;
+        } else
+        if(!strcmp(prr.force_mode, "pm")) {
+            fastpm->USE_COLA = 0;
+            fastpm->USE_ZOLA = 0;
+        } else {
+            fastpm_raise(-1, "Wrong force_mode `%s`. This shall not happen. Check lua schema.\n", prr.force_mode);
+        }
+    }
+    {
+        struct enum_entry table[] = {
+            {"linear", FASTPM_MODEL_LINEAR},
+            {"2lpt", FASTPM_MODEL_2LPT},
+            {"za", FASTPM_MODEL_ZA},
+            {"pm", FASTPM_MODEL_PM},
+            {"none", FASTPM_MODEL_NONE},
+            {NULL, -1},
+        };
+        fastpm->USE_MODEL = parse_enum(prr.enforce_broadband_mode, table);
+    }
+    {
+        struct enum_entry table[] = {
+            {"eastwood", FASTPM_KERNEL_EASTWOOD},
+            {"3_4", FASTPM_KERNEL_3_4},
+            {"5_4", FASTPM_KERNEL_5_4},
+            {"3_2", FASTPM_KERNEL_3_2},
+            {NULL, -1},
+        };
+        fastpm->KERNEL_TYPE = parse_enum(prr.kernel_type, table);
     }
 
-    if(prr.kernel_type == KERNEL_3_4) {
-        fastpm->KERNEL_TYPE = FASTPM_KERNEL_3_4;
-    } else
-    if(prr.kernel_type == KERNEL_5_4) {
-        fastpm->KERNEL_TYPE = FASTPM_KERNEL_5_4;
-    } else
-    if(prr.kernel_type == KERNEL_3_2) {
-        fastpm->KERNEL_TYPE = FASTPM_KERNEL_3_2;
-    } else
-    if(prr.kernel_type == KERNEL_EASTWOOD) {
-        fastpm->KERNEL_TYPE = FASTPM_KERNEL_EASTWOOD;
-    } else {
-        fastpm_raise(-1, "wrong kernel type!\n");
-    }
     run_fastpm(fastpm, &prr, comm);
 
     libfastpm_cleanup();

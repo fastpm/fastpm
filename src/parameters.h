@@ -31,36 +31,18 @@ typedef struct {
     char * write_noisek;
     char * write_noise;
 
-    int force_mode;
+    char * force_mode;
+    char * kernel_type;
+
     int cola_stdda;
     int use_zola;
     int use_dx1_only;
-    int kernel_type;
 
     double * time_step; int n_time_step;
-    int enforce_broadband_mode;
+
+    char * enforce_broadband_mode;
     int enforce_broadband_kmax;
     int UseFFTW;
     int NprocY;
     int Nwriters;
 } Parameters;
-
-#define PM_MOND_NONE 0
-#define PM_MOND_SIMPLE 1
-#define PM_MOND_NBC 2
-
-/* Important that modes with PM have the bit set */
-#define FORCE_MODE_PM 8
-#define FORCE_MODE_COLA 10
-#define FORCE_MODE_ZOLA 100
-
-#define KERNEL_EASTWOOD 1
-#define KERNEL_3_4 2
-#define KERNEL_5_4 3
-#define KERNEL_3_2 4
-
-#define MODEL_LINEAR 1
-#define MODEL_2LPT 2
-#define MODEL_ZA   3
-#define MODEL_PM   4
-#define MODEL_NONE 0
