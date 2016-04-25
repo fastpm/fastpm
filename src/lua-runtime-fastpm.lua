@@ -147,12 +147,17 @@ function Schema.dependency(self, ns)
     if #ns.change_pm ~= #ns.pm_nc_factor then
         error("change_pm and pm_nc_factor must be of the same length")
     end
-    if ns.read_noisek or ns.read_noise or ns.read_runpbic then
+    if not ns.read_noisek and not ns.read_noise and not ns.read_runpbic then
+        -- need a power spectrum and gaussian random field
         self.read_powerspectrum.required = true
-        self.random_seed.required = true
         self.sigma8.required = false
         self.inverted_ic.required = false
         self.remove_cosmic_variance.required = false
+        if not ns.read_grafic then
+            self.random_seed.required = true
+        else
+            self.random_seed.required = false
+        end
     end
 
     if ns.force_mode == "pm" then
@@ -186,6 +191,7 @@ schema:add{name='read_noise',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
 schema:add{name='sigma8',             type='number', default=0}
+schema:add{name='random_seed',         type='number'}
 schema:add{name='write_noisek',        type='string'}
 schema:add{name='write_noise',         type='string'}
 schema:add{name='write_runpbic',       type='string'}
