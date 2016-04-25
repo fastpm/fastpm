@@ -11,22 +11,26 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install 
 
 
-FASTPM_SOURCES = fastpm.c power.c lua-main.c runpb.c readgrafic.c io.c
-FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c
+FASTPM_SOURCES = fastpm.c power.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c
+FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c lua-runtime.c
 TEST_SOURCES = test2lpt.c testpm.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
-LUASOURCES = lua-runtime-dump.lua lua-runtime-library.lua
+
+LUASOURCES = \
+	lua-runtime-dump.lua \
+	lua-runtime-main.lua \
+	lua-runtime-fastpm.lua
 
 all: fastpm-lua fastpm test2lpt testpm
 
-fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) $(LUASOURCES:%.lua=.objs/%.o) \
+fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 		$(LDFLAGS) -lm 
 
-fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) $(LUASOURCES:%.lua=.objs/%.o) \
+fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o)\
      ../lua/liblua.a ../libfastpm/libfastpm.a ../bigfile/libbigfile.a ../bigfile/libbigfile-mpi.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ \
 		$(LDFLAGS) -lgsl -lgslcblas -lm
@@ -41,8 +45,8 @@ testpm : testpm.o ../libfastpm/libfastpm.a
 
 -include $(SOURCES:%.c=.deps/%.d)
 
-%.c : %.lua
-	xxd -i $^ > $@
+lua-runtime.c : $(LUASOURCES) make-lua-runtime.sh
+	./make-lua-runtime.sh $(LUASOURCES) > $@
 
 clean:
 	rm -rf .objs
