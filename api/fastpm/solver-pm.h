@@ -119,30 +119,9 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 
 void fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi, double af);
 void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double af);
+void
+fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
+void
+fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3]);
 
-static inline void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
-{
-    int d;
-    for(d = 0; d < 3; d ++) {
-        xo[d] = drift->p->x[i][d] + drift->p->v[i][d]*drift->dyyy;
-        if(drift->fastpm->USE_COLA) {
-            xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
-        }
-    }
-
-}
-
-static inline void
-fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
-{
-    int d;
-    for(d = 0; d < 3; d++) {
-        float ax = kick->p->acc[i][d];
-        if(kick->fastpm->USE_COLA) {
-            ax += (kick->p->dx1[i][d]*kick->q1 + kick->p->dx2[i][d]*kick->q2);
-        }
-        vo[d] = kick->p->v[i][d] + ax * kick->dda;
-    }
-}
 FASTPM_END_DECLS
