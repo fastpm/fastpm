@@ -38,11 +38,23 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
     }
     double alloc_factor = 2.0;
     fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
+    fastpm_pm_init(&self->pm_solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, self->OmegaM, comm);
 
     self->pm = self->solver.pm;
+    self->p = self->solver.p;
     self->delta_ic_k = pm_alloc(self->solver.pm);
     self->rho_final_x = pm_alloc(self->solver.pm);
 }
+
+void
+fastpm_pm_init(FastPM * fastpm, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
+{
+    fastpm->nc = nc;
+    fastpm->boxsize = boxsize;
+    fastpm->alloc_factor = alloc_factor;
+    fastpm->omega_m = omega_m;
+}
+
 
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self)
@@ -56,47 +68,80 @@ void
 fastpm_hmc_za_evolve(
     FastPMHMCZA * self,
     FastPMFloat * delta_ic /* IC in k-space*/
+    //FastPMFloat do_pmesh
+
     )
 {
-    FastPM2LPTSolver * solver = &self->solver;
-    /* Evolve with ZA for HMC, smoothed by sml and deconvolve CIC */
-    fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
+    
+    //PM * pmt;
+    //PMStore * pt;
+    int do_pmesh = 0;
+        
+    if(do_pmesh == 0){
 
-    pm_assign(solver->pm, delta_ic, self->delta_ic_k);
+	FastPM2LPTSolver * solver = &self->solver;
+	fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
 
-    if(self->IncludeRSD) {
-        fastpm_info("Using RSD along z\n");
-        Cosmology c = {
-                    .OmegaM = self->OmegaM,
-                    .OmegaLambda = 1 - self->OmegaM,
-        };
+	pm_assign(solver->pm, delta_ic, self->delta_ic_k);
+	self->pm = self->solver.pm;
+	self->p = self->solver.p;
 
-        double f1 = DLogGrowthFactor(1.0, c);
-        double D1 = GrowthFactor(1.0, c);
-        ptrdiff_t i;
-        for(i = 0; i < solver->p->np; i ++) {
-            solver->p->x[i][2] += f1 * D1 * solver->p->dx1[i][2];
-        }
     }
+
+    /*
+      else {
+
+	FastPM * solver = &self -> solver; 
+	double time_step[] = {0.2, 0.4, 0.6, 0.8, 1.0};
+	fastpm_setup_ic(solver, delta_ic);
+
+	fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
+	pmt = solver->pm;
+	pt = solver->p;
+
+	
+    }
+    */
+
+
+    
+    if(self->IncludeRSD) {
+	fastpm_info("Using RSD along z\n");
+	Cosmology c = {
+	    .OmegaM = self->OmegaM,
+	    .OmegaLambda = 1 - self->OmegaM,
+	};
+	
+	double f1 = DLogGrowthFactor(1.0, c);
+	double D1 = GrowthFactor(1.0, c);
+	ptrdiff_t i;
+	for(i = 0; i < self->p->np; i ++) {
+		self->p->x[i][2] += f1 * D1 * self->p->dx1[i][2];
+	}
+    }
+    
 
     FastPMFloat * delta_final = self->rho_final_x;
 
-    fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final ,NULL, 0);
+    
+    fastpm_utils_paint(self->pm, self->p, NULL, delta_final ,NULL, 0);
 
     if(self->SmoothingLength > 0)
-        fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->SmoothingLength);
+        fastpm_apply_smoothing_transfer(self->pm, delta_final, delta_final, self->SmoothingLength);
     if(self->KThreshold > 0)
-        fastpm_apply_lowpass_transfer(solver->pm, delta_final, delta_final, self->KThreshold);
+        fastpm_apply_lowpass_transfer(self->pm, delta_final, delta_final, self->KThreshold);
     if(self->DeconvolveCIC)
-        fastpm_apply_decic_transfer(solver->pm, delta_final, delta_final);
+        fastpm_apply_decic_transfer(self->pm, delta_final, delta_final);
 
-    pm_c2r(solver->pm, delta_final);
+    pm_c2r(self->pm, delta_final);
     ptrdiff_t ind;
-    /* inv volume of a cell, to convert to density */
-    double fac = (pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3));
-    for(ind = 0; ind < pm_size(solver->pm); ind++) {
+    //  inv volume of a cell, to convert to density
+    double fac = (pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3));
+    for(ind = 0; ind < pm_size(self->pm); ind++) {
         delta_final[ind] *= fac;
     }
+    
+
 }
 
 double
@@ -106,13 +151,12 @@ fastpm_hmc_za_chisq(
     FastPMFloat * sigma_x /* sigma_x in x-space*/
     )
 {
-    FastPM2LPTSolver * solver = &self->solver;
     FastPMFloat * model_x = self->rho_final_x;
 
     double chi2 = 0;
 
     PMXIter iter;
-    for(pm_xiter_init(solver->pm, &iter);
+    for(pm_xiter_init(self->pm, &iter);
        !pm_xiter_stop(&iter);
         pm_xiter_next(&iter)) {
         double diff = (model_x[iter.ind] - data_x[iter.ind]);
@@ -122,7 +166,7 @@ fastpm_hmc_za_chisq(
         chi2 += diff;
     }
     MPI_Allreduce(MPI_IN_PLACE, &chi2, 1, MPI_DOUBLE, MPI_SUM, self->solver.comm);
-    chi2 /= pm_norm(solver->pm);
+    chi2 /= pm_norm(self->pm);
     return chi2;
 }
 
@@ -135,20 +179,19 @@ fastpm_hmc_za_force(
     )
 {
     ptrdiff_t ind;
-    FastPM2LPTSolver * solver = &self->solver;
 
-    FastPMFloat * rhodk = pm_alloc(solver->pm);
-    FastPMFloat * workspace = pm_alloc(solver->pm);
+    FastPMFloat * rhodk = pm_alloc(self->pm);
+    FastPMFloat * workspace = pm_alloc(self->pm);
 
     fastpm_hmc_za_force_rhodk(self, data_x, sigma_x, rhodk);
 
-    memset(Fk, 0, sizeof(Fk[0]) * pm_size(solver->pm));
+    memset(Fk, 0, sizeof(Fk[0]) * pm_size(self->pm));
 
     /* First order */
     if(self->LPTOrder >= 1) {
         fastpm_hmc_za_force_s1(self, rhodk, workspace);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind++) {
+        for(ind = 0; ind < pm_size(self->pm); ind++) {
             Fk[ind] += workspace[ind];
         }
     }
@@ -156,13 +199,13 @@ fastpm_hmc_za_force(
     if(self->LPTOrder >= 2) {
         fastpm_hmc_za_force_s2(self, Fk, workspace);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind++) {
+        for(ind = 0; ind < pm_size(self->pm); ind++) {
             Fk[ind] += workspace[ind];
         }
     }
 
-    pm_free(solver->pm, workspace);
-    pm_free(solver->pm, rhodk);
+    pm_free(self->pm, workspace);
+    pm_free(self->pm, rhodk);
 }
 
 void
@@ -173,31 +216,30 @@ fastpm_hmc_za_force_rhodk(
     FastPMFloat * rhodk    /* (out) rhodk in fourier space */
     )
 {
-    FastPM2LPTSolver * solver = &self->solver;
 
     FastPMFloat * model_x = self->rho_final_x;
 
-    FastPMFloat * workspace = pm_alloc(solver->pm);
+    FastPMFloat * workspace = pm_alloc(self->pm);
 
     ptrdiff_t ind;
-    for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+    for(ind = 0; ind < pm_size(self->pm); ind ++) {
         workspace[ind] = model_x[ind] - data_x[ind];
         if(sigma_x)
             workspace[ind] /= sigma_x[ind] * sigma_x[ind];
     }
 
-    pm_r2c(solver->pm, workspace, rhodk);
+    pm_r2c(self->pm, workspace, rhodk);
 
-    pm_free(solver->pm, workspace);
+    pm_free(self->pm, workspace);
 
     if(self->SmoothingLength > 0)
-        fastpm_apply_smoothing_transfer(solver->pm, rhodk, rhodk, self->SmoothingLength);
+        fastpm_apply_smoothing_transfer(self->pm, rhodk, rhodk, self->SmoothingLength);
 
     if(self->KThreshold > 0)
-        fastpm_apply_lowpass_transfer(solver->pm, rhodk, rhodk, self->KThreshold);
+        fastpm_apply_lowpass_transfer(self->pm, rhodk, rhodk, self->KThreshold);
 
     if(self->DeconvolveCIC)
-        fastpm_apply_decic_transfer(solver->pm, rhodk, rhodk);
+        fastpm_apply_decic_transfer(self->pm, rhodk, rhodk);
 
 
 }
@@ -210,19 +252,17 @@ fastpm_hmc_za_force_s1(
 {
     int d;
 
-    FastPM2LPTSolver * solver = &self->solver;
-
-    FastPMFloat * workspace = pm_alloc(solver->pm);
+    FastPMFloat * workspace = pm_alloc(self->pm);
 
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
-        fastpm_apply_diff_transfer(solver->pm, rhodk, workspace, d);
+        fastpm_apply_diff_transfer(self->pm, rhodk, workspace, d);
 
         /* workspace stores \Gamma(k) = i k \rho_d */
 
-        pm_c2r(solver->pm, workspace);
+        pm_c2r(self->pm, workspace);
 
-        fastpm_utils_readout(solver->pm, solver->p, workspace, get_position, ACC[d]);
+        fastpm_utils_readout(self->pm, self->p, workspace, get_position, ACC[d]);
 
         /*FIXME: Add RSD f */
         if(self->IncludeRSD && d == 2) {
@@ -235,8 +275,8 @@ fastpm_hmc_za_force_s1(
             double f1 = DLogGrowthFactor(1.0, c);
             double D1 = GrowthFactor(1.0, c);
             ptrdiff_t i;
-            for(i = 0; i < solver->p->np; i ++) {
-                solver->p->acc[i][d] *= (1 + f1 * D1);
+            for(i = 0; i < self->p->np; i ++) {
+                self->p->acc[i][d] *= (1 + f1 * D1);
             }
         }
     }
@@ -244,18 +284,18 @@ fastpm_hmc_za_force_s1(
     fastpm_info(" Psi calculated\n");
     /* now we paint \Psi by the lagrangian position q */
 
-    memset(Fk1, 0, sizeof(Fk1[0]) * pm_size(solver->pm));
+    memset(Fk1, 0, sizeof(Fk1[0]) * pm_size(self->pm));
 
-    double fac = pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3);
+    double fac = pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3);
 
     for(d = 0; d < 3; d ++) {
-        fastpm_utils_paint(solver->pm, solver->p, NULL, workspace, get_lagrangian_position, ACC[d]);
-        fastpm_apply_laplace_transfer(solver->pm, workspace, workspace);
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, d);
+        fastpm_utils_paint(self->pm, self->p, NULL, workspace, get_lagrangian_position, ACC[d]);
+        fastpm_apply_laplace_transfer(self->pm, workspace, workspace);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, d);
 
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
-        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        for(ind = 0; ind < pm_size(self->pm); ind ++) {
             /* Wang's magic factor of 2 in 1301.1348 is doubled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
 
@@ -263,7 +303,7 @@ fastpm_hmc_za_force_s1(
             Fk1[ind] += - 2 * 2 * fac * workspace[ind];
         }
     }
-    pm_free(solver->pm, workspace);
+    pm_free(self->pm, workspace);
 }
 
 void
@@ -278,14 +318,13 @@ fastpm_hmc_za_force_s2(
     int d;
     ptrdiff_t ind;
 
-    FastPM2LPTSolver * solver = &self->solver;
 
-    FastPMFloat * Fpsi = pm_alloc(solver->pm);
-    FastPMFloat * source = pm_alloc(solver->pm);
-    FastPMFloat * workspace = pm_alloc(solver->pm);
+    FastPMFloat * Fpsi = pm_alloc(self->pm);
+    FastPMFloat * source = pm_alloc(self->pm);
+    FastPMFloat * workspace = pm_alloc(self->pm);
 
-    pm_assign(solver->pm, Fk1, Fpsi);
-    for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+    pm_assign(self->pm, Fk1, Fpsi);
+    for(ind = 0; ind < pm_size(self->pm); ind ++) {
         /* FIXME: put in D2 */
         Fpsi[ind] *= 3.0 / 7.0;
     }
@@ -293,41 +332,41 @@ fastpm_hmc_za_force_s2(
 
     /* 2LPT derivative begins here , carrying over Fk2 from above */
 
-    pm_c2r(solver->pm, Fpsi);
+    pm_c2r(self->pm, Fpsi);
 
-    memset(Fk2, 0, sizeof(Fk2[0]) * pm_size(solver->pm));
+    memset(Fk2, 0, sizeof(Fk2[0]) * pm_size(self->pm));
 
     fastpm_info(" starting diagonal elements \n");
 
     /* diagonal elements */
     for(d = 0; d < 3; d++){
 
-        fastpm_apply_laplace_transfer(solver->pm, self->delta_ic_k, workspace);
+        fastpm_apply_laplace_transfer(self->pm, self->delta_ic_k, workspace);
 
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, d);
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, d);
-        pm_c2r(solver->pm, workspace);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, d);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, d);
+        pm_c2r(self->pm, workspace);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        for(ind = 0; ind < pm_size(self->pm); ind ++) {
             workspace[ind]  = Fpsi[ind] * workspace[ind];
         }
 
-        pm_r2c(solver->pm, workspace, source);
+        pm_r2c(self->pm, workspace, source);
 
-        fastpm_apply_laplace_transfer(solver->pm, source, source);
+        fastpm_apply_laplace_transfer(self->pm, source, source);
 
 
-        fastpm_apply_diff_transfer(solver->pm, source, workspace, (d+1)%3);
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(self->pm, source, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+1)%3);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        for(ind = 0; ind < pm_size(self->pm); ind ++) {
             Fk2[ind] += workspace[ind];
         }
 
-        fastpm_apply_diff_transfer(solver->pm, source, workspace, (d+2)%3);
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+2)%3);
+        fastpm_apply_diff_transfer(self->pm, source, workspace, (d+2)%3);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+2)%3);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        for(ind = 0; ind < pm_size(self->pm); ind ++) {
             Fk2[ind] += workspace[ind];
 
         }
@@ -338,32 +377,80 @@ fastpm_hmc_za_force_s2(
     /* off - diagonal elements */
     for(d = 0; d < 3; d++){
 
-        fastpm_apply_laplace_transfer(solver->pm, self->delta_ic_k, workspace);
+        fastpm_apply_laplace_transfer(self->pm, self->delta_ic_k, workspace);
 
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+1)%3);
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+2)%3);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+2)%3);
 
-        pm_c2r(solver->pm, workspace);
+        pm_c2r(self->pm, workspace);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        for(ind = 0; ind < pm_size(self->pm); ind ++) {
             workspace[ind]  = Fpsi[ind] * workspace[ind];
         }
 
-        pm_r2c(solver->pm, workspace, source);
+        pm_r2c(self->pm, workspace, source);
 
-        fastpm_apply_laplace_transfer(solver->pm, source, source);
+        fastpm_apply_laplace_transfer(self->pm, source, source);
 
 
-        fastpm_apply_diff_transfer(solver->pm, source, workspace, (d+1)%3);
-        fastpm_apply_diff_transfer(solver->pm, workspace, workspace, (d+2)%3);
+        fastpm_apply_diff_transfer(self->pm, source, workspace, (d+1)%3);
+        fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+2)%3);
 
-        for(ind = 0; ind < pm_size(solver->pm); ind ++) {
+        for(ind = 0; ind < pm_size(self->pm); ind ++) {
             Fk2[ind] -= 2 * workspace[ind];
         }
     }
 
-    pm_free(solver->pm, workspace);
-    pm_free(solver->pm, source);
-    pm_free(solver->pm, Fpsi);
+    pm_free(self->pm, workspace);
+    pm_free(self->pm, source);
+    pm_free(self->pm, Fpsi);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+//////////////////////////   TRASH SAVED HERE ///////////////////////////////////
+
+
+//From hmc_za_evolve, after declaring delta_final
+    /*
+    fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final ,NULL, 0);
+
+    if(self->SmoothingLength > 0)
+        fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->SmoothingLength);
+    if(self->KThreshold > 0)
+        fastpm_apply_lowpass_transfer(solver->pm, delta_final, delta_final, self->KThreshold);
+    if(self->DeconvolveCIC)
+        fastpm_apply_decic_transfer(solver->pm, delta_final, delta_final);
+
+    pm_c2r(solver->pm, delta_final);
+    ptrdiff_t ind;
+    //  inv volume of a cell, to convert to density
+    double fac = (pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3));
+    for(ind = 0; ind < pm_size(solver->pm); ind++) {
+        delta_final[ind] *= fac;
+    }
+    */
+    
+
+    /*
+    FastPM2LPTSolver * solver = &self->solver;
+    // Evolve with ZA for HMC, smoothed by sml and deconvolve CIC 
+    fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
+
+    pm_assign(solver->pm, delta_ic, self->delta_ic_k);
+
+    pmt = solver->pm;
+    pt = solver->p;
+    */
+    

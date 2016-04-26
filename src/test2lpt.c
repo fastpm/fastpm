@@ -27,7 +27,7 @@ int main(int argc, char * argv[]) {
             .KThreshold = 0.0,
             .DeconvolveCIC = 1,
             .LPTOrder = 2,
-            .SmoothingLength = 4,
+            .SmoothingLength = 8,
             .IncludeRSD = 0,
         };
 
@@ -52,8 +52,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {30, 20, 10}) + 0;
-    int seed = 2999;
+    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {1, 2, 4}) + 0;
+    int seed = 299;
 
     fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
 //    double amplitude = 10000;
