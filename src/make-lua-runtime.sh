@@ -1,9 +1,9 @@
 # sh
 
-function produce_source {
+produce_source () {
     xxd -i $1
 }
-function produce_open {
+produce_open () {
     local fn=$1
     local prefix=${fn//./_}
     local prefix=${prefix//-/_}
