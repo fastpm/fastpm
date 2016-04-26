@@ -46,7 +46,7 @@ testpm : testpm.o ../libfastpm/libfastpm.a
 -include $(SOURCES:%.c=.deps/%.d)
 
 lua-runtime.c : $(LUASOURCES) make-lua-runtime.sh
-	./make-lua-runtime.sh $(LUASOURCES) > $@
+	bash make-lua-runtime.sh $(LUASOURCES) > $@
 
 clean:
 	rm -rf .objs
