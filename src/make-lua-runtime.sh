@@ -1,4 +1,4 @@
-# sh
+# bash
 
 produce_source () {
     xxd -i $1
