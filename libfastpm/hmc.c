@@ -61,8 +61,11 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
     fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
     fastpm_pm_init(&self->pm_solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, self->OmegaM, comm);
 
+    //Set p and pm later, after evolve, equal to correct solver
     self->pm = self->solver.pm;
     self->p = self->solver.p;
+    //self->p = malloc(sizeof(PMStore));
+    //self->pm = malloc(sizeof(PM));    
     self->delta_ic_k = pm_alloc(self->solver.pm);
     self->rho_final_x = pm_alloc(self->solver.pm);
 }
@@ -86,8 +89,6 @@ fastpm_hmc_za_evolve(
     )
 {
     
-    //PM * pmt;
-    //PMStore * pt;
     int do_pmesh = 0;
         
     if(do_pmesh == 0){
@@ -98,25 +99,19 @@ fastpm_hmc_za_evolve(
 	pm_assign(solver->pm, delta_ic, self->delta_ic_k);
 	self->pm = self->solver.pm;
 	self->p = self->solver.p;
-
     }
 
-    /*
-      else {
+    else {
 
-	FastPM * solver = &self -> solver; 
+	FastPM * solver = &self->pm_solver; 
 	double time_step[] = {0.2, 0.4, 0.6, 0.8, 1.0};
 	fastpm_setup_ic(solver, delta_ic);
-
 	fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
-	pmt = solver->pm;
-	pt = solver->p;
 
-	
+	pm_assign(solver->pm, delta_ic, self->delta_ic_k);
+	self->pm = self->solver.pm;
+	self->p = self->solver.p;	
     }
-    */
-
-
     
     if(self->IncludeRSD) {
 	fastpm_info("Using RSD along z\n");
