@@ -35,11 +35,11 @@ fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o)\
 	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ \
 		$(LDFLAGS) -lgsl -lgslcblas -lm
 
-test2lpt : test2lpt.o ../libfastpm/libfastpm.a
+test2lpt : .objs/test2lpt.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
-testpm : testpm.o ../libfastpm/libfastpm.a
+testpm : .objs/testpm.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
