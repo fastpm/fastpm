@@ -23,6 +23,27 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
     pos[2] = p->x[index][2];
 }
 
+static void
+fastpm_pm_init(FastPM * fastpm, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
+{
+    fastpm->nc = nc;
+    fastpm->boxsize = boxsize;
+    fastpm->alloc_factor = alloc_factor;
+    fastpm->omega_m = omega_m;
+    fastpm->vpminit = (VPMInit[]) {
+	{.a_start = 0, .pm_nc_factor = 2},
+	{.a_start = -1, .pm_nc_factor = 0},
+    };
+    fastpm->USE_COLA = 0;
+    fastpm->USE_NONSTDDA = 0;
+    fastpm->USE_MODEL = 0;
+    fastpm->nLPT = 2.5;
+    fastpm->K_LINEAR = 0.04;
+
+    fastpm_init(fastpm, 0, 0, comm);
+
+}
+
 void 
 fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 {
@@ -46,21 +67,13 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
     self->rho_final_x = pm_alloc(self->solver.pm);
 }
 
-void
-fastpm_pm_init(FastPM * fastpm, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
-{
-    fastpm->nc = nc;
-    fastpm->boxsize = boxsize;
-    fastpm->alloc_factor = alloc_factor;
-    fastpm->omega_m = omega_m;
-}
-
 
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self)
 {
     pm_free(self->solver.pm, self->rho_final_x);
     pm_free(self->solver.pm, self->delta_ic_k);
+    fastpm_destroy(&self->pm_solver);
     fastpm_2lpt_destroy(&self->solver);
 }
 

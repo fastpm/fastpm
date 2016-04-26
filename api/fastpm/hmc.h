@@ -28,10 +28,6 @@ typedef struct {
 void
 fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm);
 
-void
-fastpm_pm_init(FastPM * fastpm, int nmesh, int nc, 
-	       double boxsize, double alloc_factor, double omega_m, 
-	       MPI_Comm comm);
 
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self);
