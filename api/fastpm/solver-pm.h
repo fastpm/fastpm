@@ -25,6 +25,8 @@ typedef struct {
     int USE_DX1_ONLY;
     int USE_NONSTDDA;
     int USE_ZOLA;
+    int USE_SHIFT;
+    PMStore * USE_EXTERNAL_PSTORE;
     double nLPT;
 
     FastPMKernelType KERNEL_TYPE;

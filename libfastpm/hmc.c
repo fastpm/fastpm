@@ -1,6 +1,7 @@
 #include <string.h>
 #include <mpi.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
@@ -24,24 +25,25 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
 }
 
 static void
-fastpm_pm_init(FastPM * fastpm, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
+fastpm_pm_init(FastPM * fastpm, PMStore * p, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
 {
     fastpm->nc = nc;
     fastpm->boxsize = boxsize;
     fastpm->alloc_factor = alloc_factor;
     fastpm->omega_m = omega_m;
     fastpm->vpminit = (VPMInit[]) {
-	{.a_start = 0, .pm_nc_factor = 2},
-	{.a_start = -1, .pm_nc_factor = 0},
+        {.a_start = 0, .pm_nc_factor = 1},
+        {.a_start = -1, .pm_nc_factor = 0},
     };
     fastpm->USE_COLA = 0;
+    fastpm->USE_ZOLA = 1;
     fastpm->USE_NONSTDDA = 0;
-    fastpm->USE_MODEL = 0;
+    fastpm->USE_EXTERNAL_PSTORE = p;
+    fastpm->USE_MODEL = FASTPM_MODEL_NONE;
     fastpm->nLPT = 2.5;
-    fastpm->K_LINEAR = 0.04;
-
+    fastpm->K_LINEAR = 4;
+    fastpm->KERNEL_TYPE = FASTPM_KERNEL_EASTWOOD;
     fastpm_init(fastpm, 0, 0, comm);
-
 }
 
 void 
@@ -50,89 +52,129 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
     switch(self->LPTOrder) {
         case 1:
             self->solver.USE_DX1_ONLY = 1;
+            self->pm_solver.USE_DX1_ONLY = 1;
         break;
         case 2:
             self->solver.USE_DX1_ONLY = 0;
+            self->pm_solver.USE_DX1_ONLY = 0;
         break;
         default:
             fastpm_raise(-1, "Wrong LPT Order, can only be 1 or 2\n");
     }
     double alloc_factor = 2.0;
     fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
-    fastpm_pm_init(&self->pm_solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, self->OmegaM, comm);
+    fastpm_pm_init(&self->pm_solver, self->solver.p, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, self->OmegaM, comm);
 
-    //Set p and pm later, after evolve, equal to correct solver
+    /* FIXME: create a new pm object */
     self->pm = self->solver.pm;
-    self->p = self->solver.p;
-    //self->p = malloc(sizeof(PMStore));
-    //self->pm = malloc(sizeof(PM));    
+
+    /* We will set p after evolve is called. p contains the displacement field! */
+    self->p = NULL;
+
     self->delta_ic_k = pm_alloc(self->solver.pm);
     self->rho_final_x = pm_alloc(self->solver.pm);
+    self->transfer_function = pm_alloc(self->solver.pm);
 }
 
 
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self)
 {
+    pm_free(self->solver.pm, self->transfer_function);
     pm_free(self->solver.pm, self->rho_final_x);
     pm_free(self->solver.pm, self->delta_ic_k);
+    self->pm_solver.p->q = NULL;
     fastpm_destroy(&self->pm_solver);
     fastpm_2lpt_destroy(&self->solver);
 }
 
 void 
-fastpm_hmc_za_evolve(
+fastpm_hmc_za_evolve_internal(
     FastPMHMCZA * self,
-    FastPMFloat * delta_ic /* IC in k-space*/
-    //FastPMFloat do_pmesh
-
+    int Nsteps /* 0 for LPT, > 0 for PM */
     )
 {
-    
-    int do_pmesh = 0;
-        
-    if(do_pmesh == 0){
+    /* First run a PT simulation*/
+    if(Nsteps <= 0) {
+        FastPM2LPTSolver * solver = &self->solver;
+        fastpm_2lpt_evolve(solver, self->delta_ic_k, 1.0, self->OmegaM);
 
-	FastPM2LPTSolver * solver = &self->solver;
-	fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
+        self->p = solver->p;
+    } else {
+        FastPM * solver = &self->pm_solver;
+        double time_step[Nsteps];
+        double ainit = 0.1;
+        double afinal = 1.0;
+        int i;
+        for(i = 0; i < Nsteps; i ++) {
+            time_step[i] = ainit + 1.0 * i / (Nsteps - 1) * (afinal - ainit);
+        }
+        time_step[Nsteps - 1] = afinal;
+        fastpm_setup_ic(solver, self->delta_ic_k);
+        fastpm_evolve(solver, time_step, Nsteps);
 
-	pm_assign(solver->pm, delta_ic, self->delta_ic_k);
-	self->pm = self->solver.pm;
-	self->p = self->solver.p;
+        self->p = solver->p;
     }
-
-    else {
-
-	FastPM * solver = &self->pm_solver; 
-	double time_step[] = {0.2, 0.4, 0.6, 0.8, 1.0};
-	fastpm_setup_ic(solver, delta_ic);
-	fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
-
-	pm_assign(solver->pm, delta_ic, self->delta_ic_k);
-	self->pm = self->solver.pm;
-	self->p = self->solver.p;	
-    }
-    
     if(self->IncludeRSD) {
-	fastpm_info("Using RSD along z\n");
-	Cosmology c = {
-	    .OmegaM = self->OmegaM,
-	    .OmegaLambda = 1 - self->OmegaM,
-	};
-	
-	double f1 = DLogGrowthFactor(1.0, c);
-	double D1 = GrowthFactor(1.0, c);
-	ptrdiff_t i;
-	for(i = 0; i < self->p->np; i ++) {
-		self->p->x[i][2] += f1 * D1 * self->p->dx1[i][2];
-	}
+        Cosmology c = {
+            .OmegaM = self->OmegaM,
+            .OmegaLambda = 1 - self->OmegaM,
+        };
+        double RSD = 1.0 / (self->p->a_x * self->p->a_x * HubbleEa(self->p->a_x, c));
+        fastpm_info("Using RSD along z\n");
+        ptrdiff_t i;
+        for(i = 0; i < self->p->np; i ++) {
+            self->p->x[i][2] += self->p->v[i][2] * RSD;
+        }
     }
-    
+
+    fastpm_utils_paint(self->pm, self->p, NULL, self->rho_final_x, NULL, 0);
+}
+
+void 
+fastpm_hmc_za_evolve(
+    FastPMHMCZA * self,
+    FastPMFloat * delta_ic, /* IC in k-space*/
+    int Nsteps /* 0 for LPT, > 0 for PM */
+    )
+{
+    pm_assign(self->pm, delta_ic, self->delta_ic_k);
+
+    fastpm_hmc_za_evolve_internal(self, 0);
+    pm_assign(self->pm, self->rho_final_x, self->transfer_function);
+
+    fastpm_hmc_za_evolve_internal(self, Nsteps);
+
+    /* measure the transfer function */
+    ptrdiff_t ind;
+    for(ind = 0; ind < pm_size(self->pm); ind +=2) {
+        double tmp[2];
+        double c = self->transfer_function[ind];
+        double d = self->transfer_function[ind + 1];
+        double a = self->rho_final_x[ind];
+        double b = self->rho_final_x[ind + 1];
+        double m = c * c + d * d;
+        if (m > 0) {
+            tmp[0] = (a * c + b * d) / m;
+            tmp[1] = (b * c - a * d) / m;
+        } else {
+            tmp[0] = 1;
+            tmp[1] = 0;
+        }
+        self->transfer_function[ind] = tmp[0];
+        self->transfer_function[ind + 1] = tmp[1];
+    }
+
+    fastpm_info(" %g %g %g %g %g %g\n",
+         self->p->x[0][0],
+         self->p->x[0][1],
+         self->p->x[0][2],
+         self->p->dx1[0][0],
+         self->p->dx1[0][1],
+         self->p->dx1[0][2]
+    );
 
     FastPMFloat * delta_final = self->rho_final_x;
-
-    
-    fastpm_utils_paint(self->pm, self->p, NULL, delta_final ,NULL, 0);
 
     if(self->SmoothingLength > 0)
         fastpm_apply_smoothing_transfer(self->pm, delta_final, delta_final, self->SmoothingLength);
@@ -142,13 +184,12 @@ fastpm_hmc_za_evolve(
         fastpm_apply_decic_transfer(self->pm, delta_final, delta_final);
 
     pm_c2r(self->pm, delta_final);
-    ptrdiff_t ind;
+
     //  inv volume of a cell, to convert to density
     double fac = (pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3));
     for(ind = 0; ind < pm_size(self->pm); ind++) {
         delta_final[ind] *= fac;
     }
-    
 
 }
 
@@ -249,7 +290,18 @@ fastpm_hmc_za_force_rhodk(
     if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(self->pm, rhodk, rhodk);
 
+    for(ind = 0; ind < pm_size(self->pm); ind +=2) {
+        double tmp[2];
+        double a = rhodk[ind];
+        double b = rhodk[ind + 1];
+        double c = self->transfer_function[ind];
+        double d = self->transfer_function[ind + 1];
 
+        tmp[0] = a * c - b * d;
+        tmp[1] = a * d + b * c;
+        rhodk[ind] = tmp[0];
+        rhodk[ind + 1] = tmp[1];
+    }
 }
 void
 fastpm_hmc_za_force_s1(
