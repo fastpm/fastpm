@@ -322,6 +322,8 @@ static void pm_store_permute(PMStore * p, int * ind) {
     permute(p->x, p->np, sizeof(p->x[0]), ind);
     permute(p->v, p->np, sizeof(p->v[0]), ind);
     permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->q)
+        permute(p->q, p->np, sizeof(p->q[0]), ind);
     if(p->acc)
         permute(p->acc, p->np, sizeof(p->acc[0]), ind);
     if(p->dx1)
