@@ -96,6 +96,12 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
     DISPATCHC(PACK_ACC_Z, acc, 2)
+    DISPATCHC(PACK_DX1_X, dx1, 0)
+    DISPATCHC(PACK_DX1_Y, dx1, 1)
+    DISPATCHC(PACK_DX1_Z, dx1, 2)
+    DISPATCHC(PACK_DX2_X, dx2, 0)
+    DISPATCHC(PACK_DX2_Y, dx2, 1)
+    DISPATCHC(PACK_DX2_Z, dx2, 2)
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
@@ -322,6 +328,8 @@ static void pm_store_permute(PMStore * p, int * ind) {
     permute(p->x, p->np, sizeof(p->x[0]), ind);
     permute(p->v, p->np, sizeof(p->v[0]), ind);
     permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->q)
+        permute(p->q, p->np, sizeof(p->q[0]), ind);
     if(p->acc)
         permute(p->acc, p->np, sizeof(p->acc[0]), ind);
     if(p->dx1)

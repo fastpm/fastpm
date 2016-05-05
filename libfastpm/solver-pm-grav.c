@@ -139,6 +139,37 @@ apply_force_kernel_eastwood(PM * pm, FastPMFloat * from, FastPMFloat * to, int d
     fastpm_apply_decic_transfer(pm, to, to);
 }
 
+static void
+apply_2_3_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to)
+{
+
+    double k_nq = M_PI * pm->Nmesh[0] / pm->BoxSize[0];
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int d;
+            double kk_finite = 0;
+            ptrdiff_t ind = kiter.ind;
+            for(d = 0; d < 3; d++) {
+                kk_finite += kiter.kk[d][kiter.iabs[d]];
+            }
+            if(kk_finite > k_nq * k_nq) {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            } else {
+                to[ind + 0] = from[ind + 0];
+                to[ind + 1] = from[ind + 1];
+            }
+        }
+    }
+
+}
+
 void
 fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
 {
@@ -189,6 +220,7 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
             default:
                 fastpm_raise(-1, "Wrong kernel type\n");
         }
+        apply_2_3_dealiasing(pm, canvas, canvas);
         LEAVE(transfer);
 
         CLOCK(c2r);

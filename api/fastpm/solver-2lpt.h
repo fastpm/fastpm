@@ -4,6 +4,7 @@ typedef struct FastPM2LPTSolver {
     PM * pm;
     PMStore * p;
     int USE_DX1_ONLY;
+    int USE_SHIFT;
     MPI_Comm comm;
     double boxsize;
     int nc;

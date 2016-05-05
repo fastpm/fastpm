@@ -56,14 +56,18 @@ void fastpm_init(FastPM * fastpm,
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
-    fastpm->p = malloc(sizeof(PMStore));
     fastpm->model = malloc(sizeof(FastPMModel));
 
-    pm_store_init(fastpm->p);
+    if(!fastpm->USE_EXTERNAL_PSTORE) {
+        fastpm->p = malloc(sizeof(PMStore));
+        pm_store_init(fastpm->p);
 
-    pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
-        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC,
-        fastpm->alloc_factor, comm);
+        pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
+            PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC,
+            fastpm->alloc_factor, comm);
+    } else {
+        fastpm->p = fastpm->USE_EXTERNAL_PSTORE;
+    }
 
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, &fastpm->p->iface, comm);
@@ -87,19 +91,22 @@ void fastpm_init(FastPM * fastpm,
     pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, fastpm->comm);
 }
 
-void 
+void
 fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
 {
 
     PM * pm_2lpt = fastpm->pm_2lpt;
     if(delta_k_ic) {
-        double shift[3] = {
-            fastpm->boxsize / fastpm->nc * 0.5,
-            fastpm->boxsize / fastpm->nc * 0.5,
-            fastpm->boxsize / fastpm->nc * 0.5,
-            };
+        double shift0;
+        if(fastpm->USE_SHIFT) {
+            shift0 = fastpm->boxsize / fastpm->nc * 0.5;
+        } else {
+            shift0 = 0;
+        }
+        double shift[3] = {shift0, shift0, shift0};
 
         int nc[3] = {fastpm->nc, fastpm->nc, fastpm->nc};
+
         pm_store_set_lagrangian_position(fastpm->p, pm_2lpt, shift, nc);
 
         /* read out values at locations with an inverted shift */
@@ -109,6 +116,7 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(fastpm->p->dx2, 0, sizeof(fastpm->p->dx2[0]) * fastpm->p->np);
     }
+    pm_store_summary(fastpm->p, pm_2lpt->Comm2D);
 }
 
 void
@@ -246,7 +254,8 @@ fastpm_destroy(FastPM * fastpm)
     pm_destroy(fastpm->pm_2lpt);
     free(fastpm->pm_2lpt);
     fastpm_model_destroy(fastpm->model);
-    pm_store_destroy(fastpm->p);
+    if(!fastpm->USE_EXTERNAL_PSTORE)
+        pm_store_destroy(fastpm->p);
     vpm_free(fastpm->vpm_list);
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;

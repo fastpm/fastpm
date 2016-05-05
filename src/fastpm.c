@@ -124,6 +124,7 @@ int main(int argc, char ** argv) {
         .USE_DX1_ONLY = prr.use_dx1_only,
         .nLPT = -2.5f,
         .K_LINEAR = prr.enforce_broadband_kmax,
+        .USE_SHIFT = 1, /* compatible with old behavior, shift particles by 0.5 mesh*/
     };
 
     {

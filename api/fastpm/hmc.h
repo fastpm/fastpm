@@ -14,15 +14,21 @@ typedef struct {
     int Nmesh;
     int Ngrid;
     double BoxSize;
+    //int testing;
 
     PM * pm;
+    PMStore * p;
+
     FastPM2LPTSolver solver;
+    FastPM pm_solver;
     FastPMFloat * delta_ic_k;
     FastPMFloat * rho_final_x;
+    FastPMFloat * transfer_function;
 } FastPMHMCZA;
 
 void
 fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm);
+
 
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self);
@@ -30,7 +36,8 @@ fastpm_hmc_za_destroy(FastPMHMCZA * self);
 void
 fastpm_hmc_za_evolve(
     FastPMHMCZA * self,
-    FastPMFloat * delta_ic /* IC in k-space*/
+    FastPMFloat * delta_ic, /* IC in k-space*/
+    int Nsteps
     );
 
 double

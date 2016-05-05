@@ -21,13 +21,13 @@ int main(int argc, char * argv[]) {
 
     FastPMHMCZA * self = &(FastPMHMCZA) {
             .BoxSize = 512.,
-            .Nmesh = 128.,
-            .Ngrid = 128.,
+            .Nmesh = 128,
+            .Ngrid = 128,
             .OmegaM = 0.304,
             .KThreshold = 0.0,
-            .DeconvolveCIC = 1,
+            .DeconvolveCIC = 0,
             .LPTOrder = 2,
-            .SmoothingLength = 4,
+            .SmoothingLength = 8,
             .IncludeRSD = 0,
         };
 
@@ -52,15 +52,18 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {30, 20, 10}) + 0;
-    int seed = 2999;
+    ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {1, 2, 2}) + 0;
+    int seed = 299;
 
     fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+
+    pm_assign(self->pm, self->rho_final_x, rho_final_xtruth);
 //    double amplitude = 10000;
 //    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_white, &amplitude, FASTPM_DELTAK_GADGET);
     memset(rho_init_ktruth, 0, pm_size(self->pm) * sizeof(FastPMFloat));
+//    fastpm_utils_fill_deltak(self->pm, rho_init_ktruth, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
 
-    fastpm_hmc_za_evolve(self, rho_init_ktruth);
+    fastpm_hmc_za_evolve(self, rho_init_ktruth, 5);
 
     pm_assign(self->pm, self->rho_final_x, rho_final_xtruth);
 
@@ -76,7 +79,7 @@ int main(int argc, char * argv[]) {
     pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.0005 * delta;
 
-    fastpm_hmc_za_evolve(self, rho_init_k);
+    fastpm_hmc_za_evolve(self, rho_init_k, 5);
     fastpm_hmc_za_force_rhodk(self, rho_final_xtruth, sigma, rhodk);
     fastpm_hmc_za_force_s1(self, rhodk, Fk1);
     fastpm_hmc_za_force_s2(self, Fk1, Fk2);
@@ -86,13 +89,13 @@ int main(int argc, char * argv[]) {
     /* Numeric */
     pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.0 * delta;
-    fastpm_hmc_za_evolve(self, rho_init_k);
+    fastpm_hmc_za_evolve(self, rho_init_k, 5);
     double chisq1 = fastpm_hmc_za_chisq(self, rho_final_xtruth, sigma);
 
     pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.001 * delta;
 
-    fastpm_hmc_za_evolve(self, rho_init_k);
+    fastpm_hmc_za_evolve(self, rho_init_k, 5);
     double chisq2 = fastpm_hmc_za_chisq(self, rho_final_xtruth, sigma);
 
     double analytic1 = Fk1[mode];
