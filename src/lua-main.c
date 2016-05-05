@@ -167,7 +167,10 @@ loads_param(char * confstr, Parameters * param)
     param->read_runpbic = read_string(L, "read_runpbic");
 
     param->read_powerspectrum = read_string(L, "read_powerspectrum");
+    param->scalar_amplitude = read_number(L, "scalar_amplitude");
+    param->primordial_index = read_number(L, "primordial_index");
     param->sigma8 = read_number(L, "sigma8");
+
     param->random_seed = read_integer(L, "random_seed");
     param->inverted_ic = read_boolean(L, "inverted_ic");
     param->remove_cosmic_variance = read_boolean(L, "remove_cosmic_variance");

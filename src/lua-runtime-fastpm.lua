@@ -150,9 +150,6 @@ function Schema.dependency(self, ns)
     if not ns.read_noisek and not ns.read_noise and not ns.read_runpbic then
         -- need a power spectrum and gaussian random field
         self.read_powerspectrum.required = true
-        self.sigma8.required = false
-        self.inverted_ic.required = false
-        self.remove_cosmic_variance.required = false
         if not ns.read_grafic then
             self.random_seed.required = true
         else
@@ -190,6 +187,8 @@ schema:add{name='read_noisek',        type='string'}
 schema:add{name='read_noise',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
+schema:add{name='scalar_amplitude', type='number', default=2.441e-9}
+schema:add{name='primordial_index', type='number', default=0.9667}
 schema:add{name='sigma8',             type='number', default=0}
 schema:add{name='random_seed',         type='number'}
 schema:add{name='write_noisek',        type='string'}

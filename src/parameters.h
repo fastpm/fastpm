@@ -16,11 +16,16 @@ typedef struct {
 
     double boxsize;
 
-    double omega_m, sigma8, h;
+    double omega_m, h;
 
     double * aout; int n_aout;
 
     char * read_powerspectrum;
+
+    double sigma8;
+    double scalar_amplitude;
+    double primordial_index;
+
     char * write_powerspectrum;
     char * write_runpb_snapshot;
     char * write_snapshot;
