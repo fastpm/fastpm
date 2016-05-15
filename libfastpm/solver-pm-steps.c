@@ -47,8 +47,9 @@ static Cosmology CP(FastPM * fastpm) {
     };
     return c;
 }
-double 
-fastpm_growth_factor(FastPM * fastpm, double a) 
+
+double
+fastpm_growth_factor(FastPM * fastpm, double a)
 {
     return GrowthFactor(a, CP(fastpm));
 }

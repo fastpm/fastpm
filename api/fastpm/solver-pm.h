@@ -126,4 +126,7 @@ fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
 void
 fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3]);
 
+double
+fastpm_growth_factor(FastPM * fastpm, double a);
+
 FASTPM_END_DECLS

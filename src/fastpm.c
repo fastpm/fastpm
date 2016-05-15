@@ -177,7 +177,7 @@ static int
 check_snapshots(FastPM * fastpm, void * unused, Parameters * prr);
 
 static int 
-measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
+write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 static void 
 prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
@@ -202,7 +202,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
     fastpm_add_extension(fastpm,
         FASTPM_EXT_AFTER_FORCE,
-        measure_powerspectrum,
+        write_powerspectrum,
         prr);
 
     fastpm_add_extension(fastpm,
@@ -383,7 +383,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 }
 
 static int 
-measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
+write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
     CLOCK(compute);
     CLOCK(io);
@@ -392,12 +392,26 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_power_spectrum_init(&ps, pm_nmesh(fastpm->pm)[0] / 2);
+    fastpm_powerspectrum_init(&ps, fastpm->pm);
 
     MPI_Barrier(fastpm->comm);
     ENTER(compute);
 
-    fastpm_utils_calculate_powerspectrum(fastpm->pm, delta_k, &ps, pow(fastpm->nc, 3.0));
+    fastpm_powerspectrum_measure(&ps, delta_k, delta_k);
+
+    double kmax = fastpm->K_LINEAR * 6.28 / fastpm->boxsize;
+    ptrdiff_t i;
+    double Plin = 0;
+    double Nmodes = 0;
+    /* ignore zero mode ! */
+    for(i = 1; (i == 1) || (i < ps.size && ps.k[i] <= kmax); i ++) {
+        Plin += ps.p[i] * ps.Nmodes[i];
+        Nmodes += ps.Nmodes[i];
+    }
+    Plin /= Nmodes;
+    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin);
 
     LEAVE(compute);
 
@@ -409,12 +423,12 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
             ensure_dir(prr->write_powerspectrum);
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", prr->write_powerspectrum, a_x);
-            fastpm_power_spectrum_write(&ps, fastpm->pm, buf);
+            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->nc, 3.0));
         }
     }
     LEAVE(io);
 
-    fastpm_power_spectrum_destroy(&ps);
+    fastpm_powerspectrum_destroy(&ps);
 
     return 0;
 }

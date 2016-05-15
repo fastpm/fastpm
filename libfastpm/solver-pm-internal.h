@@ -33,7 +33,6 @@ double fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p);
 void fastpm_model_destroy(FastPMModel * model);
 void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit, double afinal);
 void fastpm_model_evolve(FastPMModel * model, double af);
-double fastpm_growth_factor(FastPM * fastpm, double a);
 
 void fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k);
 
