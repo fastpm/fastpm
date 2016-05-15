@@ -221,9 +221,7 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_powerspectrum_init(&ps, pm);
-
-    fastpm_powerspectrum_measure(&ps, delta_k, delta_k);
+    fastpm_powerspectrum_init(&ps, pm, delta_k, delta_k);
 
     double Plin = fastpm_powerspectrum_large_scale(&ps, model->fastpm->K_LINEAR);
 

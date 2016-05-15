@@ -5,9 +5,23 @@
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 
-void 
-fastpm_powerspectrum_measure(FastPMPowerSpectrum * ps, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
+void
+fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
 {
+    /* N is used to store metadata -- the shot-noise level. */
+    ps->size = pm_nmesh(pm)[0] / 2;
+    ps->pm = pm;
+    double Volume = 1.0;
+    int d;
+    for (d = 0; d < 3; d ++) {
+        Volume *= pm_boxsize(pm)[d];
+    }
+    ps->Volume = Volume;
+    ps->k = malloc(sizeof(ps->k[0]) * ps->size);
+    ps->p = malloc(sizeof(ps->p[0]) * ps->size);
+    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
+    ps->k0 = 6.28 / pm_boxsize(pm)[0];
+
     memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
     memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
     memset(ps->Nmodes, 0, sizeof(ps->Nmodes[0]) * ps->size);
@@ -60,24 +74,6 @@ fastpm_powerspectrum_measure(FastPMPowerSpectrum * ps, FastPMFloat * delta1_k, F
         ps->p[ind] /= ps->Nmodes[ind];
         ps->p[ind] *= ps->Volume;
     }
-}
-
-void
-fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm)
-{
-    /* N is used to store metadata -- the shot-noise level. */
-    ps->size = pm_nmesh(pm)[0] / 2;
-    ps->pm = pm;
-    double Volume = 1.0;
-    int d;
-    for (d = 0; d < 3; d ++) {
-        Volume *= pm_boxsize(pm)[d];
-    }
-    ps->Volume = Volume;
-    ps->k = malloc(sizeof(ps->k[0]) * ps->size);
-    ps->p = malloc(sizeof(ps->p[0]) * ps->size);
-    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
-    ps->k0 = 6.28 / pm_boxsize(pm)[0];
 }
 
 void

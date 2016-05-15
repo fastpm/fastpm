@@ -390,14 +390,12 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
 
     fastpm_report_memory(fastpm->comm);
 
-    FastPMPowerSpectrum ps;
-    /* calculate the power spectrum */
-    fastpm_powerspectrum_init(&ps, fastpm->pm);
-
     MPI_Barrier(fastpm->comm);
     ENTER(compute);
 
-    fastpm_powerspectrum_measure(&ps, delta_k, delta_k);
+    FastPMPowerSpectrum ps;
+    /* calculate the power spectrum */
+    fastpm_powerspectrum_init(&ps, fastpm->pm, delta_k, delta_k);
 
     double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
 

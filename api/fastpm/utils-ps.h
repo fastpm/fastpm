@@ -1,20 +1,18 @@
 FASTPM_BEGIN_DECLS
 
 typedef struct {
-    PM * pm;
     size_t size;
-    double k0;
-    double Volume;
     double *k;
     double *p;
+
+    PM * pm;
+    double k0;
+    double Volume;
     double *Nmodes;
 } FastPMPowerSpectrum;
 
 void
-fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm);
-
-void
-fastpm_powerspectrum_measure(FastPMPowerSpectrum * ps, FastPMFloat * delta1_k, FastPMFloat * delta2_k);
+fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k);
 
 void
 fastpm_powerspectrum_destroy(FastPMPowerSpectrum * ps);
