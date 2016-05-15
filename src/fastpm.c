@@ -399,16 +399,8 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
 
     fastpm_powerspectrum_measure(&ps, delta_k, delta_k);
 
-    double kmax = fastpm->K_LINEAR * 6.28 / fastpm->boxsize;
-    ptrdiff_t i;
-    double Plin = 0;
-    double Nmodes = 0;
-    /* ignore zero mode ! */
-    for(i = 1; (i == 1) || (i < ps.size && ps.k[i] <= kmax); i ++) {
-        Plin += ps.p[i] * ps.Nmodes[i];
-        Nmodes += ps.Nmodes[i];
-    }
-    Plin /= Nmodes;
+    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
+
     Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
 
     fastpm_info("D^2(%g, 1.0) P(k<%g) = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin);

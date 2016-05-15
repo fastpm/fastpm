@@ -219,7 +219,13 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
 
     pm_ghosts_free(pgd);
 
-    double Plin = fastpm_calculate_large_scale_power(pm, delta_k, model->fastpm->K_LINEAR);
+    FastPMPowerSpectrum ps;
+    /* calculate the power spectrum */
+    fastpm_powerspectrum_init(&ps, pm);
+
+    fastpm_powerspectrum_measure(&ps, delta_k, delta_k);
+
+    double Plin = fastpm_powerspectrum_large_scale(&ps, model->fastpm->K_LINEAR);
 
     pm_free(pm, delta_k);
     pm_free(pm, canvas);

@@ -3,6 +3,7 @@ FASTPM_BEGIN_DECLS
 typedef struct {
     PM * pm;
     size_t size;
+    double k0;
     double Volume;
     double *k;
     double *p;
@@ -22,6 +23,6 @@ void
 fastpm_powerspectrum_write(FastPMPowerSpectrum * ps, char * filename, double N);
 
 double
-fastpm_calculate_large_scale_power(PM * pm, FastPMFloat * delta_k, int Nmax);
+fastpm_powerspectrum_large_scale(FastPMPowerSpectrum * ps, int Nmax);
 
 FASTPM_END_DECLS

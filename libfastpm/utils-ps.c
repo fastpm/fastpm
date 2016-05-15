@@ -77,6 +77,7 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm)
     ps->k = malloc(sizeof(ps->k[0]) * ps->size);
     ps->p = malloc(sizeof(ps->p[0]) * ps->size);
     ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
+    ps->k0 = 6.28 / pm_boxsize(pm)[0];
 }
 
 void
@@ -107,63 +108,18 @@ fastpm_powerspectrum_write(FastPMPowerSpectrum * ps, char * filename, double N)
     fclose(fp);
 }
 
-/* measure the linear scale power spectrum up to Nmax, 
- * returns 1.0 if no such scale. k == 0 is skipped. */
 double
-fastpm_calculate_large_scale_power(PM * pm, FastPMFloat * delta_k, int Nmax)
+fastpm_powerspectrum_large_scale(FastPMPowerSpectrum * ps, int Nmax)
 {
-    double sum = 0;
-    double N   = 0;
-    double Norm = 0;
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            /* Always use a fixed kmax */
-            double kkmax = kiter.kk[0][Nmax];
-            int d;
-            double kk = 0.;
-            for(d = 0; d < 3; d++) {
-                double kk1 = kiter.kk[d][kiter.iabs[d]];
-                if(kk1 > kkmax) {
-                    goto next;
-                }
-                kk += kk1;
-            }
-            ptrdiff_t ind = kiter.ind;
-
-            double real = delta_k[ind + 0];
-            double imag = delta_k[ind + 1];
-            double value = real * real + imag * imag;
-            if(kk > 0.0001 * kkmax && kk < kkmax) {
-                int w = 2;
-                if(kiter.iabs[2] == 0) w = 1;
-                #pragma omp atomic
-                sum += w * value;
-                #pragma omp atomic
-                N += w;
-            }
-            if(kk == 0) {
-                Norm = value;
-            }
-            next:
-            continue;
-        }
+    double kmax = Nmax * ps->k0;
+    ptrdiff_t i;
+    double Plin = 0;
+    double Nmodes = 0;
+    /* ignore zero mode ! */
+    for(i = 1; (i == 1) || (i < ps->size && ps->k[i] <= kmax); i ++) {
+        Plin += ps->p[i] * ps->Nmodes[i];
+        Nmodes += ps->Nmodes[i];
     }
-
-    MPI_Allreduce(MPI_IN_PLACE, &Norm, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-
-    double rt;
-    if(N > 1) {
-        rt = sum / N * pm->Volume / Norm;
-    } else {
-        rt = 1.0;
-    }
-/*    fastpm_info("norm factor = Norm / pm->Norm = %g power=%g\n", sqrt(Norm) / pm->Norm, rt); */
-    return rt;
+    Plin /= Nmodes;
+    return Plin;
 }
