@@ -154,7 +154,7 @@ fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
     double p = (k - k1) * p2 + (k2 - k) * p1;
     p /= (k2 - k1);
 
-    fastpm_info("Evaluating P(%g) = %g, l=%d, r=%d\n", exp(k), exp(p), l, r);
+//    fastpm_info("Evaluating P(%g) = %g, l=%d, r=%d\n", exp(k), exp(p), l, r);
     return exp(p);
 }
 
@@ -209,10 +209,19 @@ fastpm_powerspectrum_sigma(FastPMPowerSpectrum * ps, double R)
     gsl_integration_workspace_free(workspace);
     gsl_set_error_handler (handler);
 
-    return result;
+    return sqrt(result);
 }
 
 void
+fastpm_powerspectrum_scale(FastPMPowerSpectrum * ps, double factor)
+{
+    ptrdiff_t i;
+    for(i = 0; i < ps->size; i ++) {
+        ps->k[i] *= factor;
+    }
+}
+
+int
 fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * string)
 {
     char ** list = fastpm_strsplit(string, "\n");
@@ -245,4 +254,9 @@ fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * str
     }
 
     free(list);
+    if(ps->size == 0) {
+        /* Nothing is savagable in the file.*/
+        return 0;
+    }
+    return 0;
 }

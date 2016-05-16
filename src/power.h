@@ -3,5 +3,5 @@
 
 double PowerSpec(const double k);
 double PowerSpecWithData(const double k, void * data);
-void power_init(const char filename[], const double sigma8, const double omega_m, const double omega_lambda, MPI_Comm comm);
+void power_init(const char filename[], const double sigma8, MPI_Comm comm);
 #endif

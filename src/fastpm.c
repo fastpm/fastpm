@@ -115,6 +115,7 @@ int main(int argc, char ** argv) {
     vpminit[i].pm_nc_factor = 0;
 
     fastpm_info("np_alloc_factor = %g\n", prr.np_alloc_factor);
+
     FastPM * fastpm = & (FastPM) {
         .nc = prr.nc,
         .alloc_factor = prr.np_alloc_factor, 
@@ -270,10 +271,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
 
     fastpm_info("Powerspecectrum file: %s\n", prr->read_powerspectrum);
 
-    power_init(prr->read_powerspectrum, 
-            prr->sigma8, 
-            prr->omega_m, 
-            1 - prr->omega_m, comm);
+    power_init(prr->read_powerspectrum, prr->sigma8, comm);
 
     if(prr->read_grafic) {
         fastpm_info("Reading grafic white noise file from '%s'.\n", prr->read_grafic);
