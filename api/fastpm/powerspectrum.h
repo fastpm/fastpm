@@ -30,6 +30,9 @@ double
 fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k);
 
 double
+fastpm_powerspectrum_eval2(double k, FastPMPowerSpectrum * ps);
+
+double
 fastpm_powerspectrum_sigma(FastPMPowerSpectrum * ps, double R);
 
 void

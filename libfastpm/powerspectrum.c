@@ -128,6 +128,13 @@ fastpm_powerspectrum_large_scale(FastPMPowerSpectrum * ps, int Nmax)
     return Plin;
 }
 
+/* inverted calling signature for callbacks */
+double
+fastpm_powerspectrum_eval2(double k, FastPMPowerSpectrum * ps)
+{
+    return fastpm_powerspectrum_eval(ps, k);
+}
+
 double
 fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
 {
