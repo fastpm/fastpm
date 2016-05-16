@@ -38,6 +38,7 @@ typedef struct {
 
     char * force_mode;
     char * kernel_type;
+    char * dealiasing_type;
 
     int cola_stdda;
     int use_zola;

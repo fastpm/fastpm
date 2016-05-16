@@ -204,6 +204,8 @@ schema:add{name='enforce_broadband_kmax',  type='number', default=4}
 schema:add{name='za',                      type='boolean', default=false}
 schema:add{name='kernel_type',             type='string',
         default="3_4", choices={'3_4', '5_4', 'eastwood', '3_2'}}
+schema:add{name='dealiasing_type',             type='string',
+        default="none", choices={'none', 'gaussian', 'twothird'}}
 schema:add{name='inverted_ic',             type='boolean', default=false}
 schema:add{name='remove_cosmic_variance',  type='boolean', default=false}
 

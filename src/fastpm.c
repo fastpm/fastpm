@@ -169,6 +169,15 @@ int main(int argc, char ** argv) {
         };
         fastpm->KERNEL_TYPE = parse_enum(prr.kernel_type, table);
     }
+    {
+        struct enum_entry table[] = {
+            {"none", FASTPM_DEALIASING_NONE},
+            {"gaussian", FASTPM_DEALIASING_GAUSSIAN},
+            {"twothird", FASTPM_DEALIASING_TWO_THIRD},
+            {NULL, -1},
+        };
+        fastpm->DEALIASING_TYPE = parse_enum(prr.dealiasing_type, table);
+    }
 
     run_fastpm(fastpm, &prr, comm);
 

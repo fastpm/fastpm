@@ -191,6 +191,7 @@ loads_param(char * confstr, Parameters * param)
 
     param->use_dx1_only = read_boolean(L, "za");
     param->kernel_type = read_string(L, "kernel_type");
+    param->dealiasing_type = read_string(L, "dealiasing_type");
 
     lua_close(L);
 }
