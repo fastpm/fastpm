@@ -55,7 +55,8 @@ int main(int argc, char * argv[]) {
     ptrdiff_t mode = 2 * pm_ravel_o_index(self->pm, (ptrdiff_t[]) {1, 1, 2}) + 0;
     int seed = 299;
 
-    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, FASTPM_DELTAK_GADGET);
+    fastpm_utils_induce_correlation(self->pm, rho_init_k0, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh);
 
     pm_assign(self->pm, self->rho_final_x, rho_final_xtruth);
 //    double amplitude = 10000;

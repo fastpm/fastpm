@@ -284,22 +284,24 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
 
         read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
-
-        fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, 
+        pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
+        fastpm_utils_induce_correlation(fastpm->pm_2lpt, delta_k,
             (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
         pm_free(fastpm->pm_2lpt, g_x);
         goto finish;
-    } 
+    }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
 
-    fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, 
-            (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, FASTPM_DELTAK_GADGET);
+    fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_GADGET);
+    fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_FAST);
 
     if(prr->remove_cosmic_variance) {
-        fastpm_utils_remove_cosmic_variance(fastpm->pm_2lpt, delta_k, 
-                (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+        fastpm_utils_remove_cosmic_variance(fastpm->pm_2lpt, delta_k);
     }
+
+    fastpm_utils_induce_correlation(fastpm->pm_2lpt, delta_k,
+        (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
 
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 

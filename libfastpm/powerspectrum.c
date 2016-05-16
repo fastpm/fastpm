@@ -30,6 +30,8 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta
     ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
     ps->k0 = 6.28 / pm_boxsize(pm)[0];
 
+    double Norm = 0;
+
     memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
     memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
     memset(ps->Nmodes, 0, sizeof(ps->Nmodes[0]) * ps->size);
@@ -61,6 +63,11 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta
                 int w = 2;
                 /* fixme: older version of code has this bug. */
                 if(kiter.i[2] == 0) w = 1;
+                if(kiter.iabs[0] == 0 &&
+                   kiter.iabs[1] == 0 &&
+                   kiter.iabs[2] == 0)
+                    Norm = value;
+
                 #pragma omp atomic
                 ps->Nmodes[bin] += w;
                 #pragma omp atomic
@@ -72,6 +79,7 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta
     }
 
 
+    MPI_Allreduce(MPI_IN_PLACE, &Norm, 1, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, ps->p, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, ps->Nmodes, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, ps->k, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
@@ -81,6 +89,7 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta
         ps->k[ind] /= ps->Nmodes[ind];
         ps->p[ind] /= ps->Nmodes[ind];
         ps->p[ind] *= ps->Volume;
+        ps->p[ind] /= Norm;
     }
 }
 

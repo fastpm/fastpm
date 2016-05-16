@@ -9,38 +9,35 @@
 #include "pmpfft.h"
 
 /* The following functions fill the gaussian field*/
-static void 
-pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
-static void 
-pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
-static void 
-pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+static void
+pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed);
+static void
+pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed);
+static void
+pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed);
 
-void 
-fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, 
-        int seed, fastpm_pkfunc pk, void * pkdata, enum FastPMFillDeltaKScheme scheme)
+void
+fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFillDeltaKScheme scheme)
 {
     switch(scheme) {
         case FASTPM_DELTAK_GADGET:
-            pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
+            pmic_fill_gaussian_gadget(pm, delta_k, seed);
             break;
         case FASTPM_DELTAK_FAST:
-            pmic_fill_gaussian_fast(pm, delta_k, seed, pk, pkdata);
+            pmic_fill_gaussian_fast(pm, delta_k, seed);
             break;
         case FASTPM_DELTAK_SLOW:
-            pmic_fill_gaussian_slow(pm, delta_k, seed, pk, pkdata);
+            pmic_fill_gaussian_slow(pm, delta_k, seed);
             break;
         default:
-            pmic_fill_gaussian_gadget(pm, delta_k, seed, pk, pkdata);
+            pmic_fill_gaussian_gadget(pm, delta_k, seed);
             break;
     }
 }
 
-void 
-fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata) 
+void
+fastpm_utils_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
 {
-
-    pm_r2c(pm, g_x, delta_k);
 
     fastpm_info("Inducing correlation to the white noise.\n");
 
@@ -60,8 +57,6 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_
             double knorm = sqrt(k2);
             double f = sqrt(pk(knorm, pkdata));
 
-            /* ensure the fourier space is a normal distribution */
-            f *= sqrt(pm->Norm);
             /* 1 / L  -- this matches the dimention of sqrt(p) but I always 
              * forget where it is from. */
             f *= sqrt(1.0 / pm->Volume);
@@ -74,13 +69,13 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * g_x, FastPMFloat * delta_
     }
 }
 
-void 
-fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
+void
+fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k)
 {
 
     fastpm_info("Remove Cosmic variance from initial condition.\n");
 
-#pragma omp parallel 
+#pragma omp parallel
     {
         PMKIter kiter;
 
@@ -92,18 +87,19 @@ fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k, fastpm_pkfun
             for(d = 0; d < 3; d++) {
                 k2 += kiter.kk[d][kiter.iabs[d]];
             }
-            double knorm = sqrt(k2);
-            double f = sqrt(pk(knorm, pkdata));
-
-            /* 1 / L  -- this matches the dimention of sqrt(p) but I always 
-             * forget where it is from. */
-            f *= sqrt(1.0 / pm->Volume);
 
             /* https://en.wikipedia.org/wiki/Atan2 */
-            double phase = atan2(delta_k[kiter.ind + 1], delta_k[kiter.ind + 0]);
+            double a = delta_k[kiter.ind];
+            double b = delta_k[kiter.ind + 1];
 
-            delta_k[kiter.ind + 0] = f * cos(phase);
-            delta_k[kiter.ind + 1] = f * sin(phase);
+            if(a == 0 && b == 0)   {
+                delta_k[kiter.ind + 0] = 0;
+                delta_k[kiter.ind + 1] = 0;
+            } else {
+                double phase = atan2(b, a);
+                delta_k[kiter.ind + 0] = cos(phase);
+                delta_k[kiter.ind + 1] = sin(phase);
+            }
 
         }
 
@@ -160,8 +156,8 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
     return table[d1][d2][i * pm->ORegion.size[1] + j];
 }
 
-static void 
-pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
+static void
+pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
 {
     /* Fill delta_k with gadget scheme */
     int d;
@@ -262,12 +258,10 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfun
 
                 for(d = 0; d < 3; d ++) {
                     if(iabs[d] == pm->Nmesh[d] / 2) p_of_k = 0;
-                } 
+                }
                 if(iabs[0] == 0 && iabs[1] == 0 && iabs[2] == 0) {
                     p_of_k = 0;
                 }
-            
-                p_of_k *= pk(kmag, pkdata);
 
                 double delta = fac * sqrt(p_of_k);
                 delta_k[2 * ip + 0] = delta * cos(phase);
@@ -292,8 +286,8 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfun
 */
 }
 
-static void 
-pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata)
+static void
+pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed)
 {
     ptrdiff_t ind;
     int d;
@@ -303,7 +297,7 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc 
     /* set uncorrelated seeds */
     gsl_rng_set(random_generator, seed);
     for(d = 0; d < pm->ThisTask * 8; d++) {
-        seed = 0x7fffffff * gsl_rng_uniform(random_generator); 
+        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
     }
 
     gsl_rng_set(random_generator, seed);
@@ -319,16 +313,19 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc 
 
         /* we need two gaussians of std=1.0 in real space */
         ampl = sqrt(-2.0 * log(ampl));
+        /* r2c will reduce the variance, so we compensate here. */
+        ampl *= sqrt(pm_norm(pm));
+
         g_x[ind] = ampl * sin(phase);
         g_x[ind + 1] = ampl * cos(phase);
     }
-    fastpm_utils_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    pm_r2c(pm, g_x, delta_k);
     pm_free(pm, g_x);
 }
 
 static void 
-pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata) 
-{    
+pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed)
+{
     ptrdiff_t i[3] = {0};
     int d;
     gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -355,12 +352,15 @@ pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc 
         }
         /* we need two gaussians of std=1.0 in real space */
         ampl = sqrt(-2.0 * log(ampl));
+
+        /* r2c will reduce the variance, so we compensate here. */
+        ampl *= sqrt(pm_norm(pm));
+
         g_x[ind] = ampl * sin(phase);
         next:
         continue;
     }
-    fastpm_utils_induce_correlation(pm, g_x, delta_k, pk, pkdata);
+    pm_r2c(pm, g_x, delta_k);
     pm_free(pm, g_x);
     gsl_rng_free(random_generator);
 }
-            
