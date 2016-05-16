@@ -42,7 +42,6 @@ FASTPM_END_DECLS
 #include "solver-2lpt.h"
 #include "solver-pm.h"
 #include "utils.h"
-#include "utils-ps.h"
 #include "utils-ic.h"
 
 #endif

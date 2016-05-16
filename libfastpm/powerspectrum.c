@@ -8,6 +8,9 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/string.h>
+#include <fastpm/powerspectrum.h>
+
 #include "pmpfft.h"
 
 void
@@ -209,59 +212,10 @@ fastpm_powerspectrum_sigma(FastPMPowerSpectrum * ps, double R)
     return result;
 }
 
-static char *
-file_get_content(const char * filename)
-{
-    FILE * fp = fopen(filename, "r");
-    if(!fp)
-        fastpm_raise(3000, "Error: unable to read input power spectrum: %s",
-                filename);
-    fseek(fp, SEEK_END, 0);
-    size_t file_length = ftell(fp);
-
-    char * buf = malloc(file_length + 1);
-    fseek(fp, SEEK_SET, 0);
-    fread(buf, 1, file_length, fp);
-    fclose(fp);
-    buf[file_length] = 0;
-    return buf;
-}
-static char **
-strsplit(const char * str, const char * split)
-{
-    size_t N = 0;
-    char * p;
-    for(p == str; *p; p ++) {
-        if(strchr(split, *p)) N++;
-    }
-    N++;
-
-    char ** buf = malloc((N + 1) * sizeof(char*) + strlen(str) + 1);
-    /* The first part of the buffer is the pointer to the lines */
-    /* The second part of the buffer is the actually lines */
-    char * dup = (void*) (buf + (N + 1));
-    strcpy(dup, str);
-    ptrdiff_t i = 0;
-    char * q = dup;
-    for(p = dup; *p; p ++) {
-        if(strchr(split, *p)) {
-            buf[i] = q;
-            i ++;
-            *p = 0;
-            p++;
-            q = p;
-        }
-    }
-    buf[i] = q;
-    buf[i + 1] = NULL;
-    return buf;
-}
-
 void
-fastpm_powerspectrum_init_from_camb(FastPMPowerSpectrum * ps, const char * filename)
+fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * string)
 {
-    char * content = file_get_content(filename);
-    char ** list = strsplit(content, "\n");
+    char ** list = fastpm_strsplit(string, "\n");
     char ** line;
     ptrdiff_t i;
     int pass = 0;
@@ -291,5 +245,4 @@ fastpm_powerspectrum_init_from_camb(FastPMPowerSpectrum * ps, const char * filen
     }
 
     free(list);
-    free(content);
 }

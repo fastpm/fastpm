@@ -15,7 +15,7 @@ void
 fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k);
 
 void
-fastpm_powerspectrum_init_from_camb(FastPMPowerSpectrum * ps, const char * filename);
+fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * string);
 
 void
 fastpm_powerspectrum_destroy(FastPMPowerSpectrum * ps);

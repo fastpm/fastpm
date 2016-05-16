@@ -14,6 +14,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
+#include <fastpm/powerspectrum.h>
 #include <fastpm/logging.h>
 
 #include "parameters.h"
