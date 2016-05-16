@@ -186,8 +186,6 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
     }
     gsl_rng_free(rng);
 
-    double fac = sqrt(1.0 / pm->Volume);
-
     ptrdiff_t irel[3];
     for(i = pm->ORegion.start[0]; 
         i < pm->ORegion.start[0] + pm->ORegion.size[0]; 
@@ -254,18 +252,17 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
                 double k2 = index_to_k2(pm, irel, tmp);
                 double kmag = sqrt(k2);
                 /* we want two numbers that are of std ~ 1/sqrt(2) */
-                double p_of_k = - log(ampl);
+                ampl = sqrt(- log(ampl));
 
                 for(d = 0; d < 3; d ++) {
-                    if(iabs[d] == pm->Nmesh[d] / 2) p_of_k = 0;
+                    if(iabs[d] == pm->Nmesh[d] / 2) ampl = 0;
                 }
                 if(iabs[0] == 0 && iabs[1] == 0 && iabs[2] == 0) {
-                    p_of_k = 0;
+                    ampl = 0;
                 }
 
-                double delta = fac * sqrt(p_of_k);
-                delta_k[2 * ip + 0] = delta * cos(phase);
-                delta_k[2 * ip + 1] = delta * sin(phase);
+                delta_k[2 * ip + 0] = ampl * cos(phase);
+                delta_k[2 * ip + 1] = ampl * sin(phase);
 
                 if(hermitian && k == 0) {
                     delta_k[2 * ip + 1] *= -1;
