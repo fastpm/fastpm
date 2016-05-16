@@ -120,10 +120,10 @@ void fastpm_log2(const enum FastPMLogLevel level,
         fastpm_set_msg_handler(fastpm_default_msg_handler, MPI_COMM_WORLD, NULL);
     }
 
-    char * buffer = fastpm_strdup_printf(newfmt, argp);
+    char * buffer = fastpm_strdup_vprintf(newfmt, argp);
     handler_data.handler(level, type, code, buffer, handler_data.comm, handler_data.userdata);
-    free(buffer);
     free(newfmt);
+    free(buffer);
 }
 
 void fastpm_ilog(const enum FastPMLogLevel level, 

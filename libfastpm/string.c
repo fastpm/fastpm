@@ -12,11 +12,11 @@ fastpm_file_get_content(const char * filename)
     FILE * fp = fopen(filename, "r");
     if(!fp) return NULL;
 
-    fseek(fp, SEEK_END, 0);
+    fseek(fp, 0, SEEK_END);
     size_t file_length = ftell(fp);
 
     char * buf = malloc(file_length + 1);
-    fseek(fp, SEEK_SET, 0);
+    fseek(fp, 0, SEEK_SET);
     fread(buf, 1, file_length, fp);
     fclose(fp);
     buf[file_length] = 0;
@@ -28,7 +28,7 @@ fastpm_strsplit(const char * str, const char * split)
 {
     size_t N = 0;
     char * p;
-    for(p == str; *p; p ++) {
+    for(p = str; *p; p ++) {
         if(strchr(split, *p)) N++;
     }
     N++;
@@ -68,14 +68,23 @@ fastpm_strdup_printf(const char * fmt, ...)
 {
     va_list va;
     va_start(va, fmt);
+    char * buf = fastpm_strdup_vprintf(fmt, va);
+    va_end(va);
+    return buf;
+}
+
+char *
+fastpm_strdup_vprintf(const char * fmt, va_list va)
+{
+    va_list va2;
+    va_copy(va2, va);
     /* This relies on a good LIBC vsprintf that returns the number of char */
     char buf0[128];
     size_t N = vsnprintf(buf0, 1, fmt, va);
-    va_end(va);
 
-    char * buf = malloc(N + 1);
-    va_start(va, fmt);
-    vsnprintf(buf, N + 1, fmt, va);
-    va_end(va);
+    char * buf = malloc(N + 100);
+    vsnprintf(buf, N + 1, fmt, va2);
+    buf[N + 1] = 0;
+    va_end(va2);
     return buf;
 }
