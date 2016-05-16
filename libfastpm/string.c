@@ -27,9 +27,9 @@ char **
 fastpm_strsplit(const char * str, const char * split)
 {
     size_t N = 0;
-    char * p;
-    for(p = str; *p; p ++) {
-        if(strchr(split, *p)) N++;
+    const char * p1;
+    for(p1 = str; *p1; p1 ++) {
+        if(strchr(split, *p1)) N++;
     }
     N++;
 
@@ -39,7 +39,7 @@ fastpm_strsplit(const char * str, const char * split)
     char * dup = (void*) (buf + (N + 1));
     strcpy(dup, str);
     ptrdiff_t i = 0;
-    char * q = dup;
+    char *p, *q = dup;
     for(p = dup; *p; p ++) {
         if(strchr(split, *p)) {
             buf[i] = q;
