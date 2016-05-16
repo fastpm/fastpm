@@ -32,10 +32,10 @@ static struct pow_table
 } *PowerTable;
 
 static void read_power_table_camb(const char filename[]);
-static double normalize_power(const double a_init, const double sigma8);
+static double normalize_power(const double sigma8);
 static double TopHatSigma2(double R, double (*func)(double, void*), void*);
 
-void power_init(const char filename[], const double a_init, const double sigma8, const double omega_m, const double omega_lambda,
+void power_init(const char filename[], const double sigma8, const double omega_m, const double omega_lambda,
             MPI_Comm comm)
 {
     // CAMB matter power spectrum filename
@@ -48,7 +48,7 @@ void power_init(const char filename[], const double a_init, const double sigma8,
 
     if(myrank == 0) {
         read_power_table_camb(filename);
-        PowerNorm= normalize_power(a_init, sigma8);
+        PowerNorm= normalize_power(sigma8);
     }
 
     fastpm_info("Found %d pairs of values in input spectrum table\n", NPowerTable);
@@ -112,7 +112,7 @@ double PowerSpecWithData(double k, void * data) {
     return PowerSpec(k);
 }
 
-double normalize_power(const double a_init, const double sigma8)
+double normalize_power(const double sigma8)
 {
     // Assume that input power spectrum already has a proper sigma8
     const double R8 = 8.0; // 8 Mpc

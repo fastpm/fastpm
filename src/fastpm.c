@@ -270,7 +270,6 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     fastpm_info("Powerspecectrum file: %s\n", prr->read_powerspectrum);
 
     power_init(prr->read_powerspectrum, 
-            prr->time_step[0], 
             prr->sigma8, 
             prr->omega_m, 
             1 - prr->omega_m, comm);
