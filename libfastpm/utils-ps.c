@@ -2,7 +2,12 @@
 #include <mpi.h>
 #include <math.h>
 
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_integration.h>
+
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include "pmpfft.h"
 
 void
@@ -118,4 +123,173 @@ fastpm_powerspectrum_large_scale(FastPMPowerSpectrum * ps, int Nmax)
     }
     Plin /= Nmodes;
     return Plin;
+}
+
+double
+fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
+{
+    int i;
+    /* ignore the 0 mode */
+
+    int l = 1;
+    int r = ps->size - 1;
+
+    while(r - l > 1) {
+        int m = (r + l) / 2;
+        if(k < ps->k[m])
+            r = m;
+        else
+            l = m;
+    }
+    double k2 = log(ps->k[r]),
+           k1 = log(ps->k[l]);
+    double p2 = log(ps->p[r]),
+           p1 = log(ps->p[l]);
+
+    k = log(k);
+
+    double p = (k - k1) * p2 + (k2 - k) * p1;
+    p /= (k2 - k1);
+
+    fastpm_info("Evaluating P(%g) = %g, l=%d, r=%d\n", exp(k), exp(p), l, r);
+    return exp(p);
+}
+
+struct sigma2_int {
+    FastPMPowerSpectrum * ps;
+    double R;
+};
+static
+double sigma2_int(double k, struct sigma2_int * param)
+{
+    double kr, kr3, kr2, w, x;
+    double r_tophat = param->R;
+
+    kr = r_tophat * k;
+    kr2 = kr * kr;
+    kr3 = kr2 * kr;
+
+    if(kr < 1e-8)
+        return 0;
+
+    w = 3 * (sin(kr) / kr3 - cos(kr) / kr2);
+    x = 4 * M_PI * k * k * w * w * fastpm_powerspectrum_eval(param->ps, k);
+
+    return x / pow(2 * M_PI, 3);
+}
+
+double
+fastpm_powerspectrum_sigma(FastPMPowerSpectrum * ps, double R)
+{
+    const int WORKSIZE = 81920;
+
+    double result, abserr;
+    gsl_integration_workspace *workspace;
+    gsl_function F;
+
+    struct sigma2_int param;
+    param.ps = ps;
+    param.R = R;
+
+    workspace = gsl_integration_workspace_alloc(WORKSIZE);
+
+    F.function = (void*) &sigma2_int;
+    F.params = &param;
+
+    void * handler = gsl_set_error_handler_off ();
+    //
+    // note: 500/R is here chosen as (effectively) infinity integration boundary
+    gsl_integration_qag(&F, 0, 500.0 * 1 / R,
+            0, 1.0e-4, WORKSIZE, GSL_INTEG_GAUSS41, workspace, &result, &abserr);
+
+    // high precision caused error
+    gsl_integration_workspace_free(workspace);
+    gsl_set_error_handler (handler);
+
+    return result;
+}
+
+static char *
+file_get_content(const char * filename)
+{
+    FILE * fp = fopen(filename, "r");
+    if(!fp)
+        fastpm_raise(3000, "Error: unable to read input power spectrum: %s",
+                filename);
+    fseek(fp, SEEK_END, 0);
+    size_t file_length = ftell(fp);
+
+    char * buf = malloc(file_length + 1);
+    fseek(fp, SEEK_SET, 0);
+    fread(buf, 1, file_length, fp);
+    fclose(fp);
+    buf[file_length] = 0;
+    return buf;
+}
+static char **
+strsplit(const char * str, const char * split)
+{
+    size_t N = 0;
+    char * p;
+    for(p == str; *p; p ++) {
+        if(strchr(split, *p)) N++;
+    }
+    N++;
+
+    char ** buf = malloc((N + 1) * sizeof(char*) + strlen(str) + 1);
+    /* The first part of the buffer is the pointer to the lines */
+    /* The second part of the buffer is the actually lines */
+    char * dup = (void*) (buf + (N + 1));
+    strcpy(dup, str);
+    ptrdiff_t i = 0;
+    char * q = dup;
+    for(p = dup; *p; p ++) {
+        if(strchr(split, *p)) {
+            buf[i] = q;
+            i ++;
+            *p = 0;
+            p++;
+            q = p;
+        }
+    }
+    buf[i] = q;
+    buf[i + 1] = NULL;
+    return buf;
+}
+
+void
+fastpm_powerspectrum_init_from_camb(FastPMPowerSpectrum * ps, const char * filename)
+{
+    char * content = file_get_content(filename);
+    char ** list = strsplit(content, "\n");
+    char ** line;
+    ptrdiff_t i;
+    int pass = 0;
+    /* two pass parsing, first pass for counting */
+    /* second pass for assignment */
+    while(pass < 2) {
+        i = 0;
+        for (line = list; *line; line++) {
+            double k, p;
+            if(2 == sscanf(*line, "%lg %lg", &k, &p)) {
+                if(pass == 1) {
+                    ps->k[i] = k;
+                    ps->p[i] = p;
+                    ps->Nmodes[i] = 1;
+                }
+                i ++;
+            }
+        }
+
+        if(pass == 0) {
+            ps->size = i;
+            ps->k = malloc(sizeof(ps->k[0]) * i);
+            ps->p = malloc(sizeof(ps->p[0]) * i);
+            ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * i);
+        }
+        pass ++;
+    }
+
+    free(list);
+    free(content);
 }

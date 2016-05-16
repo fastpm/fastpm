@@ -399,9 +399,12 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
 
     double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
 
-    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+    double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
-    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin);
+    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+    Sigma8 /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Sigma8);
 
     LEAVE(compute);
 
