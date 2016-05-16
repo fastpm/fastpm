@@ -69,9 +69,13 @@ fastpm_strdup_printf(const char * fmt, ...)
     va_list va;
     va_start(va, fmt);
     /* This relies on a good LIBC vsprintf that returns the number of char */
-    size_t N = vsprintf(NULL, fmt, va);
+    char buf0[128];
+    size_t N = vsnprintf(buf0, 1, fmt, va);
+    va_end(va);
+
     char * buf = malloc(N + 1);
-    vsprintf(buf, fmt, va);
+    va_start(va, fmt);
+    vsnprintf(buf, N + 1, fmt, va);
     va_end(va);
     return buf;
 }
