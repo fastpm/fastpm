@@ -47,4 +47,7 @@ fastpm_powerspectrum_sigma(FastPMPowerSpectrum * ps, double R);
 void
 fastpm_powerspectrum_scale(FastPMPowerSpectrum * ps, double factor);
 
+void
+fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize);
+
 FASTPM_END_DECLS

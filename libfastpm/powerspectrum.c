@@ -287,25 +287,38 @@ void
 fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize)
 {
     /* this doesn't work */
-/*
-    abort();
-
     double * k1 = malloc(newsize * sizeof(k1[0]));
     double * p1 = malloc(newsize * sizeof(p1[0]));
     double * Nmodes1 = malloc(newsize * sizeof(Nmodes1[0]));
 
     ptrdiff_t i;
-    for(i = 0; i < newsize; i ++) {
+
+    k1[0] = 0;
+    p1[0] = ps->p[0]; /* shall be 1 */
+    Nmodes1[0] = ps->Nmodes[0]; /* shall be 1 */
+
+    for(i = 1; i < newsize; i ++) {
+        ptrdiff_t j1 = 1 + (i - 1) * (ps->size - 1) / (newsize - 1);
+        ptrdiff_t j2 = 1 + (i) * (ps->size - 1) / (newsize - 1);
+        ptrdiff_t j;
         k1[i] = 0;
         p1[i] = 0;
         Nmodes1[i] = 0;
+        for(j = j1; j == j1 || j < j2; j ++) {
+            k1[i] += ps->k[j] * ps->Nmodes[j];
+            p1[i] += ps->p[j] * ps->Nmodes[j];
+            Nmodes1[i] += ps->Nmodes[j];
+        }
+        k1[i] /= Nmodes1[j];
+        p1[i] /= Nmodes1[j];
     }
-
-    for(i = 0; i < ps->size; i ++) {
-        ptrdiff_t i1 = i * newsize / size;
-        ps->k[i] *= factor;
-    }
-*/
+    free(ps->k);
+    free(ps->p);
+    free(ps->Nmodes);
+    ps->k = k1;
+    ps->p = p1;
+    ps->Nmodes = Nmodes1;
+    ps->size = newsize;
 }
 
 int
