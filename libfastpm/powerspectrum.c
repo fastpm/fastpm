@@ -1,6 +1,7 @@
 #include <string.h>
 #include <mpi.h>
 #include <math.h>
+#include <alloca.h>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
@@ -93,6 +94,22 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta
 }
 
 void
+fastpm_transferfunction_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * src_k, FastPMFloat * dest_k)
+{
+    FastPMPowerSpectrum * ps2 = alloca(sizeof(*ps2));
+
+    fastpm_powerspectrum_init(ps, pm, src_k, src_k);
+    fastpm_powerspectrum_init(ps2, pm, dest_k, dest_k);
+
+    ptrdiff_t i;
+    for(i = 0; i < ps->size; i ++) {
+        ps->p[i] = sqrt(ps2->p[i] / ps->p[i]);
+    }
+
+    fastpm_powerspectrum_destroy(ps2);
+}
+
+void
 fastpm_powerspectrum_destroy(FastPMPowerSpectrum * ps) {
     free(ps->Nmodes);
     free(ps->p);
@@ -173,6 +190,34 @@ fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
 
 //    fastpm_info("Evaluating P(%g) = %g, l=%d, r=%d\n", exp(k), exp(p), l, r);
     return exp(p);
+}
+
+double
+fastpm_powerspectrum_get(FastPMPowerSpectrum * ps, double k)
+{
+    int i;
+    if(k == 0) return 0;
+
+    /* ignore the 0 mode */
+
+    int l = 1;
+    int r = ps->size - 1;
+
+    while(r - l > 1) {
+        int m = (r + l) / 2;
+        if(k < ps->k[m])
+            r = m;
+        else
+            l = m;
+    }
+
+    return ps->p[l];
+}
+
+double
+fastpm_powerspectrum_get2(double k, FastPMPowerSpectrum * ps)
+{
+    return fastpm_powerspectrum_get(ps, k);
 }
 
 struct sigma2_int {
