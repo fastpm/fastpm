@@ -1,7 +1,5 @@
 FASTPM_BEGIN_DECLS
 
-typedef double (*fastpm_pkfunc)(double k, void * data);
-
 enum FastPMFillDeltaKScheme {
     FASTPM_DELTAK_GADGET,
     FASTPM_DELTAK_FAST,

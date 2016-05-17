@@ -7,7 +7,6 @@
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
-#include <fastpm/powerspectrum.h>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>

@@ -9,7 +9,6 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
-#include <fastpm/powerspectrum.h>
 
 #include "pmpfft.h"
 

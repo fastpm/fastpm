@@ -37,11 +37,14 @@ void libfastpm_cleanup();
 
 FASTPM_END_DECLS
 
+typedef double (*fastpm_pkfunc)(double k, void * data);
+
 #include "pmapi.h"
 
+#include "utils.h"
+#include "initialcondition.h"
+#include "powerspectrum.h"
 #include "solver-2lpt.h"
 #include "solver-pm.h"
-#include "utils.h"
-#include "utils-ic.h"
 
 #endif

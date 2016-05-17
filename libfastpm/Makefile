@@ -19,7 +19,7 @@ LIBSOURCES = libfastpm.c \
     solver-pm-model-pm.c \
     transfer.c \
     utils.c \
-    utils-ic.c \
+    initialcondition.c \
     cosmology.c \
     powerspectrum.c \
     logging.c \
