@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+#include <fastpm/libfastpm.h>
 #include <fastpm/string.h>
 
 char *
