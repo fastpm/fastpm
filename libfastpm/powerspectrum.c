@@ -148,6 +148,8 @@ double
 fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
 {
     int i;
+    if(k == 0) return 0;
+
     /* ignore the 0 mode */
 
     int l = 1;
