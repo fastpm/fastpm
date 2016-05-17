@@ -88,12 +88,14 @@ fastpm_hmc_za_destroy(FastPMHMCZA * self)
     fastpm_2lpt_destroy(&self->solver);
 }
 
-void 
+static void
 fastpm_hmc_za_evolve_internal(
     FastPMHMCZA * self,
-    int Nsteps /* 0 for LPT, > 0 for PM */
+    int Nsteps, /* 0 for LPT, > 0 for PM */
+    FastPMFloat * delta_final
     )
 {
+    /* This is the pure N-body dynamics, no smoothing etc */
     /* First run a PT simulation*/
     if(Nsteps <= 0) {
         FastPM2LPTSolver * solver = &self->solver;
@@ -128,10 +130,30 @@ fastpm_hmc_za_evolve_internal(
         }
     }
 
-    fastpm_utils_paint(self->pm, self->p, NULL, self->rho_final_x, NULL, 0);
+    fastpm_utils_paint(self->pm, self->p, NULL, delta_final, NULL, 0);
 }
 
-void 
+void
+fastpm_hmc_za_calibrate_transferfunction(
+    FastPMHMCZA * self,
+    FastPMFloat * delta_ic, /* IC in k-space*/
+    int Nsteps,
+    FastPMPowerSpectrum * transfer)
+{
+    FastPMFloat * deltalpt = pm_alloc(self->pm);
+    FastPMFloat * deltapm = pm_alloc(self->pm);
+
+    pm_assign(self->pm, delta_ic, self->delta_ic_k);
+
+    fastpm_hmc_za_evolve_internal(self, Nsteps, deltalpt);
+
+    pm_assign(self->pm, delta_ic, self->delta_ic_k);
+
+    fastpm_hmc_za_evolve_internal(self, 0, deltapm);
+    fastpm_transferfunction_init(transfer, self->pm, deltalpt, deltapm);
+}
+
+void
 fastpm_hmc_za_evolve(
     FastPMHMCZA * self,
     FastPMFloat * delta_ic, /* IC in k-space*/
@@ -140,9 +162,9 @@ fastpm_hmc_za_evolve(
 {
     pm_assign(self->pm, delta_ic, self->delta_ic_k);
 
-    fastpm_hmc_za_evolve_internal(self, Nsteps);
-
     FastPMFloat * delta_final = self->rho_final_x;
+
+    fastpm_hmc_za_evolve_internal(self, Nsteps, delta_final);
 
     if(self->SmoothingLength > 0)
         fastpm_apply_smoothing_transfer(self->pm, delta_final, delta_final, self->SmoothingLength);
@@ -150,6 +172,8 @@ fastpm_hmc_za_evolve(
         fastpm_apply_lowpass_transfer(self->pm, delta_final, delta_final, self->KThreshold);
     if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(self->pm, delta_final, delta_final);
+    if(self->TransferFunction.func)
+        fastpm_apply_any_transfer(self->pm, delta_final, delta_final, self->TransferFunction.func, self->TransferFunction.data);
 
     pm_c2r(self->pm, delta_final);
 
