@@ -140,39 +140,7 @@ fastpm_hmc_za_evolve(
 {
     pm_assign(self->pm, delta_ic, self->delta_ic_k);
 
-    fastpm_hmc_za_evolve_internal(self, 0);
-    pm_assign(self->pm, self->rho_final_x, self->transfer_function);
-
     fastpm_hmc_za_evolve_internal(self, Nsteps);
-
-    /* measure the transfer function */
-    ptrdiff_t ind;
-    for(ind = 0; ind < pm_size(self->pm); ind +=2) {
-        double tmp[2];
-        double c = self->transfer_function[ind];
-        double d = self->transfer_function[ind + 1];
-        double a = self->rho_final_x[ind];
-        double b = self->rho_final_x[ind + 1];
-        double m = c * c + d * d;
-        if (m > 0) {
-            tmp[0] = (a * c + b * d) / m;
-            tmp[1] = (b * c - a * d) / m;
-        } else {
-            tmp[0] = 1;
-            tmp[1] = 0;
-        }
-        self->transfer_function[ind] = tmp[0];
-        self->transfer_function[ind + 1] = tmp[1];
-    }
-
-    fastpm_info(" %g %g %g %g %g %g\n",
-         self->p->x[0][0],
-         self->p->x[0][1],
-         self->p->x[0][2],
-         self->p->dx1[0][0],
-         self->p->dx1[0][1],
-         self->p->dx1[0][2]
-    );
 
     FastPMFloat * delta_final = self->rho_final_x;
 
@@ -187,6 +155,7 @@ fastpm_hmc_za_evolve(
 
     //  inv volume of a cell, to convert to density
     double fac = (pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3));
+    ptrdiff_t ind;
     for(ind = 0; ind < pm_size(self->pm); ind++) {
         delta_final[ind] *= fac;
     }
@@ -290,18 +259,6 @@ fastpm_hmc_za_force_rhodk(
     if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(self->pm, rhodk, rhodk);
 
-    for(ind = 0; ind < pm_size(self->pm); ind +=2) {
-        double tmp[2];
-        double a = rhodk[ind];
-        double b = rhodk[ind + 1];
-        double c = self->transfer_function[ind];
-        double d = self->transfer_function[ind + 1];
-
-        tmp[0] = a * c - b * d;
-        tmp[1] = a * d + b * c;
-        rhodk[ind] = tmp[0];
-        rhodk[ind + 1] = tmp[1];
-    }
 }
 void
 fastpm_hmc_za_force_s1(
