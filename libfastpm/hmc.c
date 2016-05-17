@@ -259,6 +259,9 @@ fastpm_hmc_za_force_rhodk(
     if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(self->pm, rhodk, rhodk);
 
+    if(self->TransferFunction.func)
+        fastpm_apply_any_transfer(self->pm, rhodk, rhodk, self->TransferFunction.func, self->TransferFunction.data);
+
 }
 void
 fastpm_hmc_za_force_s1(

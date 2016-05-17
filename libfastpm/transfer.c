@@ -4,11 +4,11 @@
 #include <fastpm/transfer.h>
 #include "pmpfft.h"
 
-void 
-fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double sml) 
+void
+fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double sml)
 {
 
-#pragma omp parallel 
+#pragma omp parallel
     {
         PMKIter kiter;
         pm_kiter_init(pm, &kiter);
@@ -27,7 +27,7 @@ fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, d
             pm_kiter_next(&kiter)) {
             int dir;
             double smth = 1.0;
-            for(dir = 0; dir < 3; dir++) 
+            for(dir = 0; dir < 3; dir++)
                 smth *= kernel[dir][kiter.iabs[dir]];
 
             /* - i k[d] */
@@ -39,8 +39,9 @@ fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, d
         }
     }
 }
-void 
-fastpm_apply_lowpass_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double kth) 
+
+void
+fastpm_apply_lowpass_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double kth)
 {
     double kth2 = kth * kth;
 #pragma omp parallel 
@@ -64,6 +65,7 @@ fastpm_apply_lowpass_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, dou
         }
     }
 }
+
 static double sinc_unnormed(double x) {
     if(x < 1e-5 && x > -1e-5) {
         double x2 = x * x;
@@ -113,7 +115,7 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
 }
 
 void
-fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
+fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 {
 
 #pragma omp parallel
@@ -164,6 +166,31 @@ void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to
                 to[kiter.ind + 0] =  from[kiter.ind + 0]  / kk_finite;
                 to[kiter.ind + 1] =  from[kiter.ind + 1]  / kk_finite;
             }
+        }
+    }
+}
+
+void
+fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_pkfunc func, void * data)
+{
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int dir;
+            double smth = 1.0;
+            double kk = 0;
+            for(dir = 0; dir < 3; dir++) {
+                kk += kiter.kk[dir][kiter.iabs[dir]];
+            }
+            double k = sqrt(kk);
+            smth = func(k, data);
+            /* - i k[d] */
+            to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
+            to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
         }
     }
 }
