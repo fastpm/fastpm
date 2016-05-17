@@ -2,7 +2,6 @@
 #include <mpi.h>
 #include <math.h>
 #include <alloca.h>
-
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_integration.h>
@@ -278,9 +277,35 @@ void
 fastpm_powerspectrum_scale(FastPMPowerSpectrum * ps, double factor)
 {
     ptrdiff_t i;
+    /* neglect the zero mode */
+    for(i = 1; i < ps->size; i ++) {
+        ps->p[i] *= factor;
+    }
+}
+
+void
+fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize)
+{
+    /* this doesn't work */
+/*
+    abort();
+
+    double * k1 = malloc(newsize * sizeof(k1[0]));
+    double * p1 = malloc(newsize * sizeof(p1[0]));
+    double * Nmodes1 = malloc(newsize * sizeof(Nmodes1[0]));
+
+    ptrdiff_t i;
+    for(i = 0; i < newsize; i ++) {
+        k1[i] = 0;
+        p1[i] = 0;
+        Nmodes1[i] = 0;
+    }
+
     for(i = 0; i < ps->size; i ++) {
+        ptrdiff_t i1 = i * newsize / size;
         ps->k[i] *= factor;
     }
+*/
 }
 
 int
@@ -298,19 +323,22 @@ fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * str
             double k, p;
             if(2 == sscanf(*line, "%lg %lg", &k, &p)) {
                 if(pass == 1) {
-                    ps->k[i] = k;
-                    ps->p[i] = p;
-                    ps->Nmodes[i] = 1;
+                    ps->k[i + 1] = k;
+                    ps->p[i + 1] = p;
+                    ps->Nmodes[i + 1] = 1;
                 }
                 i ++;
             }
         }
 
         if(pass == 0) {
-            ps->size = i;
+            ps->size = i + 1;
             ps->k = malloc(sizeof(ps->k[0]) * i);
             ps->p = malloc(sizeof(ps->p[0]) * i);
             ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * i);
+            ps->k[0] = 0;
+            ps->p[0] = 1;
+            ps->Nmodes[0] = 1;
         }
         pass ++;
     }
