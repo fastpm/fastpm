@@ -26,10 +26,10 @@ void
 fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml);
 
 void 
-fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data);
+fastpm_utils_dump(PM * pm , const char * filename, FastPMFloat *data);
 
 void 
-fastpm_utils_load(PM * pm , char * filename, FastPMFloat *data);
+fastpm_utils_load(PM * pm , const char * filename, FastPMFloat *data);
 
 double 
 fastpm_utils_get_random(uint64_t id);
