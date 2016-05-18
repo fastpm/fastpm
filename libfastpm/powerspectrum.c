@@ -13,10 +13,21 @@
 #include "pmpfft.h"
 
 void
-fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
+fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, size_t size)
+{
+    ps->size = size;
+    ps->pm = NULL;
+    ps->k = malloc(sizeof(ps->k[0]) * ps->size);
+    ps->p = malloc(sizeof(ps->p[0]) * ps->size);
+    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
+}
+
+void
+fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
 {
     /* N is used to store metadata -- the shot-noise level. */
-    ps->size = pm_nmesh(pm)[0] / 2;
+    fastpm_powerspectrum_init(ps, pm_nmesh(pm)[0] / 2);
+
     ps->pm = pm;
     double Volume = 1.0;
     int d;
@@ -24,9 +35,6 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta
         Volume *= pm_boxsize(pm)[d];
     }
     ps->Volume = Volume;
-    ps->k = malloc(sizeof(ps->k[0]) * ps->size);
-    ps->p = malloc(sizeof(ps->p[0]) * ps->size);
-    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
     ps->k0 = 6.28 / pm_boxsize(pm)[0];
 
     double Norm = 0;
@@ -97,8 +105,8 @@ fastpm_transferfunction_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * sr
 {
     FastPMPowerSpectrum * ps2 = alloca(sizeof(*ps2));
 
-    fastpm_powerspectrum_init(ps, pm, src_k, src_k);
-    fastpm_powerspectrum_init(ps2, pm, dest_k, dest_k);
+    fastpm_powerspectrum_init_from_delta(ps, pm, src_k, src_k);
+    fastpm_powerspectrum_init_from_delta(ps2, pm, dest_k, dest_k);
 
     ptrdiff_t i;
     for(i = 0; i < ps->size; i ++) {
@@ -345,10 +353,7 @@ fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * str
         }
 
         if(pass == 0) {
-            ps->size = i + 1;
-            ps->k = malloc(sizeof(ps->k[0]) * i);
-            ps->p = malloc(sizeof(ps->p[0]) * i);
-            ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * i);
+            fastpm_powerspectrum_init(ps, i + 1);
             ps->k[0] = 0;
             ps->p[0] = 1;
             ps->Nmodes[0] = 1;
