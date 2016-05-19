@@ -6,13 +6,13 @@ enum FastPMFillDeltaKScheme {
     FASTPM_DELTAK_SLOW,
 };
 void
-fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k,
+fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k,
         int seed, enum FastPMFillDeltaKScheme scheme);
 
 void
-fastpm_utils_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
+fastpm_ic_remove_variance(PM * pm, FastPMFloat * delta_k);
 
 void
-fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k);
+fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
 
 FASTPM_END_DECLS

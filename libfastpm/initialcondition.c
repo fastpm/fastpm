@@ -17,7 +17,7 @@ static void
 pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed);
 
 void
-fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFillDeltaKScheme scheme)
+fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFillDeltaKScheme scheme)
 {
     switch(scheme) {
         case FASTPM_DELTAK_GADGET:
@@ -36,7 +36,7 @@ fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFi
 }
 
 void
-fastpm_utils_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
+fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
 {
 
     fastpm_info("Inducing correlation to the white noise.\n");
@@ -70,7 +70,7 @@ fastpm_utils_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk
 }
 
 void
-fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k)
+fastpm_ic_remove_variance(PM * pm, FastPMFloat * delta_k)
 {
 
     fastpm_info("Remove Cosmic variance from initial condition.\n");

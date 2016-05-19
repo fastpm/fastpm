@@ -283,7 +283,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
 
         read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
         pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
-        fastpm_utils_induce_correlation(fastpm->pm_2lpt, delta_k,
+        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
             (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
         pm_free(fastpm->pm_2lpt, g_x);
         goto finish;
@@ -293,7 +293,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         fastpm_info("Reading Fourier white noise file from '%s'.\n", prr->read_whitenoisek);
 
         fastpm_utils_load(fastpm->pm_2lpt, prr->read_whitenoisek, delta_k);
-        fastpm_utils_induce_correlation(fastpm->pm_2lpt, delta_k,
+        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
             (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
         goto finish;
 
@@ -301,16 +301,16 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
 
-    fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_GADGET);
+    fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_GADGET);
     //fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_FAST);
 
     if(prr->remove_cosmic_variance) {
-        fastpm_utils_remove_cosmic_variance(fastpm->pm_2lpt, delta_k);
+        fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
     }
     if(prr->write_whitenoisek) {
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_whitenoisek, delta_k);
     }
-    fastpm_utils_induce_correlation(fastpm->pm_2lpt, delta_k,
+    fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
         (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
 
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
