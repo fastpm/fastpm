@@ -462,13 +462,13 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
     fastpm_info("Found %d pairs of values in input spectrum table\n", ps->size);
 
     double sigma8_input= fastpm_powerspectrum_sigma(ps, 8);
-    printf("%g \n", sigma8_input);
     fastpm_info("Input power spectrum sigma8 %f\n", sigma8_input);
 
     if(sigma8 > 0) {
         fastpm_info("Expected power spectrum sigma8 %g; correction applied. \n", sigma8);
         fastpm_powerspectrum_scale(ps, pow(sigma8 / sigma8_input, 2));
     }
+    return 0;
 }
 
 

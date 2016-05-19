@@ -107,20 +107,6 @@ fastpm_utils_remove_cosmic_variance(PM * pm, FastPMFloat * delta_k)
 }
 
 
-static double 
-index_to_k2(PM * pm, ptrdiff_t i[3], double k[3]) 
-{
-    /* convert (rel) integer to k values. */
-    int d;
-    double k2 = 0;
-    for(d = 0; d < 3 ; d++) {
-        k[d] = pm->MeshtoK[d][i[d] + pm->ORegion.start[d]];
-        k2 += k[d] * k[d];
-    } 
-    return k2;
-}
-
-
 static inline void 
 SETSEED(PM * pm, unsigned int * table[2][2], int i, int j, gsl_rng * rng) 
 { 
@@ -248,9 +234,6 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
                 if(irel[2] < 0) continue;
                 if(irel[2] >= pm->ORegion.size[2]) continue;
 
-                double tmp[3];
-                double k2 = index_to_k2(pm, irel, tmp);
-                double kmag = sqrt(k2);
                 /* we want two numbers that are of std ~ 1/sqrt(2) */
                 ampl = sqrt(- log(ampl));
 

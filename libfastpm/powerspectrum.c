@@ -171,7 +171,6 @@ fastpm_powerspectrum_eval2(double k, FastPMPowerSpectrum * ps)
 double
 fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
 {
-    int i;
     if(k == 0) return 0;
 
     /* ignore the 0 mode */
@@ -203,7 +202,6 @@ fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
 double
 fastpm_powerspectrum_get(FastPMPowerSpectrum * ps, double k)
 {
-    int i;
     if(k == 0) return 0;
 
     /* ignore the 0 mode */

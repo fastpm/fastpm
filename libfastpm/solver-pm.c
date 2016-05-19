@@ -151,7 +151,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
     MPI_Barrier(fastpm->comm);
 
     double correction = 1.0;
-    double Plin0 = 0;
     /* The last step is the 'terminal' step */
     int istep;
     for (istep = 0; istep < nstep; istep++) {
