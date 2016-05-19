@@ -1,4 +1,6 @@
-. testfunctions.sh
+#! /bin/bash
+
+source testfunctions.sh
 
 set -x
 mpirun -n 4 $FASTPM standard.lua za || fail
