@@ -59,7 +59,7 @@ end
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-output_redshifts= {0.0}  -- redshifts of output
+output_redshifts= {9.0, 0.0}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 0.307494
@@ -86,4 +86,6 @@ write_snapshot= prefix .. "/fastpm"       -- comment out to suppress snapshot ou
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = prefix .. "/powerspec"
 write_whitenoisek = prefix .. "/whitenoisek"
-write_whitelineark = prefix .. "/lineark"
+
+write_nonlineark = prefix .. "/nonlineark"
+write_lineark = prefix .. "/lineark"

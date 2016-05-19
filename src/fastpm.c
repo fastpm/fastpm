@@ -388,10 +388,18 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
                 filebase, z_out, aout);
 
     }
+    if(prr->write_nonlineark) {
+        char * filename = fastpm_strdup_printf("%s_%0.04f.raw", prr->write_nonlineark, aout);
+        FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
+        fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
+        fastpm_utils_dump(fastpm->pm_2lpt, filename, rho_k);
+        pm_free(fastpm->pm_2lpt, rho_k);
+        free(filename);
+    }
     return 0;
 }
 
-static int 
+static int
 write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
     CLOCK(compute);

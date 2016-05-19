@@ -27,6 +27,7 @@ typedef struct {
     double primordial_index;
 
     char * write_powerspectrum;
+    char * write_nonlineark;
     char * write_runpb_snapshot;
     char * write_snapshot;
     char * read_runpbic;

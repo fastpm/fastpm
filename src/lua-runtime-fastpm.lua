@@ -168,9 +168,9 @@ function Schema.dependency(self, ns)
         self.enforce_broadband_mode.default = "none"
     end
 
-    if self.time_step[1] <= 0.0 then
-        error("Initial time must be greater than a = 0.0")
-    end
+    --if self.time_step[0] <= 0.0 then
+     --   error("Initial time must be greater than a = 0.0")
+    --end
 end
 
 schema = Schema.new()
@@ -188,8 +188,6 @@ schema:add{name='np_alloc_factor',   type='number', required=true } schema:add{n
 schema:add{name='read_grafic',        type='string'}
 schema:add{name='read_lineark',        type='string'}
 schema:add{name='write_lineark',         type='string'}
-schema:add{name='read_linear',         type='string'}
-schema:add{name='write_linear',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
 schema:add{name='scalar_amplitude', type='number', default=2.441e-9}
@@ -201,6 +199,7 @@ schema:add{name='write_whitenoise',         type='string'}
 schema:add{name='write_runpbic',       type='string'}
 schema:add{name='write_powerspectrum', type='string'}
 schema:add{name='write_snapshot',      type='string'}
+schema:add{name='write_nonlineark',      type='string'}
 schema:add{name='write_runpb_snapshot', type='string'}
 schema:add{name='cola_stdda',           type='boolean'}
 schema:add{name='enforce_broadband_mode',  type='string',

@@ -177,11 +177,12 @@ loads_param(char * confstr, Parameters * param)
     param->write_powerspectrum = read_string(L, "write_powerspectrum");
 
     param->write_snapshot = read_string(L, "write_snapshot");
+    param->write_nonlineark = read_string(L, "write_nonlineark");
     param->write_runpb_snapshot = read_string(L, "write_runpb_snapshot");
     param->write_lineark = read_string(L, "write_lineark");
 
-    param->write_whitenoisek = read_string(L, "write_whitenoise");
-    param->read_whitenoisek = read_string(L, "read_whitenoise");
+    param->write_whitenoisek = read_string(L, "write_whitenoisek");
+    param->read_whitenoisek = read_string(L, "read_whitenoisek");
 
     param->force_mode = read_string(L, "force_mode");
     param->cola_stdda = read_boolean(L, "cola_stdda");
