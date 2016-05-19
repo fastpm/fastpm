@@ -389,7 +389,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 
     }
     if(prr->write_nonlineark) {
-        char * filename = fastpm_strdup_printf("%s_%0.04f.raw", prr->write_nonlineark, aout);
+        char * filename = fastpm_strdup_printf("%s_%0.04f", prr->write_nonlineark, aout);
         FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
         fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
         fastpm_utils_dump(fastpm->pm_2lpt, filename, rho_k);
