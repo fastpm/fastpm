@@ -96,7 +96,8 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFl
         ps->k[ind] /= ps->Nmodes[ind];
         ps->p[ind] /= ps->Nmodes[ind];
         ps->p[ind] *= ps->Volume;
-        ps->p[ind] /= Norm;
+        if(Norm != 0)
+            ps->p[ind] /= Norm;
     }
 }
 
