@@ -147,7 +147,7 @@ function Schema.dependency(self, ns)
     if #ns.change_pm ~= #ns.pm_nc_factor then
         error("change_pm and pm_nc_factor must be of the same length")
     end
-    if not ns.read_noisek and not ns.read_noise and not ns.read_runpbic then
+    if not ns.read_lineark and not ns.read_linear and not ns.read_runpbic then
         -- need a power spectrum and gaussian random field
         self.read_powerspectrum.required = true
         if not ns.read_grafic then
@@ -167,6 +167,10 @@ function Schema.dependency(self, ns)
         self.cola_stdda.default = true
         self.enforce_broadband_mode.default = "none"
     end
+
+    if self.time_step[1] <= 0.0 then
+        error("Initial time must be greater than a = 0.0")
+    end
 end
 
 schema = Schema.new()
@@ -178,21 +182,22 @@ schema:add{name='omega_m',           type='number', required= true }
 schema:add{name='h',                 type='number', required=true }
 schema:add{name='pm_nc_factor',      type='table',  required=true }
 schema:add{name='change_pm',         type='table',  required=true }
-schema:add{name='np_alloc_factor',   type='number', required=true }
-schema:add{name='force_mode',        type='string', required=true,
+schema:add{name='np_alloc_factor',   type='number', required=true } schema:add{name='force_mode',        type='string', required=true,
           choices={'cola', 'zola', 'pm'}}
 
 schema:add{name='read_grafic',        type='string'}
-schema:add{name='read_noisek',        type='string'}
-schema:add{name='read_noise',         type='string'}
+schema:add{name='read_lineark',        type='string'}
+schema:add{name='write_lineark',         type='string'}
+schema:add{name='read_linear',         type='string'}
+schema:add{name='write_linear',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
 schema:add{name='scalar_amplitude', type='number', default=2.441e-9}
 schema:add{name='primordial_index', type='number', default=0.9667}
 schema:add{name='sigma8',             type='number', default=0}
 schema:add{name='random_seed',         type='number'}
-schema:add{name='write_noisek',        type='string'}
-schema:add{name='write_noise',         type='string'}
+schema:add{name='read_whitenoise',         type='string'}
+schema:add{name='write_whitenoise',         type='string'}
 schema:add{name='write_runpbic',       type='string'}
 schema:add{name='write_powerspectrum', type='string'}
 schema:add{name='write_snapshot',      type='string'}

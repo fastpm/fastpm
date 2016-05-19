@@ -162,8 +162,7 @@ loads_param(char * confstr, Parameters * param)
 
     // File Names and optional parameters realated
     param->read_grafic= read_string(L, "read_grafic");
-    param->read_noisek = read_string(L, "read_noisek");
-    param->read_noise = read_string(L, "read_noise");
+    param->read_lineark = read_string(L, "read_lineark");
     param->read_runpbic = read_string(L, "read_runpbic");
 
     param->read_powerspectrum = read_string(L, "read_powerspectrum");
@@ -179,9 +178,10 @@ loads_param(char * confstr, Parameters * param)
 
     param->write_snapshot = read_string(L, "write_snapshot");
     param->write_runpb_snapshot = read_string(L, "write_runpb_snapshot");
-    param->write_noisek = read_string(L, "write_noisek");
-    param->write_noise = read_string(L, "write_noise");
+    param->write_lineark = read_string(L, "write_lineark");
 
+    param->write_whitenoisek = read_string(L, "write_whitenoise");
+    param->read_whitenoisek = read_string(L, "read_whitenoise");
 
     param->force_mode = read_string(L, "force_mode");
     param->cola_stdda = read_boolean(L, "cola_stdda");
