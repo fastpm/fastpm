@@ -10,49 +10,18 @@
 
 /* The following functions fill the gaussian field*/
 static void 
-pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed);
 static void 
-pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed);
 static void 
-pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
-
-/* The following functions fill the Gaussian primordial potential */
-static void
-pmic_fill_gaussian_prim_potential_gadget(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
-static void 
-pmic_fill_gaussian_prim_potential_fast(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
-static void 
-pmic_fill_gaussian_prim_potential_slow(PM * pm, FastPMFloat * delta_k, int seed, fastpm_pkfunc pk, void * pkdata);
+pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed);
 
 /* Fill primordial potential Phi. If f_NL=0, this is a Gaussian following the primordial
  * power spectrum. If f_NL!=0, the potential includes primordial non-Gaussianity.
  * The output of this function is a complex array containing Phi_k.
  */
 void 
-fastpm_utils_fill_primordial_potential(PM * pm, FastPMFloat * Phi_k, 
-        int seed, fastpm_pkfunc pk, void * pkdata, enum FastPMFillDeltaKScheme scheme)
-{
-    switch(scheme) {
-        case FASTPM_DELTAK_GADGET:
-            pmic_fill_gaussian_prim_potential_gadget(pm, delta_k, seed, pk, pkdata);
-            break;
-        case FASTPM_DELTAK_FAST:
-            pmic_fill_gaussian_prim_potential_fast(pm, delta_k, seed, pk, pkdata);
-            break;
-        case FASTPM_DELTAK_SLOW:
-            pmic_fill_gaussian_prim_potential_slow(pm, delta_k, seed, pk, pkdata);
-            break;
-        default:
-            pmic_fill_gaussian_prim_potential_gadget(pm, delta_k, seed, pk, pkdata);
-            break;
-    }
-}
-
-
-/* MS: Old function filling deltak directly form P(k,z=0). Shall be removed later. */
-void 
-fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, 
-        int seed, fastpm_pkfunc pk, void * pkdata, enum FastPMFillDeltaKScheme scheme)
+fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFillDeltaKScheme scheme)
 {
     switch(scheme) {
         case FASTPM_DELTAK_GADGET:
@@ -326,28 +295,7 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed)
             ampl = gsl_rng_uniform(random_generator);
         while(ampl == 0.0);
 
-        /* MS: Some documentation for what's happening next:
-	 * We want delta(k) = delta_real + I delta_imag, where delta_real and
-	 * delta_imag are Gaussian random variables with variance given by
-	 * power spectrum, \sigma^2=P(k). We can obtain this equivalently as
-	 *
-	 *   delta(k) = A exp(i phase),
-	 *
-	 * where the phase is random (i.e. sampled from a uniform distribution)
-	 * and the amplitude A follows a Rayleigh distribution (see 
-	 * https://en.wikipedia.org/wiki/Rayleigh_distribution). To sample from 
-	 * Rayleigh distribution, use inverse transform sampling
-	 * (see https://en.wikipedia.org/wiki/Inverse_transform_sampling), i.e.
-	 * start from uniform random variable in [0,1] and then apply inverse of CDF
-	 * of Rayleigh distribution. From F(A)=CDF(A)=1-e^{-A^2/(2\sigma^2)} we get
-	 * A = \sigma \sqrt{-2 ln(1-CDF)}. So if x is uniform random number in [0,1], then 
-	 * A = \sigma \sqrt(-2 ln(x)) follows Rayleigh distribution as desired. 
-	 * Here we used x instead of 1-x because this does not make a difference for a 
-	 * uniform random number in [0,1]. In the code below, we start with \sigma=1 and 
-	 * multiply by sqrt(P(k)) later.
-	 */
-
-        /* we need two gaussians of std=1.0 in real space (see info above) */
+        /* we need two gaussians of std=1.0 in real space (see footnote 1) */
         ampl = sqrt(-2.0 * log(ampl));
         /* r2c will reduce the variance, so we compensate here. */
         ampl *= sqrt(pm_norm(pm));
@@ -400,3 +348,27 @@ pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed)
     pm_free(pm, g_x);
     gsl_rng_free(random_generator);
 }
+
+
+/* Footnotes */ 
+
+/* 1): 
+ * We want delta(k) = delta_real + I delta_imag, where delta_real and
+ * delta_imag are Gaussian random variables with variance given by
+ * power spectrum, \sigma^2=P(k). We can obtain this equivalently as
+ *
+ *   delta(k) = A exp(i phase),
+ *
+ * where the phase is random (i.e. sampled from a uniform distribution)
+ * and the amplitude A follows a Rayleigh distribution (see 
+ * https://en.wikipedia.org/wiki/Rayleigh_distribution). To sample from 
+ * Rayleigh distribution, use inverse transform sampling
+ * (see https://en.wikipedia.org/wiki/Inverse_transform_sampling), i.e.
+ * start from uniform random variable in [0,1] and then apply inverse of CDF
+ * of Rayleigh distribution. From F(A)=CDF(A)=1-e^{-A^2/(2\sigma^2)} we get
+ * A = \sigma \sqrt{-2 ln(1-CDF)}. So if x is uniform random number in [0,1], then 
+ * A = \sigma \sqrt(-2 ln(x)) follows Rayleigh distribution as desired. 
+ * Here we used x instead of 1-x because this does not make a difference for a 
+ * uniform random number in [0,1]. In the code below, we start with \sigma=1 and 
+ * multiply by sqrt(P(k)) later.
+ */
