@@ -9,18 +9,14 @@
 #include "pmpfft.h"
 
 /* The following functions fill the gaussian field*/
-static void 
+static void
 pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed);
-static void 
+static void
 pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed);
-static void 
+static void
 pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed);
 
-/* Fill primordial potential Phi. If f_NL=0, this is a Gaussian following the primordial
- * power spectrum. If f_NL!=0, the potential includes primordial non-Gaussianity.
- * The output of this function is a complex array containing Phi_k.
- */
-void 
+void
 fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFillDeltaKScheme scheme)
 {
     switch(scheme) {
