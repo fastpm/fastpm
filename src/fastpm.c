@@ -308,6 +308,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
     }
     if(prr->write_whitenoisek) {
+        ensure_dir(prr->write_whitenoisek);
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_whitenoisek, delta_k);
     }
     fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
@@ -392,6 +393,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         char * filename = fastpm_strdup_printf("%s_%0.04f", prr->write_nonlineark, aout);
         FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
         fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
+        ensure_dir(filename);
         fastpm_utils_dump(fastpm->pm_2lpt, filename, rho_k);
         pm_free(fastpm->pm_2lpt, rho_k);
         free(filename);
