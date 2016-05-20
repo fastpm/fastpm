@@ -23,8 +23,11 @@ typedef struct {
     char * read_powerspectrum;
 
     double sigma8;
-    double scalar_amplitude;
-    double primordial_index;
+    double scalar_amp;
+    double pivot_scalar;
+    double scalar_spectral_index;
+    double f_nl;
+    char * f_nl_type;
 
     char * write_powerspectrum;
     char * write_nonlineark;

@@ -166,8 +166,11 @@ loads_param(char * confstr, Parameters * param)
     param->read_runpbic = read_string(L, "read_runpbic");
 
     param->read_powerspectrum = read_string(L, "read_powerspectrum");
-    param->scalar_amplitude = read_number(L, "scalar_amplitude");
-    param->primordial_index = read_number(L, "primordial_index");
+    param->scalar_amp = read_number(L, "scalar_amp");
+    param->pivot_scalar = read_number(L, "pivot_scalar");
+    param->scalar_spectral_index = read_number(L, "scalar_spectral_index");
+    param->f_nl = read_number(L, "f_nl");
+    param->f_nl_type = read_string(L, "f_nl_type");    
     param->sigma8 = read_number(L, "sigma8");
 
     param->random_seed = read_integer(L, "random_seed");
