@@ -207,11 +207,12 @@ fastpm_powerspectrum_get(FastPMPowerSpectrum * ps, double k)
     /* ignore the 0 mode */
 
     int l = 1;
-    int r = ps->size - 1;
+    int r = ps->size;
 
     while(r - l > 1) {
         int m = (r + l) / 2;
-        if(k < ps->k[m])
+        /* if we are on the exact k, return value from there.*/
+        if(k <= ps->k[m])
             r = m;
         else
             l = m;
