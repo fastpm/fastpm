@@ -27,7 +27,7 @@ install:
 
 script:
     - pushd tests
-    - sh runtests.sh
+    - bash runtests.sh
     - python plottests.py
     - popd
 
