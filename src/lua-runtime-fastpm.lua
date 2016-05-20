@@ -147,7 +147,7 @@ function Schema.dependency(self, ns)
     if #ns.change_pm ~= #ns.pm_nc_factor then
         error("change_pm and pm_nc_factor must be of the same length")
     end
-    if not ns.read_noisek and not ns.read_noise and not ns.read_runpbic then
+    if not ns.read_lineark and not ns.read_linear and not ns.read_runpbic then
         -- need a power spectrum and gaussian random field
         self.read_powerspectrum.required = true
         if not ns.read_grafic then
@@ -167,6 +167,10 @@ function Schema.dependency(self, ns)
         self.cola_stdda.default = true
         self.enforce_broadband_mode.default = "none"
     end
+
+    --if self.time_step[0] <= 0.0 then
+     --   error("Initial time must be greater than a = 0.0")
+    --end
 end
 
 schema = Schema.new()
@@ -178,13 +182,12 @@ schema:add{name='omega_m',           type='number', required= true }
 schema:add{name='h',                 type='number', required=true }
 schema:add{name='pm_nc_factor',      type='table',  required=true }
 schema:add{name='change_pm',         type='table',  required=true }
-schema:add{name='np_alloc_factor',   type='number', required=true }
-schema:add{name='force_mode',        type='string', required=true,
+schema:add{name='np_alloc_factor',   type='number', required=true } schema:add{name='force_mode',        type='string', required=true,
           choices={'cola', 'zola', 'pm'}}
 
 schema:add{name='read_grafic',        type='string'}
-schema:add{name='read_noisek',        type='string'}
-schema:add{name='read_noise',         type='string'}
+schema:add{name='read_lineark',        type='string'}
+schema:add{name='write_lineark',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
 schema:add{name='scalar_amp, type='number', required=true}
@@ -195,11 +198,12 @@ schema:add{name='f_nl_type, type='string, default='local',
            choices={'local'}}
 schema:add{name='sigma8',             type='number', default=0}
 schema:add{name='random_seed',         type='number'}
-schema:add{name='write_noisek',        type='string'}
-schema:add{name='write_noise',         type='string'}
+schema:add{name='read_whitenoise',         type='string'}
+schema:add{name='write_whitenoise',         type='string'}
 schema:add{name='write_runpbic',       type='string'}
 schema:add{name='write_powerspectrum', type='string'}
 schema:add{name='write_snapshot',      type='string'}
+schema:add{name='write_nonlineark',      type='string'}
 schema:add{name='write_runpb_snapshot', type='string'}
 schema:add{name='cola_stdda',           type='boolean'}
 schema:add{name='enforce_broadband_mode',  type='string',
@@ -208,6 +212,8 @@ schema:add{name='enforce_broadband_kmax',  type='number', default=4}
 schema:add{name='za',                      type='boolean', default=false}
 schema:add{name='kernel_type',             type='string',
         default="3_4", choices={'3_4', '5_4', 'eastwood', '3_2'}}
+schema:add{name='dealiasing_type',             type='string',
+        default="none", choices={'none', 'gaussian', 'twothird'}}
 schema:add{name='inverted_ic',             type='boolean', default=false}
 schema:add{name='remove_cosmic_variance',  type='boolean', default=false}
 

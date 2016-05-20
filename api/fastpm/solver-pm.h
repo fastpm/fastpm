@@ -13,6 +13,7 @@ typedef struct FastPMModel FastPMModel;
 
 typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4, FASTPM_KERNEL_EASTWOOD } FastPMKernelType;
+typedef enum { FASTPM_DEALIASING_NONE, FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN} FastPMDealiasingType;
 
 typedef struct {
     /* input parameters */
@@ -30,6 +31,7 @@ typedef struct {
     double nLPT;
 
     FastPMKernelType KERNEL_TYPE;
+    FastPMDealiasingType DEALIASING_TYPE;
     FastPMModelType USE_MODEL;
     int K_LINEAR;
 
@@ -125,5 +127,8 @@ void
 fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
 void
 fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3]);
+
+double
+fastpm_growth_factor(FastPM * fastpm, double a);
 
 FASTPM_END_DECLS

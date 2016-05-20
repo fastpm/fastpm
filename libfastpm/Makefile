@@ -19,9 +19,9 @@ LIBSOURCES = libfastpm.c \
     solver-pm-model-pm.c \
     transfer.c \
     utils.c \
-    utils-ps.c \
-    utils-ic.c \
+    initialcondition.c \
     cosmology.c \
+    powerspectrum.c \
     logging.c \
     prof.c \
     vpm.c  \
@@ -31,7 +31,8 @@ LIBSOURCES = libfastpm.c \
     pmstore.c \
     pm2lpt.c \
     pmapi.c \
-	hmc.c
+    hmc.c \
+    string.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
 PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a

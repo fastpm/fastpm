@@ -6,6 +6,7 @@
 #include <mpi.h>
 
 #include <fastpm/logging.h>
+#include <fastpm/string.h>
 
 
 typedef struct FastPMMSGHandler FastPMMSGHandler;
@@ -113,17 +114,16 @@ void fastpm_log2(const enum FastPMLogLevel level,
             const enum FastPMLogType type,
             const int code, 
             const char * fmt, va_list argp) {
-    char buffer[4096];
     char * newfmt = process(fmt);
 
     if (handler_data.handler == NULL) {
         fastpm_set_msg_handler(fastpm_default_msg_handler, MPI_COMM_WORLD, NULL);
     }
 
-    vsprintf(buffer, newfmt, argp);
+    char * buffer = fastpm_strdup_vprintf(newfmt, argp);
     handler_data.handler(level, type, code, buffer, handler_data.comm, handler_data.userdata);
-
     free(newfmt);
+    free(buffer);
 }
 
 void fastpm_ilog(const enum FastPMLogLevel level, 

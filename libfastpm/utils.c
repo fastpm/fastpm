@@ -141,7 +141,7 @@ fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, 
 
 
 void 
-fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data) 
+fastpm_utils_dump(PM * pm , const char * filename, FastPMFloat *data) 
 {
     char fn1[1024];
     char fn2[1024];
@@ -189,7 +189,7 @@ fastpm_utils_dump(PM * pm , char * filename, FastPMFloat *data)
 }
 
 void 
-fastpm_utils_load(PM * pm , char * filename, FastPMFloat *data) 
+fastpm_utils_load(PM * pm , const char * filename, FastPMFloat *data) 
 {
     char fn1[1024];
     char fn2[1024];

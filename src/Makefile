@@ -11,7 +11,7 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install 
 
 
-FASTPM_SOURCES = fastpm.c power.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c
+FASTPM_SOURCES = fastpm.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c
 FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c lua-runtime.c
 TEST_SOURCES = test2lpt.c testpm.c
 

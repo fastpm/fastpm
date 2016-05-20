@@ -151,7 +151,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
     MPI_Barrier(fastpm->comm);
 
     double correction = 1.0;
-    double Plin0 = 0;
     /* The last step is the 'terminal' step */
     int istep;
     for (istep = 0; istep < nstep; istep++) {
@@ -174,17 +173,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         ENTER(force);
         fastpm_calculate_forces(fastpm, delta_k);
         LEAVE(force);
-
-        double Plin = fastpm_calculate_large_scale_power(fastpm->pm, delta_k, fastpm->K_LINEAR);
-
-        Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
-
-        if(istep == 0) {
-            Plin0 = Plin;
-        }
-
-        fastpm_info("Last Step: <P(k<%g)> = %g Linear Theory = %g, Correction=%g\n",
-                          fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Plin0, correction);
 
         ENTER(afterforce);
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];

@@ -88,12 +88,14 @@ fastpm_hmc_za_destroy(FastPMHMCZA * self)
     fastpm_2lpt_destroy(&self->solver);
 }
 
-void 
+static void
 fastpm_hmc_za_evolve_internal(
     FastPMHMCZA * self,
-    int Nsteps /* 0 for LPT, > 0 for PM */
+    int Nsteps, /* 0 for LPT, > 0 for PM */
+    FastPMFloat * delta_final
     )
 {
+    /* This is the pure N-body dynamics, no smoothing etc */
     /* First run a PT simulation*/
     if(Nsteps <= 0) {
         FastPM2LPTSolver * solver = &self->solver;
@@ -128,10 +130,30 @@ fastpm_hmc_za_evolve_internal(
         }
     }
 
-    fastpm_utils_paint(self->pm, self->p, NULL, self->rho_final_x, NULL, 0);
+    fastpm_utils_paint(self->pm, self->p, NULL, delta_final, NULL, 0);
 }
 
-void 
+void
+fastpm_hmc_za_calibrate_transferfunction(
+    FastPMHMCZA * self,
+    FastPMFloat * delta_ic, /* IC in k-space*/
+    int Nsteps,
+    FastPMPowerSpectrum * transfer)
+{
+    FastPMFloat * deltalpt = pm_alloc(self->pm);
+    FastPMFloat * deltapm = pm_alloc(self->pm);
+
+    pm_assign(self->pm, delta_ic, self->delta_ic_k);
+
+    fastpm_hmc_za_evolve_internal(self, Nsteps, deltalpt);
+
+    pm_assign(self->pm, delta_ic, self->delta_ic_k);
+
+    fastpm_hmc_za_evolve_internal(self, 0, deltapm);
+    fastpm_transferfunction_init(transfer, self->pm, deltalpt, deltapm);
+}
+
+void
 fastpm_hmc_za_evolve(
     FastPMHMCZA * self,
     FastPMFloat * delta_ic, /* IC in k-space*/
@@ -140,41 +162,9 @@ fastpm_hmc_za_evolve(
 {
     pm_assign(self->pm, delta_ic, self->delta_ic_k);
 
-    fastpm_hmc_za_evolve_internal(self, 0);
-    pm_assign(self->pm, self->rho_final_x, self->transfer_function);
-
-    fastpm_hmc_za_evolve_internal(self, Nsteps);
-
-    /* measure the transfer function */
-    ptrdiff_t ind;
-    for(ind = 0; ind < pm_size(self->pm); ind +=2) {
-        double tmp[2];
-        double c = self->transfer_function[ind];
-        double d = self->transfer_function[ind + 1];
-        double a = self->rho_final_x[ind];
-        double b = self->rho_final_x[ind + 1];
-        double m = c * c + d * d;
-        if (m > 0) {
-            tmp[0] = (a * c + b * d) / m;
-            tmp[1] = (b * c - a * d) / m;
-        } else {
-            tmp[0] = 1;
-            tmp[1] = 0;
-        }
-        self->transfer_function[ind] = tmp[0];
-        self->transfer_function[ind + 1] = tmp[1];
-    }
-
-    fastpm_info(" %g %g %g %g %g %g\n",
-         self->p->x[0][0],
-         self->p->x[0][1],
-         self->p->x[0][2],
-         self->p->dx1[0][0],
-         self->p->dx1[0][1],
-         self->p->dx1[0][2]
-    );
-
     FastPMFloat * delta_final = self->rho_final_x;
+
+    fastpm_hmc_za_evolve_internal(self, Nsteps, delta_final);
 
     if(self->SmoothingLength > 0)
         fastpm_apply_smoothing_transfer(self->pm, delta_final, delta_final, self->SmoothingLength);
@@ -182,11 +172,14 @@ fastpm_hmc_za_evolve(
         fastpm_apply_lowpass_transfer(self->pm, delta_final, delta_final, self->KThreshold);
     if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(self->pm, delta_final, delta_final);
+    if(self->TransferFunction.func)
+        fastpm_apply_any_transfer(self->pm, delta_final, delta_final, self->TransferFunction.func, self->TransferFunction.data);
 
     pm_c2r(self->pm, delta_final);
 
     //  inv volume of a cell, to convert to density
     double fac = (pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3));
+    ptrdiff_t ind;
     for(ind = 0; ind < pm_size(self->pm); ind++) {
         delta_final[ind] *= fac;
     }
@@ -290,18 +283,9 @@ fastpm_hmc_za_force_rhodk(
     if(self->DeconvolveCIC)
         fastpm_apply_decic_transfer(self->pm, rhodk, rhodk);
 
-    for(ind = 0; ind < pm_size(self->pm); ind +=2) {
-        double tmp[2];
-        double a = rhodk[ind];
-        double b = rhodk[ind + 1];
-        double c = self->transfer_function[ind];
-        double d = self->transfer_function[ind + 1];
+    if(self->TransferFunction.func)
+        fastpm_apply_any_transfer(self->pm, rhodk, rhodk, self->TransferFunction.func, self->TransferFunction.data);
 
-        tmp[0] = a * c - b * d;
-        tmp[1] = a * d + b * c;
-        rhodk[ind] = tmp[0];
-        rhodk[ind + 1] = tmp[1];
-    }
 }
 void
 fastpm_hmc_za_force_s1(

@@ -15,9 +15,9 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
+#include <fastpm/string.h>
 
 #include "parameters.h"
-#include "power.h"
 
 
 /* command-line arguments */
@@ -51,6 +51,9 @@ read_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
 
 int 
 read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
+
+int
+read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
 
@@ -114,6 +117,7 @@ int main(int argc, char ** argv) {
     vpminit[i].pm_nc_factor = 0;
 
     fastpm_info("np_alloc_factor = %g\n", prr.np_alloc_factor);
+
     FastPM * fastpm = & (FastPM) {
         .nc = prr.nc,
         .alloc_factor = prr.np_alloc_factor, 
@@ -164,6 +168,15 @@ int main(int argc, char ** argv) {
         };
         fastpm->KERNEL_TYPE = parse_enum(prr.kernel_type, table);
     }
+    {
+        struct enum_entry table[] = {
+            {"none", FASTPM_DEALIASING_NONE},
+            {"gaussian", FASTPM_DEALIASING_GAUSSIAN},
+            {"twothird", FASTPM_DEALIASING_TWO_THIRD},
+            {NULL, -1},
+        };
+        fastpm->DEALIASING_TYPE = parse_enum(prr.dealiasing_type, table);
+    }
 
     run_fastpm(fastpm, &prr, comm);
 
@@ -177,7 +190,7 @@ static int
 check_snapshots(FastPM * fastpm, void * unused, Parameters * prr);
 
 static int 
-measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
+write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 static void 
 prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
@@ -202,7 +215,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
     fastpm_add_extension(fastpm,
         FASTPM_EXT_AFTER_FORCE,
-        measure_powerspectrum,
+        write_powerspectrum,
         prr);
 
     fastpm_add_extension(fastpm,
@@ -246,34 +259,20 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     /* at this point generating the ic involves delta_k */
     FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
-    if(prr->read_noisek) {
-        fastpm_info("Reading Fourier space noise from %s\n", prr->read_noisek);
-        fastpm_utils_load(fastpm->pm_2lpt, prr->read_noisek, delta_k);
+    if(prr->read_lineark) {
+        fastpm_info("Reading Fourier space linear overdensity from %s\n", prr->read_lineark);
+        fastpm_utils_load(fastpm->pm_2lpt, prr->read_lineark, delta_k);
         goto finish;
     } 
-
-    if(prr->read_noise) {
-        fastpm_info("Reading Real space noise from %s\n", prr->read_noise);
-
-        FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
-        fastpm_utils_load(fastpm->pm_2lpt, prr->read_noise, g_x);
-        pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
-        pm_free(fastpm->pm_2lpt, g_x);
-        goto finish;
-    }
 
     /* at this power we need a powerspectrum file to convolve the guassian */
     if(!prr->read_powerspectrum) {
         fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
     }
 
-    fastpm_info("Powerspecectrum file: %s\n", prr->read_powerspectrum);
+    FastPMPowerSpectrum linear_powerspectrum;
 
-    power_init(prr->read_powerspectrum, 
-            prr->time_step[0], 
-            prr->sigma8, 
-            prr->omega_m, 
-            1 - prr->omega_m, comm);
+    read_powerspectrum(&linear_powerspectrum, prr->read_powerspectrum, prr->sigma8, comm);
 
     if(prr->read_grafic) {
         fastpm_info("Reading grafic white noise file from '%s'.\n", prr->read_grafic);
@@ -283,15 +282,38 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
 
         read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
-
-        fastpm_utils_induce_correlation(fastpm->pm_2lpt, g_x, delta_k, PowerSpecWithData, NULL);
+        pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
+        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
+            (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
         pm_free(fastpm->pm_2lpt, g_x);
         goto finish;
-    } 
+    }
+
+    if(prr->read_whitenoisek) {
+        fastpm_info("Reading Fourier white noise file from '%s'.\n", prr->read_whitenoisek);
+
+        fastpm_utils_load(fastpm->pm_2lpt, prr->read_whitenoisek, delta_k);
+        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
+            (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+        goto finish;
+
+    }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
 
-    fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, PowerSpecWithData, NULL, FASTPM_DELTAK_GADGET);
+    fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_GADGET);
+    //fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_FAST);
+
+    if(prr->remove_cosmic_variance) {
+        fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
+    }
+    if(prr->write_whitenoisek) {
+        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_whitenoisek, delta_k);
+    }
+    fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
+        (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+
+    fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
     /* our write out and clean up stuff.*/
 finish:
@@ -301,26 +323,13 @@ finish:
             delta_k[i] *= -1;
         }
     }
-    if(prr->remove_cosmic_variance) {
-        fastpm_utils_remove_cosmic_variance(fastpm->pm_2lpt, delta_k, PowerSpecWithData, NULL);
+
+    if(prr->write_lineark) {
+        fastpm_info("Writing fourier space noise to %s\n", prr->write_lineark);
+        ensure_dir(prr->write_lineark);
+        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_lineark, delta_k);
     }
 
-    if(prr->write_noisek) {
-        fastpm_info("Writing fourier space noise to %s\n", prr->write_noisek);
-        ensure_dir(prr->write_noisek);
-        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noisek, delta_k);
-    }
-
-    if(prr->write_noise) {
-        FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
-        pm_assign(fastpm->pm_2lpt, delta_k, g_x);
-        pm_c2r(fastpm->pm_2lpt, g_x);
-
-        fastpm_info("Writing real space noise to %s\n", prr->write_noise);
-        ensure_dir(prr->write_noise);
-        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_noise, g_x);
-        pm_free(fastpm->pm_2lpt, g_x);
-    }
     fastpm_setup_ic(fastpm, delta_k);
 
     pm_free(fastpm->pm_2lpt, delta_k);
@@ -379,25 +388,40 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
                 filebase, z_out, aout);
 
     }
+    if(prr->write_nonlineark) {
+        char * filename = fastpm_strdup_printf("%s_%0.04f", prr->write_nonlineark, aout);
+        FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
+        fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
+        fastpm_utils_dump(fastpm->pm_2lpt, filename, rho_k);
+        pm_free(fastpm->pm_2lpt, rho_k);
+        free(filename);
+    }
     return 0;
 }
 
-static int 
-measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
+static int
+write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
     CLOCK(compute);
     CLOCK(io);
 
     fastpm_report_memory(fastpm->comm);
 
-    FastPMPowerSpectrum ps;
-    /* calculate the power spectrum */
-    fastpm_power_spectrum_init(&ps, pm_nmesh(fastpm->pm)[0] / 2);
-
     MPI_Barrier(fastpm->comm);
     ENTER(compute);
 
-    fastpm_utils_calculate_powerspectrum(fastpm->pm, delta_k, &ps, pow(fastpm->nc, 3.0));
+    FastPMPowerSpectrum ps;
+    /* calculate the power spectrum */
+    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
+
+    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
+
+    double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
+
+    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+    Sigma8 /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Sigma8);
 
     LEAVE(compute);
 
@@ -409,15 +433,52 @@ measure_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parame
             ensure_dir(prr->write_powerspectrum);
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", prr->write_powerspectrum, a_x);
-            fastpm_power_spectrum_write(&ps, fastpm->pm, buf);
+            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->nc, 3.0));
         }
     }
     LEAVE(io);
 
-    fastpm_power_spectrum_destroy(&ps);
+    fastpm_powerspectrum_destroy(&ps);
 
     return 0;
 }
+
+int
+read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double sigma8, MPI_Comm comm)
+{
+    fastpm_info("Powerspecectrum file: %s\n", filename);
+
+    int myrank;
+    MPI_Comm_rank(comm, &myrank);
+    char * content;
+    if(myrank == 0) {
+        content = fastpm_file_get_content(filename);
+        int size = strlen(content);
+        MPI_Bcast(&size, 1, MPI_INT, 0, comm);
+        MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
+    } else {
+        int size = 0;
+        MPI_Bcast(&size, 1, MPI_INT, 0, comm);
+        content = malloc(size + 1);
+        MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
+    }
+    if (0 != fastpm_powerspectrum_init_from_string(ps, content)) {
+        fastpm_raise(-1, "Failed to parse the powerspectrum\n");
+    }
+    free(content);
+
+    fastpm_info("Found %d pairs of values in input spectrum table\n", ps->size);
+
+    double sigma8_input= fastpm_powerspectrum_sigma(ps, 8);
+    fastpm_info("Input power spectrum sigma8 %f\n", sigma8_input);
+
+    if(sigma8 > 0) {
+        fastpm_info("Expected power spectrum sigma8 %g; correction applied. \n", sigma8);
+        fastpm_powerspectrum_scale(ps, pow(sigma8 / sigma8_input, 2));
+    }
+    return 0;
+}
+
 
 static void 
 parse_args(int * argc, char *** argv, Parameters * prr) 

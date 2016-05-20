@@ -6,14 +6,14 @@
 
 void fastpm_utils_init_randtable();
 
-void libfastpm_init() 
+void libfastpm_init()
 {
-    pm_module_init();    
+    pm_module_init();
     fastpm_utils_init_randtable();
     fastpm_set_msg_handler(fastpm_void_msg_handler, MPI_COMM_WORLD, NULL);
 }
 
-void libfastpm_cleanup() 
+void libfastpm_cleanup()
 {
-    pm_module_cleanup();    
+    pm_module_cleanup();
 }

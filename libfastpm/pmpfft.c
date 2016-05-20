@@ -359,6 +359,8 @@ int pm_ipos_to_rank(PM * pm, int i[3]) {
 }
 
 void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
+    /* A gaussian of variance 1 becomes a complex gausian of variance 1/2 * (1 / Norm) in real and imag */
+
     /* workspace to canvas*/
     if(pm->init.use_fftw) {
         execute_dft_r2c_fftw(pm->r2c, from, (void*)to);
@@ -368,11 +370,12 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     ptrdiff_t i;
 #pragma omp parallel for
     for(i = 0; i < pm->allocsize; i ++) {
-        to[i] *= (1 / pm->Norm);
+        to[i] *= 1 / pm->Norm;
     }
 }
 
 void pm_c2r(PM * pm, FastPMFloat * inplace) {
+    /* r2c and c2r round trip is unitary */
     if(pm->init.use_fftw) {
         execute_dft_c2r_fftw(pm->c2r, (void*) inplace, inplace);
     } else {

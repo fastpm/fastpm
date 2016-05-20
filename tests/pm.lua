@@ -23,7 +23,7 @@ h       = 0.6774
 -- Must be compatible with the Cosmology parameter
 read_powerspectrum= "powerspec.txt"
 random_seed= 100
-remove_cosmic_variance = true
+-- remove_cosmic_variance = true
 
 -------- Approximation Method ---------------
 force_mode = "pm"

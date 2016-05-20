@@ -11,6 +11,11 @@ typedef struct {
     int IncludeRSD;
     int LPTOrder;
 
+    struct {
+        fastpm_pkfunc func;
+        void * data;
+    } TransferFunction;
+
     int Nmesh;
     int Ngrid;
     double BoxSize;
@@ -24,6 +29,7 @@ typedef struct {
     FastPMFloat * delta_ic_k;
     FastPMFloat * rho_final_x;
     FastPMFloat * transfer_function;
+
 } FastPMHMCZA;
 
 void

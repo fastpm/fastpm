@@ -30,17 +30,20 @@ typedef struct {
     char * f_nl_type;
 
     char * write_powerspectrum;
+    char * write_nonlineark;
     char * write_runpb_snapshot;
     char * write_snapshot;
     char * read_runpbic;
     char * read_grafic;
-    char * read_noisek;
-    char * read_noise;
-    char * write_noisek;
-    char * write_noise;
+
+    char * read_lineark;
+    char * write_lineark;
+    char * read_whitenoisek;
+    char * write_whitenoisek;
 
     char * force_mode;
     char * kernel_type;
+    char * dealiasing_type;
 
     int cola_stdda;
     int use_zola;
