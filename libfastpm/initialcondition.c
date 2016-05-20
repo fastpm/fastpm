@@ -51,7 +51,7 @@ fastpm_utils_fill_primordial_potential(PM * pm, FastPMFloat * Phi_k,
 
 /* MS: Old function filling deltak directly form P(k,z=0). Shall be removed later. */
 void 
-fastpm_utils_fill_deltak(PM * pm, FastPMFloat * delta_k, 
+fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, 
         int seed, fastpm_pkfunc pk, void * pkdata, enum FastPMFillDeltaKScheme scheme)
 {
     switch(scheme) {
