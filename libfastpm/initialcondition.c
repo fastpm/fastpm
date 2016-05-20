@@ -291,7 +291,7 @@ pmic_fill_gaussian_fast(PM * pm, FastPMFloat * delta_k, int seed)
             ampl = gsl_rng_uniform(random_generator);
         while(ampl == 0.0);
 
-        /* we need two gaussians of std=1.0 in real space */
+        /* we need two gaussians of std=1.0 in real space (see footnote 1) */
         ampl = sqrt(-2.0 * log(ampl));
         /* r2c will reduce the variance, so we compensate here. */
         ampl *= sqrt(pm_norm(pm));
@@ -344,3 +344,27 @@ pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed)
     pm_free(pm, g_x);
     gsl_rng_free(random_generator);
 }
+
+
+/* Footnotes */ 
+
+/* 1): 
+ * We want delta(k) = delta_real + I delta_imag, where delta_real and
+ * delta_imag are Gaussian random variables with variance given by
+ * power spectrum, \sigma^2=P(k). We can obtain this equivalently as
+ *
+ *   delta(k) = A exp(i phase),
+ *
+ * where the phase is random (i.e. sampled from a uniform distribution)
+ * and the amplitude A follows a Rayleigh distribution (see 
+ * https://en.wikipedia.org/wiki/Rayleigh_distribution). To sample from 
+ * Rayleigh distribution, use inverse transform sampling
+ * (see https://en.wikipedia.org/wiki/Inverse_transform_sampling), i.e.
+ * start from uniform random variable in [0,1] and then apply inverse of CDF
+ * of Rayleigh distribution. From F(A)=CDF(A)=1-e^{-A^2/(2\sigma^2)} we get
+ * A = \sigma \sqrt{-2 ln(1-CDF)}. So if x is uniform random number in [0,1], then 
+ * A = \sigma \sqrt(-2 ln(x)) follows Rayleigh distribution as desired. 
+ * Here we used x instead of 1-x because this does not make a difference for a 
+ * uniform random number in [0,1]. In the code below, we start with \sigma=1 and 
+ * multiply by sqrt(P(k)) later.
+ */

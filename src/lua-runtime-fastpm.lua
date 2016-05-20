@@ -184,14 +184,17 @@ schema:add{name='pm_nc_factor',      type='table',  required=true }
 schema:add{name='change_pm',         type='table',  required=true }
 schema:add{name='np_alloc_factor',   type='number', required=true } schema:add{name='force_mode',        type='string', required=true,
           choices={'cola', 'zola', 'pm'}}
+--schema:add{name='scalar_amp', type='number', required=true}
+--schema:add{name='pivot_scalar', type='number', required=true}
+--schema:add{name='scalar_spectral_index', type='number', required=true}
 
 schema:add{name='read_grafic',        type='string'}
 schema:add{name='read_lineark',        type='string'}
 schema:add{name='write_lineark',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
-schema:add{name='scalar_amplitude', type='number', default=2.441e-9}
-schema:add{name='primordial_index', type='number', default=0.9667}
+--schema:add{name='f_nl', type='number', default=0.0}
+--schema:add{name='f_nl_type', type='string', default='local', choices={'local'}}
 schema:add{name='sigma8',             type='number', default=0}
 schema:add{name='random_seed',         type='number'}
 schema:add{name='read_whitenoise',         type='string'}
