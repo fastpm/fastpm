@@ -39,8 +39,6 @@ void
 fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
 {
 
-    fastpm_info("Inducing correlation to the white noise.\n");
-
 #pragma omp parallel 
     {
         PMKIter kiter;
@@ -72,9 +70,6 @@ fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, v
 void
 fastpm_ic_remove_variance(PM * pm, FastPMFloat * delta_k)
 {
-
-    fastpm_info("Remove Cosmic variance from initial condition.\n");
-
 #pragma omp parallel
     {
         PMKIter kiter;

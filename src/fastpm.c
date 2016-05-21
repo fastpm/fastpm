@@ -262,8 +262,12 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     if(prr->read_lineark) {
         fastpm_info("Reading Fourier space linear overdensity from %s\n", prr->read_lineark);
         fastpm_utils_load(fastpm->pm_2lpt, prr->read_lineark, delta_k);
-        goto finish;
-    } 
+
+        if(prr->inverted_ic) {
+            fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
+        }
+        goto produce;
+    }
 
     /* at this power we need a powerspectrum file to convolve the guassian */
     if(!prr->read_powerspectrum) {
@@ -282,51 +286,54 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
 
         read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
+
         pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
-        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
-            (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+
         pm_free(fastpm->pm_2lpt, g_x);
-        goto finish;
+
+        goto induce;
     }
 
     if(prr->read_whitenoisek) {
         fastpm_info("Reading Fourier white noise file from '%s'.\n", prr->read_whitenoisek);
 
         fastpm_utils_load(fastpm->pm_2lpt, prr->read_whitenoisek, delta_k);
-        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
-            (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
-        goto finish;
-
+        goto induce;
     }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
 
     fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_GADGET);
-    //fastpm_utils_fill_deltak(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_FAST);
+
+induce:
 
     if(prr->remove_cosmic_variance) {
+        fastpm_info("Remove Cosmic variance from initial condition.\n");
         fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
     }
+
+    if(prr->inverted_ic) {
+        fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
+    }
+
     if(prr->write_whitenoisek) {
+        fastpm_info("Writing Fourier white noise to file '%s'.\n", prr->write_whitenoisek);
         ensure_dir(prr->write_whitenoisek);
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_whitenoisek, delta_k);
     }
+
+    fastpm_info("Inducing correlation to the white noise.\n");
+
     fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
         (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
 
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
     /* our write out and clean up stuff.*/
-finish:
-    if(prr->inverted_ic) {
-        ptrdiff_t i;
-        for(i = 0; i < pm_size(fastpm->pm_2lpt); i ++) {
-            delta_k[i] *= -1;
-        }
-    }
+produce:
 
     if(prr->write_lineark) {
-        fastpm_info("Writing fourier space noise to %s\n", prr->write_lineark);
+        fastpm_info("Writing fourier space linear field to %s\n", prr->write_lineark);
         ensure_dir(prr->write_lineark);
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_lineark, delta_k);
     }

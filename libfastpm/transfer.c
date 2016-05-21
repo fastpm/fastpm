@@ -194,3 +194,13 @@ fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_
         }
     }
 }
+
+void
+fastpm_apply_multiply_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double value)
+{
+    ptrdiff_t i;
+#pragma omp parallel for
+    for(i = 0; i < pm_size(pm); i ++) {
+        to[i] = from[i] * value;
+    }
+}
