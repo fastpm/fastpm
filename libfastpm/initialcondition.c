@@ -35,36 +35,28 @@ fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFi
     }
 }
 
-void
-fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata)
+struct PofK {
+    fastpm_pkfunc func;
+    void * data;
+    double Volume;
+} ;
+
+static double _powerspec_to_transfer(double k, struct PofK * pk)
 {
+    double f = sqrt(pk->func(k, pk->data));
+    f *= sqrt(1.0 / pk->Volume);
+    return f;
+}
 
-#pragma omp parallel 
-    {
-        PMKIter kiter;
+void
+fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pkfunc, void * data)
+{
+    struct PofK pk;
+    pk.func = pkfunc;
+    pk.data = data;
+    pk.Volume = pm->Volume;
 
-        for(pm_kiter_init(pm, &kiter);
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-
-            double k2 = 0;
-            int d;
-            for(d = 0; d < 3; d++) {
-                k2 += kiter.kk[d][kiter.iabs[d]];
-            }
-            double knorm = sqrt(k2);
-            double f = sqrt(pk(knorm, pkdata));
-
-            /* 1 / L  -- this matches the dimention of sqrt(p) but I always 
-             * forget where it is from. */
-            f *= sqrt(1.0 / pm->Volume);
-
-            delta_k[kiter.ind + 0] *= f;
-            delta_k[kiter.ind + 1] *= f;
-
-        }
-
-    }
+    fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_pkfunc) _powerspec_to_transfer, &pk);
 }
 
 void
