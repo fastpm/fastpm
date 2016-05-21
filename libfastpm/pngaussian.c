@@ -7,15 +7,19 @@
 static double
 fastpm_png_potential(double k, FastPMPNGaussian * png)
 {
-    /*FIXME: use the right equation to construct the potential !*/
-    return 1.0;
+    /*FIXME: use the correct primordial power to construct the potential !*/
+    return 1.0 / sqrt(png->Volume);
 }
 
 static double
 fastpm_png_transfer_function(double k, FastPMPNGaussian * png)
 {
-    /*FIXME: use the right equation !*/
-    return sqrt(png->pkfunc(k, png->pkdata)) / sqrt(png->Volume);
+    double transfer = sqrt(png->pkfunc(k, png->pkdata));
+    /* powerspec = transfer^2 * pot, so we remove pot */
+    transfer /= fastpm_png_potential(k, png);
+    /* don't forget the volume factor */
+    transfer *= 1.0 / sqrt(png->Volume);
+    return transfer;
 }
 
 static void
@@ -41,7 +45,6 @@ fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * del
 
     fastpm_png_transform_potential(pm, g_x, png);
 
-    /* Apply local FNL transformation ! */
     pm_r2c(pm, g_x, delta_k);
     pm_free(pm, g_x);
 
