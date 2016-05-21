@@ -82,6 +82,11 @@ else
     end
 end
 
+if has('nongaussian') then
+    -- FIXME: what?
+    f_nl_type = "local"
+end
+
 -------- Approximation Method ---------------
 force_mode = "pm"
 

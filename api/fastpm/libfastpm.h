@@ -46,6 +46,7 @@ typedef double (*fastpm_fkfunc)(double k, void * data);
 #include "transfer.h"
 #include "utils.h"
 #include "initialcondition.h"
+#include "pngaussian.h"
 #include "powerspectrum.h"
 #include "solver-2lpt.h"
 #include "solver-pm.h"

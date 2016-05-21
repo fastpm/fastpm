@@ -322,11 +322,20 @@ induce:
         fastpm_utils_dump(fastpm->pm_2lpt, prr->write_whitenoisek, delta_k);
     }
 
-    fastpm_info("Inducing correlation to the white noise.\n");
+    if(prr->f_nl_type == NULL) {
+        fastpm_info("Inducing correlation to the white noise.\n");
 
-    fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
-        (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
-
+        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
+            (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+    } else {
+        FastPMPNGaussian png = {
+            .fNL = prr->f_nl,
+            .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
+            .pkdata = &linear_powerspectrum,
+        };
+        fastpm_info("Inducing non gaussian correlation to the white noise.\n");
+        fastpm_png_induce_correlation(&png, fastpm->pm_2lpt, delta_k);
+    }
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
     /* our write out and clean up stuff.*/

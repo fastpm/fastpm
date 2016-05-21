@@ -3,6 +3,9 @@
 source testfunctions.sh
 
 set -x
+
+mpirun -n 4 $FASTPM standard.lua za nongaussian|| fail
+
 mpirun -n 4 $FASTPM standard.lua ic || fail
 mpirun -n 4 $FASTPM standard.lua pm lineark || fail
 mpirun -n 4 $FASTPM standard.lua pm whitenoisek || fail

@@ -20,6 +20,7 @@ LIBSOURCES = libfastpm.c \
     transfer.c \
     utils.c \
     initialcondition.c \
+    pngaussian.c \
     cosmology.c \
     powerspectrum.c \
     logging.c \

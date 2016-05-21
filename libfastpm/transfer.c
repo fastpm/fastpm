@@ -1,7 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <fastpm/libfastpm.h>
-#include <fastpm/transfer.h>
 #include "pmpfft.h"
 
 void
