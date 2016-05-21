@@ -37,7 +37,9 @@ void libfastpm_cleanup();
 
 FASTPM_END_DECLS
 
-typedef double (*fastpm_pkfunc)(double k, void * data);
+typedef double (*fastpm_fkfunc)(double k, void * data);
+
+#define fastpm_pkfunc fastpm_fkfunc
 
 #include "pmapi.h"
 

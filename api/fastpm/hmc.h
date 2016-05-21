@@ -12,7 +12,7 @@ typedef struct {
     int LPTOrder;
 
     struct {
-        fastpm_pkfunc func;
+        fastpm_fkfunc func;
         void * data;
     } TransferFunction;
 

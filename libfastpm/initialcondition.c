@@ -36,7 +36,7 @@ fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFi
 }
 
 struct PofK {
-    fastpm_pkfunc func;
+    fastpm_fkfunc func;
     void * data;
     double Volume;
 } ;
@@ -49,14 +49,14 @@ static double _powerspec_to_transfer(double k, struct PofK * pk)
 }
 
 void
-fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pkfunc, void * data)
+fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_fkfunc pkfunc, void * data)
 {
     struct PofK pk;
     pk.func = pkfunc;
     pk.data = data;
     pk.Volume = pm->Volume;
 
-    fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_pkfunc) _powerspec_to_transfer, &pk);
+    fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) _powerspec_to_transfer, &pk);
 }
 
 void

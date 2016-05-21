@@ -13,6 +13,6 @@ void
 fastpm_ic_remove_variance(PM * pm, FastPMFloat * delta_k);
 
 void
-fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_pkfunc pk, void * pkdata);
+fastpm_ic_induce_correlation(PM * pm, FastPMFloat * delta_k, fastpm_fkfunc pk, void * pkdata);
 
 FASTPM_END_DECLS

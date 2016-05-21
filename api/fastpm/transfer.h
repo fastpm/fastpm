@@ -19,6 +19,6 @@ void
 fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 
 void
-fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_pkfunc func, void * data);
+fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_fkfunc func, void * data);
 
 FASTPM_END_DECLS

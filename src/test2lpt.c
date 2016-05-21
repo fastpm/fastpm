@@ -56,13 +56,13 @@ int main(int argc, char * argv[]) {
     int seed = 299;
 
     fastpm_ic_fill_gaussiank(self->pm, rho_init_k0, seed, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(self->pm, rho_init_k0, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_induce_correlation(self->pm, rho_init_k0, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     pm_assign(self->pm, self->rho_final_x, rho_final_xtruth);
 //    double amplitude = 10000;
-//    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_pkfunc)fastpm_utils_powerspec_white, &amplitude, FASTPM_DELTAK_GADGET);
+//    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_fkfunc)fastpm_utils_powerspec_white, &amplitude, FASTPM_DELTAK_GADGET);
     memset(rho_init_ktruth, 0, pm_size(self->pm) * sizeof(FastPMFloat));
-//    fastpm_utils_fill_deltak(self->pm, rho_init_ktruth, seed, (fastpm_pkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
+//    fastpm_utils_fill_deltak(self->pm, rho_init_ktruth, seed, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
 
     fastpm_hmc_za_evolve(self, rho_init_ktruth, 5);
 

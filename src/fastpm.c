@@ -325,7 +325,7 @@ induce:
     fastpm_info("Inducing correlation to the white noise.\n");
 
     fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
-        (fastpm_pkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+        (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
 
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
