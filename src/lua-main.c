@@ -167,7 +167,7 @@ loads_param(char * confstr, Parameters * param)
 
     param->read_powerspectrum = read_string(L, "read_powerspectrum");
     param->scalar_amp = read_number(L, "scalar_amp");
-    param->pivot_scalar = read_number(L, "pivot_scalar");
+    param->scalar_pivot = read_number(L, "scalar_pivot");
     param->scalar_spectral_index = read_number(L, "scalar_spectral_index");
     param->f_nl = read_number(L, "f_nl");
     param->f_nl_type = read_string(L, "f_nl_type");    

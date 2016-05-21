@@ -7,6 +7,10 @@ typedef struct {
 
     /* fNL */
     double fNL;
+    double h;
+    double scalar_amp;
+    double scalar_spectral_index;
+    double scalar_pivot;
     /* FIXME: other parameters that are initialized by the struct. */
 
     /* private: */

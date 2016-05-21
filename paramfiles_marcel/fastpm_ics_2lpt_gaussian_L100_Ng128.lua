@@ -24,7 +24,7 @@ h       = 0.7
 -- Amplitude of primordial power spectrum at pivot scale
 scalar_amp = 2.130624e-9   -- same as scalar_amp in CAMB
 -- Pivot scale k_pivot in 1/Mpc
-pivot_scalar = 0.05  -- same as pivot_scalar in CAMB
+scalar_pivot = 0.05  -- same as pivot_scalar in CAMB
 -- Primordial spectral index n_s
 scalar_spectral_index = 0.9653  -- same as scalar_spectral_index in CAMB
 
