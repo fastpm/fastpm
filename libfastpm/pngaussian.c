@@ -44,7 +44,7 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
     double k_pivot_in_h_over_Mpc, P_Phi_k;
 
     /* k_pivot is in 1/Mpc, so need to divide by h to get it in h/Mpc.  */
-    k_pivot_in_Mpc_over_h = png->k_pivot / png->h;
+    k_pivot_in_h_over_Mpc = png->k_pivot / png->h;
 
     /* Compute A_s / k^3 */
     P_Phi_k = png->scalar_amp / k;
@@ -52,7 +52,7 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
     /* Prefactor */
     P_Phi_k *= 9.0/25.0 * 2.0 * M_PI * M_PI;
     /* Tilt */
-    P_Phi_k *= pow(k/k_pivot_in_Mpc_over_h, png->scalar_spectral_index - 1.0)
+    P_Phi_k *= pow(k/k_pivot_in_h_over_Mpc, png->scalar_spectral_index - 1.0)
 
     return P_Phi_k / sqrt(png->Volume);
 }
