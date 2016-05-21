@@ -20,17 +20,7 @@ h       = 0.7
 
 
 ------- Initial power spectrum --------
--- Use the same standard running power law model for the primordial super-
--- horizon power spectrum of curvature perturbations as CAMB, i.e.
---
---   k^3 P_zeta(k) / (2 pi^2) = A_s (k/k_pivot)^(n_s-1),
---
--- where A_s is the amplitude at the pivot scale k=k_pivot. The power of the
--- primordial potential Phi is therefore
--- 
---   P_Phi(k) = (9/25) P_zeta(k)
---            = (9/25) (2 pi^2 / k^3) A_s (k/k_pivot)^(n_s-1).
-
+-- See libfastpm/pngaussian.c for documentation
 -- Amplitude of primordial power spectrum at pivot scale
 scalar_amp = 2.130624e-9   -- same as scalar_amp in CAMB
 -- Pivot scale k_pivot in 1/Mpc
