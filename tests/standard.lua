@@ -24,6 +24,10 @@ elseif args[2] == 'zola' then
     za = false
     force_mode = "zola"
     time_step = linspace(0.1, 1, 10)
+elseif args[2] == 'ic' then
+    za = false
+    force_mode = "zola"
+    time_step = {0.1}
 end
 
 local function has(keyword)
@@ -65,11 +69,18 @@ output_redshifts= {9.0, 0.0}  -- redshifts of output
 omega_m = 0.307494
 h       = 0.6774
 
--- Start with a power spectrum file
--- Initial power spectrum: k P(k) in Mpc/h units
--- Must be compatible with the Cosmology parameter
-read_powerspectrum= "powerspec.txt"
-random_seed= 100
+if has('lineark') then
+    read_lineark = 'results-ic/lineark'
+else
+    --Start with a power spectrum file
+    -- Initial power spectrum: k P(k) in Mpc/h units
+    -- Must be compatible with the Cosmology parameter
+    read_powerspectrum = "powerspec.txt"
+    random_seed= 100
+    if has('whitenoisek') then
+        read_whitenoisek = 'results-ic/whitenoisek'
+    end
+end
 
 -------- Approximation Method ---------------
 force_mode = "pm"
