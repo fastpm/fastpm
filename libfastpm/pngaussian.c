@@ -41,6 +41,8 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
 
     /*FIXME: use the correct primordial power to construct the potential !*/    
 
+    if (k == 0) return 0.0;
+
     double k_pivot_in_h_over_Mpc, P_Phi_k;
 
     /* k_pivot is in 1/Mpc, so need to divide by h to get it in h/Mpc.  */
@@ -60,7 +62,10 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
 static double
 fastpm_png_transfer_function(double k, FastPMPNGaussian * png)
 {
+    if (k == 0) return 0.0;
+
     double transfer = sqrt(png->pkfunc(k, png->pkdata));
+
     /* powerspec = transfer^2 * pot, so we remove pot */
     transfer /= fastpm_png_potential(k, png);
     /* don't forget the volume factor */

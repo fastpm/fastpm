@@ -168,6 +168,12 @@ function Schema.dependency(self, ns)
         self.enforce_broadband_mode.default = "none"
     end
 
+    if ns.f_nl_type ~= "none" then
+        self.f_nl.required = true
+        self.scalar_amp.required = true
+        self.scalar_pivot.required = true
+        self.scalar_spectral_index.required = true
+    end
     --if self.time_step[0] <= 0.0 then
      --   error("Initial time must be greater than a = 0.0")
     --end
@@ -185,9 +191,9 @@ schema:add{name='change_pm',         type='table',  required=true }
 schema:add{name='np_alloc_factor',   type='number', required=true } schema:add{name='force_mode',        type='string', required=true,
           choices={'cola', 'zola', 'pm'}}
 -- Could make next three parameters required once new ICs used.
---schema:add{name='scalar_amp', type='number'}
---schema:add{name='scalar_pivot', type='number'}
---schema:add{name='scalar_spectral_index', type='number'}
+schema:add{name='scalar_amp', type='number'}
+schema:add{name='scalar_pivot', type='number'}
+schema:add{name='scalar_spectral_index', type='number'}
 
 schema:add{name='read_grafic',        type='string'}
 schema:add{name='read_lineark',        type='string'}
@@ -195,7 +201,7 @@ schema:add{name='write_lineark',         type='string'}
 schema:add{name='read_runpbic',       type='string'}
 schema:add{name='read_powerspectrum', type='file'}
 schema:add{name='f_nl', type='number', default=0.0}
---schema:add{name='f_nl_type', type='string', default='local', choices={'local'}}
+schema:add{name='f_nl_type', type='string', default='none', choices={'local', 'none'}}
 schema:add{name='sigma8',             type='number', default=0}
 schema:add{name='random_seed',         type='number'}
 schema:add{name='read_whitenoise',         type='string'}
