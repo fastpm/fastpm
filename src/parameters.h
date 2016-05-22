@@ -24,8 +24,8 @@ typedef struct {
 
     double sigma8;
     double scalar_amp;
-    double pivot_scalar;
     double scalar_spectral_index;
+    double scalar_pivot;
     double f_nl;
     char * f_nl_type;
 

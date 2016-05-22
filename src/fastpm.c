@@ -332,6 +332,10 @@ induce:
             .fNL = prr->f_nl,
             .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
             .pkdata = &linear_powerspectrum,
+	    .h = prr->h,
+	    .scalar_amp = prr->scalar_amp,
+	    .scalar_spectral_index = prr->scalar_spectral_index,
+	    .scalar_pivot = prr->scalar_pivot
         };
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
         fastpm_png_induce_correlation(&png, fastpm->pm_2lpt, delta_k);
