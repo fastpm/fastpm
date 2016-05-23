@@ -39,7 +39,7 @@ static void fastpm_model_pm_build(FastPMModel * model, PMStore * p, double ainit
     fastpm_model_create_subsample(model, psub, PACK_POS | PACK_DX1 | PACK_DX2);
 
     FastPM * solver = &(FastPM) {
-        .USE_COLA = 0,
+        .FORCE_TYPE = FASTPM_FORCE_PM,
         .USE_NONSTDDA = 0,
         .USE_MODEL = FASTPM_MODEL_NONE, /* this does not use any model */
         .K_LINEAR = model->fastpm->K_LINEAR,

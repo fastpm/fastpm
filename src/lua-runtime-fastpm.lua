@@ -1,123 +1,5 @@
-local function Schema()
-    local self = {}
-
-    local names = {}
-    local trace_actions = {}
-
-    function self.declare(options)
-        local name = options.name
-        local type = options.type
-        local required = options.required or false
-        local default = options.default
-        local choices = options.choices
-        local action = options.action
-
-        self[name] = {type=type, required=required, default=default, choices=choice, action=action}
-        names[#names + 1] = name
-    end
-
-    function self.print()
-        for i,k in pairs(names) do
-            v = self[k]
-            local header = string.format('name: %s ', k)
-            local body = ''
-            for kk,vv in pairs(v) do
-                body = string.format('%s %s:%s', body, kk,vv)
-            end
-            print(string.format('%s - %s', header, body))
-        end
-    end
-
-    local function exists(filename)
-        local file = io.open(filename, 'r')
-        if file == nil then
-            return true
-            --return false
-        end
-        file:close()
-        return true
-    end
-
-    local function check_array(name, entry, value)
-        eletype = entry.type:match('array:(%a+)')
-        for i, v in pairs(value) do
-            if type(v) ~= eletype then
-                error(string.format("entry %d of key `%s` is of type `%s`, but `%s` is expected",
-                    i, name, type(v), eletype))
-            end
-        end
-    end
-
-    local function check_file(name, entry, value)
-        if not exists(value) then
-            error(string.format("file `%s' is not readable.", value))
-        end
-    end
-
-    local function check_enum(name, entry, value)
-        if entry.choices[value] == nil then
-            local s = ''
-            for v,_ in pairs(entry.choices) do
-                s = s .. string.format('`%s`', v) .. ' '
-            end
-            print(s)
-            error(string.format("value `%s` of key `%s` is not one of %s",
-                value, name, s))
-        end
-    end
-
-    local function check_type(name, entry, value)
-        if entry.type == 'file' then
-            -- File?
-            check_file(name, entry, value)
-        elseif entry.type:match('array:(%a+)') ~= nil then
-            -- Array?
-            check_array(name, entry, value)
-        elseif entry.type == 'enum' then
-            -- Enum?
-            check_enum(name, entry, value)
-        elseif type(value) ~= entry.type then
-            -- Anything else
-            error(string.format("key `%s` is of type `%s`, but `%s` is expected",
-                name, type(value), entry.type))
-        end
-    end
-
-    local function bind_one(name, entry, value)
-        if value == nil then
-            if entry.required then
-                error(string.format("`%s` is required but undefined.", name))
-            else
-                return entry.default
-            end
-        else
-
-            check_type(name, entry, value)
-
-            if entry.action ~= nil then
-                entry.action(value)
-            end
-            return value
-        end
-    end
-
-    function self.bind(namespace)
-        result = {}
-        for i,k in pairs(names) do
-            result[k] = bind_one(k, self[k], namespace[k])
-        end
-        return result
-    end
-
-    function self.set_action(name, action)
-        self[name].action = action
-    end
-
-    return self
-end
-
-schema = Schema()
-schema.declare{name='nc',                type='number', required=true}
+schema = config.Schema()
+schema.declare{name='nc',                type='int', required=true}
 schema.declare{name='boxsize',           type='number', required=true}
 schema.declare{name='time_step',         type='array:number',  required=true }
 schema.declare{name='output_redshifts',  type='array:number',  required=true }
@@ -130,9 +12,10 @@ schema.declare{name='np_alloc_factor',   type='number', required=true }
 -- Force calculation --
 schema.declare{name='force_mode',        type='enum', required=true}
 schema.force_mode.choices = {
-    cola = 'FASTPM_FORCE_MODE_COLA',
-    zola = 'FASTPM_FORCE_MODE_ZOLA',
-    pm   = 'FASTPM_FORCE_MODE_PM',
+    cola = 'FASTPM_FORCE_COLA',
+    zola = 'FASTPM_FORCE_ZOLA',
+    fastpm = 'FASTPM_FORCE_FASTPM',
+    pm   = 'FASTPM_FORCE_PM',
 }
 schema.declare{name='enforce_broadband_mode',  type='enum',
             default='none', choices={'pm', 'linear', '2lpt', 'za', 'none'}}
@@ -144,7 +27,7 @@ schema.enforce_broadband_mode.choices = {
     none = 'FASTPM_MODEL_NONE',
 }
 
-schema.declare{name='enforce_broadband_kmax',  type='number', default=4}
+schema.declare{name='enforce_broadband_kmax',  type='int', default=4}
 schema.declare{name='cola_stdda',           type='boolean'}
 
 function schema.force_mode.action (force_mode)
@@ -163,8 +46,8 @@ end
 -- Primordial Non-Gaussianity --
 schema.declare{name='f_nl_type', type='enum', default='none'}
 schema.f_nl_type.choices = {
-    ['local'] = 'FASTPM_FNL_TYPE_LOCAL',
-    ['none']  = 'FASTPM_FNL_TYPE_NONE',
+    ['local'] = 'FASTPM_FNL_LOCAL',
+    ['none']  = 'FASTPM_FNL_NONE',
 }
 schema.declare{name='f_nl', type='number'}
 schema.declare{name='scalar_amp', type='number'}
@@ -187,7 +70,7 @@ schema.declare{name='read_whitenoise',         type='string'}
 
 schema.declare{name='read_powerspectrum', type='file'}
 schema.declare{name='sigma8',             type='number', default=0}
-schema.declare{name='random_seed',         type='number'}
+schema.declare{name='random_seed',         type='int'}
 schema.declare{name='inverted_ic',             type='boolean', default=false}
 schema.declare{name='remove_cosmic_variance',  type='boolean', default=false}
 

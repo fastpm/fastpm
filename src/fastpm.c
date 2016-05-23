@@ -132,20 +132,14 @@ int main(int argc, char ** argv) {
     };
 
     {
-        if(!strcmp(prr.force_mode, "cola")) {
-            fastpm->USE_COLA = 1;
-            fastpm->USE_ZOLA = 0;
-        } else
-        if(!strcmp(prr.force_mode, "zola")) {
-            fastpm->USE_COLA = 1;
-            fastpm->USE_ZOLA = 0;
-        } else
-        if(!strcmp(prr.force_mode, "pm")) {
-            fastpm->USE_COLA = 0;
-            fastpm->USE_ZOLA = 0;
-        } else {
-            fastpm_raise(-1, "Wrong force_mode `%s`. This shall not happen. Check lua schema.\n", prr.force_mode);
-        }
+        struct enum_entry table[] = {
+            {"fastpm", FASTPM_FORCE_FASTPM},
+            {"zola", FASTPM_FORCE_ZOLA},
+            {"pm", FASTPM_FORCE_PM},
+            {"cola", FASTPM_FORCE_COLA},
+            {NULL, -1},
+        };
+        fastpm->FORCE_TYPE = parse_enum(prr.force_mode, table);
     }
     {
         struct enum_entry table[] = {

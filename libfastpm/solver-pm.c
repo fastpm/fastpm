@@ -141,7 +141,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 
     CLOCK(warmup);
 
-    if(fastpm->USE_COLA) {
+    if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* If doing COLA, v_res = 0 at initial. */
         memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
     }

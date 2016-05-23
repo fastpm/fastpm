@@ -35,8 +35,7 @@ fastpm_pm_init(FastPM * fastpm, PMStore * p, int nmesh, int nc, double boxsize, 
         {.a_start = 0, .pm_nc_factor = 1},
         {.a_start = -1, .pm_nc_factor = 0},
     };
-    fastpm->USE_COLA = 0;
-    fastpm->USE_ZOLA = 1;
+    fastpm->FORCE_TYPE = FASTPM_FORCE_FASTPM;
     fastpm->USE_NONSTDDA = 0;
     fastpm->USE_EXTERNAL_PSTORE = p;
     fastpm->USE_MODEL = FASTPM_MODEL_NONE;

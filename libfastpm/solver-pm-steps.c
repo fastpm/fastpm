@@ -60,7 +60,7 @@ fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
     int d;
     for(d = 0; d < 3; d ++) {
         xo[d] = drift->p->x[i][d] + drift->p->v[i][d]*drift->dyyy;
-        if(drift->fastpm->USE_COLA) {
+        if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
             xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
         }
     }
@@ -73,7 +73,7 @@ fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
     int d;
     for(d = 0; d < 3; d++) {
         float ax = kick->p->acc[i][d];
-        if(kick->fastpm->USE_COLA) {
+        if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
             ax += (kick->p->dx1[i][d]*kick->q1 + kick->p->dx2[i][d]*kick->q2);
         }
         vo[d] = kick->p->v[i][d] + ax * kick->dda;
@@ -149,7 +149,7 @@ void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double a
 
     kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
     kick->q1 = growth1;
-    if(fastpm->USE_ZOLA) {
+    if(fastpm->FORCE_TYPE = FASTPM_FORCE_FASTPM) {
         kick->dda = -1.5 * OmegaM
            * 1 / (ac * ac * HubbleEa(ac, c))
            * (G_f(af, c) - G_f(ai, c)) / g_f(ac, c);
@@ -170,7 +170,7 @@ fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
 
     Cosmology c = CP(fastpm);
 
-    if(fastpm->USE_ZOLA) {
+    if(fastpm->FORCE_TYPE = FASTPM_FORCE_FASTPM) {
         drift->dyyy = 1 / (ac * ac * ac * HubbleEa(ac, c))
                     * (G_p(af, c) - G_p(ai, c)) / g_p(ac, c);
     } else {
@@ -348,7 +348,7 @@ fastpm_set_snapshot(FastPM * fastpm,
         for(d = 0; d < 3; d ++) {
             /* For cola,
              * add the lpt velocity to the residual velocity v*/
-            if(fastpm->USE_COLA)
+            if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA)
                 po->v[i][d] += p->dx1[i][d]*Dv1
                              + p->dx2[i][d]*Dv2;
             /* convert the unit from a**2 dx/dt in Mpc/h to a dx/dt km/s */

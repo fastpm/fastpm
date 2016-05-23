@@ -26,7 +26,7 @@ int main(int argc, char * argv[]) {
             {.a_start = 0, .pm_nc_factor = 2},
             {.a_start = -1, .pm_nc_factor = 0},
         },
-        .USE_COLA = 0,
+        .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .USE_NONSTDDA = 0,
         .USE_MODEL = 0,
         .nLPT = 2.5,

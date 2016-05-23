@@ -1,10 +1,16 @@
 FASTPM_BEGIN_DECLS
 
+typedef enum {
+    FASTPM_FNL_NONE,
+    FASTPM_FNL_LOCAL,
+} FastPMPNGaussianType;
+
 typedef struct {
     /* Linear theory power spectrum */
     fastpm_fkfunc pkfunc;
     void * pkdata;
 
+    FastPMPNGaussianType type;
     /* fNL */
     double fNL;
     double h;

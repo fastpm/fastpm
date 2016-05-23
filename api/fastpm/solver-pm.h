@@ -11,6 +11,7 @@ typedef struct FastPMKick FastPMKick;
 typedef struct FastPMExtension FastPMExtension;
 typedef struct FastPMModel FastPMModel;
 
+typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_ZOLA = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA} FastPMForceType;
 typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4, FASTPM_KERNEL_EASTWOOD } FastPMKernelType;
 typedef enum { FASTPM_DEALIASING_NONE, FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN} FastPMDealiasingType;
@@ -22,14 +23,14 @@ typedef struct {
     double omega_m;
     double alloc_factor;
     VPMInit * vpminit;
-    int USE_COLA;
     int USE_DX1_ONLY;
     int USE_NONSTDDA;
-    int USE_ZOLA;
     int USE_SHIFT;
+
     PMStore * USE_EXTERNAL_PSTORE;
     double nLPT;
 
+    FastPMForceType FORCE_TYPE;
     FastPMKernelType KERNEL_TYPE;
     FastPMDealiasingType DEALIASING_TYPE;
     FastPMModelType USE_MODEL;
