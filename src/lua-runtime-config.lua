@@ -156,7 +156,7 @@ local function visit_string(name, entry, mode)
         return [[
             const char * @PREFIX@_get_@name@(LuaConfig * lc)
             {
-                luaL_eval(lc->L, @name@);
+                luaL_eval(lc->L, "@name@");
                 const char * val = lua_tostring(lc->L, -1);
                 lua_pop(lc->L, 1);
                 if(val) return _strdup(val);
@@ -175,7 +175,7 @@ local function visit_number(name, entry, mode)
         return [[
             double @PREFIX@_get_@name@(LuaConfig * lc)
             {
-                luaL_eval(lc->L, @name@);
+                luaL_eval(lc->L, "@name@");
                 double val = lua_tonumber(lc->L, -1);
                 lua_pop(lc->L, 1);
                 return val;
@@ -193,7 +193,7 @@ local function visit_int(name, entry, mode)
         return [[
             int @PREFIX@_get_@name@(LuaConfig * lc)
             {
-                luaL_eval(lc->L, @name@);
+                luaL_eval(lc->L, "@name@");
                 double val = lua_tointeger(lc->L, -1);
                 lua_pop(lc->L, 1);
                 return val;
@@ -225,19 +225,20 @@ local function visit_array(name, entry, mode)
         return process([[
         @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc, int * size)
         {
-            luaL_eval(lc->L, name);
+            luaL_eval(lc->L, "@name@");
             const int n = luaL_len(lc->L, -1);
             double * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * n);
             int i;
             for(i = 1; i <= n; ++i) {
-                lua_pushinteger(L, i);
-                lua_gettable(L, -2);
-                @CTYPE@ x = @CONVERTOR@(L, -1);
-                lua_pop(L,1);
+                lua_pushinteger(lc->L, i);
+                lua_gettable(lc->L, -2);
+                @CTYPE@ x = @CONVERTOR@(lc->L, -1);
+                lua_pop(lc->L,1);
                 array[i-1] = x;
             }
-            lua_pop(L, 1);
-            *len = n;
+            lua_pop(lc->L, 1);
+            *size = n;
+            return array;
         }
         ]])
     end
@@ -262,7 +263,7 @@ local function visit_enum(name, entry, mode)
         local a = [[
             int @PREFIX@_get_@name@(LuaConfig * lc)
             {
-                luaL_eval(lc->L, @name@);
+                luaL_eval(lc->L, "@name@");
                 const char * str = lua_tostring(lc->L, -1);
                 int val;
             ]]
@@ -284,7 +285,7 @@ local function visit_boolean(name, entry, mode)
         return [[
             int @PREFIX@_get_@name@(LuaConfig * lc)
             {
-                luaL_eval(lc->L, @name@);
+                luaL_eval(lc->L, "@name@");
                 double val = lua_toboolean(lc->L, -1);
                 lua_pop(lc->L, 1);
                 return val;
@@ -326,6 +327,8 @@ local function compile(schema, opt)
     #include <lua.h>
     #include <lauxlib.h>
     #include <lualib.h>
+    #include <string.h>
+    #include <stdlib.h>
 
     typedef struct LuaConfig LuaConfig;
 
@@ -338,9 +341,10 @@ local function compile(schema, opt)
     static int luaL_eval(lua_State * L, const char * string)
     {
         /* Evaluate string based on the global namespace at stack top */
-        char * s = alloca(strlen(string) + 20);
+        char * s = malloc(strlen(string) + 20);
         sprintf(s, "return %s", string);
         luaL_loadstring(L, s);
+        free(s);
         lua_pushvalue(L, -2);
         lua_setupvalue(L, -2, 1);
         return lua_pcall(L, 0, 1, 0);
@@ -355,20 +359,22 @@ local function compile(schema, opt)
 
     LuaConfig * lua_config_new(const char * luastring)
     {
-        LuaConfig * lc = malloc(sizeof(lc[0]))
-        lc->L = L;
+        LuaConfig * lc = malloc(sizeof(lc[0]));
         lua_State * L = luaL_newstate();
         luaL_openlibs(L);
 
+        lc->L = L;
+
         lc->error = NULL;
         if(luaL_eval(L, luastring)) {
-            lc->error = lua_tostring(L, -1);
+            lc->error = _strdup(lua_tostring(L, -1));
             return lc;
         }
     }
 
     void lua_config_free(LuaConfig * lc)
     {
+        if(lc->error) free(lc->error);
         lua_close(lc->L);
         free(lc);
     }

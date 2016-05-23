@@ -9,10 +9,10 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install 
+LUA ?= ../lua/lua
 
-
-FASTPM_SOURCES = fastpm.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c
-FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c lua-runtime.c
+FASTPM_SOURCES = fastpm.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c lua-config.c
+FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c lua-runtime.c lua-config.c
 TEST_SOURCES = test2lpt.c testpm.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
@@ -21,6 +21,7 @@ SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 LUASOURCES = \
 	lua-runtime-dump.lua \
 	lua-runtime-main.lua \
+	lua-runtime-config.lua \
 	lua-runtime-fastpm.lua
 
 all: fastpm-lua fastpm test2lpt testpm
@@ -47,6 +48,9 @@ testpm : .objs/testpm.o ../libfastpm/libfastpm.a
 
 lua-runtime.c : $(LUASOURCES) make-lua-runtime.sh
 	bash make-lua-runtime.sh $(LUASOURCES) > $@
+
+lua-config.c lua-config.h : $(LUASOURCES) make-lua-config.lua
+	$(LUA) make-lua-config.lua lua-config
 
 clean:
 	rm -rf .objs
