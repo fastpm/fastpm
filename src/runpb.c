@@ -35,7 +35,7 @@ typedef struct {
 } FileHeader;
 
 int 
-read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename) 
+read_runpb_ic(FastPM * fastpm, PMStore * p, const char * filename)
 {
     int ThisTask = fastpm->ThisTask;
     int NTask = fastpm->NTask;
@@ -274,7 +274,7 @@ read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename)
     return 0;
 }
 
-static void write_mine(char * filebase, 
+static void write_mine(const char * filebase, 
             PMStore * p, double aa, Cosmology c, double boxsize, size_t Ntot,
             size_t * NcumFile, int * NperFile, int Nfile, 
             ptrdiff_t start, ptrdiff_t end) {
@@ -381,7 +381,7 @@ static void write_mine(char * filebase,
 }
 
 int 
-write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
+write_runpb_snapshot(FastPM * fastpm, PMStore * p, const char * filebase)
 {
     int ThisTask = fastpm->ThisTask;
     int NTask = fastpm->NTask;

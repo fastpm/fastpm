@@ -219,11 +219,13 @@ local function visit_array(name, entry, mode)
 
     if mode == 'h' then
         return process( [[
-            @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc, int * size);
+            @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * size);
+            @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc);
+            int @PREFIX@_get_n_@name@(LuaConfig * lc);
         ]])
     else
         return process([[
-        @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc, int * size)
+        @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * size)
         {
             luaL_eval(lc->L, "@name@");
             const int n = luaL_len(lc->L, -1);
@@ -239,6 +241,18 @@ local function visit_array(name, entry, mode)
             lua_pop(lc->L, 1);
             *size = n;
             return array;
+        }
+        @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc)
+        {
+            int size;
+            return @PREFIX@_get_@name@_full(lc, &size);
+        }
+        int @PREFIX@_get_n_@name@(LuaConfig * lc)
+        {
+            int size;
+            void * a = @PREFIX@_get_@name@_full(lc, &size);
+            free(a);
+            return size;
         }
         ]])
     end
@@ -368,8 +382,8 @@ local function compile(schema, opt)
         lc->error = NULL;
         if(luaL_eval(L, luastring)) {
             lc->error = _strdup(lua_tostring(L, -1));
-            return lc;
         }
+        return lc;
     }
 
     void lua_config_free(LuaConfig * lc)

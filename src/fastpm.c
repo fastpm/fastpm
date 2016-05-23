@@ -17,8 +17,20 @@
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
 
-#include "parameters.h"
+#include "lua-config.h"
 
+typedef struct {
+    int UseFFTW;
+    int NprocY;
+    int Nwriters;
+    LuaConfig * config;
+    char * string;
+} Parameters;
+
+extern char * 
+run_paramfile(char * filename, int runmain, int argc, char ** argv);
+
+#define CONF(prr, name) lua_config_get_ ## name (prr->config)
 
 /* command-line arguments */
 static char * ParamFileName;
@@ -32,24 +44,24 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 static void 
 _mkdir(const char *dir);
 static void 
-ensure_dir(char * path);
+ensure_dir(const char * path);
 
 int 
-read_runpb_ic(FastPM * fastpm, PMStore * p, char * filename);
+read_runpb_ic(FastPM * fastpm, PMStore * p, const char * filename);
 
 void 
-read_grafic_gaussian(PM * pm, FastPMFloat * g_x, char * filename);
+read_grafic_gaussian(PM * pm, FastPMFloat * g_x, const char * filename);
 
-int 
-write_runpb_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+int
+write_runpb_snapshot(FastPM * fastpm, PMStore * p, const char * filebase);
 
-int 
-write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters);
+int
+write_snapshot(FastPM * fastpm, PMStore * p, const char * filebase, char * parameters, int Nwriters);
 
-int 
-read_snapshot(FastPM * fastpm, PMStore * p, char * filebase);
+int
+read_snapshot(FastPM * fastpm, PMStore * p, const char * filebase);
 
-int 
+int
 read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
 
 int
@@ -57,46 +69,13 @@ read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double 
 
 int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm);
 
-struct enum_entry {
-    char * str;
-    int value;
-};
-
-static int parse_enum(const char * str, struct enum_entry * enum_table)
-{
-    struct enum_entry * p;
-    for(p = enum_table; p->str; p ++) {
-        if(!strcmp(str, p->str)) {
-            return p->value;
-        }
-    }
-    int n = 10;
-    for(p = enum_table; p->str; p ++) {
-        n += strlen(p->str) + 10;
-    }
-    char * options = malloc(n);
-    options[0] = 0;
-    for(p = enum_table; p->str; p ++) {
-        if(p != enum_table)
-            strcat(options, ", ");
-        strcat(options, "`");
-        strcat(options, p->str);
-        strcat(options, "`");
-    }
-
-    fastpm_raise(9999, "value `%s` is not recognized. Options are %s \n",
-        str, options);
-    return 0;
-}
-
-
 int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
-    Parameters prr = {0};
+    Parameters * prr = alloca(sizeof(prr[0]));
 
-    parse_args(&argc, &argv, &prr);
+    parse_args(&argc, &argv, prr);
 
     MPI_Comm comm = MPI_COMM_WORLD; 
 
@@ -104,75 +83,38 @@ int main(int argc, char ** argv) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
-    read_parameters(ParamFileName, &prr, argc, argv, comm);
+    read_parameters(ParamFileName, prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
-    VPMInit * vpminit = alloca(sizeof(VPMInit) * (prr.n_pm_nc_factor + 1));
+    VPMInit * vpminit = alloca(sizeof(VPMInit) * (CONF(prr, n_pm_nc_factor) + 1));
     int i;
-    for(i = 0; i < prr.n_pm_nc_factor; i ++) {
-        vpminit[i].a_start = prr.change_pm[i];
-        vpminit[i].pm_nc_factor = prr.pm_nc_factor[i];
+    for(i = 0; i < CONF(prr, n_pm_nc_factor); i ++) {
+        vpminit[i].a_start = CONF(prr, change_pm)[i];
+        vpminit[i].pm_nc_factor = CONF(prr, pm_nc_factor)[i];
     }
     /* mark the end */
     vpminit[i].pm_nc_factor = 0;
 
-    fastpm_info("np_alloc_factor = %g\n", prr.np_alloc_factor);
+    fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
 
     FastPM * fastpm = & (FastPM) {
-        .nc = prr.nc,
-        .alloc_factor = prr.np_alloc_factor, 
+        .nc = CONF(prr, nc),
+        .alloc_factor = CONF(prr, np_alloc_factor),
         .vpminit = vpminit,
-        .boxsize = prr.boxsize,
-        .omega_m = prr.omega_m,
-        .USE_NONSTDDA = !prr.cola_stdda,
-        .USE_DX1_ONLY = prr.use_dx1_only,
+        .boxsize = CONF(prr, boxsize),
+        .omega_m = CONF(prr, omega_m),
+        .USE_NONSTDDA = !CONF(prr, cola_stdda),
+        .USE_DX1_ONLY = CONF(prr, za),
         .nLPT = -2.5f,
-        .K_LINEAR = prr.enforce_broadband_kmax,
+        .K_LINEAR = CONF(prr, enforce_broadband_kmax),
         .USE_SHIFT = 1, /* compatible with old behavior, shift particles by 0.5 mesh*/
+        .FORCE_TYPE = CONF(prr, force_mode),
+        .USE_MODEL = CONF(prr, enforce_broadband_mode),
+        .KERNEL_TYPE = CONF(prr, kernel_type),
+        .DEALIASING_TYPE = CONF(prr, dealiasing_type),
     };
 
-    {
-        struct enum_entry table[] = {
-            {"fastpm", FASTPM_FORCE_FASTPM},
-            {"zola", FASTPM_FORCE_ZOLA},
-            {"pm", FASTPM_FORCE_PM},
-            {"cola", FASTPM_FORCE_COLA},
-            {NULL, -1},
-        };
-        fastpm->FORCE_TYPE = parse_enum(prr.force_mode, table);
-    }
-    {
-        struct enum_entry table[] = {
-            {"linear", FASTPM_MODEL_LINEAR},
-            {"2lpt", FASTPM_MODEL_2LPT},
-            {"za", FASTPM_MODEL_ZA},
-            {"pm", FASTPM_MODEL_PM},
-            {"none", FASTPM_MODEL_NONE},
-            {NULL, -1},
-        };
-        fastpm->USE_MODEL = parse_enum(prr.enforce_broadband_mode, table);
-    }
-    {
-        struct enum_entry table[] = {
-            {"eastwood", FASTPM_KERNEL_EASTWOOD},
-            {"3_4", FASTPM_KERNEL_3_4},
-            {"5_4", FASTPM_KERNEL_5_4},
-            {"3_2", FASTPM_KERNEL_3_2},
-            {NULL, -1},
-        };
-        fastpm->KERNEL_TYPE = parse_enum(prr.kernel_type, table);
-    }
-    {
-        struct enum_entry table[] = {
-            {"none", FASTPM_DEALIASING_NONE},
-            {"gaussian", FASTPM_DEALIASING_GAUSSIAN},
-            {"twothird", FASTPM_DEALIASING_TWO_THIRD},
-            {NULL, -1},
-        };
-        fastpm->DEALIASING_TYPE = parse_enum(prr.dealiasing_type, table);
-    }
-
-    run_fastpm(fastpm, &prr, comm);
+    run_fastpm(fastpm, prr, comm);
 
     libfastpm_cleanup();
 
@@ -195,7 +137,8 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(evolve);
 
     const double rho_crit = 27.7455;
-    const double M0 = prr->omega_m*rho_crit*pow(prr->boxsize / prr->nc, 3.0);
+    const double M0 = CONF(prr, omega_m) * rho_crit
+                    * pow(CONF(prr, boxsize) / CONF(prr, nc), 3.0);
     fastpm_info("mass of a particle is %g 1e10 Msun/h\n", M0); 
 
     MPI_Barrier(comm);
@@ -230,7 +173,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(evolve);
 
-    fastpm_evolve(fastpm, prr->time_step, prr->n_time_step);
+    fastpm_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
 
     LEAVE(evolve);
 
@@ -244,8 +187,8 @@ static void
 prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm) 
 {
     /* we may need a read gadget ic here too */
-    if(prr->read_runpbic) {
-        read_runpb_ic(fastpm, fastpm->p, prr->read_runpbic);
+    if(CONF(prr, read_runpbic)) {
+        read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
         fastpm_setup_ic(fastpm, NULL);
         return;
     } 
@@ -253,33 +196,33 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     /* at this point generating the ic involves delta_k */
     FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
 
-    if(prr->read_lineark) {
-        fastpm_info("Reading Fourier space linear overdensity from %s\n", prr->read_lineark);
-        fastpm_utils_load(fastpm->pm_2lpt, prr->read_lineark, delta_k);
+    if(CONF(prr, read_lineark)) {
+        fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr, read_lineark));
+        fastpm_utils_load(fastpm->pm_2lpt, CONF(prr, read_lineark), delta_k);
 
-        if(prr->inverted_ic) {
+        if(CONF(prr, inverted_ic)) {
             fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
         }
         goto produce;
     }
 
     /* at this power we need a powerspectrum file to convolve the guassian */
-    if(!prr->read_powerspectrum) {
+    if(!CONF(prr, read_powerspectrum)) {
         fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
     }
 
     FastPMPowerSpectrum linear_powerspectrum;
 
-    read_powerspectrum(&linear_powerspectrum, prr->read_powerspectrum, prr->sigma8, comm);
+    read_powerspectrum(&linear_powerspectrum, CONF(prr, read_powerspectrum), CONF(prr, sigma8), comm);
 
-    if(prr->read_grafic) {
-        fastpm_info("Reading grafic white noise file from '%s'.\n", prr->read_grafic);
+    if(CONF(prr, read_grafic)) {
+        fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr, read_grafic));
         fastpm_info("GrafIC noise is Fortran ordering. FastPM is in C ordering.\n");
         fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
         FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
 
-        read_grafic_gaussian(fastpm->pm_2lpt, g_x, prr->read_grafic);
+        read_grafic_gaussian(fastpm->pm_2lpt, g_x, CONF(prr, read_grafic));
 
         pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
 
@@ -288,49 +231,50 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
         goto induce;
     }
 
-    if(prr->read_whitenoisek) {
-        fastpm_info("Reading Fourier white noise file from '%s'.\n", prr->read_whitenoisek);
+    if(CONF(prr, read_whitenoisek)) {
+        fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr, read_whitenoisek));
 
-        fastpm_utils_load(fastpm->pm_2lpt, prr->read_whitenoisek, delta_k);
+        fastpm_utils_load(fastpm->pm_2lpt, CONF(prr, read_whitenoisek), delta_k);
         goto induce;
     }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
 
-    fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, prr->random_seed, FASTPM_DELTAK_GADGET);
+    fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, CONF(prr, random_seed), FASTPM_DELTAK_GADGET);
 
 induce:
 
-    if(prr->remove_cosmic_variance) {
+    if(CONF(prr, remove_cosmic_variance)) {
         fastpm_info("Remove Cosmic variance from initial condition.\n");
         fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
     }
 
-    if(prr->inverted_ic) {
+    if(CONF(prr, inverted_ic)) {
         fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
     }
 
-    if(prr->write_whitenoisek) {
-        fastpm_info("Writing Fourier white noise to file '%s'.\n", prr->write_whitenoisek);
-        ensure_dir(prr->write_whitenoisek);
-        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_whitenoisek, delta_k);
+    if(CONF(prr, write_whitenoisek)) {
+        fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
+        ensure_dir(CONF(prr, write_whitenoisek));
+        fastpm_utils_dump(fastpm->pm_2lpt, CONF(prr, write_whitenoisek), delta_k);
     }
 
     /* FIXME: use enums */
-    if(0 == strcmp(prr->f_nl_type, "none")) {
+    if(CONF(prr, f_nl_type) == FASTPM_FNL_NONE) {
         fastpm_info("Inducing correlation to the white noise.\n");
 
         fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
             (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
     } else {
         FastPMPNGaussian png = {
-            .fNL = prr->f_nl,
+            .fNL = CONF(prr, f_nl),
+            .type = CONF(prr, f_nl_type),
             .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
             .pkdata = &linear_powerspectrum,
-            .h = prr->h,
-            .scalar_amp = prr->scalar_amp,
-            .scalar_spectral_index = prr->scalar_spectral_index,
-            .scalar_pivot = prr->scalar_pivot
+            .h = CONF(prr, h),
+            .scalar_amp = CONF(prr, scalar_amp),
+            .scalar_spectral_index = CONF(prr, scalar_spectral_index),
+            .scalar_pivot = CONF(prr, scalar_pivot)
         };
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
         fastpm_png_induce_correlation(&png, fastpm->pm_2lpt, delta_k);
@@ -340,10 +284,10 @@ induce:
     /* our write out and clean up stuff.*/
 produce:
 
-    if(prr->write_lineark) {
-        fastpm_info("Writing fourier space linear field to %s\n", prr->write_lineark);
-        ensure_dir(prr->write_lineark);
-        fastpm_utils_dump(fastpm->pm_2lpt, prr->write_lineark, delta_k);
+    if(CONF(prr, write_lineark)) {
+        fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
+        ensure_dir(CONF(prr, write_lineark));
+        fastpm_utils_dump(fastpm->pm_2lpt, CONF(prr, write_lineark), delta_k);
     }
 
     fastpm_setup_ic(fastpm, delta_k);
@@ -352,7 +296,7 @@ produce:
 }
 
 static int check_snapshots(FastPM * fastpm, void * unused, Parameters * prr) {
-    fastpm_interp(fastpm, prr->aout, prr->n_aout, (fastpm_interp_action)take_a_snapshot, prr);
+    fastpm_interp(fastpm, CONF(prr, aout), CONF(prr, n_aout), (fastpm_interp_action)take_a_snapshot, prr);
     return 0;
 }
 
@@ -362,14 +306,14 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
     CLOCK(io);
     CLOCK(meta);
 
-    if(prr->write_snapshot) {
+    if(CONF(prr, write_snapshot)) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
         int Nwriters = prr->Nwriters;
         if(Nwriters == 0) {
             MPI_Comm_size(fastpm->comm, &Nwriters);
         }
-        sprintf(filebase, "%s_%0.04f", prr->write_snapshot, aout);
+        sprintf(filebase, "%s_%0.04f", CONF(prr, write_snapshot), aout);
 
         fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
                 filebase, z_out, aout, Nwriters);
@@ -385,11 +329,11 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 
         fastpm_info("snapshot %s written\n", filebase);
     }
-    if(prr->write_runpb_snapshot) {
+    if(CONF(prr, write_runpb_snapshot)) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
 
-        sprintf(filebase, "%s_%0.04f.bin", prr->write_runpb_snapshot, aout);
+        sprintf(filebase, "%s_%0.04f.bin", CONF(prr, write_runpb_snapshot), aout);
         ENTER(meta);
         ensure_dir(filebase);
         LEAVE(meta);
@@ -404,8 +348,8 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
                 filebase, z_out, aout);
 
     }
-    if(prr->write_nonlineark) {
-        char * filename = fastpm_strdup_printf("%s_%0.04f", prr->write_nonlineark, aout);
+    if(CONF(prr, write_nonlineark)) {
+        char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr, write_nonlineark), aout);
         FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
         fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
         ensure_dir(filename);
@@ -445,11 +389,11 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
     MPI_Barrier(fastpm->comm);
 
     ENTER(io);
-    if(prr->write_powerspectrum) {
+    if(CONF(prr, write_powerspectrum)) {
         if(fastpm->ThisTask == 0) {
-            ensure_dir(prr->write_powerspectrum);
+            ensure_dir(CONF(prr, write_powerspectrum));
             char buf[1024];
-            sprintf(buf, "%s_%0.04f.txt", prr->write_powerspectrum, a_x);
+            sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);
             fastpm_powerspectrum_write(&ps, buf, pow(fastpm->nc, 3.0));
         }
     }
@@ -545,7 +489,7 @@ usage:
 }
 
 static void 
-ensure_dir(char * path) 
+ensure_dir(const char * path) 
 {
     int i = strlen(path);
     char * dup = alloca(strlen(path) + 1);
@@ -580,5 +524,38 @@ _mkdir(const char *dir)
                     *p = '/';
             }
     mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
+}
+
+int read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm)
+{
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
+
+    /* read the configuration file */
+    char * confstr;
+    int confstr_len;
+
+    /* run the parameter file on root rank.
+     * other ranks use the serialized string to avoid duplicated
+     * error reports */
+    if(ThisTask == 0) {
+        confstr = run_paramfile(filename, 0, argc, argv);
+        confstr_len = strlen(confstr) + 1;
+        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
+        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+    } else {
+        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
+        confstr = malloc(confstr_len);
+        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
+    }
+
+    fastpm_info("Configuration %s\n", confstr);
+
+    param->config = lua_config_new(confstr);
+    param->string = confstr;
+    if(lua_config_error(param->config)) {
+        fastpm_raise(-1, "error: %s\n", lua_config_error(param->config));
+    }
+    return 0;
 }
 

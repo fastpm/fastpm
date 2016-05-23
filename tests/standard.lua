@@ -28,6 +28,8 @@ elseif args[2] == 'ic' then
     za = false
     force_mode = "zola"
     time_step = {0.1}
+else
+    error("wrong arg!")
 end
 
 local function has(keyword)

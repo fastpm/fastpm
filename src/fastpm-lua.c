@@ -4,10 +4,7 @@
 #include <mpi.h>
 
 #include <fastpm/logging.h>
-#include "parameters.h"
-
-extern void 
-loads_param(char * confstr, Parameters * param);
+#include "lua-config.h"
 
 extern char * 
 run_paramfile(char * filename, int runmain, int argc, char ** argv);
@@ -41,9 +38,10 @@ int main(int argc, char * argv[]) {
 
     confstr = run_paramfile(filename, 1, argc - 1, argv + 1);
 
-    Parameters param;
-    loads_param(confstr, &param);
-
+    LuaConfig * config;
+    config = lua_config_new(confstr);
+    fastpm_info("nc = %d\n", lua_config_get_nc(config));
+    lua_config_free(config);
     free(confstr);
     return 0;
 }

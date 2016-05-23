@@ -3,6 +3,16 @@ schema.declare{name='nc',                type='int', required=true}
 schema.declare{name='boxsize',           type='number', required=true}
 schema.declare{name='time_step',         type='array:number',  required=true }
 schema.declare{name='output_redshifts',  type='array:number',  required=true }
+schema.declare{name='aout',  type='array:number',  required=false}
+-- set aout from output_redshifts
+function schema.output_redshifts.action(output_redshifts)
+    local aout = {}
+    for i, z in pairs(output_redshifts) do
+        aout[i] = 1.0 / (z + 1.)
+    end
+    schema.aout.default = aout
+end
+
 schema.declare{name='omega_m',           type='number', required= true }
 schema.declare{name='h',                 type='number', required=true }
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true }
@@ -66,7 +76,7 @@ end
 schema.declare{name='read_grafic',        type='string'}
 schema.declare{name='read_lineark',        type='string'}
 schema.declare{name='read_runpbic',       type='string'}
-schema.declare{name='read_whitenoise',         type='string'}
+schema.declare{name='read_whitenoisek',         type='string'}
 
 schema.declare{name='read_powerspectrum', type='file'}
 schema.declare{name='sigma8',             type='number', default=0}
@@ -87,13 +97,13 @@ function schema.read_runpbic.action (read_lineark)
     schema.random_seed.required = false
     schema.read_powerspectrum.required = false
 end
-function schema.read_whitenoise.action (read_whitenoise)
+function schema.read_whitenoisek.action (read_whitenoisek)
     schema.random_seed.required = false
     schema.read_powerspectrum.required = true
 end
 
 schema.declare{name='write_lineark',         type='string'}
-schema.declare{name='write_whitenoise',         type='string'}
+schema.declare{name='write_whitenoisek',         type='string'}
 schema.declare{name='write_runpbic',       type='string'}
 schema.declare{name='write_powerspectrum', type='string'}
 schema.declare{name='write_snapshot',      type='string'}

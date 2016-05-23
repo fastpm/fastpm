@@ -12,18 +12,6 @@
 
 #include <fastpm/logging.h>
 
-/* Helper function s */
-static int luaL_eval(lua_State * L, const char * string)
-{
-    /* Evaluate string based on the global namespace at stack top */
-    char * s = alloca(strlen(string) + 20);
-    sprintf(s, "return %s", string);
-    luaL_loadstring(L, s);
-    lua_pushvalue(L, -2);
-    lua_setupvalue(L, -2, 1);
-    return lua_pcall(L, 0, 1, 0);
-}
-
 static char * _strdup(const char * str)
 {
     /* C99 */
@@ -32,67 +20,7 @@ static char * _strdup(const char * str)
     return ret;
 }
 
-/* evals the expression with -1 as env */
-static char * read_string(lua_State * L, const char * name) 
-{
-    luaL_eval(L, name);
-    const char * val = lua_tostring(L, -1);
-    lua_pop(L, 1);
-    if(val) return _strdup(val);
-    return NULL;
-}
-static int read_boolean(lua_State * L, const char * name) {
-    luaL_eval(L, name);
-    int val = lua_toboolean(L, -1);
-    lua_pop(L, 1);
-    return val;
-}
-static int read_integer(lua_State * L, const char * name) {
-    luaL_eval(L, name);
-    int val = lua_tointeger(L, -1);
-    lua_pop(L, 1);
-    return val;
-}
-static int * read_array_integer(lua_State * L, const char * name, int * len) {
-    luaL_eval(L, name);
-    const int n = luaL_len(L, -1);
-    int * array = (int*) malloc(sizeof(int) * n);
-    int i;
-    for(i = 1; i <= n; ++i) {
-        lua_pushinteger(L, i);
-        lua_gettable(L, -2);
-        int x = lua_tointeger(L, -1);
-        lua_pop(L,1);
-        array[i-1] = x;
-    }
-    lua_pop(L, 1);
-    *len = n;
-    return array;
-}
-static double read_number(lua_State * L, const char * name) {
-    luaL_eval(L, name);
-    double val = lua_tonumber(L, -1);
-    lua_pop(L, 1);
-    return val;
-}
-static double * read_array_number(lua_State * L, const char * name, int * len) {
-    luaL_eval(L, name);
-    const int n = luaL_len(L, -1);
-    double * array = (double*) malloc(sizeof(double) * n);
-    int i;
-    for(i = 1; i <= n; ++i) {
-        lua_pushinteger(L, i);
-        lua_gettable(L, -2);
-        double x = lua_tonumber(L, -1);
-        lua_pop(L,1);
-        array[i-1] = x;
-    }
-    lua_pop(L, 1);
-    *len = n;
-    return array;
-}
-
-char * 
+char *
 run_paramfile(char * filename, int runmain, int argc, char ** argv) 
 {
 
@@ -108,7 +36,7 @@ run_paramfile(char * filename, int runmain, int argc, char ** argv)
     }
 
     lua_getglobal(L, "_runmain");
-    char * real = _strdup(filename); //realpath(filename, NULL);
+    char * real = filename; //realpath(filename, NULL);
     lua_pushstring(L, real);
     lua_pushboolean(L, runmain);
 
@@ -117,7 +45,7 @@ run_paramfile(char * filename, int runmain, int argc, char ** argv)
     for(i = 0; i < argc; i ++) {
         lua_pushstring(L, argv[i]);
     }
-    free(real);
+
     if(lua_pcall(L, 2 + argc, 1, 0)) {
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
@@ -126,108 +54,5 @@ run_paramfile(char * filename, int runmain, int argc, char ** argv)
 
     lua_close(L);
     return confstr;
-}
-
-#include "parameters.h"
-
-void
-loads_param(char * confstr, Parameters * param)
-{
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
-
-    if(luaL_eval(L, confstr)) {
-        /* This shall never happen unless the dump library is brokean */
-        fastpm_raise(-1, "Error: %s\n", lua_tostring(L, -1));
-    }
-
-    param->string = _strdup(confstr);
-    param->nc = read_integer(L, "nc");
-    param->boxsize = read_number(L, "boxsize");
-
-    param->time_step = read_array_number(L, "time_step", &param->n_time_step);
-
-    param->aout = read_array_number(L, "output_redshifts", &param->n_aout);
-    /* convert z to a */
-    int i;
-    for(i = 0; i < param->n_aout; i ++) {
-        param->aout[i] = 1 / (param->aout[i] + 1);
-    }
-    param->omega_m = read_number(L, "omega_m");
-    param->h = read_number(L, "h");
-
-    param->pm_nc_factor = read_array_integer(L, "pm_nc_factor", &param->n_pm_nc_factor);
-    param->change_pm = read_array_number(L, "change_pm", &param->n_change_pm);
-    param->np_alloc_factor = read_number(L, "np_alloc_factor");
-
-    // File Names and optional parameters realated
-    param->read_grafic= read_string(L, "read_grafic");
-    param->read_lineark = read_string(L, "read_lineark");
-    param->read_runpbic = read_string(L, "read_runpbic");
-
-    param->read_powerspectrum = read_string(L, "read_powerspectrum");
-    param->scalar_amp = read_number(L, "scalar_amp");
-    param->scalar_pivot = read_number(L, "scalar_pivot");
-    param->scalar_spectral_index = read_number(L, "scalar_spectral_index");
-    param->f_nl = read_number(L, "f_nl");
-    param->f_nl_type = read_string(L, "f_nl_type");    
-    param->sigma8 = read_number(L, "sigma8");
-
-    param->random_seed = read_integer(L, "random_seed");
-    param->inverted_ic = read_boolean(L, "inverted_ic");
-    param->remove_cosmic_variance = read_boolean(L, "remove_cosmic_variance");
-
-    param->write_powerspectrum = read_string(L, "write_powerspectrum");
-
-    param->write_snapshot = read_string(L, "write_snapshot");
-    param->write_nonlineark = read_string(L, "write_nonlineark");
-    param->write_runpb_snapshot = read_string(L, "write_runpb_snapshot");
-    param->write_lineark = read_string(L, "write_lineark");
-
-    param->write_whitenoisek = read_string(L, "write_whitenoisek");
-    param->read_whitenoisek = read_string(L, "read_whitenoisek");
-
-    param->force_mode = read_string(L, "force_mode");
-    param->cola_stdda = read_boolean(L, "cola_stdda");
-
-    param->enforce_broadband_mode = read_string(L, "enforce_broadband_mode");
-    param->enforce_broadband_kmax = read_integer(L, "enforce_broadband_kmax");
-
-    param->use_dx1_only = read_boolean(L, "za");
-    param->kernel_type = read_string(L, "kernel_type");
-    param->dealiasing_type = read_string(L, "dealiasing_type");
-
-    lua_close(L);
-}
-
-int read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm)
-{
-    int ThisTask;
-    MPI_Comm_rank(comm, &ThisTask);
-
-    /* read the configuration file */
-    char * confstr;
-    int confstr_len;
-
-    /* run the parameter file on root rank.
-     * other ranks use the serialized string to avoid duplicated
-     * error reports */
-    if(ThisTask == 0) {
-        confstr = run_paramfile(filename, 0, argc, argv);
-        confstr_len = strlen(confstr) + 1;
-        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
-        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-    } else {
-        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
-        confstr = malloc(confstr_len);
-        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-    }
-
-    fastpm_info("Configuration %s\n", confstr);
-
-    loads_param(confstr, param);
-
-    free(confstr);
-    return 0;
 }
 
