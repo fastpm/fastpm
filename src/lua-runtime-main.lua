@@ -41,10 +41,8 @@ local function _runmain(filename, runmain, ...)
             main()
         end
     end
-    fastpm.schema:validate(namespace, false)
-    fastpm.schema:dependency(namespace)
-    local namespace2 = fastpm.schema:bind(namespace)
-    fastpm.schema:validate(namespace2, true)
+
+    local namespace2 = fastpm.schema.bind(namespace)
 
     for k,t in pairs(namespace2) do
         if type(t) == 'function' then
