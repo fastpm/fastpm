@@ -149,7 +149,7 @@ void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double a
 
     kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
     kick->q1 = growth1;
-    if(fastpm->FORCE_TYPE = FASTPM_FORCE_FASTPM) {
+    if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
         kick->dda = -1.5 * OmegaM
            * 1 / (ac * ac * HubbleEa(ac, c))
            * (G_f(af, c) - G_f(ai, c)) / g_f(ac, c);
@@ -170,7 +170,7 @@ fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
 
     Cosmology c = CP(fastpm);
 
-    if(fastpm->FORCE_TYPE = FASTPM_FORCE_FASTPM) {
+    if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
         drift->dyyy = 1 / (ac * ac * ac * HubbleEa(ac, c))
                     * (G_p(af, c) - G_p(ai, c)) / g_p(ac, c);
     } else {
