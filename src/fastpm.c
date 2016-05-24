@@ -168,7 +168,12 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
-    pm_store_summary(fastpm->p, comm);
+    fastpm_info("dx1  : %g %g %g %g\n", 
+            fastpm->info.dx1[0], fastpm->info.dx1[1], fastpm->info.dx1[2],
+            (fastpm->info.dx1[0] + fastpm->info.dx1[1] + fastpm->info.dx1[2]) / 3.0);
+    fastpm_info("dx2  : %g %g %g %g\n", 
+            fastpm->info.dx2[0], fastpm->info.dx2[1], fastpm->info.dx2[2],
+            (fastpm->info.dx2[0] + fastpm->info.dx2[1] + fastpm->info.dx2[2]) / 3.0);
 
     LEAVE(ic);
 
@@ -367,6 +372,17 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
 {
     CLOCK(compute);
     CLOCK(io);
+
+    fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
+        fastpm->info.istep,
+        fastpm->info.a_x,
+        fastpm->info.a_x1,
+        fastpm->info.a_v,
+        fastpm->info.a_v1,
+        fastpm->info.Nmesh);
+
+    fastpm_info("Load imbalance is - %g / + %g\n",
+        fastpm->info.imbalance.min, fastpm->info.imbalance.max);
 
     fastpm_report_memory(fastpm->comm);
 

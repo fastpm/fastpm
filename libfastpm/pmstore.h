@@ -18,7 +18,7 @@ pm_store_destroy(PMStore * p);
 
 
 void 
-pm_store_summary(PMStore * p, MPI_Comm comm);
+pm_store_summary(PMStore * p, double dx1[3], double dx2[3], MPI_Comm comm);
 
 void 
 pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3], int Nc[3]);

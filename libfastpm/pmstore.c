@@ -492,11 +492,14 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3], int Nc[3
 }
 
 void 
-pm_store_summary(PMStore * p, MPI_Comm comm) 
+pm_store_summary(PMStore * p, double dx1[3], double dx2[3], MPI_Comm comm) 
 {
 
-    double dx1disp[3] = {0};
-    double dx2disp[3] = {0};
+    int d;
+    for(d = 0; d < 3; d ++) {
+        dx1[d] = 0;
+        dx2[d] = 0;
+    }
     ptrdiff_t i;
 
 #pragma omp parallel for
@@ -504,30 +507,22 @@ pm_store_summary(PMStore * p, MPI_Comm comm)
         int d;
         for(d =0; d < 3; d++) {
 #pragma omp atomic
-            dx1disp[d] += p->dx1[i][d] * p->dx1[i][d];
+            dx1[d] += p->dx1[i][d] * p->dx1[i][d];
 #pragma omp atomic
-            dx2disp[d] += p->dx2[i][d] * p->dx2[i][d];
+            dx2[d] += p->dx2[i][d] * p->dx2[i][d];
         } 
     }
     uint64_t Ntot = p->np;
 
-    MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, dx1, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, dx2, 3, MPI_DOUBLE, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &Ntot,   1, MPI_LONG,  MPI_SUM, comm);
-    int d;
     for(d =0; d < 3; d++) {
-        dx1disp[d] /= Ntot;
-        dx1disp[d] = sqrt(dx1disp[d]);
-        dx2disp[d] /= Ntot;
-        dx2disp[d] = sqrt(dx2disp[d]);
+        dx1[d] /= Ntot;
+        dx1[d] = sqrt(dx1[d]);
+        dx2[d] /= Ntot;
+        dx2[d] = sqrt(dx2[d]);
     }
-
-    fastpm_info("dx1 disp : %g %g %g %g\n", 
-            dx1disp[0], dx1disp[1], dx1disp[2],
-            (dx1disp[0] + dx1disp[1] + dx1disp[2]) / 3.0);
-    fastpm_info("dx2 disp : %g %g %g %g\n", 
-            dx2disp[0], dx2disp[1], dx2disp[2],
-            (dx2disp[0] + dx2disp[1] + dx2disp[2]) / 3.0);
 
 }
 void 

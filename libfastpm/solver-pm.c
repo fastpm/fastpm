@@ -116,6 +116,7 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(fastpm->p->dx2, 0, sizeof(fastpm->p->dx2[0]) * fastpm->p->np);
     }
+    pm_store_summary(fastpm->p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
 }
 
 void
@@ -159,9 +160,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         fastpm_set_time(fastpm, istep, time_step, nstep,
                     &a_x, &a_x1, &a_v, &a_v1);
 
-        fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
-                    istep, a_x, a_x1, a_v, a_v1, fastpm->pm->init.Nmesh);
-
         ENTER(decompose);
         fastpm_decompose(fastpm);
         LEAVE(decompose);
@@ -180,7 +178,6 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
                     (fastpm, delta_k, a_x, ext->userdata);
         }
         LEAVE(afterforce);
-
 
         pm_free(fastpm->pm, delta_k);
 
@@ -272,14 +269,14 @@ fastpm_decompose(FastPM * fastpm) {
     pm_store_decompose(fastpm->p, to_rank, fastpm->pm, fastpm->comm);
     size_t np_max;
     size_t np_min;
+
     /* FIXME move NTask to somewhere else. */
     double np_mean = pow(fastpm->nc, 3) / fastpm->pm->NTask;
     MPI_Allreduce(&fastpm->p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->comm);
     MPI_Allreduce(&fastpm->p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->comm);
 
-    fastpm_info("Load imbalance is - %g / + %g\n",
-        np_min / np_mean, np_max / np_mean);
-
+    fastpm->info.imbalance.min = np_min / np_mean;
+    fastpm->info.imbalance.max = np_max / np_mean;
 }
 
 void 
@@ -353,6 +350,13 @@ fastpm_set_time(FastPM * fastpm,
 
     VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
     fastpm->pm = &vpm->pm;
+
+    fastpm->info.istep = istep;
+    fastpm->info.a_x = *a_x;
+    fastpm->info.a_x1 = *a_x1;
+    fastpm->info.a_v = *a_v;
+    fastpm->info.a_v1 = *a_v1;
+    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
 }
 
 void 

@@ -39,6 +39,22 @@ typedef struct {
     /* Extensions */
     FastPMExtension * exts[12];
 
+    struct {
+        /* For printing only. Do not use them to derive any physics quantities. */
+        int istep;
+        double a_x;
+        double a_x1;
+        double a_v;
+        double a_v1;
+        double dx1[3];
+        double dx2[3];
+        struct {
+            double min;
+            double max;
+        } imbalance;
+        int Nmesh;
+    } info;
+
     /* internal variables */
     MPI_Comm comm;
     int ThisTask;
