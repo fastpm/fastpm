@@ -56,10 +56,10 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
 
 
     int i;
-    BigFile bf = {0};
+    BigFile bf;
     big_file_mpi_create(&bf, filebase, comm);
     {
-        BigBlock bb = {0};
+        BigBlock bb;
         big_file_mpi_create_block(&bf, &bb, "header", "i8", 0, 1, 0, comm);
         double ScalingFactor = p->a_x;
         double OmegaM = fastpm->omega_m;
@@ -78,9 +78,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_block_mpi_close(&bb, comm);
     }
     {
-        BigBlock bb = {0};
-        BigArray array = {0};
-        BigBlockPtr ptr = {0};
+        BigBlock bb;
+        BigArray array;
+        BigBlockPtr ptr;
         big_file_mpi_create_block(&bf, &bb, "Position", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->x, "f8", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
@@ -92,9 +92,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_block_mpi_close(&bb, comm);
     }
     {
-        BigBlock bb = {0};
-        BigArray array = {0};
-        BigBlockPtr ptr = {0};
+        BigBlock bb;
+        BigArray array;
+        BigBlockPtr ptr;
         big_file_mpi_create_block(&bf, &bb, "Velocity", "f4", 3, Nfile, size, comm);
         big_array_init(&array, p->v, "f4", 2, (size_t[]) {p->np, 3}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
@@ -106,9 +106,9 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_block_mpi_close(&bb, comm);
     }
     {
-        BigBlock bb = {0};
-        BigArray array = {0};
-        BigBlockPtr ptr = {0};
+        BigBlock bb;
+        BigArray array;
+        BigBlockPtr ptr;
         big_file_mpi_create_block(&bf, &bb, "ID", "i8", 1, Nfile, size, comm);
         big_array_init(&array, p->id, "i8", 2, (size_t[]) {p->np, 1}, NULL);
         big_block_seek(&bb, &ptr, offsets[ThisTask]);
