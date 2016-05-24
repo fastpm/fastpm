@@ -53,6 +53,12 @@ else
     remove_cosmic_variance = false
 end
 
+if has('shift') then
+    shift = true
+else
+    shift = false
+end
+
 prefix = 'results'
 for i,k in pairs(args) do
     if i > 1 then

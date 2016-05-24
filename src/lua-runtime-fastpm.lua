@@ -81,6 +81,7 @@ schema.declare{name='read_whitenoisek',         type='string'}
 schema.declare{name='read_powerspectrum', type='file'}
 schema.declare{name='sigma8',             type='number', default=0}
 schema.declare{name='random_seed',         type='int'}
+schema.declare{name='shift',             type='boolean', default=false}
 schema.declare{name='inverted_ic',             type='boolean', default=false}
 schema.declare{name='remove_cosmic_variance',  type='boolean', default=false}
 
