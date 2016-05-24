@@ -86,29 +86,29 @@ typedef int
     (* fastpm_ext_before_drift) 
     (FastPM * fastpm, FastPMDrift * drift, void * userdata);
 
-typedef struct FastPMExtension {
+struct FastPMExtension {
     void * function; /* The function signature must match the types above */
     void * userdata;
     struct FastPMExtension * next;
-} FastPMExtension;
+};
 
-typedef struct FastPMDrift {
+struct FastPMDrift {
     FastPM * fastpm;
     PMStore * p;
     double dyyy;
     double da1;
     double da2;
     double af;
-} FastPMDrift;
+};
 
-typedef struct FastPMKick {
+struct FastPMKick {
     FastPM * fastpm;
     PMStore * p;
     float q1;
     float q2;
     float dda;
     double af;
-} FastPMKick;
+};
 
 void fastpm_init(FastPM * fastpm, 
     int NprocY,  /* Use 0 for auto */

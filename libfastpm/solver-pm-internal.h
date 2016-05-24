@@ -1,5 +1,3 @@
-typedef struct FastPMModel FastPMModel;
-
 struct FastPMModel {
     FastPMModelType type;
     FastPM * fastpm;

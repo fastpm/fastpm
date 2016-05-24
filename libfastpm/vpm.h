@@ -1,12 +1,12 @@
 
 /* Variable Particle Mesh */
 
-typedef struct VPM {
+struct VPM {
     PM pm;
     double a_start;
     int pm_nc_factor;
     int end;
-} VPM;
+};
 
 VPM * 
 vpm_create (VPMInit * vpminit, PMInit * baseinit, PMIFace * iface, MPI_Comm comm);

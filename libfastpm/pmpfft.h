@@ -32,7 +32,7 @@ typedef struct {
     int * MeshtoCart[2];
 } PMGrid;
 
-typedef struct PM {
+struct PM {
     PMInit init;
     PMIFace iface;
     int NTask;
@@ -60,7 +60,7 @@ typedef struct PM {
     double Volume;
     double CellSize[3];
     double InvCellSize[3];
-} PM;
+};
 
 void
 pm_module_init();
