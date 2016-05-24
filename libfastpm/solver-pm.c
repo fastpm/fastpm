@@ -116,7 +116,6 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(fastpm->p->dx2, 0, sizeof(fastpm->p->dx2[0]) * fastpm->p->np);
     }
-    pm_store_summary(fastpm->p, pm_2lpt->Comm2D);
 }
 
 void

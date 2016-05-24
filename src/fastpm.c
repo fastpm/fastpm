@@ -168,6 +168,8 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
+    pm_store_summary(fastpm->p, comm);
+
     LEAVE(ic);
 
     MPI_Barrier(comm);

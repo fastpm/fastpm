@@ -75,8 +75,6 @@ fastpm_2lpt_evolve(FastPM2LPTSolver * solver,
             }
         }
     }
-    pm_store_summary(solver->p, solver->pm->Comm2D);
-
     /* pdata->dx1 and pdata->dx2 are s1 and s2 terms 
      * S = D * dx1 + D2 * 3 / 7 * D20 * dx2; 
      *

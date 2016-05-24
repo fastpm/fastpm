@@ -73,6 +73,9 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
     self->delta_ic_k = pm_alloc(self->solver.pm);
     self->rho_final_x = pm_alloc(self->solver.pm);
     self->transfer_function = pm_alloc(self->solver.pm);
+    if(self->IncludeRSD) {
+        fastpm_info("Using RSD along z\n");
+    }
 }
 
 
@@ -122,7 +125,6 @@ fastpm_hmc_za_evolve_internal(
             .OmegaLambda = 1 - self->OmegaM,
         };
         double RSD = 1.0 / (self->p->a_x * self->p->a_x * HubbleEa(self->p->a_x, c));
-        fastpm_info("Using RSD along z\n");
         ptrdiff_t i;
         for(i = 0; i < self->p->np; i ++) {
             self->p->x[i][2] += self->p->v[i][2] * RSD;
@@ -309,7 +311,6 @@ fastpm_hmc_za_force_s1(
 
         /*FIXME: Add RSD f */
         if(self->IncludeRSD && d == 2) {
-            fastpm_info("Using RSD along z\n");
             Cosmology c = {
                         .OmegaM = self->OmegaM,
                         .OmegaLambda = 1 - self->OmegaM,
@@ -324,7 +325,6 @@ fastpm_hmc_za_force_s1(
         }
     }
 
-    fastpm_info(" Psi calculated\n");
     /* now we paint \Psi by the lagrangian position q */
 
     memset(Fk1, 0, sizeof(Fk1[0]) * pm_size(self->pm));
@@ -371,15 +371,12 @@ fastpm_hmc_za_force_s2(
         /* FIXME: put in D2 */
         Fpsi[ind] *= 3.0 / 7.0;
     }
-    fastpm_info(" starting 2LPT \n");
 
     /* 2LPT derivative begins here , carrying over Fk2 from above */
 
     pm_c2r(self->pm, Fpsi);
 
     memset(Fk2, 0, sizeof(Fk2[0]) * pm_size(self->pm));
-
-    fastpm_info(" starting diagonal elements \n");
 
     /* diagonal elements */
     for(d = 0; d < 3; d++){
@@ -414,8 +411,6 @@ fastpm_hmc_za_force_s2(
 
         }
     }
-
-    fastpm_info(" starting off diagonal elements \n");
 
     /* off - diagonal elements */
     for(d = 0; d < 3; d++){
