@@ -54,6 +54,7 @@ void big_file_set_error_message(char * msg) {
 }
 
 int big_file_open(BigFile * bf, const char * basename) {
+    memset(bf, 0, sizeof(bf[0]));
     struct stat st;
     RAISEIF(0 != stat(basename, &st),
             ex_stat,
@@ -66,6 +67,7 @@ ex_stat:
 }
 
 int big_file_create(BigFile * bf, const char * basename) {
+    memset(bf, 0, sizeof(bf[0]));
     bf->basename = strdup(basename);
     RAISEIF(0 != big_file_mksubdir_r("", basename),
         ex_subdir,
@@ -239,6 +241,7 @@ static int big_block_read_attr_set_v2(BigBlock * bb);
 static int big_block_write_attr_set_v2(BigBlock * bb);
 
 int big_block_open(BigBlock * bb, const char * basename) {
+    memset(bb, 0, sizeof(bb[0]));
     if(basename == NULL) basename = "";
     bb->basename = strdup(basename);
     bb->dirty = 0;
@@ -312,6 +315,7 @@ ex_open:
 }
 
 int big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]) {
+    memset(bb, 0, sizeof(bb[0]));
     if(basename == NULL) basename = "";
     bb->basename = strdup(basename);
 
@@ -1053,6 +1057,9 @@ int dtype_cmp(const char * dtype1, const char * dtype2) {
     return strcmp(ndtype1, ndtype2);
 }
 int big_array_init(BigArray * array, void * buf, const char * dtype, int ndim, const size_t dims[], const ptrdiff_t strides[]) {
+
+    memset(array, 0, sizeof(array[0]));
+
     dtype_normalize(array->dtype, dtype);
     array->data = buf;
     array->ndim = ndim;
@@ -1078,6 +1085,8 @@ int big_array_init(BigArray * array, void * buf, const char * dtype, int ndim, c
 }
 
 int big_array_iter_init(BigArrayIter * iter, BigArray * array) {
+    memset(iter, 0, sizeof(iter[0]));
+
     iter->array = array;
 
     memset(iter->pos, 0, sizeof(ptrdiff_t) * 32);
