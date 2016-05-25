@@ -187,16 +187,24 @@ fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
     }
     double k2 = log(ps->k[r]),
            k1 = log(ps->k[l]);
-    double p2 = log(ps->p[r]),
-           p1 = log(ps->p[l]);
+    double p2 = ps->p[r],
+           p1 = ps->p[l];
 
     k = log(k);
 
-    double p = (k - k1) * p2 + (k2 - k) * p1;
-    p /= (k2 - k1);
+    if(p1 != 0 && p2 != 0) {
+        p1 = log(p1);
+        p2 = log(p2);
 
-//    fastpm_info("Evaluating P(%g) = %g, l=%d, r=%d\n", exp(k), exp(p), l, r);
-    return exp(p);
+        double p = (k - k1) * p2 + (k2 - k) * p1;
+        p /= (k2 - k1);
+        return exp(p);
+    } else {
+        /* if any of the p is zero, use log linear interpolation */
+        double p = (k - k1) * p2 + (k2 - k) * p1;
+        p /= (k2 - k1);
+        return p;
+    }
 }
 
 double

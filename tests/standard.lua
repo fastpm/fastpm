@@ -24,6 +24,10 @@ elseif args[2] == 'zola' then
     za = false
     force_mode = "zola"
     time_step = linspace(0.1, 1, 10)
+elseif args[2] == 'fastpm' then
+    za = false
+    force_mode = "fastpm"
+    time_step = linspace(0.1, 1, 10)
 elseif args[2] == 'ic' then
     za = false
     force_mode = "zola"
@@ -58,6 +62,18 @@ if has('shift') then
 else
     shift = false
 end
+if has('gaussian36') then
+    dealiasing_type = 'gaussian36'
+end
+if has('gaussian') then
+    dealiasing_type = 'gaussian'
+end
+if has('twothird') then
+    dealiasing_type = 'twothird'
+end
+if has('eastwood') then
+    kernel_type = 'eastwood'
+end
 
 prefix = 'results'
 for i,k in pairs(args) do
@@ -90,7 +106,7 @@ else
     end
 end
 
-if has('nongaussian') then
+if has('fnl') then
     -- FIXME: what?
     f_nl_type = "local"
     scalar_amp = 2.441e-9
@@ -100,9 +116,7 @@ if has('nongaussian') then
 else
     f_nl_type = "none"
 end
-
 -------- Approximation Method ---------------
-force_mode = "pm"
 
 pm_nc_factor = {2, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm =    {0,}            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1

@@ -140,37 +140,6 @@ apply_force_kernel_eastwood(PM * pm, FastPMFloat * from, FastPMFloat * to, int d
 }
 
 static void
-apply_two_third_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to)
-{
-
-    double k_nq = M_PI * pm->Nmesh[0] / pm->BoxSize[0];
-
-#pragma omp parallel 
-    {
-        PMKIter kiter;
-        pm_kiter_init(pm, &kiter);
-
-        for(;
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            int d;
-            double kk_finite = 0;
-            ptrdiff_t ind = kiter.ind;
-            for(d = 0; d < 3; d++) {
-                kk_finite += kiter.kk[d][kiter.iabs[d]];
-            }
-            if(kk_finite > 0.667 * 0.667 * k_nq * k_nq) {
-                to[ind + 0] = 0;
-                to[ind + 1] = 0;
-            } else {
-                to[ind + 0] = from[ind + 0];
-                to[ind + 1] = from[ind + 1];
-            }
-        }
-    }
-}
-
-static void
 apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double N)
 {
 
@@ -182,6 +151,7 @@ apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double 
         int d;
         int i;
         double *kernel[3];
+        pm_kiter_init(pm, &kiter);
         for(d = 0; d < 3; d ++) {
             kernel[d] = malloc(sizeof(double) * pm->Nmesh[d]);
             for(i = 0; i < pm->Nmesh[d]; i ++) {
@@ -202,6 +172,12 @@ apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double 
             to[ind + 1] *= fac;
         }
     }
+}
+static double
+gaussian36(double k, double * knq)
+{
+    double x = k / *knq;
+    return exp(- 36 * pow(x, 36));
 }
 
 void
@@ -233,6 +209,29 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
 
     /* calculate the forces save them to p->acc */
 
+    switch(fastpm->DEALIASING_TYPE) {
+        case FASTPM_DEALIASING_TWO_THIRD:
+            {
+            double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
+            fastpm_apply_lowpass_transfer(pm, delta_k, delta_k, 2.0 / 3 * k_nq);
+            }
+        break;
+        case FASTPM_DEALIASING_GAUSSIAN:
+            apply_gaussian_dealiasing(pm, delta_k, delta_k, 1.0);
+        break;
+        case FASTPM_DEALIASING_GAUSSIAN36:
+            {
+            double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
+            fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) gaussian36, &k_nq);
+        }
+        break;
+        case FASTPM_DEALIASING_NONE:
+        break;
+        default:
+            fastpm_raise(-1, "wrong dealiasing kernel type");
+    }
+
+
     int d;
     ptrdiff_t i;
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
@@ -253,22 +252,6 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
             break;
             default:
                 fastpm_raise(-1, "Wrong kernel type\n");
-        }
-
-        switch(fastpm->DEALIASING_TYPE) {
-            case FASTPM_DEALIASING_TWO_THIRD:
-                apply_two_third_dealiasing(pm, canvas, canvas);
-            break;
-            case FASTPM_DEALIASING_GAUSSIAN:
-                apply_gaussian_dealiasing(pm, canvas, canvas, 1.0);
-            break;
-            case FASTPM_DEALIASING_NONE:
-            break;
-            //case FASTPM_DEALIASING_GUASSIAN36:
-            //    apply_guassian36_smoothing(pm, canvas, canvas, 1.0);
-            // break;
-            default:
-                fastpm_raise(-1, "wrong dealiasing kernel type");
         }
 
         LEAVE(transfer);

@@ -123,6 +123,7 @@ schema.declare{name='dealiasing_type',             type='enum', default="none"}
 schema.dealiasing_type.choices = {
     none = 'FASTPM_DEALIASING_NONE',
     gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
+    gaussian36 = 'FASTPM_DEALIASING_GAUSSIAN36',
     twothird = 'FASTPM_DEALIASING_TWO_THIRD',
 }
 
