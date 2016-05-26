@@ -23,7 +23,7 @@ schema.declare{name='np_alloc_factor',   type='number', required=true }
 schema.declare{name='force_mode',        type='enum', required=true}
 schema.force_mode.choices = {
     cola = 'FASTPM_FORCE_COLA',
-    zola = 'FASTPM_FORCE_ZOLA',
+    zola = 'FASTPM_FORCE_FASTPM',
     fastpm = 'FASTPM_FORCE_FASTPM',
     pm   = 'FASTPM_FORCE_PM',
 }

@@ -202,6 +202,7 @@ static void * malloczero(size_t s) {
     if(p == NULL) {
         fastpm_raise(-1, "No memory for %td bytes\n", s);
     }
+    memset(p, 0, s);
     AllocTable[NAllocTable].s = s;
     AllocTable[NAllocTable].p = p;
     NAllocTable ++;

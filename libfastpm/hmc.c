@@ -39,6 +39,7 @@ fastpm_pm_init(FastPM * fastpm, PMStore * p, int nmesh, int nc, double boxsize, 
     fastpm->USE_NONSTDDA = 0;
     fastpm->USE_EXTERNAL_PSTORE = p;
     fastpm->USE_MODEL = FASTPM_MODEL_NONE;
+    fastpm->USE_SHIFT = 0;
     fastpm->nLPT = 2.5;
     fastpm->K_LINEAR = 4;
     fastpm->KERNEL_TYPE = FASTPM_KERNEL_EASTWOOD;
@@ -60,8 +61,11 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
         default:
             fastpm_raise(-1, "Wrong LPT Order, can only be 1 or 2\n");
     }
+
     double alloc_factor = 2.0;
     fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
+    self->solver.USE_SHIFT = 0;
+
     fastpm_pm_init(&self->pm_solver, self->solver.p, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, self->OmegaM, comm);
 
     /* FIXME: create a new pm object */
