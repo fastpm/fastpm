@@ -120,6 +120,6 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
     center = 0.5 * (edges[1:] + edges[:-1])
     if return_modes:
         return center, H / N *boxsize ** 3, N
-    else return_modes:
+    else:
         return center, H / N *boxsize ** 3
 
