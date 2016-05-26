@@ -4,7 +4,6 @@ local function Schema()
     local self = {}
 
     local names = {}
-    local trace_actions = {}
 
     function self.declare(options)
         local name = options.name
@@ -101,17 +100,19 @@ local function Schema()
             if entry.required then
                 error(string.format("`%s` is required but undefined.", name))
             else
-                return entry.default
+                value = entry.default
             end
-        else
-
-            check_type(name, entry, value)
-
-            if entry.action ~= nil then
-                entry.action(value)
-            end
-            return value
         end
+        -- default could be nil
+        -- nil matches any type requirements
+        if value ~= nil then
+            check_type(name, entry, value)
+        end
+
+        if entry.action ~= nil then
+            entry.action(value)
+        end
+        return value
     end
 
     function self.bind(namespace)
@@ -307,6 +308,23 @@ local function visit_boolean(name, entry, mode)
         ]]
     end
 end
+local function visit_any(name, entry, mode)
+    if mode == 'h' then
+        return [[
+            int @PREFIX@_has_@name@(LuaConfig * lc);
+        ]]
+    else
+        return [[
+            int @PREFIX@_has_@name@(LuaConfig * lc)
+            {
+                luaL_eval(lc->L, "@name@");
+                int isnil = lua_isnil(lc->L, -1);
+                lua_pop(lc->L, 1);
+                return !isnil;
+            }
+        ]]
+    end
+end
 
 local function visit(name, entry, mode)
     if entry.type == 'string' then
@@ -412,12 +430,14 @@ local function compile(schema, opt)
     end
 
     for name, entry in schema.pairs() do
+        local h1 = rtrim(visit_any(name, entry, 'h'))
+        local c1 = rtrim(visit_any(name, entry, 'c'))
         local h = rtrim(visit(name, entry, 'h'))
         local c = rtrim(visit(name, entry, 'c'))
 
-        h = string.gsub(h, '@PREFIX@', opt.prefix)
+        h = string.gsub(h1 .. h, '@PREFIX@', opt.prefix)
         h = string.gsub(h, '@name@', name)
-        c = string.gsub(c, '@PREFIX@', opt.prefix)
+        c = string.gsub(c1 .. c, '@PREFIX@', opt.prefix)
         c = string.gsub(c, '@name@', name)
         stream_h = stream_h .. h
         stream_c = stream_c .. c

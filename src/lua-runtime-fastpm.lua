@@ -20,7 +20,7 @@ schema.declare{name='change_pm',         type='array:number',  required=true }
 schema.declare{name='np_alloc_factor',   type='number', required=true }
 
 -- Force calculation --
-schema.declare{name='force_mode',        type='enum', required=true}
+schema.declare{name='force_mode',        type='enum', default='fastpm'}
 schema.force_mode.choices = {
     cola = 'FASTPM_FORCE_COLA',
     zola = 'FASTPM_FORCE_FASTPM',
@@ -48,6 +48,9 @@ function schema.force_mode.action (force_mode)
         schema.cola_stdda.default = false
         schema.enforce_broadband_mode.default = "none"
     elseif force_mode == "zola" then
+        schema.cola_stdda.default = true
+        schema.enforce_broadband_mode.default = "none"
+    elseif force_mode == "fastpm" then
         schema.cola_stdda.default = true
         schema.enforce_broadband_mode.default = "none"
     end
@@ -86,21 +89,29 @@ schema.declare{name='inverted_ic',             type='boolean', default=false}
 schema.declare{name='remove_cosmic_variance',  type='boolean', default=false}
 
 function schema.read_grafic.action (read_grafic)
-    schema.random_seed.required = false
-    schema.read_powerspectrum.required = false
+    if read_grafic ~= nil then
+        schema.random_seed.required = false
+        schema.read_powerspectrum.required = false
+    end
 end
 
 function schema.read_lineark.action (read_lineark)
-    schema.random_seed.required = false
-    schema.read_powerspectrum.required = false
+    if read_lineark ~= nil then
+        schema.random_seed.required = false
+        schema.read_powerspectrum.required = false
+    end
 end
-function schema.read_runpbic.action (read_lineark)
-    schema.random_seed.required = false
-    schema.read_powerspectrum.required = false
+function schema.read_runpbic.action (read_runpbic)
+    if read_runpbic ~= nil then
+        schema.random_seed.required = false
+        schema.read_powerspectrum.required = false
+    end
 end
 function schema.read_whitenoisek.action (read_whitenoisek)
-    schema.random_seed.required = false
-    schema.read_powerspectrum.required = true
+    if read_whitenoisek ~= nil then
+        schema.random_seed.required = false
+        schema.read_powerspectrum.required = true
+    end
 end
 
 schema.declare{name='write_lineark',         type='string'}
