@@ -6,6 +6,8 @@
 
 local config = require("lua-runtime-config")
 
+local _NAME = ... or 'main'
+
 local fastpm = {}
 
 local schema = config.Schema()
@@ -245,9 +247,9 @@ end
 fastpm.schema = schema
 
 --
--- The main function, must be a global symbol
+-- The main functions, must be a global symbol
 --
-function _main(filename, runmain, ...)
+function _parse_runmain(filename, ...)
 
     local fastpm = require('lua-runtime-fastpm')
     local config = require('lua-runtime-config')
@@ -255,7 +257,18 @@ function _main(filename, runmain, ...)
     logspace = fastpm.logspace
     linspace = fastpm.linspace
 
-    return config.parse(fastpm.schema, filename, runmain, {...})
+    return config.parse(fastpm.schema, filename, true, {...})
+end
+
+function _parse(filename, ...)
+
+    local fastpm = require('lua-runtime-fastpm')
+    local config = require('lua-runtime-config')
+
+    logspace = fastpm.logspace
+    linspace = fastpm.linspace
+
+    return config.parse(fastpm.schema, filename, false, {...})
 end
 
 return fastpm

@@ -11,9 +11,11 @@ produce_open () {
 cat <<EOF
     {
         luaL_getsubtable(L, LUA_REGISTRYINDEX, "_LOADED");
-        if(luaL_loadbuffer(L, (char*) $prefix, ${prefix}_len, "$fn")
-        || lua_pcall(L, 0, 1, 0)
-        ) {
+        if(luaL_loadbuffer(L, (char*) $prefix, ${prefix}_len, "$fn")) {
+            return 1;
+        }
+        lua_pushstring(L, "$modulename");
+        if(lua_pcall(L, 1, 1, 0)) {
             return 1;
         }
         lua_setfield(L, -2, "$modulename");

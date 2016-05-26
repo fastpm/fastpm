@@ -9,7 +9,6 @@ filename_h = module .. '.h'
 
 stream_h, stream_c = config.compile(fastpm.schema,
 {
-    prefix ="lua_config",
     global_headers = {
         'fastpm/libfastpm.h',
     },

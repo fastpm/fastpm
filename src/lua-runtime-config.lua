@@ -1,5 +1,7 @@
 local dump = require("lua-runtime-dump")
 
+local _NAME = ... or 'main'
+
 config = {}
 
 local function Schema()
@@ -355,6 +357,8 @@ function config.compile(schema, opt)
         void lua_config_free(LuaConfig * lc);
         LuaConfig * lua_config_new(const char * luastring);
         const char * lua_config_error(LuaConfig * lc);
+        /* call global lua function with filename and arg as arguments */
+        char * lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
     ]]
 
     local preample_c = [[
@@ -406,6 +410,48 @@ function config.compile(schema, opt)
         return lc;
     }
 
+    char *
+    lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error)
+    {
+
+        char * confstr;
+
+        extern int lua_open_runtime(lua_State * L);
+
+        lua_State *L = luaL_newstate();
+        luaL_openlibs(L);
+
+        if(lua_open_runtime(L)) {
+            *error = _strdup(lua_tostring(L, -1));
+            goto fail;
+        }
+
+        lua_getglobal(L, entrypoint);
+        char * real = filename; //realpath(filename, NULL);
+        lua_pushstring(L, real);
+
+        int i;
+
+        for(i = 0; i < argc; i ++) {
+            lua_pushstring(L, argv[i]);
+        }
+
+        if(lua_pcall(L, 1 + argc, 1, 0)) {
+            *error = _strdup(lua_tostring(L, -1));
+            goto fail;
+        }
+        confstr = _strdup(lua_tostring(L, -1));
+        lua_pop(L, 1);
+
+        lua_close(L);
+        return confstr;
+
+    fail:
+        lua_close(L);
+        return NULL;
+    }
+
+
     void lua_config_free(LuaConfig * lc)
     {
         if(lc->error) free(lc->error);
@@ -422,11 +468,13 @@ function config.compile(schema, opt)
     local stream_h = rtrim(preample_h)
     local stream_c = rtrim(preample_c)
 
-    for i, fn in pairs(opt.global_headers) do
+    local prefix = opt.prefix or 'lua_config'
+
+    for i, fn in pairs(opt.global_headers or {}) do
         local include = "#include <" .. fn .. ">\n"
         stream_c = stream_c .. include
     end
-    for i, fn in pairs(opt.local_headers) do
+    for i, fn in pairs(opt.local_headers or {}) do
         local include = "#include \"" .. fn .. "\"\n"
         stream_c = stream_c .. include
     end
@@ -437,9 +485,9 @@ function config.compile(schema, opt)
         local h = rtrim(visit(name, entry, 'h'))
         local c = rtrim(visit(name, entry, 'c'))
 
-        h = string.gsub(h1 .. h, '@PREFIX@', opt.prefix)
+        h = string.gsub(h1 .. h, '@PREFIX@', prefix)
         h = string.gsub(h, '@name@', name)
-        c = string.gsub(c1 .. c, '@PREFIX@', opt.prefix)
+        c = string.gsub(c1 .. c, '@PREFIX@', prefix)
         c = string.gsub(c, '@name@', name)
         stream_h = stream_h .. h
         stream_c = stream_c .. c

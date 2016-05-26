@@ -28,7 +28,7 @@ typedef struct {
 } Parameters;
 
 extern char * 
-run_paramfile(char * filename, int runmain, int argc, char ** argv);
+lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
 
 #define CONF(prr, name) lua_config_get_ ## name (prr->config)
 
@@ -557,7 +557,11 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
      * other ranks use the serialized string to avoid duplicated
      * error reports */
     if(ThisTask == 0) {
-        confstr = run_paramfile(filename, 0, argc, argv);
+        char * error;
+        confstr = lua_config_parse("_parse", filename, argc, argv, &error);
+        if(confstr == NULL) {
+            fastpm_raise(-1, "%s\n", error);
+        }
         confstr_len = strlen(confstr) + 1;
         MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
         MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);

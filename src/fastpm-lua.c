@@ -6,9 +6,6 @@
 #include <fastpm/logging.h>
 #include "lua-config.h"
 
-extern char * 
-run_paramfile(char * filename, int runmain, int argc, char ** argv);
-
 static void _non_mpi_msg_handler(
             const enum FastPMLogLevel level,
             const enum FastPMLogType type,
@@ -36,8 +33,11 @@ int main(int argc, char * argv[]) {
     }
     char * filename = argv[1];
 
-    confstr = run_paramfile(filename, 1, argc - 1, argv + 1);
-
+    char * error;
+    confstr = lua_config_parse("_parse_runmain", filename, argc - 1, argv + 1, &error);
+    if(confstr == NULL) {
+        fastpm_raise(-1, "%s\n", error);
+    }
     LuaConfig * config;
     config = lua_config_new(confstr);
     fastpm_info("nc = %d\n", lua_config_get_nc(config));
