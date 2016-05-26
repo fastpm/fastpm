@@ -1,6 +1,37 @@
-CC=mpicc
-OPENMP = -fopenmp
-CPPFLAGS = -Wall -Werror -DFASTPM_FFT_PRECISION=32
-LDFLAGS = 
-OPTIMIZE ?= -O0 -g 
+#
+# Pick the MPI C compiler
+# CC = mpicc
+#
+
+#
+# cc flag to enable OPENMP
+#
+# OPENMP = -fopenmp
+#
+
+#
+# For double precision FFT, use 
+#
+# CPPFLAGS = -DFASTPM_FFT_PRECISION=64
+#
+# Usually, use
+# 
+# CPPFLAGS = -DFASTPM_FFT_PRECISION=32
+
+#
+# Set special LDFLAGS, 
+# e.g if mpicc cannot find MPI libraries
+#
+# LDFLAGS = 
+#
+
+#
+# Use -O3 for faster code
+#
+OPTIMIZE = -O3 -g
+
+#
+# On some systems, DEPCMD has to be modified to include MPI headers
+#
+# DEPCMD = gcc -MG -MP -MT .objs/$(<:%.c=%.o) -MM 
 

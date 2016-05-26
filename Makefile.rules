@@ -1,4 +1,7 @@
-DEPCMD ?= gcc -MG -MT .objs/$(<:%.c=%.o) -MM 
+DEPCMD ?= gcc -MG -MP -MT .objs/$(<:%.c=%.o) -MM 
+CC ?= mpicc
+OPENMP ?= -fopenmp
+OPTIMIZE ?= -O0 -g
 
 .objs/%.o : %.c
 	@if ! [ -d .objs ]; then mkdir -p .objs; fi
