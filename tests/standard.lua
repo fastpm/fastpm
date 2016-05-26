@@ -15,19 +15,19 @@ elseif args[2] == '2lpt' then
 elseif args[2] == 'cola' then
     za = false
     force_mode = "cola"
-    time_step = linspace(0.1, 1, 10)
+    time_step = linspace(0.1, 1, 5)
 elseif args[2] == 'pm' then
     za = false
     force_mode = "pm"
-    time_step = linspace(0.1, 1, 10)
+    time_step = linspace(0.1, 1, 5)
 elseif args[2] == 'zola' then
     za = false
     force_mode = "zola"
-    time_step = linspace(0.1, 1, 10)
+    time_step = linspace(0.1, 1, 5)
 elseif args[2] == 'fastpm' then
     za = false
     force_mode = "fastpm"
-    time_step = linspace(0.1, 1, 10)
+    time_step = linspace(0.1, 1, 5)
 elseif args[2] == 'ic' then
     za = false
     force_mode = "zola"
