@@ -1,3 +1,5 @@
+local dump = require("lua-runtime-dump")
+
 config = {}
 
 local function Schema()
@@ -346,7 +348,7 @@ local function visit(name, entry, mode)
     end
 end
 
-local function compile(schema, opt)
+function config.compile(schema, opt)
     local preample_h = [[
         typedef struct LuaConfig LuaConfig;
 
@@ -445,6 +447,41 @@ local function compile(schema, opt)
     return stream_h, stream_c
 end
 
-config.compile = compile
+function config.run(schema, filename, runmain, args)
+-- Parse(run) a lua file
+--
+-- filename: the filename of the lua file
+-- runmain: if true, the main function in the file is executed
 
-return 'config', config
+    local namespace = setmetatable({}, {__index=_G})
+
+    namespace['__file__'] = filename
+    namespace['args'] = args
+
+    local param, err = loadfile(filename, 'bt', namespace)
+    if param == nil then
+        error(err)
+    end
+    param()
+
+    -- prune main function from the parameter file
+    local main = namespace['main']
+    namespace['main'] = nil
+
+    if main ~= nil then
+        if runmain then
+            main()
+        end
+    end
+
+    local namespace2 = schema.bind(namespace)
+
+    local ret, err = dump.tostring(namespace2)
+    if ret == nil then
+        error(err)
+    end
+    return ret
+
+end
+
+return config

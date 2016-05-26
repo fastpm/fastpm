@@ -5,17 +5,18 @@ produce_source () {
 }
 produce_open () {
     local fn=$1
+    local modulename=${fn//.lua}
     local prefix=${fn//./_}
     local prefix=${prefix//-/_}
 cat <<EOF
     {
+        luaL_getsubtable(L, LUA_REGISTRYINDEX, "_LOADED");
         if(luaL_loadbuffer(L, (char*) $prefix, ${prefix}_len, "$fn")
-        || lua_pcall(L, 0, 2, 0)
+        || lua_pcall(L, 0, 1, 0)
         ) {
             return 1;
         }
-        const char * name = lua_tostring(L, -2);
-        lua_setglobal(L, name);
+        lua_setfield(L, -2, "$modulename");
         lua_pop(L, 1);
     }
 EOF

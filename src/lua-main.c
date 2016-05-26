@@ -35,7 +35,7 @@ run_paramfile(char * filename, int runmain, int argc, char ** argv)
         fastpm_raise(-1, "%s\n", lua_tostring(L, -1));
     }
 
-    lua_getglobal(L, "_runmain");
+    lua_getglobal(L, "_main");
     char * real = filename; //realpath(filename, NULL);
     lua_pushstring(L, real);
     lua_pushboolean(L, runmain);

@@ -1,5 +1,6 @@
-a, config = dofile('lua-runtime-config.lua')
-a, fastpm = dofile('lua-runtime-fastpm.lua')
+dump = require('lua-runtime-dump')
+config = require('lua-runtime-config')
+fastpm = require('lua-runtime-fastpm')
 
 module = arg[1]
 

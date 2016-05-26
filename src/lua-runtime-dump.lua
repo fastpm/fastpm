@@ -562,4 +562,4 @@ function _M.tofile_safe(value, filename, oldsuffix)
 	return true
 end
 
-return "dump", _M
+return _M

@@ -1,4 +1,8 @@
-schema = config.Schema()
+local config = require("lua-runtime-config")
+
+local fastpm = {}
+
+local schema = config.Schema()
 schema.declare{name='nc',                type='int', required=true}
 schema.declare{name='boxsize',           type='number', required=true}
 schema.declare{name='time_step',         type='array:number',  required=true }
@@ -138,10 +142,6 @@ schema.dealiasing_type.choices = {
     twothird = 'FASTPM_DEALIASING_TWO_THIRD',
 }
 
-local fastpm = {}
-
-fastpm.schema = schema
-
 function fastpm.linspace(a, e, N)
 -- Similar to numpy.linspace, but always append the end
 -- point to the result, returning N + 1 elements.
@@ -160,7 +160,7 @@ function fastpm.logspace(a, e, N)
 -- a and end are in log10.
 -- Returns N+1 elements, including e.
     local r
-    r = fastpm.linspace(a, e, N)
+    r = linspace(a, e, N)
     for i, j in pairs(r) do
         r[i] = math.pow(10, j)
     end
@@ -236,4 +236,6 @@ function fastpm.test()
     end
 end
 
-return "fastpm", fastpm
+fastpm.schema = schema
+
+return fastpm

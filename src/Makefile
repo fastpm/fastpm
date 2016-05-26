@@ -20,9 +20,9 @@ SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 
 LUASOURCES = \
 	lua-runtime-dump.lua \
-	lua-runtime-main.lua \
 	lua-runtime-config.lua \
-	lua-runtime-fastpm.lua
+	lua-runtime-fastpm.lua \
+	lua-runtime-main.lua \
 
 all: fastpm-lua fastpm test2lpt testpm
 
