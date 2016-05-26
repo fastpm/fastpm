@@ -22,7 +22,6 @@ LUASOURCES = \
 	lua-runtime-dump.lua \
 	lua-runtime-config.lua \
 	lua-runtime-fastpm.lua \
-	lua-runtime-main.lua \
 
 all: fastpm-lua fastpm test2lpt testpm
 

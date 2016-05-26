@@ -1,3 +1,9 @@
+----------------------------------------------------
+-- This is the main LUA runtime library of FastPM.
+--
+-- Author: Yu Feng <rainwoodman@gmail.com> 2016
+----------------------------------------------------
+
 local config = require("lua-runtime-config")
 
 local fastpm = {}
@@ -237,5 +243,19 @@ function fastpm.test()
 end
 
 fastpm.schema = schema
+
+--
+-- The main function, must be a global symbol
+--
+function _main(filename, runmain, ...)
+
+    local fastpm = require('lua-runtime-fastpm')
+    local config = require('lua-runtime-config')
+
+    logspace = fastpm.logspace
+    linspace = fastpm.linspace
+
+    return config.parse(fastpm.schema, filename, runmain, {...})
+end
 
 return fastpm
