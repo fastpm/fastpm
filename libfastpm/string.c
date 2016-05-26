@@ -46,12 +46,12 @@ fastpm_strsplit(const char * str, const char * split)
             buf[i] = q;
             i ++;
             *p = 0;
-            p++;
-            q = p;
+            q = p + 1;
         }
     }
     buf[i] = q;
-    buf[i + 1] = NULL;
+    i++;
+    buf[i] = NULL;
     return buf;
 }
 
