@@ -23,6 +23,7 @@ typedef struct {
     int UseFFTW;
     int NprocY;
     int Nwriters;
+    size_t MemoryPerRank;
     LuaConfig * config;
     char * string;
 } Parameters;
@@ -83,6 +84,7 @@ int main(int argc, char ** argv) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
+    libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024);
     read_parameters(ParamFileName, prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
@@ -467,9 +469,10 @@ parse_args(int * argc, char *** argv, Parameters * prr)
     extern char * optarg;
     prr->UseFFTW = 0;
     ParamFileName = NULL;
-    prr->NprocY = 0;    
+    prr->NprocY = 0;
     prr->Nwriters = 0;
-    while ((opt = getopt(*argc, *argv, "h?y:fW:")) != -1) {
+    prr->MemoryPerRank = 0;
+    while ((opt = getopt(*argc, *argv, "h?y:fW:m:")) != -1) {
         switch(opt) {
             case 'y':
                 prr->NprocY = atoi(optarg);
@@ -479,6 +482,9 @@ parse_args(int * argc, char *** argv, Parameters * prr)
             break;
             case 'W':
                 prr->Nwriters = atoi(optarg);
+            break;
+            case 'm':
+                prr->MemoryPerRank = atoi(optarg);
             break;
             case 'h':
             case '?':
@@ -497,7 +503,7 @@ parse_args(int * argc, char *** argv, Parameters * prr)
     return;
 
 usage:
-    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] paramfile\n"
+    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
     "-f Use FFTW \n"
     "-y Set the number of processes in the 2D mesh\n"
     "-n Throttle IO (bigfile only) \n"
