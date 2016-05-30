@@ -88,7 +88,6 @@ fastpm_hmc_za_destroy(FastPMHMCZA * self)
     pm_free(self->solver.pm, self->transfer_function);
     pm_free(self->solver.pm, self->rho_final_x);
     pm_free(self->solver.pm, self->delta_ic_k);
-    self->pm_solver.p->q = NULL;
     fastpm_destroy(&self->pm_solver);
     fastpm_2lpt_destroy(&self->solver);
 }
