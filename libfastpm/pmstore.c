@@ -189,13 +189,17 @@ byebye:
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
+
+#define NAllocTableMax 1024
+
 static struct {
     void * p;
     size_t s;
-} AllocTable[128];
-size_t used_bytes = 0;
+} AllocTable[NAllocTableMax];
 
+size_t used_bytes = 0;
 int NAllocTable = 0;
+
 static void * malloczero(size_t s) {
     used_bytes += s;
     void * p = pfft_malloc(s);
@@ -206,6 +210,9 @@ static void * malloczero(size_t s) {
     AllocTable[NAllocTable].s = s;
     AllocTable[NAllocTable].p = p;
     NAllocTable ++;
+    if (NAllocTable == NAllocTableMax) {
+        fastpm_raise(-1, "Asking for too many memory blocks %td bytes\n", s);
+    }
     return p;
 }
 
