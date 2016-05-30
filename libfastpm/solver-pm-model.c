@@ -36,7 +36,7 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
     model->build = NULL;
     model->evolve = NULL;
     model->destroy = NULL;
-    pm_init(model->pm, &pminit, &fastpm->p->iface, fastpm->comm);
+    pm_init(model->pm, &pminit, fastpm->comm);
 
     switch(type) {
         case FASTPM_MODEL_NONE:

@@ -5,15 +5,15 @@
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 
-FastPMFloat * pm_alloc(PM * pm) 
+FastPMFloat * pm_alloc(PM * pm)
 {
-    return pm->iface.malloc(sizeof(FastPMFloat) * pm->allocsize);
+    return fastpm_memory_alloc(pm->mem, sizeof(FastPMFloat) * pm->allocsize, FASTPM_MEMORY_HEAP);
 }
 
 void 
-pm_free(PM * pm, FastPMFloat * data) 
+pm_free(PM * pm, FastPMFloat * data)
 {
-    pm->iface.free(data);
+    fastpm_memory_free(pm->mem, data);
 }
 
 void 

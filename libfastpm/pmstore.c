@@ -9,8 +9,6 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 
-size_t fastpm_allocator_max_used_bytes = 0;
-
 static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
     PMStore * p = (PMStore *)pdata;
     pos[0] = p->x[index][0];
@@ -190,51 +188,11 @@ byebye:
     }
 }
 
-#define NAllocTableMax 1024
-
-static struct {
-    void * p;
-    size_t s;
-} AllocTable[NAllocTableMax];
-
-size_t used_bytes = 0;
-int NAllocTable = 0;
-
-static void * malloczero(size_t s) {
-    used_bytes += s;
-    void * p = pfft_malloc(s);
-    if(p == NULL) {
-        fastpm_raise(-1, "No memory for %td bytes\n", s);
-    }
-    memset(p, 0, s);
-    AllocTable[NAllocTable].s = s;
-    AllocTable[NAllocTable].p = p;
-    NAllocTable ++;
-    if (NAllocTable == NAllocTableMax) {
-        fastpm_raise(-1, "Asking for too many memory blocks %td bytes\n", s);
-    }
-    return p;
-}
-
-static void myfree(void * p) {
-    if(used_bytes > fastpm_allocator_max_used_bytes) {
-        fastpm_allocator_max_used_bytes = used_bytes;
-    }
-    NAllocTable --;
-    if(AllocTable[NAllocTable].p != p) {
-        fastpm_raise(-1, "Allocation and Free is mismatched.\n");
-    }
-    size_t s = AllocTable[NAllocTable].s;
-    used_bytes -= s;
-    pfft_free(p);
-}
-
-void 
-pm_store_init(PMStore * p) 
+void
+pm_store_init(PMStore * p)
 {
     memset(p, 0, sizeof(p[0]));
-    p->iface.malloc = malloczero;
-    p->iface.free = myfree;
+    p->mem = _libfastpm_get_gmem();
     p->iface.pack = pack;
     p->iface.unpack = unpack;
     p->iface.reduce = reduce;
@@ -253,38 +211,38 @@ pm_store_alloc(PMStore * p, size_t np_upper, int attributes)
     p->attributes = attributes;
 
     if(attributes & PACK_Q)
-        p->q = p->iface.malloc(sizeof(p->q[0]) * np_upper);
+        p->q = fastpm_memory_alloc(p->mem, sizeof(p->q[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->q = NULL;
 
     if(attributes & PACK_POS)
-        p->x = p->iface.malloc(sizeof(p->x[0]) * np_upper);
+        p->x = fastpm_memory_alloc(p->mem, sizeof(p->x[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->x = NULL;
 
 
     if(attributes & PACK_VEL)
-        p->v = p->iface.malloc(sizeof(p->v[0]) * np_upper);
+        p->v = fastpm_memory_alloc(p->mem, sizeof(p->v[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->v = NULL;
 
     if(attributes & PACK_ID)
-        p->id = p->iface.malloc(sizeof(p->id[0]) * np_upper);
+        p->id = fastpm_memory_alloc(p->mem, sizeof(p->id[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->id = NULL;
 
     if(attributes & PACK_ACC)
-        p->acc = p->iface.malloc(sizeof(p->acc[0]) * np_upper);
+        p->acc = fastpm_memory_alloc(p->mem, sizeof(p->acc[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->acc = NULL;
 
     if(attributes & PACK_DX1)
-        p->dx1 = p->iface.malloc(sizeof(p->dx1[0]) * np_upper);
+        p->dx1 = fastpm_memory_alloc(p->mem, sizeof(p->dx1[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->dx1 = NULL;
 
     if(attributes & PACK_DX2)
-        p->dx2 = p->iface.malloc(sizeof(p->dx2[0]) * np_upper);
+        p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->dx2 = NULL;
 };
@@ -302,13 +260,13 @@ pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc
 void 
 pm_store_destroy(PMStore * p) 
 {
-    if(p->dx2) p->iface.free(p->dx2);
-    if(p->dx1) p->iface.free(p->dx1);
-    if(p->acc) p->iface.free(p->acc);
-    if(p->id) p->iface.free(p->id);
-    if(p->v) p->iface.free(p->v);
-    if(p->x) p->iface.free(p->x);
-    if(p->q) p->iface.free(p->q);
+    if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
+    if(p->dx1) fastpm_memory_free(p->mem, p->dx1);
+    if(p->acc) fastpm_memory_free(p->mem, p->acc);
+    if(p->id) fastpm_memory_free(p->mem, p->id);
+    if(p->v) fastpm_memory_free(p->mem, p->v);
+    if(p->x) fastpm_memory_free(p->mem, p->x);
+    if(p->q) fastpm_memory_free(p->mem, p->q);
 }
 
 void pm_store_read(PMStore * p, char * datasource) {
@@ -360,7 +318,7 @@ pm_store_wrap(PMStore * p, double BoxSize[3])
 }
 
 void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm) {
-    int * target = p->iface.malloc(sizeof(int) * p->np);
+    int * target = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int NTask, ThisTask;
 
     MPI_Comm_rank(comm, &ThisTask);
@@ -388,15 +346,15 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     }
     cumsum(offsets, count, NTask + 1);
 
-    int * arg = p->iface.malloc(sizeof(int) * p->np);
+    int * arg = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     for(i = 0; i < p->np; i ++) {
         int offset = offsets[target[i]] ++;
         arg[offset] = i;
     }
     pm_store_permute(p, arg);
 
-    p->iface.free(arg);
-    p->iface.free(target);
+    fastpm_memory_free(p->mem, arg);
+    fastpm_memory_free(p->mem, target);
 
     MPI_Alltoall(sendcount, 1, MPI_INT, 
                  recvcount, 1, MPI_INT, 
@@ -406,8 +364,8 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
     size_t elsize = p->iface.pack(p, 0, NULL, p->attributes);
 
-    void * send_buffer = p->iface.malloc(elsize * Nsend);
-    void * recv_buffer = p->iface.malloc(elsize * Nrecv);
+    void * send_buffer = fastpm_memory_alloc(p->mem, elsize * Nsend, FASTPM_MEMORY_HEAP);
+    void * recv_buffer = fastpm_memory_alloc(p->mem, elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
     p->np -= Nsend;
     for(i = 0; i < Nsend; i ++) {
@@ -423,15 +381,16 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
             recv_buffer, recvcount, recvoffset, PTYPE,
             comm);
     MPI_Type_free(&PTYPE);
-    
+
     for(i = 0; i < Nrecv; i ++) {
         p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
 
     p->np += Nrecv;
 
-    p->iface.free(recv_buffer);
-    p->iface.free(send_buffer);
+    fastpm_memory_free(p->mem, recv_buffer);
+    fastpm_memory_free(p->mem, send_buffer);
+
     free(recvcount);
     free(recvoffset);
     free(sendoffset);
@@ -565,3 +524,4 @@ pm_store_create_subsample(PMStore * po, PMStore * p, int attributes, int mod, in
     po->a_x = p->a_x;
     po->a_v = p->a_v;
 }
+

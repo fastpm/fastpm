@@ -34,7 +34,7 @@ typedef struct {
 
 struct PM {
     PMInit init;
-    PMIFace iface;
+
     int NTask;
     int ThisTask;
 
@@ -53,34 +53,36 @@ struct PM {
     ptrdiff_t allocsize;
     PMRegion IRegion;
     PMRegion ORegion;
- 
+
     PMGrid Grid;
     double * MeshtoK[3];
     double Norm;
     double Volume;
     double CellSize[3];
     double InvCellSize[3];
+
+    FastPMMemory * mem;
 };
 
 void
 pm_module_init();
 
-void 
+void
 pm_module_cleanup();
 
 /* Initializing a PM object. */
 void 
-pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm);
+pm_init(PM * pm, PMInit * init, MPI_Comm comm);
 
 void 
-pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm);
+pm_init_simple(PM * pm, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
 
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
 
-void pm_paint(PM * pm, FastPMFloat * canvas, void * pdata, ptrdiff_t size, double weight);
+void pm_paint(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t size, double weight);
 double pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3]);
 void pm_paint_pos(PM * pm, FastPMFloat * canvas, double pos[3], double weight);
 double pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i);

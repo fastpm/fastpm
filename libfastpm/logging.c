@@ -18,6 +18,20 @@ struct FastPMMSGHandler {
     FastPMMSGHandler * prev;
 };
 
+#if HAS_BACKTRACE
+#include <execinfo.h>
+
+static void fastpm_abort() {
+    int size;
+    void * ptrs[128];
+    size = backtrace(&ptrs[0], 128);
+    backtrace_symbols_fd(&ptrs[0], size, 0);
+}
+#else
+static void fastpm_abort() {
+    abort();
+}
+#endif
 static FastPMMSGHandler handler_data = {
     .handler = NULL,
     .userdata = NULL,
@@ -42,7 +56,7 @@ void fastpm_void_msg_handler(
     if(level == ERROR) {
         fprintf(stdout, "%s", message);
         fflush(stdout);
-        abort();
+        fastpm_abort();
     }
 }
 
@@ -63,7 +77,7 @@ void fastpm_default_msg_handler(
     fprintf(stdout, "%s", message);
     fflush(stdout);
 
-    if(level == ERROR) abort();
+    if(level == ERROR) fastpm_abort();
 }
 
 void fastpm_set_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * userdata)

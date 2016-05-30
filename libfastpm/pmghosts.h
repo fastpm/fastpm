@@ -1,5 +1,6 @@
 typedef struct PMGhostData {
     PM * pm;
+    PMIFace iface;
     void * pdata;
     size_t np;
     size_t np_upper;
@@ -16,7 +17,7 @@ typedef struct PMGhostData {
     void * recv_buffer;
 
     /* iterator status */
-    ptrdiff_t ipar; 
+    ptrdiff_t ipar;
     int * ighost_to_ipar;
     int rank;
     ptrdiff_t * reason; /* relative offset causing the ghost */

@@ -70,7 +70,7 @@ void fastpm_init(FastPM * fastpm,
     }
 
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
-                           &baseinit, &fastpm->p->iface, comm);
+                           &baseinit, comm);
 
     fastpm_model_init(fastpm->model, fastpm, fastpm->USE_MODEL);
 
@@ -88,7 +88,7 @@ void fastpm_init(FastPM * fastpm,
         };
 
     fastpm->pm_2lpt = malloc(sizeof(PM));
-    pm_init(fastpm->pm_2lpt, &pm_2lptinit, &fastpm->p->iface, fastpm->comm);
+    pm_init(fastpm->pm_2lpt, &pm_2lptinit, fastpm->comm);
 }
 
 void

@@ -18,6 +18,7 @@ LIBSOURCES = libfastpm.c \
     solver-pm-model-linear.c \
     solver-pm-model-pm.c \
     transfer.c \
+    memory.c \
     utils.c \
     initialcondition.c \
     pngaussian.c \

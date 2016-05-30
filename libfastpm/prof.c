@@ -6,9 +6,6 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 
-/* defined in pmstore.c for the default allocator */
-extern size_t fastpm_allocator_max_used_bytes;
-
 struct FastPMClock {
     double tcum;
     double twait;
@@ -146,9 +143,12 @@ next:
 
 void fastpm_report_memory(MPI_Comm comm) 
 {
-    size_t max_used_bytes = 0;
+    FastPMMemory * g = _libfastpm_get_gmem();
 
-    MPI_Allreduce(&fastpm_allocator_max_used_bytes, 
+    size_t max_used_bytes = 0;
+    size_t used_bytes = g->peak_bytes;
+
+    MPI_Allreduce(&used_bytes,
             &max_used_bytes, 1, MPI_LONG, MPI_MAX,
             comm);
 
@@ -162,9 +162,11 @@ void fastpm_clock_stat(MPI_Comm comm)
     MPI_Comm_rank(comm, &ThisTask);
     FastPMClock foo;
 
+    FastPMMemory * g = _libfastpm_get_gmem();
     size_t max_used_bytes = 0;
+    size_t used_bytes = g->peak_bytes;
 
-    MPI_Allreduce(&fastpm_allocator_max_used_bytes, 
+    MPI_Allreduce(&used_bytes,
             &max_used_bytes, 1, MPI_LONG, MPI_MAX,
             comm);
 

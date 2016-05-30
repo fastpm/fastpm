@@ -64,7 +64,7 @@ fastpm_utils_paint(PM * pm, PMStore * p,
     int attribute) 
 {
     ptrdiff_t i;
-    double * buf = p->iface.malloc(sizeof(p->x[0]) * p->np);
+    double * buf = fastpm_memory_alloc(p->mem, (sizeof(p->x[0]) * p->np), FASTPM_MEMORY_HEAP);
     _hijack_pos(p, buf, getpos);
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS | attribute, NULL);
@@ -77,7 +77,7 @@ fastpm_utils_paint(PM * pm, PMStore * p,
 #pragma omp parallel for
     for (i = 0; i < p->np + pgd->nghosts; i ++) {
         double pos[3];
-        double weight = attribute? pm->iface.to_double(p, i, attribute): 1.0;
+        double weight = attribute? p->iface.to_double(p, i, attribute): 1.0;
         p->iface.get_position(p, i, pos);
         pm_paint_pos(pm, canvas, pos, weight);
     }
@@ -92,7 +92,7 @@ fastpm_utils_paint(PM * pm, PMStore * p,
     pm_ghosts_free(pgd);
 
     memcpy(&p->x[0], buf, sizeof(p->x[0]) * p->np);
-    p->iface.free(buf);
+    fastpm_memory_free(p->mem, buf);
 }
 
 void
@@ -102,7 +102,7 @@ fastpm_utils_readout(PM * pm, PMStore * p,
     int attribute
     ) 
 {
-    double * buf = p->iface.malloc(sizeof(p->x[0]) * p->np);
+    double * buf = fastpm_memory_alloc(pm->mem, sizeof(p->x[0]) * p->np, FASTPM_MEMORY_HEAP);
     _hijack_pos(p, buf, getpos);
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
@@ -115,14 +115,14 @@ fastpm_utils_readout(PM * pm, PMStore * p,
         double pos[3];
         p->iface.get_position(p, i, pos);
         double weight = pm_readout_pos(pm, delta_x, pos);
-        pm->iface.from_double(p, i, attribute, weight);
+        p->iface.from_double(p, i, attribute, weight);
     }
     
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);
 
     memcpy(&p->x[0], buf, sizeof(p->x[0]) * p->np);
-    p->iface.free(buf);
+    fastpm_memory_free(pm->mem, buf);
 }
 
 void

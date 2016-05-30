@@ -9,7 +9,7 @@ struct VPM {
 };
 
 VPM * 
-vpm_create (VPMInit * vpminit, PMInit * baseinit, PMIFace * iface, MPI_Comm comm);
+vpm_create (VPMInit * vpminit, PMInit * baseinit, MPI_Comm comm);
 
 VPM *
 vpm_find(VPM * vpm, double a);

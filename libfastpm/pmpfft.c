@@ -8,6 +8,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+
 #include "pmpfft.h"
 #include "pmstore.h"
 
@@ -106,12 +107,12 @@ static size_t fftw_local_size_dft_r2c(int nrnk, ptrdiff_t * n, MPI_Comm comm,
     return allocsize;
 }
 
-void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
+void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
 
     pm->init = *init;
-    pm->iface = *iface;
+    pm->mem = _libfastpm_get_gmem();
 
-    /* initialize the domain */    
+    /* initialize the domain */
     MPI_Comm_rank(comm, &pm->ThisTask);
     MPI_Comm_size(comm, &pm->NTask);
 
@@ -306,7 +307,7 @@ void pm_init(PM * pm, PMInit * init, PMIFace * iface, MPI_Comm comm) {
 }
 
 void 
-pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm) 
+pm_init_simple(PM * pm, int Ngrid, double BoxSize, MPI_Comm comm)
 {
     PMInit pminit = {
         .Nmesh = Ngrid,
@@ -316,7 +317,7 @@ pm_init_simple(PM * pm, PMStore * p, int Ngrid, double BoxSize, MPI_Comm comm)
         .use_fftw = 0,
     };
 
-    pm_init(pm, &pminit, &p->iface, comm);
+    pm_init(pm, &pminit, comm);
 
 }
 

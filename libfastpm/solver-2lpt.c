@@ -32,7 +32,7 @@ fastpm_2lpt_init(FastPM2LPTSolver * solver, int nmesh, int nc, double boxsize, d
         .use_fftw = 0,
     };
 
-    pm_init(solver->pm, &pminit, &solver->p->iface, comm);
+    pm_init(solver->pm, &pminit, comm);
     solver->boxsize = boxsize;
     solver->comm = comm;
     return 0;

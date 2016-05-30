@@ -17,7 +17,7 @@ vpm_find(VPM * vpm, double a)
 }
 
 VPM * 
-vpm_create (VPMInit * vpminit, PMInit * baseinit, PMIFace * iface, MPI_Comm comm) 
+vpm_create (VPMInit * vpminit, PMInit * baseinit, MPI_Comm comm) 
 {
     /* plan for the variable PMs; keep in mind we do variable
      * mesh size (PM resolution). We plan them at the begining of the run
@@ -38,7 +38,7 @@ vpm_create (VPMInit * vpminit, PMInit * baseinit, PMIFace * iface, MPI_Comm comm
 
         PMInit pminit = *baseinit;
         pminit.Nmesh = baseinit->Nmesh * vpm[i].pm_nc_factor;
-        pm_init(&vpm[i].pm, &pminit, iface, comm);
+        pm_init(&vpm[i].pm, &pminit, comm);
     }
     /* the end of the list */
     vpm[i].end = 1;

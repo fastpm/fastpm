@@ -13,8 +13,6 @@ typedef struct {
 } PMRegion;
 
 typedef struct {
-    void * (*malloc )(size_t);
-    void   (*free   )(void *);
     void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
     size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
     void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
@@ -45,6 +43,7 @@ typedef struct {
 
 struct PMStore {
     PMIFace iface;
+    FastPMMemory * mem;
 
     int attributes; /* bit flags of allocated attributes */
 

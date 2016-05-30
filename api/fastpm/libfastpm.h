@@ -34,6 +34,7 @@ typedef struct PMStore PMStore;
 
 void libfastpm_init();
 void libfastpm_cleanup();
+void libfastpm_set_memory_bound(size_t size);
 
 FASTPM_END_DECLS
 
@@ -41,6 +42,7 @@ typedef double (*fastpm_fkfunc)(double k, void * data);
 
 #define fastpm_pkfunc fastpm_fkfunc
 
+#include "memory.h"
 #include "pmapi.h"
 
 #include "transfer.h"
@@ -50,5 +52,13 @@ typedef double (*fastpm_fkfunc)(double k, void * data);
 #include "powerspectrum.h"
 #include "solver-2lpt.h"
 #include "solver-pm.h"
+
+/* Following functions are internal API */
+
+FASTPM_BEGIN_DECLS
+
+FastPMMemory * _libfastpm_get_gmem();
+
+FASTPM_END_DECLS
 
 #endif

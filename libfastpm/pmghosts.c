@@ -9,7 +9,7 @@
 #include "pmstore.h"
 
 void pm_ghosts_free(PMGhostData * pgd) {
-    pgd->pm->iface.free(pgd->ighost_to_ipar);
+    fastpm_memory_free(pgd->pm->mem, pgd->ighost_to_ipar);
     free(pgd->Nsend);
     free(pgd->Osend);
     free(pgd->Nrecv);
@@ -78,7 +78,7 @@ static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
 
     ighost = pgd->Osend[pgd->rank] + offset;
 
-    pm->iface.pack(pgd->pdata, pgd->ipar, 
+    pgd->iface.pack(pgd->pdata, pgd->ipar, 
         (char*) pgd->send_buffer + ighost * pgd->elsize, pgd->attributes);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
@@ -91,13 +91,14 @@ pm_ghosts_create(PM * pm, PMStore *p,
 {
 
     PMGhostData * pgd = malloc(sizeof(pgd[0]));
+    pgd->iface = p->iface;
     pgd->pm = pm;
     pgd->pdata = p;
     pgd->np = p->np;
     pgd->np_upper = p->np_upper;
     pgd->attributes = attributes;
     if(get_position == NULL) 
-        pgd->get_position = p->iface.get_position;
+        pgd->get_position = pgd->iface.get_position;
     else
         pgd->get_position = get_position;
     pgd->nghosts = 0;
@@ -105,7 +106,7 @@ pm_ghosts_create(PM * pm, PMStore *p,
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pm->iface.pack(pgd->pdata, 0, NULL, pgd->attributes);
+    size_t elsize = pgd->iface.pack(pgd->pdata, 0, NULL, pgd->attributes);
 
     pgd->Nsend = calloc(pm->NTask, sizeof(int));
     pgd->Osend = calloc(pm->NTask, sizeof(int));
@@ -125,9 +126,9 @@ pm_ghosts_create(PM * pm, PMStore *p,
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
     
 
-    pgd->ighost_to_ipar = pm->iface.malloc(Nsend * sizeof(int));
-    pgd->send_buffer = pm->iface.malloc(Nsend * pgd->elsize);
-    pgd->recv_buffer = pm->iface.malloc(Nrecv * pgd->elsize);
+    pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
 
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
@@ -151,12 +152,12 @@ pm_ghosts_create(PM * pm, PMStore *p,
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        pm->iface.unpack(pgd->pdata, pgd->np + i, 
+        pgd->iface.unpack(pgd->pdata, pgd->np + i, 
                 (char*) pgd->recv_buffer + i * pgd->elsize, 
                         pgd->attributes);
     }
-    pm->iface.free(pgd->recv_buffer);
-    pm->iface.free(pgd->send_buffer);
+    fastpm_memory_free(pm->mem, pgd->recv_buffer);
+    fastpm_memory_free(pm->mem, pgd->send_buffer);
 
     return pgd;
 }
@@ -167,14 +168,14 @@ void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
     size_t Nrecv = cumsum(NULL, pgd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    pgd->elsize = pm->iface.pack(pgd->pdata, 0, NULL, attributes);
-    pgd->recv_buffer = pm->iface.malloc(Nrecv * pgd->elsize);
-    pgd->send_buffer = pm->iface.malloc(Nsend * pgd->elsize);
+    pgd->elsize = pgd->iface.pack(pgd->pdata, 0, NULL, attributes);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
     pgd->ReductionAttributes = attributes;
 
 #pragma omp parallel for
     for(i = 0; i < pgd->nghosts; i ++) {
-        pm->iface.pack(pgd->pdata, i + pgd->np, 
+        pgd->iface.pack(pgd->pdata, i + pgd->np, 
             (char*) pgd->recv_buffer + i * pgd->elsize, 
             pgd->ReductionAttributes);
     }
@@ -191,10 +192,10 @@ void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
     int ighost;
 #pragma omp parallel for
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        pm->iface.reduce(pgd->pdata, pgd->ighost_to_ipar[ighost], 
+        pgd->iface.reduce(pgd->pdata, pgd->ighost_to_ipar[ighost], 
             (char*) pgd->send_buffer + ighost * pgd->elsize, 
             pgd->ReductionAttributes);
     }
-    pm->iface.free(pgd->send_buffer);
-    pm->iface.free(pgd->recv_buffer);
+    fastpm_memory_free(pm->mem, pgd->send_buffer);
+    fastpm_memory_free(pm->mem, pgd->recv_buffer);
 }
