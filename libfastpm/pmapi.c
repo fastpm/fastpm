@@ -7,7 +7,9 @@
 
 FastPMFloat * pm_alloc(PM * pm)
 {
-    return fastpm_memory_alloc(pm->mem, sizeof(FastPMFloat) * pm->allocsize, FASTPM_MEMORY_HEAP);
+    void * p = fastpm_memory_alloc(pm->mem, sizeof(FastPMFloat) * pm->allocsize, FASTPM_MEMORY_HEAP);
+    fastpm_memory_tag(pm->mem, p, "FastPMFloat");
+    return p;
 }
 
 void 
