@@ -18,12 +18,13 @@ static MemoryBlock head = { .p = NULL, .size = 0, .prev = NULL};
 static size_t
 _align(size_t old, size_t alignment)
 {
+    size_t n;
     if(alignment == 0) return old;
-    if(old % alignment) {
-        return (old / alignment + 1) * alignment;
-    } else {
-        return (old / alignment) * alignment;
-    }
+
+    n = (old / alignment) * alignment;
+
+    while (n <= old) n += alignment;
+    return n;
 }
 
 void
@@ -38,13 +39,17 @@ fastpm_memory_init(FastPMMemory * m, size_t total_bytes)
         m->base0 = (char*) malloc(total_bytes + m->alignment);
         m->base = (char*) _align((size_t)(m->base0), m->alignment);
         m->top = m->base + total_bytes;
-        m->total_bytes = total_bytes;
     } else {
         total_bytes = 0x8000000000000000;
         m->base0 = NULL;
         m->base = NULL;
         m->top = NULL;
     }
+
+    m->free_bytes = total_bytes;
+    m->total_bytes = total_bytes;
+    m->used_bytes = 0;
+    m->peak_bytes = 0;
 }
 
 void
@@ -81,6 +86,9 @@ void *
 fastpm_memory_alloc(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
 {
     s = _align(s, m->alignment);
+    if(m->free_bytes <= s) {
+        abort();
+    }
     m->used_bytes += s;
     m->free_bytes -= s;
     if(m->used_bytes > m->peak_bytes) {
