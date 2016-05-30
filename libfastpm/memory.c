@@ -143,7 +143,7 @@ fastpm_memory_free(FastPMMemory * m, void * p)
         if(m->base) {
             m->base -= entry->size;
         } else {
-            free(m->base);
+            free(entry->p);
         }
     } else {
         goto fail;
@@ -151,6 +151,8 @@ fastpm_memory_free(FastPMMemory * m, void * p)
 
     m->used_bytes -= entry->size;
     m->free_bytes += entry->size;
+
+    free(entry);
 
     return;
 fail:
