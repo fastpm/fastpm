@@ -5,12 +5,12 @@
 #include <gsl/gsl_rng.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/string.h>
 #include <fastpm/transfer.h>
 
 #include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
-
 
 static double RNDTABLE[8192];
 
@@ -152,6 +152,9 @@ fastpm_utils_dump(PM * pm , const char * filename, FastPMFloat *data)
         sprintf(fn1, "%s.geometry", filename);
         sprintf(fn2, "%s", filename);
     }
+
+    fastpm_path_ensure_dirname(filename);
+
     FILE * fp;
     fp = fopen(fn2, "w");
     fwrite(data, sizeof(FastPMFloat), pm->allocsize, fp);

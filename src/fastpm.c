@@ -9,8 +9,6 @@
 #include <signal.h>
 #include <getopt.h>
 #include <limits.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
@@ -41,11 +39,6 @@ parse_args(int * argc, char *** argv, Parameters * prr);
 
 static int 
 take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * prr);
-
-static void 
-_mkdir(const char *dir);
-static void 
-ensure_dir(const char * path);
 
 int 
 read_runpb_ic(FastPM * fastpm, PMStore * p, const char * filename);
@@ -264,7 +257,6 @@ induce:
 
     if(CONF(prr, write_whitenoisek)) {
         fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
-        ensure_dir(CONF(prr, write_whitenoisek));
         fastpm_utils_dump(fastpm->pm_2lpt, CONF(prr, write_whitenoisek), delta_k);
     }
 
@@ -295,7 +287,6 @@ produce:
 
     if(CONF(prr, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
-        ensure_dir(CONF(prr, write_lineark));
         fastpm_utils_dump(fastpm->pm_2lpt, CONF(prr, write_lineark), delta_k);
     }
 
@@ -328,7 +319,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
                 filebase, z_out, aout, Nwriters);
 
         ENTER(meta);
-        ensure_dir(filebase);
+        fastpm_path_ensure_dirname(filebase);
         LEAVE(meta);
 
         MPI_Barrier(fastpm->comm);
@@ -344,7 +335,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 
         sprintf(filebase, "%s_%0.04f.bin", CONF(prr, write_runpb_snapshot), aout);
         ENTER(meta);
-        ensure_dir(filebase);
+        fastpm_path_ensure_dirname(filebase);
         LEAVE(meta);
 
         MPI_Barrier(fastpm->comm);
@@ -361,7 +352,6 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr, write_nonlineark), aout);
         FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
         fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
-        ensure_dir(filename);
         fastpm_utils_dump(fastpm->pm_2lpt, filename, rho_k);
         pm_free(fastpm->pm_2lpt, rho_k);
         free(filename);
@@ -411,7 +401,7 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
     ENTER(io);
     if(CONF(prr, write_powerspectrum)) {
         if(fastpm->ThisTask == 0) {
-            ensure_dir(CONF(prr, write_powerspectrum));
+            fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);
             fastpm_powerspectrum_write(&ps, buf, pow(fastpm->nc, 3.0));
@@ -510,44 +500,6 @@ usage:
 );
     MPI_Finalize();
     exit(1);
-}
-
-static void 
-ensure_dir(const char * path) 
-{
-    int i = strlen(path);
-    char * dup = alloca(strlen(path) + 1);
-    strcpy(dup, path);
-    char * p;
-    for(p = i + dup; p >= dup && *p != '/'; p --) {
-        continue;
-    }
-    /* plain file name in current directory */
-    if(p < dup) return;
-    
-    /* p == '/', so set it to NULL, dup is the dirname */
-    *p = 0;
-    _mkdir(dup);
-}
-
-static void 
-_mkdir(const char *dir) 
-{
-    char * tmp = alloca(strlen(dir) + 1);
-    strcpy(tmp, dir);
-    char *p = NULL;
-    size_t len;
-
-    len = strlen(tmp);
-    if(tmp[len - 1] == '/')
-            tmp[len - 1] = 0;
-    for(p = tmp + 1; *p; p++)
-            if(*p == '/') {
-                    *p = 0;
-                    mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
-                    *p = '/';
-            }
-    mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
 }
 
 int read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm)

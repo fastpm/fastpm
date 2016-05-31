@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <fastpm/libfastpm.h>
 #include <fastpm/string.h>
 
@@ -89,3 +92,46 @@ fastpm_strdup_vprintf(const char * fmt, va_list va)
     va_end(va2);
     return buf;
 }
+
+static void
+_mkdir(const char *dir);
+
+void
+fastpm_path_ensure_dirname(const char * path)
+{
+    int i = strlen(path);
+    char * dup = alloca(strlen(path) + 1);
+    strcpy(dup, path);
+    char * p;
+    for(p = i + dup; p >= dup && *p != '/'; p --) {
+        continue;
+    }
+    /* plain file name in current directory */
+    if(p < dup) return;
+
+    /* p == '/', so set it to NULL, dup is the dirname */
+    *p = 0;
+    _mkdir(dup);
+}
+
+static void
+_mkdir(const char *dir)
+{
+    char * tmp = alloca(strlen(dir) + 1);
+    strcpy(tmp, dir);
+    char *p = NULL;
+    size_t len;
+
+    len = strlen(tmp);
+    if(tmp[len - 1] == '/')
+            tmp[len - 1] = 0;
+    for(p = tmp + 1; *p; p++)
+            if(*p == '/') {
+                    *p = 0;
+                    mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
+                    *p = '/';
+            }
+    mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
+}
+
+
