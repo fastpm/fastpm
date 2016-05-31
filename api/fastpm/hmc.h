@@ -10,6 +10,7 @@ typedef struct {
     int DeconvolveCIC;
     int IncludeRSD;
     int LPTOrder;
+    double AllocFactor;
 
     struct {
         fastpm_fkfunc func;

@@ -29,6 +29,7 @@ int main(int argc, char * argv[]) {
             .LPTOrder = 1,
             .SmoothingLength = 8,
             .IncludeRSD = 0,
+	    .AllocFactor = 2.0,
         };
 
     fastpm_hmc_za_init(self, comm);

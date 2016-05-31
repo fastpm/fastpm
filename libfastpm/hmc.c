@@ -62,11 +62,10 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
             fastpm_raise(-1, "Wrong LPT Order, can only be 1 or 2\n");
     }
 
-    double alloc_factor = 2.0;
-    fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, comm);
+    fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, comm);
     self->solver.USE_SHIFT = 0;
 
-    fastpm_pm_init(&self->pm_solver, self->solver.p, self->Nmesh, self->Ngrid, self->BoxSize, alloc_factor, self->OmegaM, comm);
+    fastpm_pm_init(&self->pm_solver, self->solver.p, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, self->OmegaM, comm);
 
     /* FIXME: create a new pm object */
     self->pm = self->solver.pm;
