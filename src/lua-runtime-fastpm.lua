@@ -140,12 +140,15 @@ schema.kernel_type.choices = {
     ['3_4'] = 'FASTPM_KERNEL_3_4',
     ['5_4'] = 'FASTPM_KERNEL_5_4',
     ['eastwood'] = 'FASTPM_KERNEL_EASTWOOD',
+    ['gadget'] = 'FASTPM_KERNEL_GADGET',
+    ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }
 schema.declare{name='dealiasing_type',             type='enum', default="none"}
 schema.dealiasing_type.choices = {
     none = 'FASTPM_DEALIASING_NONE',
     gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
+    aggressive = 'FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN',
     gaussian36 = 'FASTPM_DEALIASING_GAUSSIAN36',
     twothird = 'FASTPM_DEALIASING_TWO_THIRD',
 }

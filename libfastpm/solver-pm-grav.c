@@ -104,7 +104,7 @@ apply_force_kernel_3_2(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 }
 
 static void 
-apply_force_kernel_eastwood(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
+apply_force_kernel_eastwood(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int cic) 
 {
     /* This is the potential gradient in fourier space. - i k[dir] / k2 */
 
@@ -132,11 +132,51 @@ apply_force_kernel_eastwood(PM * pm, FastPMFloat * from, FastPMFloat * to, int d
             }
         }
     }
-    /* now sharpen for mass assignment */
-    /* L1 */
-    fastpm_apply_decic_transfer(pm, to, to);
-    /* L2 */
-    fastpm_apply_decic_transfer(pm, to, to);
+    if(cic) {
+        /* now sharpen for mass assignment */
+        /* L1 */
+        fastpm_apply_decic_transfer(pm, to, to);
+        /* L2 */
+        fastpm_apply_decic_transfer(pm, to, to);
+    }
+}
+
+static void 
+apply_force_kernel_gadget(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int cic)
+{
+    /* This is the potential gradient in fourier space. - i k[dir] / k2 */
+
+#pragma omp parallel 
+    {
+        PMKIter kiter;
+
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int d;
+            double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
+            double kk_finite = 0;
+            for(d = 0; d < 3; d++) {
+                kk_finite += kiter.kk[d][kiter.iabs[d]];
+            }
+            ptrdiff_t ind = kiter.ind;
+            /* - i k[d] / k2 */
+            if(LIKELY(kk_finite > 0)) {
+                to[ind + 0] =   from[ind + 1] * (k_finite / kk_finite);
+                to[ind + 1] = - from[ind + 0] * (k_finite / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
+            }
+        }
+    }
+    if(cic) {
+        /* now sharpen for mass assignment */
+        /* L1 */
+        fastpm_apply_decic_transfer(pm, to, to);
+        /* L2 */
+        fastpm_apply_decic_transfer(pm, to, to);
+    }
 }
 
 static void
@@ -219,6 +259,9 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
         case FASTPM_DEALIASING_GAUSSIAN:
             apply_gaussian_dealiasing(pm, delta_k, delta_k, 1.0);
         break;
+        case FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN:
+            apply_gaussian_dealiasing(pm, delta_k, delta_k, 4.0);
+        break;
         case FASTPM_DEALIASING_GAUSSIAN36:
             {
             double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
@@ -239,7 +282,13 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
         CLOCK(transfer);
         switch(fastpm->KERNEL_TYPE) {
             case FASTPM_KERNEL_EASTWOOD:
-                apply_force_kernel_eastwood(pm, delta_k, canvas, d);
+                apply_force_kernel_eastwood(pm, delta_k, canvas, d, 1);
+            break;
+            case FASTPM_KERNEL_NAIVE:
+                apply_force_kernel_eastwood(pm, delta_k, canvas, d, 0);
+            break;
+            case FASTPM_KERNEL_GADGET:
+                apply_force_kernel_gadget(pm, delta_k, canvas, d, 1);
             break;
             case FASTPM_KERNEL_3_4:
                 apply_force_kernel(pm, delta_k, canvas, d);

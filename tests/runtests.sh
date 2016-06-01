@@ -6,6 +6,8 @@ set -x
 mpirun -n 4 $FASTPM standard.lua ic || fail
 
 mpirun -n 4 $FASTPM standard.lua fastpm gaussian || fail
+mpirun -n 4 $FASTPM standard.lua fastpm aggressive || fail
+mpirun -n 4 $FASTPM standard.lua fastpm gadget || fail
 mpirun -n 4 $FASTPM standard.lua fastpm eastwood || fail
 mpirun -n 4 $FASTPM standard.lua fastpm eastwood gaussian|| fail
 mpirun -n 4 $FASTPM standard.lua fastpm twothird || fail

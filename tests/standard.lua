@@ -65,6 +65,9 @@ end
 if has('gaussian36') then
     dealiasing_type = 'gaussian36'
 end
+if has('aggressive') then
+    dealiasing_type = 'aggressive'
+end
 if has('gaussian') then
     dealiasing_type = 'gaussian'
 end
@@ -73,6 +76,12 @@ if has('twothird') then
 end
 if has('eastwood') then
     kernel_type = 'eastwood'
+end
+if has('gadget') then
+    kernel_type = 'gadget'
+end
+if has('naive') then
+    kernel_type = 'naive'
 end
 
 prefix = 'results'
