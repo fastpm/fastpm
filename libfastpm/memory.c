@@ -94,7 +94,6 @@ fastpm_memory_alloc(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
     if(m->used_bytes > m->peak_bytes) {
         m->peak_bytes = m->used_bytes;
     }
-    void * p;
     MemoryBlock * entry = malloc(sizeof(head));
     switch(loc) {
         case FASTPM_MEMORY_HEAP:
