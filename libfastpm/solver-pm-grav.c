@@ -182,7 +182,7 @@ apply_force_kernel_gadget(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir
 static void
 apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double N)
 {
-
+    /* N is rms in mesh size */
     double r0 = N * pm->BoxSize[0] / pm->Nmesh[0];
 
 #pragma omp parallel 
@@ -195,7 +195,7 @@ apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double 
         for(d = 0; d < 3; d ++) {
             kernel[d] = malloc(sizeof(double) * pm->Nmesh[d]);
             for(i = 0; i < pm->Nmesh[d]; i ++) {
-                kernel[d][i] = exp(- pow(kiter.k[d][i] * r0, 2));
+                kernel[d][i] = exp(- 0.5 * pow(kiter.k[d][i] * r0, 2));
             }
         }
 
