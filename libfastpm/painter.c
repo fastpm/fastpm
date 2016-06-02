@@ -20,7 +20,25 @@ _linear_kernel(double x, int support) {
 }
 
 static double __sinc__(double x) {
+    static const double dx = 1e-3;
+    static const double tablemax = dx * 16384;
+    static const double tablemin = dx * 1;
+    static double table[16384];
+    static int hastable = 0;
+    if(! hastable) {
+        int i;
+        for(i = 0; i < 16384; i ++) {
+            double x = dx * i;
+            table[i] = sin(x) / x;
+        }
+        hastable = 1;
+    }
     x *= 3.1415927;
+    if(x > tablemin && x < tablemax) {
+        int i = fabs(x) / dx;
+        return table[i];
+    }
+
     if(x < 1e-5 && x > -1e-5) {
         double x2 = x * x;
         return 1.0 - x2 / 6. + x2  * x2 / 120.;
@@ -59,7 +77,6 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     int nmax = 1;
     int d;
     for(d = 0; d < 3; d++) {
-        painter->strides[d] = nmax;
         nmax *= (2 * support);
     }
     painter->Npoints = nmax;
@@ -78,7 +95,7 @@ fastpm_painter_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos
 }
 
 static void
-_fill_k(FastPMPainter * painter, double pos[3], int ipos[3], float k[3][100])
+_fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64])
 {
     PM * pm = painter->pm;
     double gpos[3];
@@ -105,23 +122,22 @@ static void
 _generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
 {
     PM * pm = painter->pm;
-    int n;
-    int d;
     int ipos[3];
-    /* the max support is 50 */
-    float k[3][100];
+    /* the max support is 32 */
+    double k[3][64];
 
     _fill_k(painter, pos, ipos, k);
 
-    for(n = 0; n < painter->Npoints; n ++) {
-        float kernel = 1.0;
+    int rel[3] = {0, 0, 0};
+    int s2 = 2 * painter->support;
+    while(rel[0] != s2) {
+        double kernel = 1.0;
         ptrdiff_t ind = 0;
         int d;
         for(d = 0; d < 3; d++) {
-            int rel = (n / painter->strides[d]) % (2 * painter->support);
-
-            int targetpos = ipos[d] + rel;
-            kernel *= k[d][rel];
+            int r = rel[d];
+            int targetpos = ipos[d] + r;
+            kernel *= k[d][r];
             while(targetpos >= pm->Nmesh[d]) {
                 targetpos -= pm->Nmesh[d];
             }
@@ -129,13 +145,22 @@ _generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], dou
                 targetpos += pm->Nmesh[d];
             }
             ind += pm->IRegion.strides[d] * targetpos;
-            if(targetpos < 0 || targetpos >= pm->IRegion.size[d]) 
+            if(UNLIKELY(targetpos >= pm->IRegion.size[d]))
                 goto outside;
         }
 #pragma omp atomic
         canvas[ind] += weight * kernel;
 
     outside:
+        rel[2] ++;
+        if(UNLIKELY(rel[2] == s2)) {
+            rel[1] ++;
+            rel[2] = 0;
+        }
+        if(UNLIKELY(rel[1] == s2)) {
+            rel[1] = 0;
+            rel[0] ++;
+        }
         continue;
     }
     return;
@@ -146,23 +171,24 @@ _generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
 {
     PM * pm = painter->pm;
     double value = 0;
-    int n;
     int ipos[3];
-    float k[3][100];
-    int d;
+    double k[3][64];
 
     _fill_k(painter, pos, ipos, k);
 
-    for(n = 0; n < painter->Npoints; n ++) {
-        float kernel = 1.0;
+    int rel[3] = {0, 0, 0};
+
+    int s2 = 2 * painter->support;
+    while(rel[0] != s2) {
+        double kernel = 1.0;
         ptrdiff_t ind = 0;
         int d;
         for(d = 0; d < 3; d++) {
-            int rel = (n / painter->strides[d]) % (2 * painter->support);
+            int r = rel[d];
 
-            kernel *= k[d][rel];
+            kernel *= k[d][r];
 
-            int targetpos = ipos[d] + rel;
+            int targetpos = ipos[d] + r;
 
             while(targetpos >= pm->Nmesh[d]) {
                 targetpos -= pm->Nmesh[d];
@@ -170,13 +196,22 @@ _generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
             while(targetpos < 0) {
                 targetpos += pm->Nmesh[d];
             }
-            if(targetpos >= pm->IRegion.size[d]) {
+            if(UNLIKELY(targetpos >= pm->IRegion.size[d])) {
                 goto outside;
             }
             ind += pm->IRegion.strides[d] * targetpos;
         }
         value += kernel * canvas[ind];
 outside:
+        rel[2] ++;
+        if(UNLIKELY(rel[2] == s2)) {
+            rel[1] ++;
+            rel[2] = 0;
+        }
+        if(UNLIKELY(rel[1] == s2)) {
+            rel[1] = 0;
+            rel[0] ++;
+        }
         continue;
     }
     return value;
