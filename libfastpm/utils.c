@@ -11,7 +11,6 @@
 #include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
-#include "pmpaint.h"
 
 static double RNDTABLE[8192];
 
@@ -58,7 +57,7 @@ fastpm_utils_paint(PM * pm, PMStore * p,
     ptrdiff_t i;
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
 
-    fastpm_painter_init(&painter, pm, FASTPM_PAINTER_KERNEL_LINEAR, 1);
+    fastpm_painter_init(&painter, pm, FASTPM_PAINTER_CIC, 1);
 
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
@@ -92,7 +91,7 @@ fastpm_utils_readout(PM * pm, PMStore * p,
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
 
     fastpm_painter_init(&painter, pm,
-                FASTPM_PAINTER_KERNEL_LINEAR, 1);
+                FASTPM_PAINTER_CIC, 1);
 
     fastpm_readout_store(&painter, delta_x, p, p->np + pgd->nghosts, get_position, attribute);
 

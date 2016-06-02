@@ -16,7 +16,6 @@
 #include "pmstore.h"
 #include "pmghosts.h"
 #include "pm2lpt.h"
-#include "pmpaint.h"
 #include "solver-pm-internal.h"
 
 void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType type)
@@ -38,6 +37,8 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
     model->evolve = NULL;
     model->destroy = NULL;
     pm_init(model->pm, &pminit, fastpm->base.comm);
+
+    fastpm_painter_init(model->painter, model->pm, FASTPM_PAINTER_CIC, 0);
 
     switch(type) {
         case FASTPM_MODEL_NONE:
@@ -212,11 +213,9 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
-    FastPMPainter painter;
-    fastpm_painter_init(&painter, pm, NULL, 1);
     /* Note that power will divide by the 0-th mode
      * thus we do not need to scale the density correctly */
-    fastpm_paint_store(&painter, canvas, p, p->np + pgd->nghosts, NULL, 0);
+    fastpm_paint_store(model->painter, canvas, p, p->np + pgd->nghosts, NULL, 0);
 
     pm_r2c(pm, canvas, delta_k);
 

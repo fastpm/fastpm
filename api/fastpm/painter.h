@@ -1,11 +1,12 @@
-typedef void   (*fastpm_paintfunc)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
-typedef double (*fastpm_readoutfunc)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+FASTPM_BEGIN_DECLS
+
+typedef enum { FASTPM_PAINTER_CIC, FASTPM_PAINTER_LINEAR, FASTPM_PAINTER_LANCZOS} FastPMPainterType;
 
 struct FastPMPainter {
     PM * pm;
 
-    fastpm_paintfunc paint;
-    fastpm_readoutfunc readout;
+    void   (*paint)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
+    double (*readout)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
     fastpm_kernelfunc kernel;
 
     int support;
@@ -14,9 +15,7 @@ struct FastPMPainter {
 };
 
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,
-        fastpm_kernelfunc kernel, int support);
-
-void fastpm_painter_init_cic(FastPMPainter * painter);
+        FastPMPainterType type, int support);
 
 void fastpm_painter_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
 double fastpm_painter_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
@@ -31,7 +30,4 @@ fastpm_readout_store(FastPMPainter * pm, FastPMFloat * canvas,
         PMStore * p, size_t size,
         fastpm_posfunc get_position, int attribute);
 
-static double
-FASTPM_PAINTER_KERNEL_LINEAR(double x, int support) {
-    return 1.0 - fabs(x / support);
-}
+FASTPM_END_DECLS

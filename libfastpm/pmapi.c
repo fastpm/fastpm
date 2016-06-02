@@ -4,7 +4,6 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
-#include "pmpaint.h"
 
 FastPMFloat * pm_alloc(PM * pm)
 {

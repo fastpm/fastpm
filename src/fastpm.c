@@ -107,6 +107,8 @@ int main(int argc, char ** argv) {
         .USE_MODEL = CONF(prr, enforce_broadband_mode),
         .KERNEL_TYPE = CONF(prr, kernel_type),
         .DEALIASING_TYPE = CONF(prr, dealiasing_type),
+        .PAINTER_TYPE = CONF(prr, painter_type),
+        .painter_support = CONF(prr, painter_support),
     };
 
     run_fastpm(fastpm, prr, comm);

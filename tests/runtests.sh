@@ -5,6 +5,9 @@ source testfunctions.sh
 set -x
 mpirun -n 4 $FASTPM standard.lua ic || fail
 
+mpirun -n 4 $FASTPM standard.lua fastpm || fail
+mpirun -n 4 $FASTPM standard.lua fastpm lanczos3 || fail
+exit
 mpirun -n 4 $FASTPM standard.lua fastpm gaussian || fail
 mpirun -n 4 $FASTPM standard.lua fastpm aggressive || fail
 mpirun -n 4 $FASTPM standard.lua fastpm gadget || fail

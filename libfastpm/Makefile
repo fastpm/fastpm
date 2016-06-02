@@ -29,8 +29,8 @@ LIBSOURCES = libfastpm.c \
     vpm.c  \
     pmpfft.c  \
     pmghosts.c  \
-    pmpaint.c \
-    pmpaint-cic.c \
+    painter.c \
+    painter-cic.c \
     pmstore.c \
     pm2lpt.c \
     pmapi.c \

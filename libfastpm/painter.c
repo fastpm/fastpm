@@ -4,37 +4,65 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
-#include "pmpaint.h"
 #include "pmstore.h"
 
+/* from cic.c */
+void fastpm_painter_init_cic(FastPMPainter * painter);
+
 static void
-_default_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
+_generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
 static double
-_default_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+_generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+
+static double
+_linear_kernel(double x, int support) {
+    return 1.0 - fabs(x / support);
+}
+
+static double __sinc__(double x) {
+    x *= 3.1415927;
+    if(x < 1e-5 && x > -1e-5) {
+        double x2 = x * x;
+        return 1.0 - x2 / 6. + x2  * x2 / 120.;
+    } else {
+        return sin(x) / x;
+    }
+}
+
+static double
+_lanczos_kernel(double x, int support) {
+    if(x >= support || x <= - support) return 0;
+    return __sinc__(x) * __sinc__(x / support);
+}
 
 void
 fastpm_painter_init(FastPMPainter * painter, PM * pm,
-    fastpm_kernelfunc kernel, int support)
+    FastPMPainterType type, int support)
 {
     painter->pm = pm;
+    painter->paint = _generic_paint;
+    painter->readout = _generic_readout;
+    painter->support = support;
 
-    if(kernel == NULL) {
-        fastpm_painter_init_cic(painter);
-        painter->kernel = NULL;
-        painter->support = 1;
-    } else {
-        painter->paint = _default_paint;
-        painter->readout = _default_readout;
-        painter->kernel = kernel;
-        painter->support = support;
-        int nmax = 1;
-        int d;
-        for(d = 0; d < 3; d++) {
-            painter->strides[d] = nmax;
-            nmax *= (2 * support);
-        }
-        painter->Npoints = nmax;
+    switch(type) {
+        case FASTPM_PAINTER_CIC:
+            fastpm_painter_init_cic(painter);
+            painter->kernel = NULL;
+        break;
+        case FASTPM_PAINTER_LINEAR:
+            painter->kernel = _linear_kernel;
+        break;
+        case FASTPM_PAINTER_LANCZOS:
+            painter->kernel = _lanczos_kernel;
+        break;
     }
+    int nmax = 1;
+    int d;
+    for(d = 0; d < 3; d++) {
+        painter->strides[d] = nmax;
+        nmax *= (2 * support);
+    }
+    painter->Npoints = nmax;
 }
 
 void
@@ -68,7 +96,7 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], float k[3][100])
 }
 
 static void
-_default_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
+_generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
 {
     PM * pm = painter->pm;
     int n;
@@ -108,7 +136,7 @@ _default_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], dou
 }
 
 static double
-_default_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
+_generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
 {
     PM * pm = painter->pm;
     double value = 0;

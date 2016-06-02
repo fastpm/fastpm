@@ -164,6 +164,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
                     &a_x, &a_x1, &a_v, &a_v1);
 
         PM * pm = fastpm->base.pm;
+        fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
 
         ENTER(decompose);
         fastpm_decompose(fastpm);

@@ -3,7 +3,6 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
-#include "pmpaint.h"
 /* paint and read out */
 
 static double

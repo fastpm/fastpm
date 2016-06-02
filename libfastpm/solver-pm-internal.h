@@ -1,6 +1,7 @@
 struct FastPMModel {
     FastPMModelType type;
     FastPM * fastpm;
+    FastPMPainter painter[1];
     PM * pm;
     double Pexpect;
     int factor;

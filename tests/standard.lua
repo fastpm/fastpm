@@ -44,7 +44,10 @@ local function has(keyword)
     end
     return false
 end
-
+if has('lanczos3') then
+    painter_type = "lanczos"
+    painter_support = 3
+end
 if has('inverted') then
     inverted_ic = true
 else

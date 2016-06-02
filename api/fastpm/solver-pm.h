@@ -37,7 +37,8 @@ typedef struct {
 
     PMStore * USE_EXTERNAL_PSTORE;
     double nLPT;
-
+    FastPMPainterType PAINTER_TYPE;
+    int painter_support;
     FastPMForceType FORCE_TYPE;
     FastPMKernelType KERNEL_TYPE;
     FastPMDealiasingType DEALIASING_TYPE;
@@ -67,6 +68,7 @@ typedef struct {
 
     FastPMModel * model;
     PM * pm_2lpt;
+    FastPMPainter painter[1];
 } FastPM;
 
 enum FastPMExtensionPoint {

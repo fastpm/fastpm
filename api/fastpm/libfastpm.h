@@ -53,6 +53,7 @@ typedef void   (*fastpm_posfunc)(PMStore * p, ptrdiff_t index, double pos[3]);
 typedef double (*fastpm_kernelfunc)(double x, int support);
 #define fastpm_pkfunc fastpm_fkfunc
 
+#include "painter.h"
 #include "memory.h"
 #include "pmapi.h"
 

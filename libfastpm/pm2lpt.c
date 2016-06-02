@@ -9,7 +9,6 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 #include "pmghosts.h"
-#include "pmpaint.h"
 #include "pm2lpt.h"
 
 void 
@@ -34,7 +33,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, pm, NULL, 1);
+    fastpm_painter_init(painter, pm, FASTPM_PAINTER_CIC, 0);
 
     FastPMFloat * workspace = pm_alloc(pm);
     FastPMFloat * source =  pm_alloc(pm);
