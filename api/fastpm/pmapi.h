@@ -130,5 +130,14 @@ pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void 
 pm_c2r(PM * pm, FastPMFloat * inplace);
 
+void
+pm_paint_store(PM * pm, FastPMFloat * canvas,
+            PMStore * p, ptrdiff_t size,
+            fastpm_posfunc get_position, int attribute);
+void
+pm_readout_store(PM * pm, FastPMFloat * canvas,
+            PMStore * p, ptrdiff_t size,
+            fastpm_posfunc get_position, int attribute);
+
 
 FASTPM_END_DECLS

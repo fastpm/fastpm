@@ -19,6 +19,7 @@ FASTPM_BEGIN_DECLS
 
 typedef struct PM PM;
 typedef struct PMStore PMStore;
+typedef struct FastPMPainter FastPMPainter;
 
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32
@@ -40,6 +41,7 @@ FASTPM_END_DECLS
 
 typedef double (*fastpm_fkfunc)(double k, void * data);
 typedef void   (*fastpm_posfunc)(PMStore * p, ptrdiff_t index, double pos[3]);
+typedef double (*fastpm_kernelfunc)(double x, int support);
 
 #define fastpm_pkfunc fastpm_fkfunc
 

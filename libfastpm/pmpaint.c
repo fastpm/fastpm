@@ -4,200 +4,87 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
+#include "pmpaint.h"
 #include "pmstore.h"
 
-/* paint and read out */
+static void
+_default_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
+static double
+_default_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
 
-static inline double WRtPlus(FastPMFloat * const d, 
-        const int i, const int j, const int k, const double f, PM * pm)
+void
+fastpm_painter_init(FastPMPainter * painter, PM * pm,
+    fastpm_kernelfunc kernel, int support)
 {
-#pragma omp atomic
-    d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] += f;
-    return f;
-}
-static inline double REd(FastPMFloat const * const d, const int i, const int j, const int k, const double w, PM * pm)
-{
-    return d[k * pm->IRegion.strides[2] + j * pm->IRegion.strides[1] + i * pm->IRegion.strides[0]] * w;
-}
-
-static inline void 
-pm_paint_pos_tuned(PM * pm, FastPMFloat * canvas, double pos[3], double weight) 
-{
-    double X=pos[0]*pm->InvCellSize[0];
-    double Y=pos[1]*pm->InvCellSize[1];
-    double Z=pos[2]*pm->InvCellSize[2];
-
-    int I=(int) floor(X); // without floor, -1 < X < 0 is mapped to I=0
-    int J=(int) floor(Y);          // Assumes Y,Z are positive
-    int K=(int) floor(Z);
-    double D1=X-((double) I);
-    double D2=Y-((double) J);
-    double D3=Z-((double) K);
-    double T1=1.-D1;
-    double T3=1.-D3;
-
-    double D2W = D2*weight;
-    double T2W = weight -D2W;
-
-    int I1=I+1; 
-    int J1=J+1; 
-    int K1=K+1; 
-
-    // Do periodic wrapup in all directions. 
-    // Buffer particles are copied from adjacent nodes
-    while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
-    while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
-    while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
-    while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
-    while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
-    while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
-
-
-    while(UNLIKELY(I1 < 0)) I1 += pm->Nmesh[0];
-    while(UNLIKELY(J1 < 0)) J1 += pm->Nmesh[1];
-    while(UNLIKELY(K1 < 0)) K1 += pm->Nmesh[2];
-    while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
-    while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
-    while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
-
-    I -= pm->IRegion.start[0];
-    J -= pm->IRegion.start[1];
-    I1 -= pm->IRegion.start[0];
-    J1 -= pm->IRegion.start[1];
-
-    if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J,  K,  T3*T1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J,  K1, D3*T1*T2W, pm);
+    painter->pm = pm;
+    if(kernel == NULL) {
+        fastpm_painter_init_cic(painter);
+        painter->kernel = NULL;
+        painter->support = 1;
+    } else {
+        painter->paint = _default_paint;
+        painter->readout = _default_readout;
+        painter->kernel = kernel;
+        painter->support = support;
+        int nmax = 1;
+        int d;
+        for(d = 0; d < 3; d++) {
+            painter->strides[d] = nmax;
+            nmax *= (2 * support);
         }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J1, K,  T3*T1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J1, K1, D3*T1*D2W, pm);
-        }
-    }
-
-    if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J,  K,  T3*D1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J,  K1, D3*D1*T2W, pm);
-        }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J1, K,  T3*D1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J1, K1, D3*D1*D2W, pm);
-        }
+        painter->Npoints = nmax;
     }
 }
 
-static inline double 
-pm_readout_pos_tuned(PM * pm, FastPMFloat * canvas, double pos[3]) 
+void
+fastpm_painter_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
 {
-    double X=pos[0]*pm->InvCellSize[0];
-    double Y=pos[1]*pm->InvCellSize[1];
-    double Z=pos[2]*pm->InvCellSize[2];
-
-    int I=(int) floor(X); // without floor, -1 < X < 0 is mapped to I=0
-    int J=(int) floor(Y);          // Assumes Y,Z are positive
-    int K=(int) floor(Z);
-    double D1=X-((double) I);
-    double D2=Y-((double) J);
-    double D3=Z-((double) K);
-    double T1=1.-D1;
-    double T2=1.-D2;
-    double T3=1.-D3;
-
-    double T2W =T2;
-    double D2W =D2;
-
-    int I1=I+1; 
-    int J1=J+1; 
-    int K1=K+1; 
-
-    // Do periodic wrapup in all directions. 
-    // Buffer particles are copied from adjacent nodes
-
-    while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
-    while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
-    while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
-    while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
-    while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
-    while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
-
-
-    while(UNLIKELY(I1 < 0)) I1 += pm->Nmesh[0];
-    while(UNLIKELY(J1 < 0)) J1 += pm->Nmesh[1];
-    while(UNLIKELY(K1 < 0)) K1 += pm->Nmesh[2];
-    while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
-    while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
-    while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
-
-    I -= pm->IRegion.start[0];
-    J -= pm->IRegion.start[1];
-    I1 -= pm->IRegion.start[0];
-    J1 -= pm->IRegion.start[1];
-
-    double value = 0;
-
-    if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I, J,  K,  T3*T1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I, J,  K1, D3*T1*T2W, pm);
-        }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I, J1, K,  T3*T1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I, J1, K1, D3*T1*D2W, pm);
-        }
-    }
-
-    if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J,  K,  T3*D1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J,  K1, D3*D1*T2W, pm);
-        }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J1, K,  T3*D1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J1, K1, D3*D1*D2W, pm);
-        }
-    }
-    return value;
+    painter->paint(painter, canvas, pos, weight);
 }
 
-static inline void 
-pm_paint_pos_untuned(PM * pm, FastPMFloat * canvas, double pos[3], double weight) 
+double
+fastpm_painter_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
 {
-    int n;
+    return painter->readout(painter, canvas, pos);
+}
+
+static void
+_fill_k(FastPMPainter * painter, double pos[3], int ipos[3], float k[3][100])
+{
+    PM * pm = painter->pm;
     double gpos[3];
-    int ipos[3];
-    float k[3][2];
     int d;
     for(d = 0; d < 3; d++) {
         gpos[d] = pos[d] * pm->InvCellSize[d];
-        ipos[d] = floor(gpos[d]);
-        k[d][0] = 1 + ipos[d] - gpos[d];
-        k[d][1] = gpos[d] - ipos[d];
+        ipos[d] = floor(gpos[d]) - (painter->support - 1);
+        double dx = gpos[d] - ipos[d];
+        int i;
+        for(i = 0; i < 2 * painter->support; i ++) {
+            k[d][i] = painter->kernel(dx - i, painter->support);
+        }
         ipos[d] -= pm->IRegion.start[d];
     }
-    for(n = 0; n < 8; n ++) {
+}
+
+static void
+_default_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
+{
+    PM * pm = painter->pm;
+    int n;
+    int d;
+    int ipos[3];
+    /* the max support is 50 */
+    float k[3][100];
+
+    _fill_k(painter, pos, ipos, k);
+
+    for(n = 0; n < painter->Npoints; n ++) {
         float kernel = 1.0;
         ptrdiff_t ind = 0;
         int d;
         for(d = 0; d < 3; d++) {
-            int rel = (n>>d) & 1;
+            int rel = (n / painter->strides[d]) % (2 * painter->support);
+
             int targetpos = ipos[d] + rel;
             kernel *= k[d][rel];
             while(targetpos >= pm->Nmesh[d]) {
@@ -219,28 +106,24 @@ pm_paint_pos_untuned(PM * pm, FastPMFloat * canvas, double pos[3], double weight
     return;
 }
 
-static inline double 
-pm_readout_pos_untuned(PM * pm, FastPMFloat * canvas, double pos[3]) 
+static double
+_default_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
 {
+    PM * pm = painter->pm;
     double value = 0;
     int n;
-    double gpos[3];
     int ipos[3];
-    float k[3][2];
+    float k[3][100];
     int d;
-    for(d = 0; d < 3; d++) {
-        gpos[d] = pos[d] * pm->InvCellSize[d];
-        ipos[d] = floor(gpos[d]);
-        k[d][0] = 1 + ipos[d] - gpos[d];
-        k[d][1] = gpos[d] - ipos[d];
-        ipos[d] -= pm->IRegion.start[d];
-    }
-    for(n = 0; n < 8; n ++) {
+
+    _fill_k(painter, pos, ipos, k);
+
+    for(n = 0; n < painter->Npoints; n ++) {
         float kernel = 1.0;
         ptrdiff_t ind = 0;
         int d;
         for(d = 0; d < 3; d++) {
-            int rel = (n>>d) & 1;
+            int rel = (n / painter->strides[d]) % (2 * painter->support);
 
             kernel *= k[d][rel];
 
@@ -254,7 +137,7 @@ pm_readout_pos_untuned(PM * pm, FastPMFloat * canvas, double pos[3])
             }
             if(targetpos >= pm->IRegion.size[d]) {
                 goto outside;
-            } 
+            }
             ind += pm->IRegion.strides[d] * targetpos;
         }
         value += kernel * canvas[ind];
@@ -262,63 +145,4 @@ outside:
         continue;
     }
     return value;
-}
-
-void 
-pm_paint_pos(PM * pm, FastPMFloat * canvas, double pos[3], double weight) 
-{
-    pm_paint_pos_tuned(pm, canvas, pos, weight);
-}
-
-double
-pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3]) 
-{
-    return pm_readout_pos_tuned(pm, canvas, pos);
-}
-
-void
-pm_paint_store(PM * pm, FastPMFloat * canvas,
-            PMStore * p, ptrdiff_t size,
-            fastpm_posfunc get_position, int attribute)
-{
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
-    ptrdiff_t i;
-    memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
-
-#pragma omp parallel for
-    for (i = 0; i < size; i ++) {
-        double pos[3];
-        double weight = attribute? p->to_double(p, i, attribute): 1.0;
-        p->get_position(p, i, pos);
-        pm_paint_pos_tuned(pm, canvas, pos, weight);
-    }
-}
-
-double
-pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i) 
-{
-    double pos[3];
-    p->get_position(p, i, pos);
-    return pm_readout_pos_tuned(pm, canvas, pos);
-}
-
-void
-pm_readout_store(PM * pm, FastPMFloat * canvas,
-    PMStore * p, ptrdiff_t size,
-    fastpm_posfunc get_position, int attribute
-    )
-{
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
-    ptrdiff_t i;
-#pragma omp parallel for
-    for (i = 0; i < size; i ++) {
-        double pos[3];
-        get_position(p, i, pos);
-        double weight = pm_readout_pos_tuned(pm, canvas, pos);
-        p->from_double(p, i, attribute, weight);
-    }
 }

@@ -4,6 +4,7 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
+#include "pmpaint.h"
 
 FastPMFloat * pm_alloc(PM * pm)
 {
@@ -242,5 +243,50 @@ pm_destroy_k_factors(PMKIter * iter)
         free(iter->kk_finite2[d]);
         free(iter->kk_finite[d]);
         free(iter->kk[d]);
+    }
+}
+
+void
+pm_paint_store(PM * pm, FastPMFloat * canvas,
+            PMStore * p, ptrdiff_t size,
+            fastpm_posfunc get_position, int attribute)
+{
+    FastPMPainter painter;
+    fastpm_painter_init(&painter, pm, FASTPM_PAINTER_KERNEL_LINEAR, 1);
+
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+    ptrdiff_t i;
+    memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
+
+#pragma omp parallel for
+    for (i = 0; i < size; i ++) {
+        double pos[3];
+        double weight = attribute? p->to_double(p, i, attribute): 1.0;
+        p->get_position(p, i, pos);
+        fastpm_painter_paint(&painter, canvas, pos, weight);
+    }
+}
+
+void
+pm_readout_store(PM * pm, FastPMFloat * canvas,
+    PMStore * p, ptrdiff_t size,
+    fastpm_posfunc get_position, int attribute
+    )
+{
+    FastPMPainter painter;
+    fastpm_painter_init(&painter, pm, FASTPM_PAINTER_KERNEL_LINEAR, 1);
+
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+    ptrdiff_t i;
+#pragma omp parallel for
+    for (i = 0; i < size; i ++) {
+        double pos[3];
+        get_position(p, i, pos);
+        double weight = fastpm_painter_readout(&painter, canvas, pos);
+        p->from_double(p, i, attribute, weight);
     }
 }
