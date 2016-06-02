@@ -52,10 +52,9 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
         fastpm_apply_diff_transfer(pm, workspace, workspace, d);
 
         pm_c2r(pm, workspace);
-#pragma omp parallel for
-        for(i = 0; i < p->np + pgd->nghosts; i ++) {
-            p->dx1[i][d] = pm_readout_one(pm, workspace, p, i);
-        }
+
+        pm_readout_store(pm, workspace, p, p->np + pgd->nghosts, NULL, DX1[d]);
+
         pm_ghosts_reduce(pgd, DX1[d]);
     } 
 
@@ -103,12 +102,10 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
         pm_c2r(pm, workspace);
 
-#pragma omp parallel for
-        for(i = 0; i < p->np + pgd->nghosts; i ++) {        
-            /* this ensures x = x0 + dx1(t) + dx2(t) */
-            p->dx2[i][d] = (3.0 / 7) * pm_readout_one(pm, workspace, p, i);
-        }
-        pm_ghosts_reduce(pgd, DX2[d]);
+        /* this ensures x = x0 + dx1(t) + dx2(t) */
+        fastpm_apply_multiply_transfer(pm, workspace, workspace, 3.0 / 7);
+
+        pm_readout_store(pm, workspace, p, p->np + pgd->nghosts, NULL, DX2[d]);
     }
 
 #ifdef PM_2LPT_DUMP

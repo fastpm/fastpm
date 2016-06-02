@@ -276,12 +276,21 @@ pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3])
     return pm_readout_pos_tuned(pm, canvas, pos);
 }
 
-void pm_paint(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t size, double weight) {
+void
+pm_paint_store(PM * pm, FastPMFloat * canvas,
+            PMStore * p, ptrdiff_t size,
+            fastpm_posfunc get_position, int attribute)
+{
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
     ptrdiff_t i;
     memset(canvas, 0, sizeof(canvas[0]) * pm->allocsize);
+
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
+        double weight = attribute? p->to_double(p, i, attribute): 1.0;
         p->get_position(p, i, pos);
         pm_paint_pos_tuned(pm, canvas, pos, weight);
     }
@@ -295,3 +304,21 @@ pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i)
     return pm_readout_pos_tuned(pm, canvas, pos);
 }
 
+void
+pm_readout_store(PM * pm, FastPMFloat * canvas,
+    PMStore * p, ptrdiff_t size,
+    fastpm_posfunc get_position, int attribute
+    )
+{
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+    ptrdiff_t i;
+#pragma omp parallel for
+    for (i = 0; i < size; i ++) {
+        double pos[3];
+        get_position(p, i, pos);
+        double weight = pm_readout_pos_tuned(pm, canvas, pos);
+        p->from_double(p, i, attribute, weight);
+    }
+}

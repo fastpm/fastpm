@@ -240,7 +240,8 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
      * We thus have to boost the density by density_factor.
      * */
     CLOCK(paint);
-    pm_paint(pm, canvas, p, p->np + pgd->nghosts, density_factor);
+    pm_paint_store(pm, canvas, p, p->np + pgd->nghosts, NULL, 0);
+    fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
     LEAVE(paint);
 
     CLOCK(r2c);
@@ -310,10 +311,7 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
         LEAVE(c2r);
 
         CLOCK(readout);
-#pragma omp parallel for
-        for(i = 0; i < p->np + pgd->nghosts; i ++) {
-            p->acc[i][d] = pm_readout_one(pm, canvas, p, i);
-        }
+        pm_readout_store(pm, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
         LEAVE(readout);
 
         CLOCK(reduce);

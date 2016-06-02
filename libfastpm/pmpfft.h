@@ -82,11 +82,14 @@ void pm_destroy(PM * pm);
 int pm_pos_to_rank(PM * pm, double pos[3]);
 int pm_ipos_to_rank(PM * pm, int i[3]);
 
-void pm_paint(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t size, double weight);
-double pm_readout_pos(PM * pm, FastPMFloat * canvas, double pos[3]);
-void pm_paint_pos(PM * pm, FastPMFloat * canvas, double pos[3], double weight);
-double pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i);
-
+void
+pm_paint_store(PM * pm, FastPMFloat * canvas,
+            PMStore * p, ptrdiff_t size,
+            fastpm_posfunc get_position, int attribute);
+void
+pm_readout_store(PM * pm, FastPMFloat * canvas,
+            PMStore * p, ptrdiff_t size,
+            fastpm_posfunc get_position, int attribute);
 
 /* reset 'x' and 'q' of every particle to the lagrangian position. This function shall
  * not belong here.*/

@@ -212,8 +212,8 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
     /* Note that power will divide by the 0-th mode
-     * thus we do not need to set the mass of particles correctly */
-    pm_paint(pm, canvas, p, p->np + pgd->nghosts, 1.0);
+     * thus we do not need to scale the density correctly */
+    pm_paint_store(pm, canvas, p, p->np + pgd->nghosts, NULL, 0);
 
     pm_r2c(pm, canvas, delta_k);
 
