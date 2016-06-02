@@ -9,6 +9,7 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 #include "pmghosts.h"
+#include "pmpaint.h"
 #include "pm2lpt.h"
 
 void 
@@ -32,6 +33,9 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
 
+    FastPMPainter painter[1];
+    fastpm_painter_init(painter, pm, NULL, 1);
+
     FastPMFloat * workspace = pm_alloc(pm);
     FastPMFloat * source =  pm_alloc(pm);
     memset(source, 0, sizeof(source[0]) * pm->allocsize);
@@ -53,7 +57,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
         pm_c2r(pm, workspace);
 
-        pm_readout_store(pm, workspace, p, p->np + pgd->nghosts, NULL, DX1[d]);
+        fastpm_readout_store(painter, workspace, p, p->np + pgd->nghosts, NULL, DX1[d]);
 
         pm_ghosts_reduce(pgd, DX1[d]);
     } 
@@ -105,7 +109,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
         /* this ensures x = x0 + dx1(t) + dx2(t) */
         fastpm_apply_multiply_transfer(pm, workspace, workspace, 3.0 / 7);
 
-        pm_readout_store(pm, workspace, p, p->np + pgd->nghosts, NULL, DX2[d]);
+        fastpm_readout_store(painter, workspace, p, p->np + pgd->nghosts, NULL, DX2[d]);
     }
 
 #ifdef PM_2LPT_DUMP

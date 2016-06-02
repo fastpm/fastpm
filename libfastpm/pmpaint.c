@@ -17,6 +17,7 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     fastpm_kernelfunc kernel, int support)
 {
     painter->pm = pm;
+
     if(kernel == NULL) {
         fastpm_painter_init_cic(painter);
         painter->kernel = NULL;
@@ -145,4 +146,45 @@ outside:
         continue;
     }
     return value;
+}
+
+void
+fastpm_paint_store(FastPMPainter * painter, FastPMFloat * canvas,
+    PMStore * p, size_t size,
+    fastpm_posfunc get_position, int attribute)
+{
+    ptrdiff_t i;
+
+    memset(canvas, 0, sizeof(canvas[0]) * painter->pm->allocsize);
+
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+
+#pragma omp parallel for
+    for (i = 0; i < size; i ++) {
+        double pos[3];
+        double weight = attribute? p->to_double(p, i, attribute): 1.0;
+        get_position(p, i, pos);
+        fastpm_painter_paint(painter, canvas, pos, weight);
+    }
+}
+
+void
+fastpm_readout_store(FastPMPainter * painter, FastPMFloat * canvas,
+    PMStore * p, size_t size,
+    fastpm_posfunc get_position, int attribute)
+{
+
+    ptrdiff_t i;
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+#pragma omp parallel for
+    for (i = 0; i < size; i ++) {
+        double pos[3];
+        get_position(p, i, pos);
+        double weight = fastpm_painter_readout(painter, canvas, pos);
+        p->from_double(p, i, attribute, weight);
+    }
 }

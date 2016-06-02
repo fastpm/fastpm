@@ -11,6 +11,7 @@
 #include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
+#include "pmpaint.h"
 
 static double RNDTABLE[8192];
 
@@ -49,17 +50,21 @@ fastpm_utils_paint(PM * pm, PMStore * p,
     fastpm_posfunc get_position,
     int attribute)
 {
+    FastPMPainter painter;
+
     if(get_position == NULL) {
         get_position = p->get_position;
     }
     ptrdiff_t i;
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
 
+    fastpm_painter_init(&painter, pm, FASTPM_PAINTER_KERNEL_LINEAR, 1);
+
     /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
      * otherwise increase this to (Nmesh / Ngrid) **3 */
     FastPMFloat * canvas = pm_alloc(pm);
 
-    pm_paint_store(pm, canvas, p, p->np + pgd->nghosts, get_position, attribute);
+    fastpm_paint_store(&painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
 
     if(delta_x)
         pm_assign(pm, canvas, delta_x);
@@ -78,12 +83,18 @@ fastpm_utils_readout(PM * pm, PMStore * p,
     int attribute
     )
 {
+    FastPMPainter painter;
+
     if(get_position == NULL) {
         get_position = p->get_position;
     }
+
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
 
-    pm_readout_store(pm, delta_x, p, p->np + pgd->nghosts, get_position, attribute);
+    fastpm_painter_init(&painter, pm,
+                FASTPM_PAINTER_KERNEL_LINEAR, 1);
+
+    fastpm_readout_store(&painter, delta_x, p, p->np + pgd->nghosts, get_position, attribute);
 
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);

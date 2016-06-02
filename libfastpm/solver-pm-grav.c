@@ -8,6 +8,7 @@
 
 #include "pmpfft.h"
 #include "pmghosts.h"
+#include "pmpaint.h"
 #include "pmstore.h"
 
 static void 
@@ -230,9 +231,11 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
     double density_factor = fastpm->pm->Norm / pow(1.0 * fastpm->nc, 3);
 
     CLOCK(ghosts);
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL); 
+    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
     LEAVE(ghosts);
 
+    FastPMPainter painter[1];
+    fastpm_painter_init(painter, pm, NULL, 1);
     FastPMFloat * canvas = pm_alloc(pm);
 
     /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
@@ -240,7 +243,8 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
      * We thus have to boost the density by density_factor.
      * */
     CLOCK(paint);
-    pm_paint_store(pm, canvas, p, p->np + pgd->nghosts, NULL, 0);
+    fastpm_paint_store(painter, canvas,
+                p, p->np + pgd->nghosts, NULL, 0);
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
     LEAVE(paint);
 
@@ -311,7 +315,7 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
         LEAVE(c2r);
 
         CLOCK(readout);
-        pm_readout_store(pm, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
+        fastpm_readout_store(painter, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
         LEAVE(readout);
 
         CLOCK(reduce);
