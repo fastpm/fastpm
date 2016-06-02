@@ -88,8 +88,14 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], float k[3][100])
         ipos[d] = floor(gpos[d]) - (painter->support - 1);
         double dx = gpos[d] - ipos[d];
         int i;
+        double sum = 0;
         for(i = 0; i < 2 * painter->support; i ++) {
             k[d][i] = painter->kernel(dx - i, painter->support);
+            sum += k[d][i];
+        }
+        /* normalize the kernel to conserve mass */
+        for(i = 0; i < 2 * painter->support; i ++) {
+            k[d][i] /= sum;
         }
         ipos[d] -= pm->IRegion.start[d];
     }
