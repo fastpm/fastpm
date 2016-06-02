@@ -225,6 +225,8 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
 {
     PMStore * p = fastpm->base.p;
     PM * pm = fastpm->base.pm;
+    FastPMPainter reader[1];
+    fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);
 
     /* watch out: boost the density since mesh is finer than grid */
     double density_factor = pm->Norm / pow(1.0 * fastpm->nc, 3);
@@ -312,7 +314,7 @@ fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
         LEAVE(c2r);
 
         CLOCK(readout);
-        fastpm_readout_store(fastpm->painter, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
+        fastpm_readout_store(reader, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
         LEAVE(readout);
 
         CLOCK(reduce);
