@@ -17,11 +17,11 @@ typedef struct {
     PMStore * psub;
 } FastPMModelPTPriv;
 
-static void fastpm_model_pt_build(FastPMModel * model, PMStore * p, double ainit, double afinal)
+static void fastpm_model_pt_build(FastPMModel * model, double ainit, double afinal)
 {
     FastPMModelPTPriv * priv = model->priv;
     PMStore * psub = malloc(sizeof(PMStore));
-    fastpm_model_create_subsample(model, psub, PACK_POS | PACK_DX1 | PACK_DX2);
+    fastpm_model_create_subsample(model, psub);
     pm_2lpt_evolve(ainit, psub, model->fastpm->omega_m, 0);
     pm_store_wrap(psub, model->pm->BoxSize);
     priv->psub = psub;

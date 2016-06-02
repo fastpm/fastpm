@@ -34,11 +34,12 @@ static Cosmology CP(FastPM * fastpm) {
 int 
 write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
-    MPI_Comm comm = fastpm->comm;
-    int NTask;
-    int ThisTask;
-    MPI_Comm_size(comm, &NTask);
-    MPI_Comm_rank(comm, &ThisTask);
+
+    FastPMSolverBase * base = &fastpm->base;
+
+    int ThisTask = base->ThisTask;
+    int NTask = base->NTask;
+    MPI_Comm comm = base->comm;
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 

@@ -65,17 +65,18 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
     fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, comm);
     self->solver.USE_SHIFT = 0;
 
-    fastpm_pm_init(&self->pm_solver, self->solver.p, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, self->OmegaM, comm);
+    fastpm_pm_init(&self->pm_solver, self->solver.base.p, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, self->OmegaM, comm);
 
     /* FIXME: create a new pm object */
-    self->pm = self->solver.pm;
+    self->pm = self->solver.base.pm;
 
     /* We will set p after evolve is called. p contains the displacement field! */
     self->p = NULL;
+    self->comm = comm;
 
-    self->delta_ic_k = pm_alloc(self->solver.pm);
-    self->rho_final_x = pm_alloc(self->solver.pm);
-    self->transfer_function = pm_alloc(self->solver.pm);
+    self->delta_ic_k = pm_alloc(self->pm);
+    self->rho_final_x = pm_alloc(self->pm);
+    self->transfer_function = pm_alloc(self->pm);
     if(self->IncludeRSD) {
         fastpm_info("Using RSD along z\n");
     }
@@ -85,9 +86,9 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self)
 {
-    pm_free(self->solver.pm, self->transfer_function);
-    pm_free(self->solver.pm, self->rho_final_x);
-    pm_free(self->solver.pm, self->delta_ic_k);
+    pm_free(self->pm, self->transfer_function);
+    pm_free(self->pm, self->rho_final_x);
+    pm_free(self->pm, self->delta_ic_k);
     fastpm_destroy(&self->pm_solver);
     fastpm_2lpt_destroy(&self->solver);
 }
@@ -105,7 +106,7 @@ fastpm_hmc_za_evolve_internal(
         FastPM2LPTSolver * solver = &self->solver;
         fastpm_2lpt_evolve(solver, self->delta_ic_k, 1.0, self->OmegaM);
 
-        self->p = solver->p;
+        self->p = solver->base.p;
     } else {
         FastPM * solver = &self->pm_solver;
         double time_step[Nsteps];
@@ -119,7 +120,7 @@ fastpm_hmc_za_evolve_internal(
         fastpm_setup_ic(solver, self->delta_ic_k);
         fastpm_evolve(solver, time_step, Nsteps);
 
-        self->p = solver->p;
+        self->p = solver->base.p;
     }
     if(self->IncludeRSD) {
         Cosmology c = {
@@ -210,7 +211,7 @@ fastpm_hmc_za_chisq(
             diff /= (sigma_x[iter.ind] * sigma_x[iter.ind]);
         chi2 += diff;
     }
-    MPI_Allreduce(MPI_IN_PLACE, &chi2, 1, MPI_DOUBLE, MPI_SUM, self->solver.comm);
+    MPI_Allreduce(MPI_IN_PLACE, &chi2, 1, MPI_DOUBLE, MPI_SUM, self->comm);
     chi2 /= pm_norm(self->pm);
     return chi2;
 }

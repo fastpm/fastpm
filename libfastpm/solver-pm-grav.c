@@ -224,11 +224,11 @@ gaussian36(double k, double * knq)
 void
 fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
 {
-    PMStore * p = fastpm->p;
-    PM * pm = fastpm->pm;
+    PMStore * p = fastpm->base.p;
+    PM * pm = fastpm->base.pm;
 
     /* watch out: boost the density since mesh is finer than grid */
-    double density_factor = fastpm->pm->Norm / pow(1.0 * fastpm->nc, 3);
+    double density_factor = pm->Norm / pow(1.0 * fastpm->nc, 3);
 
     CLOCK(ghosts);
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);

@@ -30,7 +30,7 @@ typedef struct {
     FastPMFloat * delta_ic_k;
     FastPMFloat * rho_final_x;
     FastPMFloat * transfer_function;
-
+    MPI_Comm comm;
 } FastPMHMCZA;
 
 void

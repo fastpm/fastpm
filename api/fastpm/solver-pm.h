@@ -23,6 +23,8 @@ typedef enum { FASTPM_DEALIASING_NONE,
                FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN36 } FastPMDealiasingType;
 
 typedef struct {
+    FastPMSolverBase base;
+
     /* input parameters */
     size_t nc;
     double boxsize;
@@ -61,17 +63,9 @@ typedef struct {
         int Nmesh;
     } info;
 
-    /* internal variables */
-    MPI_Comm comm;
-    int ThisTask;
-    int NTask;
-
-    PMStore * p;
     VPM * vpm_list;
 
     FastPMModel * model;
-    /* Pointer to the current PM object */
-    PM * pm;
     PM * pm_2lpt;
 } FastPM;
 

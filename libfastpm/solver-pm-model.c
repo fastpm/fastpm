@@ -37,7 +37,7 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
     model->build = NULL;
     model->evolve = NULL;
     model->destroy = NULL;
-    pm_init(model->pm, &pminit, fastpm->comm);
+    pm_init(model->pm, &pminit, fastpm->base.comm);
 
     switch(type) {
         case FASTPM_MODEL_NONE:
@@ -59,10 +59,10 @@ void fastpm_model_init(FastPMModel * model, FastPM * fastpm, FastPMModelType typ
     }
 }
 
-void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub, int attributes)
+void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub)
 {
     pm_store_init(psub);
-    pm_store_create_subsample(psub, model->fastpm->p, attributes, model->factor, model->fastpm->nc);
+    pm_store_create_subsample(psub, model->fastpm->base.p, model->fastpm->base.p->attributes, model->factor, model->fastpm->nc);
 }
 
 void fastpm_model_destroy(FastPMModel * model)
@@ -73,10 +73,10 @@ void fastpm_model_destroy(FastPMModel * model)
     free(model->pm);
 }
 
-void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit, double afinal)
+void fastpm_model_build(FastPMModel * model, double ainit, double afinal)
 {
     if(!model->build) return;
-    model->build(model, p, ainit, afinal);
+    model->build(model, ainit, afinal);
 }
 
 void fastpm_model_evolve(FastPMModel * model, double af)
@@ -141,7 +141,7 @@ fastpm_model_find_correction(FastPMModel * model,
     pm_store_init(po);
 
     /* FIXME: get rid of DX1 DX2, since we do not need a model for COLA */
-    fastpm_model_create_subsample(model, po, PACK_POS| PACK_VEL | PACK_ACC | PACK_DX1 | PACK_DX2);
+    fastpm_model_create_subsample(model, po);
 
     gsl_root_fsolver * s;
     gsl_function F;

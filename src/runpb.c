@@ -37,9 +37,10 @@ typedef struct {
 int 
 read_runpb_ic(FastPM * fastpm, PMStore * p, const char * filename)
 {
-    int ThisTask = fastpm->ThisTask;
-    int NTask = fastpm->NTask;
-    MPI_Comm comm = fastpm->comm;
+    FastPMSolverBase * base = &fastpm->base;
+    int ThisTask = base->ThisTask;
+    int NTask = base->NTask;
+    MPI_Comm comm = base->comm;
 
     size_t scratch_bytes = 32 * 1024 * 1024;
     void * scratch = malloc(scratch_bytes);
@@ -383,9 +384,11 @@ static void write_mine(const char * filebase,
 int 
 write_runpb_snapshot(FastPM * fastpm, PMStore * p, const char * filebase)
 {
-    int ThisTask = fastpm->ThisTask;
-    int NTask = fastpm->NTask;
-    MPI_Comm comm = fastpm->comm;
+    FastPMSolverBase * base = &fastpm->base;
+
+    int ThisTask = base->ThisTask;
+    int NTask = base->NTask;
+    MPI_Comm comm = base->comm;
 
     double aa = p->a_x;
 

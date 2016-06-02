@@ -188,9 +188,10 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 static void 
 prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm) 
 {
+    FastPMSolverBase * base = &fastpm->base;
     /* we may need a read gadget ic here too */
     if(CONF(prr, read_runpbic)) {
-        read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
+        read_runpb_ic(fastpm, base->p, CONF(prr, read_runpbic));
         fastpm_setup_ic(fastpm, NULL);
         return;
     } 
@@ -303,6 +304,7 @@ static int check_snapshots(FastPM * fastpm, void * unused, Parameters * prr) {
 static int 
 take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * prr) 
 {
+    FastPMSolverBase * base = &fastpm->base;
     CLOCK(io);
     CLOCK(meta);
 
@@ -311,7 +313,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         double z_out= 1.0/aout - 1.0;
         int Nwriters = prr->Nwriters;
         if(Nwriters == 0) {
-            MPI_Comm_size(fastpm->comm, &Nwriters);
+            MPI_Comm_size(base->comm, &Nwriters);
         }
         sprintf(filebase, "%s_%0.04f", CONF(prr, write_snapshot), aout);
 
@@ -322,7 +324,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         fastpm_path_ensure_dirname(filebase);
         LEAVE(meta);
 
-        MPI_Barrier(fastpm->comm);
+        MPI_Barrier(base->comm);
         ENTER(io);
         write_snapshot(fastpm, snapshot, filebase, prr->string, Nwriters);
         LEAVE(io);
@@ -338,7 +340,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         fastpm_path_ensure_dirname(filebase);
         LEAVE(meta);
 
-        MPI_Barrier(fastpm->comm);
+        MPI_Barrier(base->comm);
         ENTER(io);
         write_runpb_snapshot(fastpm, snapshot, filebase);
 
@@ -362,6 +364,8 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
 static int
 write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
+    FastPMSolverBase * base = &fastpm->base;
+
     CLOCK(compute);
     CLOCK(io);
 
@@ -376,14 +380,14 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
     fastpm_info("Load imbalance is - %g / + %g\n",
         fastpm->info.imbalance.min, fastpm->info.imbalance.max);
 
-    fastpm_report_memory(fastpm->comm);
+    fastpm_report_memory(base->comm);
 
-    MPI_Barrier(fastpm->comm);
+    MPI_Barrier(base->comm);
     ENTER(compute);
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
+    fastpm_powerspectrum_init_from_delta(&ps, base->pm, delta_k, delta_k);
 
     double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
 
@@ -396,11 +400,11 @@ write_powerspectrum(FastPM * fastpm, FastPMFloat * delta_k, double a_x, Paramete
 
     LEAVE(compute);
 
-    MPI_Barrier(fastpm->comm);
+    MPI_Barrier(base->comm);
 
     ENTER(io);
     if(CONF(prr, write_powerspectrum)) {
-        if(fastpm->ThisTask == 0) {
+        if(base->ThisTask == 0) {
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);

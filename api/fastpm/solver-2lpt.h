@@ -1,14 +1,12 @@
 FASTPM_BEGIN_DECLS
 
 typedef struct FastPM2LPTSolver {
-    PM * pm;
-    PMStore * p;
-    int USE_DX1_ONLY;
-    int USE_SHIFT;
-    MPI_Comm comm;
-    double boxsize;
+    FastPMSolverBase base;
+
     int nc;
-    int nmesh;
+    double boxsize;
+    int USE_SHIFT;
+    int USE_DX1_ONLY;
 } FastPM2LPTSolver;
 
 int 

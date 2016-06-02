@@ -52,21 +52,21 @@ void fastpm_init(FastPM * fastpm,
             .use_fftw = UseFFTW,
         };
 
-    fastpm->comm = comm;
-    MPI_Comm_rank(comm, &fastpm->ThisTask);
-    MPI_Comm_size(comm, &fastpm->NTask);
+    fastpm->base.comm = comm;
+    MPI_Comm_rank(comm, &fastpm->base.ThisTask);
+    MPI_Comm_size(comm, &fastpm->base.NTask);
 
     fastpm->model = malloc(sizeof(FastPMModel));
 
     if(!fastpm->USE_EXTERNAL_PSTORE) {
-        fastpm->p = malloc(sizeof(PMStore));
-        pm_store_init(fastpm->p);
+        fastpm->base.p = malloc(sizeof(PMStore));
+        pm_store_init(fastpm->base.p);
 
-        pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
+        pm_store_alloc_evenly(fastpm->base.p, pow(1.0 * fastpm->nc, 3),
             PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC,
             fastpm->alloc_factor, comm);
     } else {
-        fastpm->p = fastpm->USE_EXTERNAL_PSTORE;
+        fastpm->base.p = fastpm->USE_EXTERNAL_PSTORE;
     }
 
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
@@ -88,7 +88,7 @@ void fastpm_init(FastPM * fastpm,
         };
 
     fastpm->pm_2lpt = malloc(sizeof(PM));
-    pm_init(fastpm->pm_2lpt, &pm_2lptinit, fastpm->comm);
+    pm_init(fastpm->pm_2lpt, &pm_2lptinit, fastpm->base.comm);
 }
 
 void
@@ -96,6 +96,8 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
 {
 
     PM * pm_2lpt = fastpm->pm_2lpt;
+    PMStore * p = fastpm->base.p;
+
     if(delta_k_ic) {
         double shift0;
         if(fastpm->USE_SHIFT) {
@@ -107,16 +109,16 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
 
         int nc[3] = {fastpm->nc, fastpm->nc, fastpm->nc};
 
-        pm_store_set_lagrangian_position(fastpm->p, pm_2lpt, shift, nc);
+        pm_store_set_lagrangian_position(p, pm_2lpt, shift, nc);
 
         /* read out values at locations with an inverted shift */
-        pm_2lpt_solve(pm_2lpt, delta_k_ic, fastpm->p, shift);
+        pm_2lpt_solve(pm_2lpt, delta_k_ic, p, shift);
     }
 
     if(fastpm->USE_DX1_ONLY == 1) {
-        memset(fastpm->p->dx2, 0, sizeof(fastpm->p->dx2[0]) * fastpm->p->np);
+        memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
-    pm_store_summary(fastpm->p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
+    pm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->base.comm);
 }
 
 void
@@ -132,40 +134,43 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
     CLOCK(correction);
 
     FastPMExtension * ext;
+    PMStore * p = fastpm->base.p;
+    MPI_Comm comm = fastpm->base.comm;
 
-    fastpm_model_build(fastpm->model, fastpm->p, time_step[0], time_step[nstep - 1]);
+    fastpm_model_build(fastpm->model, time_step[0], time_step[nstep - 1]);
 
-    pm_2lpt_evolve(time_step[0], fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
+    pm_2lpt_evolve(time_step[0], p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 
-    MPI_Barrier(fastpm->comm);
+    MPI_Barrier(comm);
 
     CLOCK(warmup);
 
     if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* If doing COLA, v_res = 0 at initial. */
-        memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
+        memset(p->v, 0, sizeof(p->v[0]) * p->np);
     }
 
     LEAVE(warmup);
 
-    MPI_Barrier(fastpm->comm);
+    MPI_Barrier(comm);
 
     double correction = 1.0;
     /* The last step is the 'terminal' step */
     int istep;
     for (istep = 0; istep < nstep; istep++) {
         double a_v, a_x, a_v1, a_x1;
-
         /* begining and ending of drift(x) and kick(v)*/
         fastpm_set_time(fastpm, istep, time_step, nstep,
                     &a_x, &a_x1, &a_v, &a_v1);
+
+        PM * pm = fastpm->base.pm;
 
         ENTER(decompose);
         fastpm_decompose(fastpm);
         LEAVE(decompose);
 
         /* Calculate PM forces. */
-        FastPMFloat * delta_k = pm_alloc(fastpm->pm);
+        FastPMFloat * delta_k = pm_alloc(pm);
 
         ENTER(force);
         fastpm_calculate_forces(fastpm, delta_k);
@@ -174,28 +179,28 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         ENTER(afterforce);
         for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
             ext; ext = ext->next) {
-                ((fastpm_ext_after_force) ext->function) 
+                ((fastpm_ext_after_force) ext->function)
                     (fastpm, delta_k, a_x, ext->userdata);
         }
         LEAVE(afterforce);
 
-        pm_free(fastpm->pm, delta_k);
+        pm_free(pm, delta_k);
 
         /* correct for linear theory before kick and drift */
         ENTER(correction);
         fastpm_model_evolve(fastpm->model, a_x1);
 
         correction = fastpm_model_find_correction(fastpm->model, a_x, a_x1, a_v, a_v1);
-        scale_acc(fastpm->p, correction, 1.0);
+        scale_acc(p, correction, 1.0);
         /* the value of correction is leaked to the next step for reporting. */
 
         LEAVE(correction);
 
         ENTER(beforekick);
         FastPMKick kick;
-        fastpm_kick_init(&kick, fastpm, fastpm->p, a_v1);
+        fastpm_kick_init(&kick, fastpm, p, a_v1);
         FastPMDrift drift;
-        fastpm_drift_init(&drift, fastpm, fastpm->p, a_x1);
+        fastpm_drift_init(&drift, fastpm, p, a_x1);
 
         /* take snapshots if needed, before the kick */
         for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
@@ -211,7 +216,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         // Leap-frog "kick" -- velocities updated
 
         ENTER(kick);
-        fastpm_kick_store(fastpm, fastpm->p, fastpm->p, a_v1);
+        fastpm_kick_store(fastpm, p, p, a_v1);
         LEAVE(kick);
 
         ENTER(beforedrift);
@@ -226,7 +231,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
         // Leap-frog "drift" -- positions updated
 
         ENTER(drift);
-        fastpm_drift_store(fastpm, fastpm->p, fastpm->p, a_x1);
+        fastpm_drift_store(fastpm, p, p, a_x1);
         LEAVE(drift);
     }
 
@@ -239,7 +244,7 @@ fastpm_destroy(FastPM * fastpm)
     free(fastpm->pm_2lpt);
     fastpm_model_destroy(fastpm->model);
     if(!fastpm->USE_EXTERNAL_PSTORE)
-        pm_store_destroy(fastpm->p);
+        pm_store_destroy(fastpm->base.p);
     vpm_free(fastpm->vpm_list);
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;
@@ -264,16 +269,18 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
 
 static void
 fastpm_decompose(FastPM * fastpm) {
+    PM * pm = fastpm->base.pm;
+    PMStore * p = fastpm->base.p;
     /* apply periodic boundary and move particles to the correct rank */
-    pm_store_wrap(fastpm->p, fastpm->pm->BoxSize);
-    pm_store_decompose(fastpm->p, to_rank, fastpm->pm, fastpm->comm);
+    pm_store_wrap(fastpm->base.p, pm->BoxSize);
+    pm_store_decompose(fastpm->base.p, to_rank, pm, fastpm->base.comm);
     size_t np_max;
     size_t np_min;
 
     /* FIXME move NTask to somewhere else. */
-    double np_mean = pow(fastpm->nc, 3) / fastpm->pm->NTask;
-    MPI_Allreduce(&fastpm->p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->comm);
-    MPI_Allreduce(&fastpm->p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->comm);
+    double np_mean = pow(fastpm->nc, 3) / pm->NTask;
+    MPI_Allreduce(&p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->base.comm);
+    MPI_Allreduce(&p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->base.comm);
 
     fastpm->info.imbalance.min = np_min / np_mean;
     fastpm->info.imbalance.max = np_max / np_mean;
@@ -285,8 +292,9 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 {
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
-    double a_x = fastpm->p->a_x;
-    double a_v = fastpm->p->a_v;
+    PMStore * p = fastpm->base.p;
+    double a_x = p->a_x;
+    double a_v = p->a_v;
     int iout;
     for(iout = 0; iout < nout; iout ++) {
         if(
@@ -299,11 +307,11 @@ fastpm_interp(FastPM * fastpm, double * aout, int nout,
 
         PMStore * snapshot = alloca(sizeof(PMStore));
         pm_store_init(snapshot);
-        pm_store_alloc(snapshot, fastpm->p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
+        pm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
 
         fastpm_info("Taking a snapshot...\n");
 
-        fastpm_set_snapshot(fastpm, fastpm->p, snapshot, aout[iout]);
+        fastpm_set_snapshot(fastpm, p, snapshot, aout[iout]);
 
         action(fastpm, snapshot, aout[iout], userdata);
 
@@ -349,14 +357,14 @@ fastpm_set_time(FastPM * fastpm,
     *a_v1 = sqrt(*a_x * *a_x1);
 
     VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
-    fastpm->pm = &vpm->pm;
+    fastpm->base.pm = &vpm->pm;
 
     fastpm->info.istep = istep;
     fastpm->info.a_x = *a_x;
     fastpm->info.a_x1 = *a_x1;
     fastpm->info.a_v = *a_v;
     fastpm->info.a_v1 = *a_v1;
-    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
+    fastpm->info.Nmesh = fastpm->base.pm->init.Nmesh;
 }
 
 void 

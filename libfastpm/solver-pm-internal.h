@@ -12,7 +12,7 @@ struct FastPMModel {
         double a_v1;
     } ev;
     void * priv;
-    void (*build)(FastPMModel * model, PMStore * p, double ainit, double afinal);
+    void (*build)(FastPMModel * model, double ainit, double afinal);
     void (*evolve)(FastPMModel * model, double af);
     void (*destroy)(FastPMModel * model);
 };
@@ -26,10 +26,10 @@ void fastpm_model_pt_init(FastPMModel * model);
 void fastpm_model_pm_init(FastPMModel * model);
 void fastpm_model_linear_init(FastPMModel * model);
 
-void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub, int attributes);
+void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub);
 double fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p);
 void fastpm_model_destroy(FastPMModel * model);
-void fastpm_model_build(FastPMModel * model, PMStore * p, double ainit, double afinal);
+void fastpm_model_build(FastPMModel * model, double ainit, double afinal);
 void fastpm_model_evolve(FastPMModel * model, double af);
 
 void fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k);

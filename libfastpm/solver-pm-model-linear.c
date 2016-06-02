@@ -18,11 +18,11 @@ typedef struct {
     double Plin;
 } FastPMModelLinearPriv;
 
-static void fastpm_model_linear_build(FastPMModel * model, PMStore * p, double ainit, double afinal)
+static void fastpm_model_linear_build(FastPMModel * model, double ainit, double afinal)
 {
     FastPMModelLinearPriv * priv = model->priv;
     PMStore * psub = alloca(sizeof(PMStore));
-    fastpm_model_create_subsample(model, psub, PACK_POS | PACK_DX1 | PACK_DX2);
+    fastpm_model_create_subsample(model, psub);
     pm_2lpt_evolve(ainit, psub, model->fastpm->omega_m, 0);
     pm_store_wrap(psub, model->pm->BoxSize);
     priv->Plin = fastpm_model_measure_large_scale_power(model, psub);
