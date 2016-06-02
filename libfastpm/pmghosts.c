@@ -25,7 +25,7 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * pgd,
         PMGhostData localppd = *pgd;
         double pos[3];
         int rank;
-        pgd->get_position(pgd->pdata, i, pos);
+        pgd->get_position(pgd->p, i, pos);
         int d;
         int ipos[3];
         for(d = 0; d < 3; d ++) {
@@ -67,8 +67,9 @@ static void count_ghosts(PM * pm, PMGhostData * pgd) {
 }
 
 static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
+    PMStore * p = pgd->p;
     double pos[3];
-    pgd->get_position(pgd->pdata, pgd->ipar, pos);
+    pgd->get_position(pgd->p, pgd->ipar, pos);
 
     int ighost;
     int offset; 
@@ -78,27 +79,26 @@ static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
 
     ighost = pgd->Osend[pgd->rank] + offset;
 
-    pgd->iface.pack(pgd->pdata, pgd->ipar, 
+    p->pack(p, pgd->ipar,
         (char*) pgd->send_buffer + ighost * pgd->elsize, pgd->attributes);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
 }
 
-PMGhostData * 
-pm_ghosts_create(PM * pm, PMStore *p, 
-    int attributes, 
-    void (*get_position)(void * pdata, ptrdiff_t index, double pos[3])) 
+PMGhostData *
+pm_ghosts_create(PM * pm, PMStore *p,
+    int attributes,
+    fastpm_posfunc get_position)
 {
 
     PMGhostData * pgd = malloc(sizeof(pgd[0]));
-    pgd->iface = p->iface;
     pgd->pm = pm;
-    pgd->pdata = p;
+    pgd->p = p;
     pgd->np = p->np;
     pgd->np_upper = p->np_upper;
     pgd->attributes = attributes;
-    if(get_position == NULL) 
-        pgd->get_position = pgd->iface.get_position;
+    if(get_position == NULL)
+        pgd->get_position = p->get_position;
     else
         pgd->get_position = get_position;
     pgd->nghosts = 0;
@@ -106,7 +106,7 @@ pm_ghosts_create(PM * pm, PMStore *p,
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = pgd->iface.pack(pgd->pdata, 0, NULL, pgd->attributes);
+    size_t elsize = p->pack(pgd->p, 0, NULL, pgd->attributes);
 
     pgd->Nsend = calloc(pm->NTask, sizeof(int));
     pgd->Osend = calloc(pm->NTask, sizeof(int));
@@ -152,8 +152,8 @@ pm_ghosts_create(PM * pm, PMStore *p,
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        pgd->iface.unpack(pgd->pdata, pgd->np + i, 
-                (char*) pgd->recv_buffer + i * pgd->elsize, 
+        p->unpack(pgd->p, pgd->np + i,
+                (char*) pgd->recv_buffer + i * pgd->elsize,
                         pgd->attributes);
     }
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
@@ -164,18 +164,20 @@ pm_ghosts_create(PM * pm, PMStore *p,
 
 void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
     PM * pm = pgd->pm;
+    PMStore * p = pgd->p;
+
     size_t Nsend = cumsum(NULL, pgd->Nsend, pm->NTask);
     size_t Nrecv = cumsum(NULL, pgd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    pgd->elsize = pgd->iface.pack(pgd->pdata, 0, NULL, attributes);
+    pgd->elsize = p->pack(pgd->p, 0, NULL, attributes);
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
     pgd->ReductionAttributes = attributes;
 
 #pragma omp parallel for
     for(i = 0; i < pgd->nghosts; i ++) {
-        pgd->iface.pack(pgd->pdata, i + pgd->np, 
+        p->pack(p, i + pgd->np,
             (char*) pgd->recv_buffer + i * pgd->elsize, 
             pgd->ReductionAttributes);
     }
@@ -192,8 +194,8 @@ void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
     int ighost;
 #pragma omp parallel for
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        pgd->iface.reduce(pgd->pdata, pgd->ighost_to_ipar[ighost], 
-            (char*) pgd->send_buffer + ighost * pgd->elsize, 
+        p->reduce(p, pgd->ighost_to_ipar[ighost],
+            (char*) pgd->send_buffer + ighost * pgd->elsize,
             pgd->ReductionAttributes);
     }
     fastpm_memory_free(pm->mem, pgd->send_buffer);

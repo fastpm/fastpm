@@ -39,6 +39,7 @@ void libfastpm_set_memory_bound(size_t size);
 FASTPM_END_DECLS
 
 typedef double (*fastpm_fkfunc)(double k, void * data);
+typedef void   (*fastpm_posfunc)(PMStore * p, ptrdiff_t index, double pos[3]);
 
 #define fastpm_pkfunc fastpm_fkfunc
 

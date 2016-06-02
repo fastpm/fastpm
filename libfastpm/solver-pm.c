@@ -258,7 +258,7 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
     PMStore * p = (PMStore *) pdata;
     PM * pm = (PM*) data;
     double pos[3];
-    p->iface.get_position(p, i, pos);
+    p->get_position(p, i, pos);
     return pm_pos_to_rank(pm, pos);
 }
 

@@ -282,7 +282,7 @@ void pm_paint(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t size, double
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
-        p->iface.get_position(p, i, pos);
+        p->get_position(p, i, pos);
         pm_paint_pos_tuned(pm, canvas, pos, weight);
     }
 }
@@ -291,7 +291,7 @@ double
 pm_readout_one(PM * pm, FastPMFloat * canvas, PMStore * p, ptrdiff_t i) 
 {
     double pos[3];
-    p->iface.get_position(p, i, pos);    
+    p->get_position(p, i, pos);
     return pm_readout_pos_tuned(pm, canvas, pos);
 }
 

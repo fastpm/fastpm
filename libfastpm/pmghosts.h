@@ -1,12 +1,11 @@
 typedef struct PMGhostData {
     PM * pm;
-    PMIFace iface;
-    void * pdata;
+    PMStore * p;
     size_t np;
     size_t np_upper;
     size_t nghosts;
     int attributes;
-    void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
+    fastpm_posfunc get_position;
 
     /* private members */
     int * Nsend;
@@ -27,8 +26,8 @@ typedef struct PMGhostData {
 
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
 
-PMGhostData * pm_ghosts_create(PM * pm, PMStore * p, int attributes, 
-        void (*getpos)(void * pdata, ptrdiff_t index, double pos[3]));
+PMGhostData * 
+pm_ghosts_create(PM * pm, PMStore * p, int attributes, fastpm_posfunc get_position);
 
 void pm_ghosts_reduce(PMGhostData * pgd, int attributes);
 void pm_ghosts_free(PMGhostData * pgd);

@@ -8,18 +8,9 @@ typedef struct {
     /* in units of real numbers, not bytes. */
     ptrdiff_t start[3];
     ptrdiff_t size[3];
-    ptrdiff_t strides[3]; 
+    ptrdiff_t strides[3];
     ptrdiff_t total;
 } PMRegion;
-
-typedef struct {
-    void   (*get_position)(void * pdata, ptrdiff_t index, double pos[3]);
-    size_t (*pack)  (void * pdata, ptrdiff_t index, void * packed, int attributes);
-    void   (*unpack)(void * pdata, ptrdiff_t index, void * packed, int attributes);
-    void   (*reduce)(void * pdata, ptrdiff_t index, void * packed, int attributes);
-    double (*to_double)(void * pdata, ptrdiff_t index, int attribute);
-    void   (*from_double)(void * pdata, ptrdiff_t index, int attribute, double value);
-} PMIFace;
 
 
 #define PACK_POS   (1 << 0)
@@ -42,7 +33,14 @@ typedef struct {
 #define PACK_DX2_Z   (1 << 18)
 
 struct PMStore {
-    PMIFace iface;
+    fastpm_posfunc get_position;
+
+    size_t (*pack)  (PMStore * p, ptrdiff_t index, void * packed, int attributes);
+    void   (*unpack)(PMStore * p, ptrdiff_t index, void * packed, int attributes);
+    void   (*reduce)(PMStore * p, ptrdiff_t index, void * packed, int attributes);
+    double (*to_double)(PMStore * p, ptrdiff_t index, int attribute);
+    void   (*from_double)(PMStore * p, ptrdiff_t index, int attribute, double value);
+
     FastPMMemory * mem;
 
     int attributes; /* bit flags of allocated attributes */

@@ -9,14 +9,13 @@
 #include "pmpfft.h"
 #include "pmstore.h"
 
-static void get_position(void * pdata, ptrdiff_t index, double pos[3]) {
-    PMStore * p = (PMStore *)pdata;
+static void get_position(PMStore * p, ptrdiff_t index, double pos[3]) {
     pos[0] = p->x[index][0];
     pos[1] = p->x[index][1];
     pos[2] = p->x[index][2];
 }
 
-static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
+static size_t pack(PMStore * p, ptrdiff_t index, void * buf, int flags) {
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -34,7 +33,6 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
         } \
     }
 
-    PMStore * p = (PMStore *)pdata;
     size_t s = 0;
     char * ptr = (char*) buf;
     DISPATCH(PACK_POS, x)
@@ -63,8 +61,7 @@ static size_t pack(void * pdata, ptrdiff_t index, void * buf, int flags) {
     }
     return s;
 }
-static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
-    PMStore * p = (PMStore *)pdata;
+static void unpack(PMStore * p, ptrdiff_t index, void * buf, int flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -106,8 +103,7 @@ static void unpack(void * pdata, ptrdiff_t index, void * buf, int flags) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
-static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
-    PMStore * p = (PMStore *)pdata;
+static void reduce(PMStore * p, ptrdiff_t index, void * buf, int flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -133,8 +129,7 @@ static void reduce(void * pdata, ptrdiff_t index, void * buf, int flags) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
-static double to_double(void * pdata, ptrdiff_t index, int flags) {
-    PMStore * p = (PMStore *)pdata;
+static double to_double(PMStore * p, ptrdiff_t index, int flags) {
     double rt = 0.;
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
@@ -162,8 +157,7 @@ byebye:
         return rt;
     }
 }
-static void from_double(void * pdata, ptrdiff_t index, int flags, double value) {
-    PMStore * p = (PMStore *)pdata;
+static void from_double(PMStore * p, ptrdiff_t index, int flags, double value) {
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -193,12 +187,12 @@ pm_store_init(PMStore * p)
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
-    p->iface.pack = pack;
-    p->iface.unpack = unpack;
-    p->iface.reduce = reduce;
-    p->iface.get_position = get_position;
-    p->iface.to_double = to_double;
-    p->iface.from_double = from_double;
+    p->pack = pack;
+    p->unpack = unpack;
+    p->reduce = reduce;
+    p->get_position = get_position;
+    p->to_double = to_double;
+    p->from_double = from_double;
 }
 
 void 
@@ -362,14 +356,14 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = p->iface.pack(p, 0, NULL, p->attributes);
+    size_t elsize = p->pack(p, 0, NULL, p->attributes);
 
     void * send_buffer = fastpm_memory_alloc(p->mem, elsize * Nsend, FASTPM_MEMORY_HEAP);
     void * recv_buffer = fastpm_memory_alloc(p->mem, elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
     p->np -= Nsend;
     for(i = 0; i < Nsend; i ++) {
-        p->iface.pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
+        p->pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
     }
 
 
@@ -383,7 +377,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
     MPI_Type_free(&PTYPE);
 
     for(i = 0; i < Nrecv; i ++) {
-        p->iface.unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
+        p->unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
 
     p->np += Nrecv;
@@ -401,7 +395,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 void 
 pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3], int Nc[3])
 {
-    /* fill pdata with a uniform grid, respecting domain given by pm. use a subsample ratio. 
+    /* fill p with a uniform grid, respecting domain given by pm. use a subsample ratio. 
      * (every subsample grid points) */
 
     int d;
