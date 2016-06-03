@@ -20,9 +20,9 @@ _linear_kernel(double x, int support) {
 }
 
 static double __sinc__(double x) {
-    static const double dx = 1e-3;
-    static const double tablemax = dx * 16384;
-    static const double tablemin = dx * 1;
+    const double dx = 1e-3;
+    const double tablemax = dx * 16384;
+    const double tablemin = dx * 1;
     static double table[16384];
     static int hastable = 0;
     if(! hastable) {
