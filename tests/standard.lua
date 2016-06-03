@@ -48,6 +48,18 @@ if has('lanczos3') then
     painter_type = "lanczos"
     painter_support = 3
 end
+if has('lanczos2') then
+    painter_type = "lanczos"
+    painter_support = 2
+end
+if has('linear1') then
+    painter_type = "linear"
+    painter_support = 1
+end
+if has('linear2') then
+    painter_type = "linear"
+    painter_support = 2
+end
 if has('inverted') then
     inverted_ic = true
 else
