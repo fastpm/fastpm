@@ -4,6 +4,7 @@ typedef struct {
     size_t size;
     double *k;
     double *p;
+    double *edges;
 
     PM * pm;
     double k0;
