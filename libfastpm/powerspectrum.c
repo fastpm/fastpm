@@ -329,15 +329,17 @@ fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize)
         k1[i] = 0;
         p1[i] = 0;
         Nmodes1[i] = 0;
-        edges1[i] = j1;
-        edges1[i + 1] = j2;
+        edges1[i] = ps->edges[j1];
+        edges1[i + 1] = ps->edges[j2];
         for(j = j1; j < j2; j ++) {
             k1[i] += ps->k[j] * ps->Nmodes[j];
             p1[i] += ps->p[j] * ps->Nmodes[j];
             Nmodes1[i] += ps->Nmodes[j];
         }
-        k1[i] /= Nmodes1[i];
-        p1[i] /= Nmodes1[i];
+        if(Nmodes1[i] > 0) {
+            k1[i] /= Nmodes1[i];
+            p1[i] /= Nmodes1[i];
+        }
     }
     free(ps->k);
     free(ps->p);
