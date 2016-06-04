@@ -16,6 +16,9 @@ void
 fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, size_t size);
 
 void
+fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, FastPMPowerSpectrum * other);
+
+void
 fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k);
 
 void

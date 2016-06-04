@@ -24,6 +24,16 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, size_t size)
 }
 
 void
+fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, FastPMPowerSpectrum * other)
+{
+    fastpm_powerspectrum_init(ps, other->size);
+    memcpy(ps->k, other->k, sizeof(ps->k[0]) * ps->size);
+    memcpy(ps->edges, other->edges, sizeof(ps->edges[0]) * (ps->size + 1));
+    memcpy(ps->p, other->p, sizeof(ps->p[0]) * ps->size);
+    memcpy(ps->Nmodes, other->Nmodes, sizeof(ps->Nmodes[0]) * ps->size);
+}
+
+void
 fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
 {
     /* N is used to store metadata -- the shot-noise level. */
