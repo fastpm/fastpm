@@ -164,7 +164,7 @@ local function visit_string(name, entry, mode)
                 luaL_eval(lc->L, "@name@");
                 const char * val = lua_tostring(lc->L, -1);
                 lua_pop(lc->L, 1);
-                if(val) return _strdup(val);
+                if(val) return lua_config_ref(lc, "@name@", _strdup(val));
                 return NULL;
             }
         ]]
@@ -233,6 +233,11 @@ local function visit_array(name, entry, mode)
         @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * size)
         {
             luaL_eval(lc->L, "@name@");
+            if(lua_isnil(lc->L, -1)) {
+                lua_pop(lc->L, 1);
+                *size = 0;
+                return NULL;
+            };
             const int n = luaL_len(lc->L, -1);
             @CTYPE@ * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * n);
             int i;
@@ -245,7 +250,7 @@ local function visit_array(name, entry, mode)
             }
             lua_pop(lc->L, 1);
             *size = n;
-            return array;
+            return (@CTYPE@ *) lua_config_ref(lc, "@name@", array);
         }
         @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc)
         {
@@ -255,8 +260,7 @@ local function visit_array(name, entry, mode)
         int @PREFIX@_get_n_@name@(LuaConfig * lc)
         {
             int size;
-            void * a = @PREFIX@_get_@name@_full(lc, &size);
-            free(a);
+            @PREFIX@_get_@name@_full(lc, &size);
             return size;
         }
         ]])
@@ -370,9 +374,18 @@ function config.compile(schema, opt)
 
     typedef struct LuaConfig LuaConfig;
 
+    typedef struct LuaConfigRef LuaConfigRef;
+
+    struct LuaConfigRef {
+        char * name;
+        void * data;
+        struct LuaConfigRef * next;
+    };
+
     struct LuaConfig {
         lua_State * L;
         char * error;
+        LuaConfigRef head;
     };
 
     /* Helper function s */
@@ -404,6 +417,7 @@ function config.compile(schema, opt)
         lc->L = L;
 
         lc->error = NULL;
+        lc->head.next = NULL;
         if(luaL_eval(L, luastring)) {
             lc->error = _strdup(lua_tostring(L, -1));
         }
@@ -455,12 +469,45 @@ function config.compile(schema, opt)
     void lua_config_free(LuaConfig * lc)
     {
         if(lc->error) free(lc->error);
+        LuaConfigRef * entry = lc->head.next;
+        while(entry) {
+            LuaConfigRef * q = entry->next;
+            free(entry->name);
+            /* unref the pointer */
+            free(entry->data);
+            free(entry);
+            entry = q;
+        }
         lua_close(lc->L);
         free(lc);
     }
     const char * lua_config_error(LuaConfig * lc)
     {
         return lc->error;
+    }
+    static void *
+    lua_config_ref(LuaConfig * lc, const char * name, void * data)
+    {
+        LuaConfigRef * entry = lc->head.next;
+        while(entry) {
+            if(0 == strcmp(entry->name, name)) {
+                if(data != entry->data) {
+                    /* unref the old pointer */
+                    free(entry->data);
+                    entry->data = data;
+                }
+                return data;
+            }
+            entry = entry->next;
+        }
+        if(entry == NULL) {
+            entry = malloc(sizeof(entry[0]));
+            entry->name = _strdup(name);
+            entry->data = data;
+            entry->next = lc->head.next;
+            lc->head.next = entry;
+        }
+        return data;
     }
 
     ]]
