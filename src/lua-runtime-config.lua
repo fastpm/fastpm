@@ -16,12 +16,13 @@ local function Schema()
         local default = options.default
         local choices = options.choices
         local action = options.action
+        local help = options.help
 
         local subtype = options.type:match('array:(%a+)')
         if subtype ~= nil then
             type = 'array'
         end
-        self[name] = {type=type, subtype=subtype, required=required, default=default, choices=choice, action=action}
+        self[name] = {type=type, subtype=subtype, required=required, default=default, choices=choice, action=action, help=help}
         names[#names + 1] = name
     end
 
@@ -35,6 +36,23 @@ local function Schema()
             end
             print(string.format('%s - %s', header, body))
         end
+    end
+
+    function self.format_help()
+        local template = [[ %-32s : %10s (%10s) : %s %s]] .. '\n'
+        local result = ''
+        for i, name in pairs(names) do
+            local choices = ''
+            if self[name].choices ~= nil then
+                choices = ' Valid choices are : '
+                for ch, v in pairs(self[name].choices) do
+                    choices = choices .. ch .. ', '
+                end
+            end
+            local line = string.format(template, name, self[name].type, tostring(self[name].default), self[name].help, choices)
+            result = result .. line
+        end
+        return result
     end
 
     local function exists(filename)
@@ -421,6 +439,7 @@ function config.compile(schema, opt)
         lc->L = L;
 
         lc->error = NULL;
+
         lc->head.next = NULL;
         if(luaL_eval(L, luastring)) {
             lc->error = _strdup(lua_tostring(L, -1));

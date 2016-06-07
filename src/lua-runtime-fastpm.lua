@@ -11,10 +11,10 @@ local _NAME = ... or 'main'
 local fastpm = {}
 
 local schema = config.Schema()
-schema.declare{name='nc',                type='int', required=true}
-schema.declare{name='boxsize',           type='number', required=true}
-schema.declare{name='time_step',         type='array:number',  required=true }
-schema.declare{name='output_redshifts',  type='array:number',  required=true }
+schema.declare{name='nc',                type='int', required=true, help="Number of Particles Per side"}
+schema.declare{name='boxsize',           type='number', required=true, help="Size of box in Mpc/h"}
+schema.declare{name='time_step',         type='array:number',  required=true, help="Scaling factor of steps, can be linspace(start, end, Nsteps)." }
+schema.declare{name='output_redshifts',  type='array:number',  required=true, help="Redshifts for outputs" }
 schema.declare{name='aout',  type='array:number',  required=false}
 -- set aout from output_redshifts
 function schema.output_redshifts.action(output_redshifts)
@@ -25,15 +25,15 @@ function schema.output_redshifts.action(output_redshifts)
     schema.aout.default = aout
 end
 
-schema.declare{name='omega_m',           type='number', required= true }
-schema.declare{name='h',                 type='number', required=true }
-schema.declare{name='pm_nc_factor',      type='array:number',  required=true }
-schema.declare{name='change_pm',         type='array:number',  required=true }
-schema.declare{name='np_alloc_factor',   type='number', required=true }
+schema.declare{name='omega_m',           type='number', required=true, default=0.3 }
+schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
+schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of PM resolutions, must be the same length of change_pm"}
+schema.declare{name='change_pm',         type='array:number',  required=true, help="A list of scaling factor that the PM resolution changes" }
+schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 
 -- Force calculation --
-schema.declare{name='painter_type',        type='enum', default='cic'}
-schema.declare{name='painter_support',     type='int', default=1}
+schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
+schema.declare{name='painter_support',     type='int', default=1, help="Support (size) of the painting kernel"}
 schema.painter_type.choices = {
     cic = 'FASTPM_PAINTER_CIC',
     linear = 'FASTPM_PAINTER_LINEAR',
@@ -300,6 +300,14 @@ function _parse(filename, ...)
     linspace = fastpm.linspace
 
     return config.parse(fastpm.schema, filename, false, {...})
+end
+
+function _help(filename, ...)
+
+    local fastpm = require('lua-runtime-fastpm')
+    local config = require('lua-runtime-config')
+
+    return fastpm.schema.format_help()
 end
 
 return fastpm
