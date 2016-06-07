@@ -66,6 +66,11 @@ else
     inverted_ic = false
 end
 
+if has('fixed_mode') then
+    fix_ic_mode = {0, 1, 0, 0}
+    fix_ic_value = 10
+end
+
 if has('remove_variance') then
     remove_cosmic_variance = true
 else

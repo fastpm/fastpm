@@ -105,6 +105,22 @@ schema.declare{name='read_lineark',        type='string'}
 schema.declare{name='read_runpbic',       type='string'}
 schema.declare{name='read_whitenoisek',         type='string'}
 
+schema.declare{name='fix_ic_mode', type='array:int'}
+schema.declare{name='fix_ic_value', type='number'}
+
+function schema.fix_ic_mode.action (fix_ic_mode)
+    if fix_ic_mode ~= nil then
+        schema.fix_ic_value.required = true
+        if #fix_ic_mode ~= 4 then
+            error("fix_ic_mode must be four integers (x, y, z, real_or_imag)")
+        end
+        if fix_ic_mode[4] ~= 0 and
+           fix_ic_mode[4] ~= 1 then
+            error("the fourth component of the mode must be 0 (real) or 1 (imaginary)")
+        end
+    end
+end
+
 schema.declare{name='read_powerspectrum', type='file'}
 schema.declare{name='sigma8',             type='number', default=0}
 schema.declare{name='random_seed',         type='int'}

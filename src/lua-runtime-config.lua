@@ -49,9 +49,13 @@ local function Schema()
 
     local function check_array(name, entry, value)
         for i, v in pairs(value) do
-            if type(v) ~= entry.subtype then
+            subtype = entry.subtype
+            if subtype == 'int' then
+                subtype = 'number'
+            end
+            if type(v) ~= subtype then
                 error(string.format("entry %d of key `%s` is of type `%s`, but `%s` is expected",
-                    i, name, type(v), entry.subtype))
+                    i, name, type(v), subtype))
             end
         end
     end

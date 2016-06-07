@@ -40,6 +40,9 @@ parse_args(int * argc, char *** argv, Parameters * prr);
 static int 
 take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * prr);
 
+static void
+fix_ic_mode(PM * pm, FastPMFloat * from, FastPMFloat * to, int * mode, double value);
+
 int 
 read_runpb_ic(FastPM * fastpm, PMStore * p, const char * filename);
 
@@ -256,6 +259,10 @@ induce:
 
     if(CONF(prr, inverted_ic)) {
         fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
+    }
+
+    if(CONF(prr, fix_ic_mode)) {
+        fix_ic_mode(fastpm->pm_2lpt, delta_k, delta_k, CONF(prr, fix_ic_mode), CONF(prr, fix_ic_value));
     }
 
     if(CONF(prr, write_whitenoisek)) {
@@ -545,3 +552,47 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
     return 0;
 }
 
+static void
+fix_ic_mode(PM * pm, FastPMFloat * from, FastPMFloat * to, int * mode, double value)
+{
+    ptrdiff_t * Nmesh = pm_nmesh(pm);
+
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            to[kiter.ind + 0] = from[kiter.ind + 0];
+            to[kiter.ind + 1] = from[kiter.ind + 1];
+
+            if((
+                kiter.iabs[0] == mode[0] &&
+                kiter.iabs[1] == mode[1] &&
+                kiter.iabs[2] == mode[2]
+            )) {
+                to[kiter.ind + mode[3]] = value;
+                fastpm_ilog(INFO, "modifying mode at %td %td %td : %d to %g\n",
+                    kiter.iabs[0],
+                    kiter.iabs[1],
+                    kiter.iabs[2],
+                    mode[3], value);
+            }
+            if((
+                kiter.iabs[0] == (Nmesh[0] - mode[0]) % Nmesh[0] &&
+                kiter.iabs[1] == (Nmesh[1] - mode[1]) % Nmesh[1] &&
+                kiter.iabs[2] == (Nmesh[2] - mode[2]) % Nmesh[2]
+            )) {
+                fastpm_ilog(INFO, "modifying conjugate mode at %td %td %td : %d to %g\n",
+                    kiter.iabs[0],
+                    kiter.iabs[1],
+                    kiter.iabs[2],
+                    mode[3], value);
+                /* conjugate plane */
+                to[kiter.ind + mode[3]] = value;
+                to[kiter.ind + mode[3]] *= ((mode[3] == 0)?1:-1);
+            }
+        }
+    }
+}
