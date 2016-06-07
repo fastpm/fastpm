@@ -234,7 +234,7 @@ local function visit_array(name, entry, mode)
         {
             luaL_eval(lc->L, "@name@");
             const int n = luaL_len(lc->L, -1);
-            double * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * n);
+            @CTYPE@ * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * n);
             int i;
             for(i = 1; i <= n; ++i) {
                 lua_pushinteger(lc->L, i);
