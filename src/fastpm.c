@@ -257,12 +257,12 @@ induce:
         fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
     }
 
-    if(CONF(prr, inverted_ic)) {
-        fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
-    }
-
     if(CONF(prr, fix_ic_mode)) {
         fix_ic_mode(fastpm->pm_2lpt, delta_k, delta_k, CONF(prr, fix_ic_mode), CONF(prr, fix_ic_value));
+    }
+
+    if(CONF(prr, inverted_ic)) {
+        fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
     }
 
     if(CONF(prr, write_whitenoisek)) {
