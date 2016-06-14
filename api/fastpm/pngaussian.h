@@ -13,6 +13,7 @@ typedef struct {
     FastPMPNGaussianType type;
     /* fNL */
     double fNL;
+    double kmax_primordial;
     double h;
     double scalar_amp;
     double scalar_spectral_index;

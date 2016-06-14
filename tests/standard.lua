@@ -138,10 +138,11 @@ end
 if has('fnl') then
     -- FIXME: what?
     f_nl_type = "local"
-    scalar_amp = 2.441e-9
-    scalar_pivot = 0.002
+    scalar_amp = 2.130624e-9
+    scalar_pivot = 0.05
     scalar_spectral_index = 0.9667
-    f_nl = 0.1
+    f_nl = 10.0
+    kmax_primordial_over_knyquist = 0.25
 else
     f_nl_type = "none"
 end

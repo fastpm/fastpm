@@ -54,7 +54,7 @@ fastpm_utils_paint(PM * pm, PMStore * p,
     if(get_position == NULL) {
         get_position = p->get_position;
     }
-    ptrdiff_t i;
+    //ptrdiff_t i;
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
 
     fastpm_painter_init(&painter, pm, FASTPM_PAINTER_CIC, 1);

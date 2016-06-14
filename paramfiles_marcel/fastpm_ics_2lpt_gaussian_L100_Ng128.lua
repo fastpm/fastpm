@@ -9,10 +9,10 @@ boxsize = 100.0
 -- linspace: Uniform time steps in a
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
--- time_step = linspace(0.01, 1.0, 10)
-time_step = {0.02}
+time_step = linspace(0.01, 1.0, 10)
+--time_step = {0.02}
 
-output_redshifts= {49.0}  -- redshifts of output
+output_redshifts= {0.5}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 0.29
@@ -36,7 +36,7 @@ read_powerspectrum = "planckDR2_5may2016b_matterpower.dat"
 random_seed = 100
 
 -------- Approximation Method ---------------
-force_mode = "pm"
+force_mode = "fastpm"
 
 pm_nc_factor = {1,   2,   3, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 change_pm =    {0, 0.2, 0.5, }            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
