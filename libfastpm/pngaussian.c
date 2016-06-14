@@ -102,10 +102,20 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
     ptrdiff_t i;
     double avg_g_squared = 0.0;
     /* MS: Should we better do this globally over all processors? */
-    for(i = 0; i < pm_size(pm); i ++) {
-	avg_g_squared += g_x[i] * g_x[i];
+    PMXIter xiter;
+
+    for(pm_xiter_init(pm, &xiter);
+       !pm_xiter_stop(&xiter);
+        pm_xiter_next(&xiter)) {
+
+        avg_g_squared += g_x[xiter.ind] * g_x[xiter.ind];
+
     }
-    avg_g_squared /= (double) pm_size(pm);
+
+    MPI_Allreduce(MPI_IN_PLACE, &avg_g_squared, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
+
+    avg_g_squared /= pm_norm(pm);
+
     for(i = 0; i < pm_size(pm); i ++) {
         g_x[i] = g_x[i] + png->fNL * ( g_x[i] * g_x[i] - avg_g_squared );
     }
@@ -119,8 +129,8 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
     int Nint = 10000;
     dq = png->kmax_primordial/((double) Nint);
     for(i = 0; i < Nint; i ++) {
-	q = i*dq;
-	avg_g_squared_exp = avg_g_squared_exp + q*q*fastpm_png_potential(q,png);
+        q = i*dq;
+        avg_g_squared_exp = avg_g_squared_exp + q*q*fastpm_png_potential(q,png);
     }
     avg_g_squared_exp *= dq/(2.0*M_PI*M_PI);
     fastpm_info("Expected_avg_g_squared: %g\n", avg_g_squared_exp);
@@ -146,3 +156,5 @@ fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * del
 
     fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) fastpm_png_transfer_function, png);
 }
+
+/* vim: set ts=4 sw=4 sts=4 expandtab */
