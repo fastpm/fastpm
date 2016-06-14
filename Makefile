@@ -16,3 +16,7 @@ clean:
 	@(cd libfastpm; $(MAKE) clean)
 	@(cd src; $(MAKE) clean)
 
+deep-clean: clean
+	(cd lua; make clean)
+	(cd depends; rm -rf double single install src)
+	(cd bigfile; make clean)
