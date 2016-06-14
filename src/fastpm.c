@@ -179,9 +179,7 @@ int run_fastpm(FastPM * fastpm, Parameters * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
     ENTER(evolve);
-
     fastpm_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
-
     LEAVE(evolve);
 
     fastpm_destroy(fastpm);
@@ -247,11 +245,9 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
-
     fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, CONF(prr, random_seed), FASTPM_DELTAK_GADGET);
 
 induce:
-
     if(CONF(prr, remove_cosmic_variance)) {
         fastpm_info("Remove Cosmic variance from initial condition.\n");
         fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
@@ -277,9 +273,13 @@ induce:
         fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
             (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
     } else {
+	double kmax_primordial;
+	kmax_primordial = CONF(prr, nc) / 2.0 * 2.0*M_PI/CONF(prr, boxsize) * CONF(prr, kmax_primordial_over_knyquist);
+	fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
         FastPMPNGaussian png = {
             .fNL = CONF(prr, f_nl),
             .type = CONF(prr, f_nl_type),
+	    .kmax_primordial = kmax_primordial,
             .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
             .pkdata = &linear_powerspectrum,
             .h = CONF(prr, h),
