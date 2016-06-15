@@ -3,180 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
-#include "allvars.h"
-#include "proto.h"
-#include "domain.h"
-#include "mymalloc.h"
-
-#include <gsl/gsl_heapsort.h>
-#include "openmpsort.h"
-
-
-
-static struct peano_hilbert_data
-{
-  peanokey key;
-  int index;
-}
- *mp;
-
-static int *Id;
-
-void peano_hilbert_order(void)
-{
-  int i;
-
-  if(ThisTask == 0)
-    printf("begin Peano-Hilbert order...\n");
-
-  if(N_sph)
-    {
-      mp = (struct peano_hilbert_data *) mymalloc("mp", sizeof(struct peano_hilbert_data) * N_sph);
-      Id = (int *) mymalloc("Id", sizeof(int) * N_sph);
-
-      for(i = 0; i < N_sph; i++)
-	{
-	  mp[i].index = i;
-	  mp[i].key = KEY(i);
-	}
-
-      qsort_openmp(mp, N_sph, sizeof(struct peano_hilbert_data), peano_compare_key);
-
-      for(i = 0; i < N_sph; i++)
-	Id[mp[i].index] = i;
-
-      reorder_gas();
-
-      myfree(Id);
-      myfree(mp);
-    }
-
-
-  if(NumPart - N_sph > 0)
-    {
-      mp =
-	(struct peano_hilbert_data *) mymalloc("mp", sizeof(struct peano_hilbert_data) * (NumPart - N_sph));
-      mp -= (N_sph);
-
-      Id = (int *) mymalloc("Id", sizeof(int) * (NumPart - N_sph));
-      Id -= (N_sph);
-
-      for(i = N_sph; i < NumPart; i++)
-	{
-	  mp[i].index = i;
-	  mp[i].key = KEY(i);
-	}
-
-      qsort_openmp(mp + N_sph, NumPart - N_sph, sizeof(struct peano_hilbert_data), peano_compare_key);
-
-      for(i = N_sph; i < NumPart; i++)
-	Id[mp[i].index] = i;
-
-      reorder_particles();
-
-      Id += N_sph;
-      myfree(Id);
-      mp += N_sph;
-      myfree(mp);
-    }
-
-  if(ThisTask == 0)
-    printf("Peano-Hilbert done.\n");
-}
-
-
-int peano_compare_key(const void *a, const void *b)
-{
-  if(((struct peano_hilbert_data *) a)->key < (((struct peano_hilbert_data *) b)->key))
-    return -1;
-
-  if(((struct peano_hilbert_data *) a)->key > (((struct peano_hilbert_data *) b)->key))
-    return +1;
-
-  return 0;
-}
-
-void reorder_gas(void)
-{
-  int i;
-  struct particle_data Psave, Psource;
-  struct sph_particle_data SphPsave, SphPsource;
-  int idsource, idsave, dest;
-
-  for(i = 0; i < N_sph; i++)
-    {
-      if(Id[i] != i)
-	{
-	  Psource = P[i];
-	  SphPsource = SPHP(i);
-
-	  idsource = Id[i];
-	  dest = Id[i];
-
-	  do
-	    {
-	      Psave = P[dest];
-	      SphPsave = SPHP(dest);
-	      idsave = Id[dest];
-
-	      P[dest] = Psource;
-	      SPHP(dest) = SphPsource;
-	      Id[dest] = idsource;
-
-	      if(dest == i)
-		break;
-
-	      Psource = Psave;
-	      SphPsource = SphPsave;
-	      idsource = idsave;
-
-	      dest = idsource;
-	    }
-	  while(1);
-	}
-    }
-}
-
-
-void reorder_particles(void)
-{
-  int i;
-  struct particle_data Psave, Psource;
-  int idsource, idsave, dest;
-
-  for(i = N_sph; i < NumPart; i++)
-    {
-      if(Id[i] != i)
-	{
-	  Psource = P[i];
-	  idsource = Id[i];
-
-	  dest = Id[i];
-
-	  do
-	    {
-	      Psave = P[dest];
-	      idsave = Id[dest];
-
-	      P[dest] = Psource;
-	      Id[dest] = idsource;
-	      if(dest == i)
-		break;
-
-	      Psource = Psave;
-	      idsource = idsave;
-
-	      dest = idsource;
-	    }
-	  while(1);
-	}
-    }
-}
-
-
-
-
+#include <stdint.h>
 
 /*  The following rewrite of the original function
  *  peano_hilbert_key_old() has been written by MARTIN REINECKE. 
@@ -287,11 +114,11 @@ const unsigned char subpix3[48][8] = {
 /*! This function computes a Peano-Hilbert key for an integer triplet (x,y,z),
   *  with x,y,z in the range between 0 and 2^bits-1.
   */
-peanokey peano_hilbert_key(int x, int y, int z, int bits)
+uint64_t peano_hilbert_key(int x, int y, int z, int bits)
 {
   int mask;
   unsigned char rotation = 0;
-  peanokey key = 0;
+  uint64_t key = 0;
 
   for(mask = 1 << (bits - 1); mask > 0; mask >>= 1)
     {
@@ -301,33 +128,6 @@ peanokey peano_hilbert_key(int x, int y, int z, int bits)
       key |= subpix3[rotation][pix];
       rotation = rottable3[rotation][pix];
     }
-
-  return key;
-}
-
-
-
-peanokey peano_and_morton_key(int x, int y, int z, int bits, peanokey * morton_key)
-{
-  int mask;
-  unsigned char rotation = 0;
-  peanokey key = 0;
-  peanokey morton = 0;
-
-
-  for(mask = 1 << (bits - 1); mask > 0; mask >>= 1)
-    {
-      unsigned char pix = ((x & mask) ? 4 : 0) | ((y & mask) ? 2 : 0) | ((z & mask) ? 1 : 0);
-
-      key <<= 3;
-      key |= subpix3[rotation][pix];
-      rotation = rottable3[rotation][pix];
-
-      morton <<= 3;
-      morton += ((z & mask) ? 4 : 0) + ((y & mask) ? 2 : 0) + ((x & mask) ? 1 : 0);
-    }
-
-  *morton_key = morton;
 
   return key;
 }
