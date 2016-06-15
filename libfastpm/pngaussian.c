@@ -74,7 +74,7 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
     P_Phi_k *= pow(k/k_pivot_in_h_over_Mpc, png->scalar_spectral_index - 1.0);
 
     /* MS: why divide by sqrt volume? */
-    return P_Phi_k / sqrt(png->Volume);
+    return P_Phi_k;
 }
 
 static double
@@ -89,9 +89,7 @@ fastpm_png_transfer_function(double k, FastPMPNGaussian * png)
 
     /* powerspec = transfer^2 * pot, so we remove pot */
     transfer /= fastpm_png_potential(k, png);
-    /* don't forget the volume factor */
-    /* MS: why divide by sqrt volume? */
-    transfer *= 1.0 / sqrt(png->Volume);
+
     return transfer;
 }
 
@@ -145,6 +143,7 @@ fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * del
     png->Volume = pm->Volume;
 
     fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) fastpm_png_potential, png);
+    fastpm_apply_multiply_transfer(pm, delta_k, delta_k, 1 / sqrt(png->Volume));
 
     pm_assign(pm, delta_k, g_x);
     pm_c2r(pm, g_x);
@@ -155,6 +154,7 @@ fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * del
     pm_free(pm, g_x);
 
     fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) fastpm_png_transfer_function, png);
+    fastpm_apply_multiply_transfer(pm, delta_k, delta_k, 1 / sqrt(png->Volume));
 }
 
 /* vim: set ts=4 sw=4 sts=4 expandtab */
