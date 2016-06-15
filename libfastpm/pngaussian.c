@@ -161,7 +161,6 @@ fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * del
     pm_free(pm, g_x);
 
     fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) fastpm_png_transfer_function, png);
-    fastpm_apply_multiply_transfer(pm, delta_k, delta_k, 1 / sqrt(png->Volume));
 }
 
 /* vim: set ts=4 sw=4 sts=4 expandtab */
