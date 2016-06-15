@@ -53,8 +53,6 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
      *     Phi(k)=0 for k>=knyquist/4. Should be less than 0.5 or 0.25.
      */
 
-    /*FIXME: use the correct primordial power to construct the potential !*/    
-
     if (k == 0) return 0.0;
 
     /* MS: Zero-pad/truncate high k to avoid spurious Dirac delta images. */
@@ -66,14 +64,20 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
     k_pivot_in_h_over_Mpc = png->scalar_pivot / png->h;
 
     /* Compute A_s / k^3 */
-    P_Phi_k = png->scalar_amp / k;
-    P_Phi_k /= k*k;
-    /* Prefactor */
-    P_Phi_k *= 9.0/25.0 * 2.0 * M_PI * M_PI;
+    P_Phi_k = png->scalar_amp;
+
+    /* disable slope and tilt to use a flat transfer function testing numerical normalization factors */
+
+    /* Slope */
+    P_Phi_k /= k*k*k;
+
     /* Tilt */
     P_Phi_k *= pow(k/k_pivot_in_h_over_Mpc, png->scalar_spectral_index - 1.0);
 
-    /* MS: why divide by sqrt volume? */
+    /* Prefactor */
+    P_Phi_k *= 9.0/25.0 * 2.0 * M_PI * M_PI;
+
+
     return P_Phi_k;
 }
 
@@ -96,7 +100,6 @@ fastpm_png_transfer_function(double k, FastPMPNGaussian * png)
 static void
 fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * png)
 {
-    /*FIXME: transform the potential !*/
     ptrdiff_t i;
     double avg_g_squared = 0.0;
     /* MS: Should we better do this globally over all processors? */
@@ -121,18 +124,22 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
     /* MS: Print some info */
     fastpm_info("Induced PNG with fNL=%g\n",png->fNL);
     fastpm_info("avg_g_squared: %g, %g\n", avg_g_squared, avg_g_squared*avg_g_squared);
+
     /* Expect <Phi**2(x)> = \int dq/(2 pi**2) q**2 P_Phi(q) */
+
+    /* FIXME:
+     * This is off because the large scale modes with large power are sampled poorly.
+     * in DFT; see comment above for testing the normalization factors. */
     double avg_g_squared_exp = 0.0;
     double q, dq;
-    int Nint = 10000;
-    dq = png->kmax_primordial/((double) Nint);
-    for(i = 0; i < Nint; i ++) {
-        q = i*dq;
-        avg_g_squared_exp = avg_g_squared_exp + q*q*fastpm_png_potential(q,png);
+    dq = png->kmax_primordial/1e6;
+    double k0 = 2 * M_PI / pm->BoxSize[0];
+    for(q = k0; q < png->kmax_primordial ; q += dq) {
+        double t = fastpm_png_potential(q,png);
+        avg_g_squared_exp = avg_g_squared_exp + q*q *(t * t);
     }
     avg_g_squared_exp *= dq/(2.0*M_PI*M_PI);
-    fastpm_info("Expected_avg_g_squared: %g\n", avg_g_squared_exp);
-
+    fastpm_info("Expected_avg_g_squared: %g, assuming no gaussian variance\n", avg_g_squared_exp);
 
 }
 
