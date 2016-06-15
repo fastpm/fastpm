@@ -8,7 +8,7 @@
 static double
 fastpm_png_potential(double k, FastPMPNGaussian * png)
 {
-    /* Returns primordial power spectrum P_Phi(k)/volume, assuming k is in
+    /* Returns primordial power spectrum P_Phi(k), assuming k is in
      * h/Mpc units.
      */
 
@@ -77,7 +77,6 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
     /* Prefactor */
     P_Phi_k *= 9.0/25.0 * 2.0 * M_PI * M_PI;
 
-
     return P_Phi_k;
 }
 
@@ -89,10 +88,10 @@ fastpm_png_transfer_function(double k, FastPMPNGaussian * png)
     /* MS: Zero-pad/truncate high k to avoid spurious Dirac delta images. */
     if (k >= png->kmax_primordial) return 0.0;
 
-    double transfer = sqrt(png->pkfunc(k, png->pkdata));
+    double pk = png->pkfunc(k, png->pkdata);
 
     /* powerspec = transfer^2 * pot, so we remove pot */
-    transfer /= fastpm_png_potential(k, png);
+    double transfer = sqrt(pk / fastpm_png_potential(k, png));
 
     return transfer;
 }
@@ -135,8 +134,8 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
     dq = png->kmax_primordial/1e6;
     double k0 = 2 * M_PI / pm->BoxSize[0];
     for(q = k0; q < png->kmax_primordial ; q += dq) {
-        double t = fastpm_png_potential(q,png);
-        avg_g_squared_exp = avg_g_squared_exp + q*q *(t * t);
+        double p = fastpm_png_potential(q,png);
+        avg_g_squared_exp = avg_g_squared_exp + q*q * p;
     }
     avg_g_squared_exp *= dq/(2.0*M_PI*M_PI);
     fastpm_info("Expected_avg_g_squared: %g, assuming no gaussian variance\n", avg_g_squared_exp);
@@ -149,8 +148,7 @@ fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * del
     FastPMFloat * g_x = pm_alloc(pm);
     png->Volume = pm->Volume;
 
-    fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) fastpm_png_potential, png);
-    fastpm_apply_multiply_transfer(pm, delta_k, delta_k, 1 / sqrt(png->Volume));
+    fastpm_ic_induce_correlation(pm, delta_k, (fastpm_fkfunc) fastpm_png_potential, png);
 
     pm_assign(pm, delta_k, g_x);
     pm_c2r(pm, g_x);
