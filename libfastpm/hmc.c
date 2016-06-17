@@ -184,7 +184,7 @@ fastpm_hmc_za_evolve(
     //  inv volume of a cell, to convert to density
     double fac = (pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3));
     ptrdiff_t ind;
-    for(ind = 0; ind < pm_size(self->pm); ind++) {
+    for(ind = 0; ind < pm_allocsize(self->pm); ind++) {
         delta_final[ind] *= fac;
     }
 
@@ -231,13 +231,13 @@ fastpm_hmc_za_force(
 
     fastpm_hmc_za_force_rhodk(self, data_x, sigma_x, rhodk);
 
-    memset(Fk, 0, sizeof(Fk[0]) * pm_size(self->pm));
+    memset(Fk, 0, sizeof(Fk[0]) * pm_allocsize(self->pm));
 
     /* First order */
     if(self->LPTOrder >= 1) {
         fastpm_hmc_za_force_s1(self, rhodk, workspace);
 
-        for(ind = 0; ind < pm_size(self->pm); ind++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind++) {
             Fk[ind] += workspace[ind];
         }
     }
@@ -245,7 +245,7 @@ fastpm_hmc_za_force(
     if(self->LPTOrder >= 2) {
         fastpm_hmc_za_force_s2(self, Fk, workspace);
 
-        for(ind = 0; ind < pm_size(self->pm); ind++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind++) {
             Fk[ind] += workspace[ind];
         }
     }
@@ -268,7 +268,7 @@ fastpm_hmc_za_force_rhodk(
     FastPMFloat * workspace = pm_alloc(self->pm);
 
     ptrdiff_t ind;
-    for(ind = 0; ind < pm_size(self->pm); ind ++) {
+    for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
         workspace[ind] = model_x[ind] - data_x[ind];
         if(sigma_x)
             workspace[ind] /= sigma_x[ind] * sigma_x[ind];
@@ -330,7 +330,7 @@ fastpm_hmc_za_force_s1(
 
     /* now we paint \Psi by the lagrangian position q */
 
-    memset(Fk1, 0, sizeof(Fk1[0]) * pm_size(self->pm));
+    memset(Fk1, 0, sizeof(Fk1[0]) * pm_allocsize(self->pm));
 
     double fac = pm_norm(self->pm) / pow(pm_boxsize(self->pm)[0], 3);
 
@@ -341,7 +341,7 @@ fastpm_hmc_za_force_s1(
 
         /* add HMC force component to to Fk */
         ptrdiff_t ind;
-        for(ind = 0; ind < pm_size(self->pm); ind ++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
             /* Wang's magic factor of 2 in 1301.1348 is doubled because our chisq per ddof is approaching 1, not half.
              * We do not put it in in hmc_force_2lpt_transfer */
 
@@ -370,7 +370,7 @@ fastpm_hmc_za_force_s2(
     FastPMFloat * workspace = pm_alloc(self->pm);
 
     pm_assign(self->pm, Fk1, Fpsi);
-    for(ind = 0; ind < pm_size(self->pm); ind ++) {
+    for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
         /* FIXME: put in D2 */
         Fpsi[ind] *= 3.0 / 7.0;
     }
@@ -379,7 +379,7 @@ fastpm_hmc_za_force_s2(
 
     pm_c2r(self->pm, Fpsi);
 
-    memset(Fk2, 0, sizeof(Fk2[0]) * pm_size(self->pm));
+    memset(Fk2, 0, sizeof(Fk2[0]) * pm_allocsize(self->pm));
 
     /* diagonal elements */
     for(d = 0; d < 3; d++){
@@ -390,7 +390,7 @@ fastpm_hmc_za_force_s2(
         fastpm_apply_diff_transfer(self->pm, workspace, workspace, d);
         pm_c2r(self->pm, workspace);
 
-        for(ind = 0; ind < pm_size(self->pm); ind ++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
             workspace[ind]  = Fpsi[ind] * workspace[ind];
         }
 
@@ -402,14 +402,14 @@ fastpm_hmc_za_force_s2(
         fastpm_apply_diff_transfer(self->pm, source, workspace, (d+1)%3);
         fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+1)%3);
 
-        for(ind = 0; ind < pm_size(self->pm); ind ++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
             Fk2[ind] += workspace[ind];
         }
 
         fastpm_apply_diff_transfer(self->pm, source, workspace, (d+2)%3);
         fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+2)%3);
 
-        for(ind = 0; ind < pm_size(self->pm); ind ++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
             Fk2[ind] += workspace[ind];
 
         }
@@ -425,7 +425,7 @@ fastpm_hmc_za_force_s2(
 
         pm_c2r(self->pm, workspace);
 
-        for(ind = 0; ind < pm_size(self->pm); ind ++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
             workspace[ind]  = Fpsi[ind] * workspace[ind];
         }
 
@@ -437,7 +437,7 @@ fastpm_hmc_za_force_s2(
         fastpm_apply_diff_transfer(self->pm, source, workspace, (d+1)%3);
         fastpm_apply_diff_transfer(self->pm, workspace, workspace, (d+2)%3);
 
-        for(ind = 0; ind < pm_size(self->pm); ind ++) {
+        for(ind = 0; ind < pm_allocsize(self->pm); ind ++) {
             Fk2[ind] -= 2 * workspace[ind];
         }
     }
@@ -478,7 +478,7 @@ fastpm_hmc_za_force_s2(
     ptrdiff_t ind;
     //  inv volume of a cell, to convert to density
     double fac = (pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3));
-    for(ind = 0; ind < pm_size(solver->pm); ind++) {
+    for(ind = 0; ind < pm_allocsize(solver->pm); ind++) {
         delta_final[ind] *= fac;
     }
     */
