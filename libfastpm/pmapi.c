@@ -36,6 +36,11 @@ pm_norm(PM * pm)
     return pm->Norm;
 }
 
+MPI_Comm pm_comm(PM * pm)
+{
+    return pm->Comm2D;
+}
+
 ptrdiff_t * pm_nmesh(PM * pm) {
     return pm->Nmesh;
 }
