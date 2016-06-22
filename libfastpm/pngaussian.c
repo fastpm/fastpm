@@ -57,6 +57,8 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
 
     /* MS: Zero-pad/truncate high k to avoid spurious Dirac delta images. */
     if (k >= png->kmax_primordial) return 0.0;
+    /* PLAY with low k cutoff to check if poor sampling there matters */
+    /* if (k < 0.04) return 0.0; */
 
     double k_pivot_in_h_over_Mpc, P_Phi_k;
 
@@ -122,7 +124,7 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
 
     /* MS: Print some info */
     fastpm_info("Induced PNG with fNL=%g\n",png->fNL);
-    fastpm_info("avg_g_squared: %g, %g\n", avg_g_squared, avg_g_squared*avg_g_squared);
+    fastpm_info("avg_g_squared: %g\n", avg_g_squared);
 
     /* Expect <Phi**2(x)> = \int dq/(2 pi**2) q**2 P_Phi(q) */
 
@@ -133,12 +135,15 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
     double q, dq;
     dq = png->kmax_primordial/1e6;
     double k0 = 2 * M_PI / pm->BoxSize[0];
+    /* PLAY with k0 to see if poorly sampled modes lead to grid vs theory disagreement. */
+    /* k0 = 0.04; */
     for(q = k0; q < png->kmax_primordial ; q += dq) {
         double p = fastpm_png_potential(q,png);
         avg_g_squared_exp = avg_g_squared_exp + q*q * p;
     }
     avg_g_squared_exp *= dq/(2.0*M_PI*M_PI);
-    fastpm_info("Expected_avg_g_squared: %g, assuming no gaussian variance\n", avg_g_squared_exp);
+    fastpm_info("Expected_avg_g_squared: %g, assuming no gaussian variance.\n", avg_g_squared_exp);
+    fastpm_info("g squared, grid/expected: %g\n", avg_g_squared/avg_g_squared_exp);
 
 }
 
