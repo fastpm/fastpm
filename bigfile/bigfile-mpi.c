@@ -187,11 +187,23 @@ static int _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurr
 
     ptrdiff_t offsets[NTask + 1];
     ptrdiff_t sizes[NTask];
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_LONG, comm);
+    MPI_Datatype MPI_PTRDIFFT;
+
+    if(sizeof(ptrdiff_t) == sizeof(long)) {
+        MPI_PTRDIFFT = MPI_LONG;
+    } else if(sizeof(ptrdiff_t) == sizeof(int)) {
+            MPI_PTRDIFFT = MPI_INT;
+    } else {
+        /* Weird architecture indeed. */
+        abort();
+    }
+    sizes[ThisTask] = localsize;
+
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_PTRDIFFT, comm);
     ptrdiff_t size = 0;
     offsets[0] = 0;
     int i;
-    for(i = 1; i < NTask; i ++) {
+    for(i = 0; i < NTask; i ++) {
         offsets[i + 1] = offsets[i] + sizes[i];
     }
     plan->offset = offsets[ThisTask];
