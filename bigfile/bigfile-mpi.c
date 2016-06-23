@@ -69,10 +69,12 @@ int big_block_mpi_open(BigBlock * bb, const char * basename, MPI_Comm comm) {
     return 0;
 }
 int big_block_mpi_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, size_t fsize[], MPI_Comm comm) {
-    if(comm == MPI_COMM_NULL) return 0;
     int rank;
-    MPI_Comm_rank(comm, &rank);
     int rt;
+
+    if(comm == MPI_COMM_NULL) return 0;
+
+    MPI_Comm_rank(comm, &rank);
     if(rank == 0) { 
         rt = big_block_create(bb, basename, dtype, nmemb, Nfile, fsize);
     }
@@ -95,14 +97,13 @@ int big_block_mpi_close(BigBlock * block, MPI_Comm comm) {
     int rt;
     if(rank == 0) {
         int i;
-        block->dirty = 1;
+        big_block_set_dirty(block, 1);
         for(i = 0; i < block->Nfile; i ++) {
             block->fchecksum[i] = checksum[i];
         }
     } else {
         /* only the root rank updates */
-        block->dirty = 0;
-        block->attrset.dirty = 0;
+        big_block_set_dirty(block, 0);
     }
     rt = big_block_close(block);
     if(rt) {
@@ -134,32 +135,31 @@ static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm) {
     int rank;
     MPI_Comm_rank(comm, &rank);
     int lname = 0;
-    char * oldbuf = 0;
+    void * attrpack;
+    size_t attrpacksize = 0;
     if(rank == root) {
         lname = strlen(bb->basename);
-        oldbuf = bb->attrset.attrbuf;
+        attrpack = big_attrset_pack(bb->attrset, &attrpacksize);
     }
     MPI_Bcast(&lname, 1, MPI_INT, root, comm);
-    MPI_Bcast(&oldbuf, sizeof(ptrdiff_t), MPI_BYTE, root, comm);
     MPI_Bcast(bb, sizeof(BigBlock), MPI_BYTE, root, comm);
+    MPI_Bcast(&attrpacksize, sizeof(size_t), MPI_BYTE, root, comm);
     if(rank != root) {
         bb->basename = calloc(lname + 1, 1);
         bb->fsize = calloc(bb->Nfile, sizeof(size_t));
         bb->foffset = calloc(bb->Nfile + 1, sizeof(size_t));
         bb->fchecksum = calloc(bb->Nfile, sizeof(int));
-        bb->attrset.attrbuf = calloc(bb->attrset.bufsize, 1);
-        bb->attrset.attrlist = calloc(bb->attrset.listsize, sizeof(BigBlockAttr));
+        attrpack = malloc(attrpacksize);
     }
+    MPI_Bcast(attrpack, attrpacksize, MPI_BYTE, root, comm);
+    if(rank != root) {
+        bb->attrset = big_attrset_unpack(attrpack);
+    }
+    free(attrpack);
     MPI_Bcast(bb->basename, lname + 1, MPI_BYTE, root, comm);
     MPI_Bcast(bb->fsize, sizeof(ptrdiff_t) * bb->Nfile, MPI_BYTE, root, comm);
     MPI_Bcast(bb->fchecksum, sizeof(int) * bb->Nfile, MPI_BYTE, root, comm);
-    MPI_Bcast(bb->foffset, sizeof(ptrdiff_t) * bb->Nfile + 1, MPI_BYTE, root, comm);
-    MPI_Bcast(bb->attrset.attrbuf, bb->attrset.bufused, MPI_BYTE, root, comm);
-    MPI_Bcast(bb->attrset.attrlist, bb->attrset.listused * sizeof(BigBlockAttr), MPI_BYTE, root, comm);
-    for(i = 0; i < bb->attrset.listused; i ++) {
-        bb->attrset.attrlist[i].data += (ptrdiff_t) (bb->attrset.attrbuf - oldbuf);
-        bb->attrset.attrlist[i].name += (ptrdiff_t) (bb->attrset.attrbuf - oldbuf);
-    }
+    MPI_Bcast(bb->foffset, sizeof(ptrdiff_t) * (bb->Nfile + 1), MPI_BYTE, root, comm);
     return 0;
 }
 

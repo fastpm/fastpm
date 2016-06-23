@@ -9,25 +9,16 @@ typedef struct BigFile {
     char * basename;
 } BigFile;
 
-typedef struct BigBlockAttr {
+typedef struct BigAttr BigAttr;
+struct BigAttr {
     /* All members are readonly. */
     int nmemb;
     char dtype[8];
     char * name;
     char * data;
-} BigBlockAttr;
+};
 
-typedef struct BigBlockAttrSet {
-    /* All members are readonly */
-    int dirty;
-    char * attrbuf;
-    size_t bufused;
-    size_t bufsize;
-
-    BigBlockAttr * attrlist;
-    size_t listused;
-    size_t listsize;
-} BigBlockAttrSet;
+typedef struct BigAttrSet BigAttrSet;
 
 typedef struct BigBlock {
     /* All members are readonly */
@@ -43,16 +34,18 @@ typedef struct BigBlock {
     size_t * foffset; /* Nfile + 1, in units of elements */
     unsigned int * fchecksum; /* sysv sums of each file (unreduced) */
     int Nfile;
-    BigBlockAttrSet attrset;
+    BigAttrSet * attrset;
     int dirty;
 } BigBlock;
 
-typedef struct BigBlockPtr{
+typedef struct BigBlockPtr BigBlockPtr;
+
+struct BigBlockPtr {
     /* All members are readonly */
     int fileid;
     ptrdiff_t roffset; /* offset within a file */
     ptrdiff_t aoffset; /* abs offset */
-} BigBlockPtr;
+};
 
 typedef struct BigArray {
     /* All members are readonly */
@@ -95,12 +88,16 @@ int big_file_open_block(BigFile * bf, BigBlock * block, const char * blockname);
 int big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
 int big_file_close(BigFile * bf);
 int big_block_flush(BigBlock * block);
+void big_block_set_dirty(BigBlock * block, int value);
 int big_file_mksubdir_r(const char * pathname, const char * subdir);
 
 int big_block_open(BigBlock * bb, const char * basename);
 int big_block_clear_checksum(BigBlock * bb);
 int big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
 int big_block_close(BigBlock * block);
+
+void * big_attrset_pack(BigAttrSet * attrset, size_t * bytes);
+BigAttrSet * big_attrset_unpack(void * p);
 
 /** Initialise BigBlockPtr to the place in the BigBlock offset elements from the beginning of the block.
  * This allows you to write into the BigBlock at a position other than the beginning.
@@ -172,8 +169,8 @@ int big_block_set_attr(BigBlock * block, const char * attrname, const void * dat
  * @param nmemb - Number of members to get. Must be equal to number of members
  * originally stored or an error is raised and -1 returned.*/
 int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb);
-BigBlockAttr * big_block_lookup_attr(BigBlock * block, const char * attrname);
-BigBlockAttr * big_block_list_attrs(BigBlock * block, size_t * count);
+BigAttr * big_block_lookup_attr(BigBlock * block, const char * attrname);
+BigAttr * big_block_list_attrs(BigBlock * block, size_t * count);
 
 /**
  *

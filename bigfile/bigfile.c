@@ -17,6 +17,41 @@
 static char * ERRORSTR = NULL;
 static size_t CHUNK_BYTES = 64 * 1024 * 1024;
 
+/* Internal AttrSet API */
+
+struct BigAttrSet {
+    /* All members are readonly */
+    int dirty;
+    char * attrbuf;
+    size_t bufused;
+    size_t bufsize;
+
+    BigAttr * attrlist;
+    size_t listused;
+    size_t listsize;
+};
+
+static BigAttrSet *
+attrset_create();
+static void attrset_free(BigAttrSet * attrset);
+static int
+attrset_read_attr_set_v1(BigAttrSet * attrset, const char * basename);
+static int
+attrset_read_attr_set_v2(BigAttrSet * attrset, const char * basename);
+static int
+attrset_write_attr_set_v2(BigAttrSet * attrset, const char * basename);
+static BigAttr *
+attrset_lookup_attr(BigAttrSet * attrset, const char * attrname);
+static int
+attrset_remove_attr(BigAttrSet * attrset, const char * attrname);
+static BigAttr *
+attrset_list_attrs(BigAttrSet * attrset, size_t * count);
+static int
+attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data, const char * dtype, int nmemb);
+static int
+attrset_get_attr(BigAttrSet * attrset, const char * attrname, void * data, const char * dtype, int nmemb);
+
+
 int big_file_set_buffer_size(size_t bytes) {
     CHUNK_BYTES = bytes;
     return 0;
@@ -31,6 +66,7 @@ void big_file_clear_error_message() {
         ERRORSTR = NULL;
     }
 }
+
 static void big_file_set_error_message2(const char * msg, const char * file, const int line, ...) {
     char * mymsg;
     if(!msg) {
@@ -54,6 +90,7 @@ static void big_file_set_error_message2(const char * msg, const char * file, con
     vsprintf(ERRORSTR, fmtstr, va); 
     va_end(va);
 }
+
 void big_file_set_error_message(char * msg) {
     if(ERRORSTR) free(ERRORSTR);
     ERRORSTR = strdup(msg);
@@ -221,7 +258,7 @@ void big_file_checksum(unsigned int * sum, void * buf, size_t size) {
     sysvsum(sum, buf, size);
 }
 /* */
-static FILE * open_a_file(char * basename, int fileid, char * mode) {
+static FILE * open_a_file(const char * basename, int fileid, char * mode) {
     char * filename = alloca(strlen(basename) + 128);
     if(fileid == FILEID_HEADER) {
         sprintf(filename, "%s%s", basename, EXT_HEADER);
@@ -242,9 +279,6 @@ static FILE * open_a_file(char * basename, int fileid, char * mode) {
 ex_fopen:
     return fp;
 }
-static int big_block_read_attr_set_v1(BigBlock * bb);
-static int big_block_read_attr_set_v2(BigBlock * bb);
-static int big_block_write_attr_set_v2(BigBlock * bb);
 
 int big_block_open(BigBlock * bb, const char * basename) {
     memset(bb, 0, sizeof(bb[0]));
@@ -294,12 +328,14 @@ int big_block_open(BigBlock * bb, const char * basename) {
     }
     bb->size = bb->foffset[bb->Nfile];
 
+    bb->attrset = attrset_create();
+
     /* COMPATIBLE WITH V1 ATTR FILES */
-    RAISEIF(0 != big_block_read_attr_set_v1(bb),
+    RAISEIF(0 != attrset_read_attr_set_v1(bb->attrset, bb->basename),
             ex_readattr,
             NULL);
 
-    RAISEIF(0 != big_block_read_attr_set_v2(bb),
+    RAISEIF(0 != attrset_read_attr_set_v2(bb->attrset, bb->basename),
             ex_readattr,
             NULL);
 
@@ -350,8 +386,9 @@ int big_block_create(BigBlock * bb, const char * basename, const char * dtype, i
     }
 
     bb->size = bb->foffset[bb->Nfile];
-    memset(&bb->attrset, 0, sizeof(bb->attrset));
 
+    bb->attrset = attrset_create();
+    bb->attrset->dirty = 1;
     bb->dirty = 1;
     RAISEIF(0 != big_block_flush(bb), 
             ex_flush, NULL);
@@ -384,6 +421,12 @@ int big_block_clear_checksum(BigBlock * bb) {
     return 0;
 }
 
+void big_block_set_dirty(BigBlock * block, int value)
+{
+    block->dirty = value;
+    block->attrset->dirty = value;
+}
+
 int big_block_flush(BigBlock * block) {
     FILE * fheader = NULL;
     if(block->dirty) {
@@ -406,11 +449,11 @@ int big_block_flush(BigBlock * block) {
         fclose(fheader);
         block->dirty = 0;
     }
-    if(block->attrset.dirty) {
-        RAISEIF(0 != big_block_write_attr_set_v2(block),
+    if(block->attrset->dirty) {
+        RAISEIF(0 != attrset_write_attr_set_v2(block->attrset, block->basename),
             ex_write_attr,
             NULL);
-        block->attrset.dirty = 0;
+        block->attrset->dirty = 0;
     }
     return 0;
 
@@ -420,16 +463,16 @@ ex_write_attr:
 ex_fileio:
     return -1;
 }
+
 int big_block_close(BigBlock * block) {
     int rt = 0;
     RAISEIF(0 != big_block_flush(block),
             ex_flush,
             NULL);
 finalize:
-    if(block->attrset.attrbuf)
-        free(block->attrset.attrbuf);
-    if(block->attrset.attrlist)
-        free(block->attrset.attrlist);
+
+    attrset_free(block->attrset);
+
     free(block->basename);
     free(block->fchecksum);
     free(block->fsize);
@@ -442,297 +485,30 @@ ex_flush:
     goto finalize;
 }
 
-static int big_block_read_attr_set_v1(BigBlock * bb) {
-    bb->attrset.dirty = 0;
-
-    FILE * fattr = open_a_file(bb->basename, FILEID_ATTR, "r");
-    if(fattr == NULL) {
-        big_file_clear_error_message();
-        return 0;
-    }
-    int nmemb;
-    int lname;
-    char dtype[8];
-    char * data;
-    char * name;
-    while(!feof(fattr)) {
-        if(1 != fread(&nmemb, sizeof(int), 1, fattr)) break;
-        RAISEIF(
-            (1 != fread(&lname, sizeof(int), 1, fattr)) ||
-            (1 != fread(&dtype, 8, 1, fattr)),
-            ex_fread,
-            "Failed to read from file"
-                )
-        int ldata = dtype_itemsize(dtype) * nmemb;
-        data = alloca(ldata);
-        name = alloca(lname + 1);
-        RAISEIF(
-            (1 != fread(name, lname, 1, fattr)) ||
-            (1 != fread(data, ldata, 1, fattr)),
-            ex_fread,
-            "Failed to read from file");
-
-        name[lname] = 0;
-        RAISEIF(0 != big_block_set_attr(bb, name, data, dtype, nmemb),
-            ex_set_attr,
-            NULL);
-    } 
-    bb->attrset.dirty = 0;
-    fclose(fattr);
-    return 0;
-ex_set_attr:
-ex_fread:
-    bb->attrset.dirty = 0;
-    fclose(fattr);
-    return -1;
+BigAttr * big_block_lookup_attr(BigBlock * block, const char * attrname)
+{
+    return attrset_lookup_attr(block->attrset, attrname);
 }
 
-static int _isblank(int ch) {
-    return ch == ' ' || ch == '\t';
-}
-static int big_block_read_attr_set_v2(BigBlock * bb) {
-    bb->attrset.dirty = 0;
-
-    FILE * fattr = open_a_file(bb->basename, FILEID_ATTR_V2, "r");
-    if(fattr == NULL) {
-        big_file_clear_error_message();
-        return 0;
-    }
-    fseek(fattr, 0, SEEK_END);
-    long size = ftell(fattr);
-    char * buffer = (char*) malloc(size + 1);
-    unsigned char * data = (unsigned char * ) malloc(size + 1);
-    fseek(fattr, 0, SEEK_SET);
-    RAISEIF(size != fread(buffer, 1, size, fattr),
-            ex_read_file,
-            "Failed to read attribute file\n");
-    fclose(fattr);
-    buffer[size] = 0;
-
-    /* now parse the v2 attr file.*/
-    long i = 0;
-    #define ATTRV2_EXPECT(variable) while(_isblank(buffer[i])) i++; \
-                    char * variable = buffer + i; \
-                    while(!_isblank(buffer[i])) i++; buffer[i] = 0; i++;
-    while(buffer[i]) {
-        ATTRV2_EXPECT(name);
-        ATTRV2_EXPECT(dtype);
-        ATTRV2_EXPECT(rawlength);
-        ATTRV2_EXPECT(rawdata);
-        /* skip the reset of the line */
-        while(buffer[i] != '\n' && buffer[i]) i ++;
-        if(buffer[i] == '\n') i++;
-
-        int nmemb = atoi(rawlength);
-        int itemsize = dtype_itemsize(dtype);
-
-        RAISEIF(nmemb * itemsize * 2!= strlen(rawdata),
-            ex_parse_attr,
-            "NMEMB and data mismiatch: %d x %d (%s) * 2 != %d",
-            nmemb, itemsize, dtype, strlen(rawdata));
-
-        int j, k;
-        for(k = 0, j = 0; k < nmemb * itemsize; k ++, j += 2) {
-            char buf[3];
-            buf[0] = rawdata[j];
-            buf[1] = rawdata[j+1];
-            buf[2] = 0;
-            unsigned int byte = strtoll(buf, NULL, 16);
-            data[k] = byte;
-        }
-        RAISEIF(0 != big_block_set_attr(bb, name, data, dtype, nmemb),
-            ex_set_attr,
-            NULL);
-    } 
-    free(data);
-    free(buffer);
-    bb->attrset.dirty = 0;
-    return 0;
-
-ex_read_file:
-ex_parse_attr:
-ex_set_attr:
-    bb->attrset.dirty = 0;
-    free(buffer);
-    free(data);
-    return -1;
-}
-static int big_block_write_attr_set_v2(BigBlock * bb) {
-    static char conv[] = "0123456789ABCDEF";
-    bb->attrset.dirty = 0;
-
-    FILE * fattr = open_a_file(bb->basename, FILEID_ATTR_V2, "w");
-    RAISEIF(fattr == NULL,
-            ex_open,
-            NULL);
-
-    ptrdiff_t i;
-    for(i = 0; i < bb->attrset.listused; i ++) {
-        BigBlockAttr * a = & bb->attrset.attrlist[i];
-        int itemsize = dtype_itemsize(a->dtype);
-        int ldata = itemsize * a->nmemb;
-
-        char * rawdata = malloc(ldata * 2 + 1);
-        char * textual = malloc(a->nmemb * 32 + 1);
-        textual[0] = 0;
-        unsigned char * adata = (unsigned char*) a->data;
-        int j, k; 
-        for(j = 0, k = 0; k < ldata; k ++, j+=2) {
-            rawdata[j] = conv[adata[k] / 16];
-            rawdata[j + 1] = conv[adata[k] % 16];
-        }
-        rawdata[j] = 0;
-        for(j = 0; j < a->nmemb; j ++) {
-            if(a->dtype[1] != 'S') {
-                char buf[128];
-                dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
-                strcat(textual, buf);
-                if(j != a->nmemb - 1) {
-                    strcat(textual, " ");
-                }
-            } else {
-                char buf[] = {adata[j], 0};
-                if(buf[0] == '\n') {
-                    strcat(textual, "...");
-                    break;
-                } if(buf[0] == 0) {
-                    break;
-                }
-                strcat(textual, buf);
-            }
-        }
-        int rt = fprintf(fattr, "%s %s %d %s #HUMANE [ %s ]\n", 
-                a->name, a->dtype, a->nmemb, rawdata, textual
-               );
-        free(rawdata);
-        free(textual);
-        RAISEIF(rt <= 0,
-            ex_write,
-            "Failed to write to file");
-    } 
-    fclose(fattr);
-    return 0;
-ex_write:
-    fclose(fattr);
-ex_open:
-    return -1;
-}
-static int attr_cmp(const void * p1, const void * p2) {
-    const BigBlockAttr * c1 = p1;
-    const BigBlockAttr * c2 = p2;
-    return strcmp(c1->name, c2->name);
+int big_block_remove_attr(BigBlock * block, const char * attrname)
+{
+    return attrset_remove_attr(block->attrset, attrname);
 }
 
-static BigBlockAttr * attrset_append_attr(BigBlockAttrSet * attrset) {
-    if(attrset->listsize == 0) {
-        attrset->attrlist = malloc(sizeof(BigBlockAttr) * 16);
-        attrset->listsize = 16;
-    }
-    while(attrset->listsize - attrset->listused < 1) {
-        attrset->attrlist = realloc(attrset->attrlist, attrset->listsize * 2 * sizeof(BigBlockAttr));
-        attrset->listsize *= 2;
-    }
-    BigBlockAttr * a = & (attrset->attrlist[attrset->listused++]);
-    memset(a, 0, sizeof(BigBlockAttr));
-    return a;
+BigAttr * big_block_list_attrs(BigBlock * block, size_t * count)
+{
+    return attrset_list_attrs(block->attrset, count);
 }
-int big_block_add_attr(BigBlock * block, const char * attrname, const char * dtype, int nmemb) {
-    BigBlockAttrSet * attrset = &block->attrset;
-    size_t size = dtype_itemsize(dtype) * nmemb + strlen(attrname) + 1;
-    if(attrset->bufsize == 0) {
-        attrset->attrbuf = malloc(128);
-        attrset->bufsize = 128;
-    }
-    while(attrset->bufsize - attrset->bufused < size) {
-        int i;
-        for(i = 0; i < attrset->listused; i ++) {
-            attrset->attrlist[i].data -= (ptrdiff_t) attrset->attrbuf;
-            attrset->attrlist[i].name -= (ptrdiff_t) attrset->attrbuf;
-        }
-        attrset->attrbuf = realloc(attrset->attrbuf, attrset->bufsize * 2);
-        attrset->bufsize *= 2;
-        for(i = 0; i < attrset->listused; i ++) {
-            attrset->attrlist[i].data += (ptrdiff_t) attrset->attrbuf;
-            attrset->attrlist[i].name += (ptrdiff_t) attrset->attrbuf;
-        }
-    }
-    char * free = attrset->attrbuf + attrset->bufused;
-    attrset->bufused += size;
-
-    BigBlockAttr * n = attrset_append_attr(attrset);
-
-    n->nmemb = nmemb;
-    memset(n->dtype, 0, 8);
-    dtype_normalize(n->dtype, dtype);
-
-    n->name = free;
-    strcpy(free, attrname);
-    free += strlen(attrname) + 1;
-    n->data = free;
-
-    qsort(attrset->attrlist, attrset->listused, sizeof(BigBlockAttr), attr_cmp);
-
-    return 0;
+int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb)
+{
+    return attrset_set_attr(block->attrset, attrname, data, dtype, nmemb);
 }
 
-BigBlockAttr * big_block_lookup_attr(BigBlock * block, const char * attrname) {
-    BigBlockAttrSet * attrset = &block->attrset;
-    BigBlockAttr lookup = {0};
-    lookup.name = (char*) attrname;
-    BigBlockAttr * found = bsearch(&lookup, attrset->attrlist, attrset->listused, sizeof(BigBlockAttr), attr_cmp);
-    return found;
+int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb)
+{
+    return attrset_get_attr(block->attrset, attrname, data, dtype, nmemb);
 }
 
-int big_block_remove_attr(BigBlock * block, const char * attrname) {
-    BigBlockAttrSet * attrset = &block->attrset;
-    BigBlockAttr *attr = big_block_lookup_attr(block, attrname);
-    if(attr) {
-        ptrdiff_t ind = attr - attrset->attrlist;
-        memmove(&attrset->attrlist[ind], &attrset->attrlist[ind + 1], 
-            (attrset->listused - ind - 1) * sizeof(BigBlockAttr));
-        attrset->listused -= 1;
-    }
-    return 0;
-}
-
-BigBlockAttr * big_block_list_attrs(BigBlock * block, size_t * count) {
-    BigBlockAttrSet * attrset = &block->attrset;
-    *count = attrset->listused;
-    return attrset->attrlist; 
-}
-
-int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb) {
-    BigBlockAttrSet * attrset = &block->attrset;
-    BigBlockAttr * attr;
-    attrset->dirty = 1;
-
-    big_block_remove_attr(block, attrname);
-    /* add ensures the dtype has been normalized! */
-    RAISEIF(0 != big_block_add_attr(block, attrname, dtype, nmemb),
-            ex_add,
-            "Failed to add attr");
-    attr = big_block_lookup_attr(block, attrname);
-    RAISEIF(attr->nmemb != nmemb,
-            ex_mismatch,
-            "attr nmemb mismatch");
-    dtype_convert_simple(attr->data, attr->dtype, data, dtype, attr->nmemb);
-    return 0;
-
-ex_mismatch:
-ex_add:
-    return -1;
-}
-int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb) {
-    BigBlockAttr * found = big_block_lookup_attr(block, attrname);
-    RAISEIF(!found, ex_notfound, "attr not found");
-    RAISEIF(found->nmemb != nmemb, ex_mismatch, "attr nmemb mismatch");
-    dtype_convert_simple(data, dtype, found->data, found->dtype, found->nmemb);
-    return 0;
-
-ex_mismatch:
-ex_notfound:
-    return -1;
-}
 /* *
  * seek ptr to offset, on bb
  *  
@@ -1449,3 +1225,373 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 #endif
+
+/*
+ * Internal API for AttrSet objects;
+ * */
+
+static int
+attrset_read_attr_set_v1(BigAttrSet * attrset, const char * basename)
+{
+    attrset->dirty = 0;
+
+    FILE * fattr = open_a_file(basename, FILEID_ATTR, "r");
+    if(fattr == NULL) {
+        big_file_clear_error_message();
+        return 0;
+    }
+    int nmemb;
+    int lname;
+    char dtype[8];
+    char * data;
+    char * name;
+    while(!feof(fattr)) {
+        if(1 != fread(&nmemb, sizeof(int), 1, fattr)) break;
+        RAISEIF(
+            (1 != fread(&lname, sizeof(int), 1, fattr)) ||
+            (1 != fread(&dtype, 8, 1, fattr)),
+            ex_fread,
+            "Failed to read from file"
+                )
+        int ldata = dtype_itemsize(dtype) * nmemb;
+        data = alloca(ldata);
+        name = alloca(lname + 1);
+        RAISEIF(
+            (1 != fread(name, lname, 1, fattr)) ||
+            (1 != fread(data, ldata, 1, fattr)),
+            ex_fread,
+            "Failed to read from file");
+
+        name[lname] = 0;
+        RAISEIF(0 != attrset_set_attr(attrset, name, data, dtype, nmemb),
+            ex_set_attr,
+            NULL);
+    } 
+    attrset->dirty = 0;
+    fclose(fattr);
+    return 0;
+ex_set_attr:
+ex_fread:
+    attrset->dirty = 0;
+    fclose(fattr);
+    return -1;
+}
+
+static int _isblank(int ch) {
+    return ch == ' ' || ch == '\t';
+}
+
+static int
+attrset_read_attr_set_v2(BigAttrSet * attrset, const char * basename)
+{
+    attrset->dirty = 0;
+
+    FILE * fattr = open_a_file(basename, FILEID_ATTR_V2, "r");
+    if(fattr == NULL) {
+        big_file_clear_error_message();
+        return 0;
+    }
+    fseek(fattr, 0, SEEK_END);
+    long size = ftell(fattr);
+    char * buffer = (char*) malloc(size + 1);
+    unsigned char * data = (unsigned char * ) malloc(size + 1);
+    fseek(fattr, 0, SEEK_SET);
+    RAISEIF(size != fread(buffer, 1, size, fattr),
+            ex_read_file,
+            "Failed to read attribute file\n");
+    fclose(fattr);
+    buffer[size] = 0;
+
+    /* now parse the v2 attr file.*/
+    long i = 0;
+    #define ATTRV2_EXPECT(variable) while(_isblank(buffer[i])) i++; \
+                    char * variable = buffer + i; \
+                    while(!_isblank(buffer[i])) i++; buffer[i] = 0; i++;
+    while(buffer[i]) {
+        ATTRV2_EXPECT(name);
+        ATTRV2_EXPECT(dtype);
+        ATTRV2_EXPECT(rawlength);
+        ATTRV2_EXPECT(rawdata);
+        /* skip the reset of the line */
+        while(buffer[i] != '\n' && buffer[i]) i ++;
+        if(buffer[i] == '\n') i++;
+
+        int nmemb = atoi(rawlength);
+        int itemsize = dtype_itemsize(dtype);
+
+        RAISEIF(nmemb * itemsize * 2!= strlen(rawdata),
+            ex_parse_attr,
+            "NMEMB and data mismiatch: %d x %d (%s) * 2 != %d",
+            nmemb, itemsize, dtype, strlen(rawdata));
+
+        int j, k;
+        for(k = 0, j = 0; k < nmemb * itemsize; k ++, j += 2) {
+            char buf[3];
+            buf[0] = rawdata[j];
+            buf[1] = rawdata[j+1];
+            buf[2] = 0;
+            unsigned int byte = strtoll(buf, NULL, 16);
+            data[k] = byte;
+        }
+        RAISEIF(0 != attrset_set_attr(attrset, name, data, dtype, nmemb),
+            ex_set_attr,
+            NULL);
+    } 
+    free(data);
+    free(buffer);
+    attrset->dirty = 0;
+    return 0;
+
+ex_read_file:
+ex_parse_attr:
+ex_set_attr:
+    attrset->dirty = 0;
+    free(buffer);
+    free(data);
+    return -1;
+}
+static int
+attrset_write_attr_set_v2(BigAttrSet * attrset, const char * basename)
+{
+    static char conv[] = "0123456789ABCDEF";
+    attrset->dirty = 0;
+
+    FILE * fattr = open_a_file(basename, FILEID_ATTR_V2, "w");
+    RAISEIF(fattr == NULL,
+            ex_open,
+            NULL);
+
+    ptrdiff_t i;
+    for(i = 0; i < attrset->listused; i ++) {
+        BigAttr * a = & attrset->attrlist[i];
+        int itemsize = dtype_itemsize(a->dtype);
+        int ldata = itemsize * a->nmemb;
+
+        char * rawdata = malloc(ldata * 2 + 1);
+        char * textual = malloc(a->nmemb * 32 + 1);
+        textual[0] = 0;
+        unsigned char * adata = (unsigned char*) a->data;
+        int j, k; 
+        for(j = 0, k = 0; k < ldata; k ++, j+=2) {
+            rawdata[j] = conv[adata[k] / 16];
+            rawdata[j + 1] = conv[adata[k] % 16];
+        }
+        rawdata[j] = 0;
+        for(j = 0; j < a->nmemb; j ++) {
+            if(a->dtype[1] != 'S') {
+                char buf[128];
+                dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
+                strcat(textual, buf);
+                if(j != a->nmemb - 1) {
+                    strcat(textual, " ");
+                }
+            } else {
+                char buf[] = {adata[j], 0};
+                if(buf[0] == '\n') {
+                    strcat(textual, "...");
+                    break;
+                } if(buf[0] == 0) {
+                    break;
+                }
+                strcat(textual, buf);
+            }
+        }
+        int rt = fprintf(fattr, "%s %s %d %s #HUMANE [ %s ]\n", 
+                a->name, a->dtype, a->nmemb, rawdata, textual
+               );
+        free(rawdata);
+        free(textual);
+        RAISEIF(rt <= 0,
+            ex_write,
+            "Failed to write to file");
+    } 
+    fclose(fattr);
+    return 0;
+ex_write:
+    fclose(fattr);
+ex_open:
+    return -1;
+}
+
+static int attr_cmp(const void * p1, const void * p2) {
+    const BigAttr * c1 = p1;
+    const BigAttr * c2 = p2;
+    return strcmp(c1->name, c2->name);
+}
+
+static BigAttr *
+attrset_append_attr(BigAttrSet * attrset)
+{
+    while(attrset->listsize - attrset->listused < 1) {
+        attrset->attrlist = realloc(attrset->attrlist, attrset->listsize * 2 * sizeof(BigAttr));
+        attrset->listsize *= 2;
+    }
+    BigAttr * a = & (attrset->attrlist[attrset->listused++]);
+    memset(a, 0, sizeof(BigAttr));
+    return a;
+}
+
+static int
+attrset_add_attr(BigAttrSet * attrset, const char * attrname, const char * dtype, int nmemb)
+{
+    size_t size = dtype_itemsize(dtype) * nmemb + strlen(attrname) + 1;
+    while(attrset->bufsize - attrset->bufused < size) {
+        int i;
+        for(i = 0; i < attrset->listused; i ++) {
+            attrset->attrlist[i].data -= (ptrdiff_t) attrset->attrbuf;
+            attrset->attrlist[i].name -= (ptrdiff_t) attrset->attrbuf;
+        }
+        attrset->attrbuf = realloc(attrset->attrbuf, attrset->bufsize * 2);
+        attrset->bufsize *= 2;
+        for(i = 0; i < attrset->listused; i ++) {
+            attrset->attrlist[i].data += (ptrdiff_t) attrset->attrbuf;
+            attrset->attrlist[i].name += (ptrdiff_t) attrset->attrbuf;
+        }
+    }
+    char * free = attrset->attrbuf + attrset->bufused;
+    attrset->bufused += size;
+
+    BigAttr * n = attrset_append_attr(attrset);
+
+    n->nmemb = nmemb;
+    memset(n->dtype, 0, 8);
+    dtype_normalize(n->dtype, dtype);
+
+    n->name = free;
+    strcpy(free, attrname);
+    free += strlen(attrname) + 1;
+    n->data = free;
+
+    qsort(attrset->attrlist, attrset->listused, sizeof(BigAttr), attr_cmp);
+    return 0;
+}
+
+static BigAttr *
+attrset_lookup_attr(BigAttrSet * attrset, const char * attrname)
+{
+    BigAttr lookup = {0};
+    lookup.name = (char*) attrname;
+    BigAttr * found = bsearch(&lookup, attrset->attrlist, attrset->listused, sizeof(BigAttr), attr_cmp);
+    return found;
+}
+
+static int
+attrset_remove_attr(BigAttrSet * attrset, const char * attrname)
+{
+    BigAttr *attr = attrset_lookup_attr(attrset, attrname);
+    if(attr) {
+        ptrdiff_t ind = attr - attrset->attrlist;
+        memmove(&attrset->attrlist[ind], &attrset->attrlist[ind + 1],
+            (attrset->listused - ind - 1) * sizeof(BigAttr));
+        attrset->listused -= 1;
+    }
+    return 0;
+}
+
+static BigAttr *
+attrset_list_attrs(BigAttrSet * attrset, size_t * count)
+{
+    *count = attrset->listused;
+    return attrset->attrlist;
+}
+
+static int
+attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data, const char * dtype, int nmemb)
+{
+    BigAttr * attr;
+    attrset->dirty = 1;
+
+    attrset_remove_attr(attrset, attrname);
+    /* add ensures the dtype has been normalized! */
+    RAISEIF(0 != attrset_add_attr(attrset, attrname, dtype, nmemb),
+            ex_add,
+            "Failed to add attr");
+    attr = attrset_lookup_attr(attrset, attrname);
+    RAISEIF(attr->nmemb != nmemb,
+            ex_mismatch,
+            "attr nmemb mismatch");
+    dtype_convert_simple(attr->data, attr->dtype, data, dtype, attr->nmemb);
+    return 0;
+
+ex_mismatch:
+ex_add:
+    return -1;
+}
+
+static int
+attrset_get_attr(BigAttrSet * attrset, const char * attrname, void * data, const char * dtype, int nmemb)
+{
+    BigAttr * found = attrset_lookup_attr(attrset, attrname);
+    RAISEIF(!found, ex_notfound, "attr not found");
+    RAISEIF(found->nmemb != nmemb, ex_mismatch, "attr nmemb mismatch");
+    dtype_convert_simple(data, dtype, found->data, found->dtype, found->nmemb);
+    return 0;
+
+ex_mismatch:
+ex_notfound:
+    return -1;
+}
+
+static BigAttrSet *
+attrset_create()
+{
+    BigAttrSet * attrset = calloc(1, sizeof(BigAttrSet));
+    attrset->attrbuf = malloc(128);
+    attrset->bufsize = 128;
+    attrset->bufused = 0;
+    attrset->attrlist = malloc(sizeof(BigAttr) * 16);
+    attrset->listsize = 16;
+    attrset->listused = 0;
+
+    return attrset;
+}
+
+static void
+attrset_free(BigAttrSet * attrset)
+{
+    free(attrset->attrbuf);
+    free(attrset->attrlist);
+    free(attrset);
+}
+
+void * big_attrset_pack(BigAttrSet * attrset, size_t * bytes)
+{
+    size_t n = 0;
+    n += sizeof(BigAttrSet);
+    n += attrset->bufused;
+    n += sizeof(BigAttr) * attrset->listused;
+    char * buf = calloc(n, 1);
+    char * p = buf;
+    char * attrbuf = (char*) (p + sizeof(BigAttrSet));
+    BigAttr * attrlist = (BigAttr *) (attrbuf + attrset->bufused);
+    memcpy(p, attrset, sizeof(BigAttrSet));
+    memcpy(attrbuf, attrset->attrbuf, attrset->bufused);
+    memcpy(attrlist, attrset->attrlist, attrset->listused * sizeof(BigAttr));
+    int i = 0;
+    for(i = 0; i < attrset->listused; i ++) {
+        attrlist[i].data -= (ptrdiff_t) attrset->attrbuf;
+        attrlist[i].name -= (ptrdiff_t) attrset->attrbuf;
+    }
+
+    *bytes = n;
+
+    return (void*) p;
+}
+
+BigAttrSet * big_attrset_unpack(void * p)
+{
+    BigAttrSet * attrset = calloc(1, sizeof(attrset[0]));
+    memcpy(attrset, p, sizeof(BigAttrSet));
+    p += sizeof(BigAttrSet);
+    attrset->attrbuf = malloc(attrset->bufsize);
+    attrset->attrlist = malloc(attrset->listsize * sizeof(BigAttr));
+    memcpy(attrset->attrbuf, p, attrset->bufused);
+    p += attrset->bufused;
+    memcpy(attrset->attrlist, p, attrset->listused * sizeof(BigAttr));
+    int i = 0;
+    for(i = 0; i < attrset->listused; i ++) {
+        attrset->attrlist[i].data += (ptrdiff_t) attrset->attrbuf;
+        attrset->attrlist[i].name += (ptrdiff_t) attrset->attrbuf;
+    }
+    return attrset;
+}
