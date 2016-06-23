@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <bigfile.h>
 #include <bigfile-mpi.h>
@@ -8,6 +9,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/cosmology.h>
+
 static void 
 cumsum(int64_t offsets[], int N) 
 {
@@ -51,10 +53,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
     double H0 = 100.;
     double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, CP(fastpm)));
 
-    MPI_Allgather(&size, 1, MPI_LONG, offsets, 1, MPI_LONG, comm);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
-    cumsum(offsets, NTask);
-
 
     int i;
     BigFile bf;
@@ -78,54 +77,39 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
         big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
         big_block_mpi_close(&bb, comm);
     }
-    {
+    struct {
+        char * name;
+        void * base;
+        char * dtype;
+        int nmemb;
+        char * dtype_out;
+    } * bdesc, BLOCKS[] = {
+        {"Position", p->x, "f8", 3, "f4"},
+        {"Velocity", p->v, "f4", 3, "f4"},
+        {"ID", p->id, "i8", 1, "i8"},
+        {NULL, },
+    };
+
+    for(bdesc = BLOCKS; bdesc->name; bdesc ++) {
+        fastpm_info("Writing block %s\n", bdesc->name);
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        big_file_mpi_create_block(&bf, &bb, "Position", "f4", 3, Nfile, size, comm);
-        big_array_init(&array, p->x, "f8", 2, (size_t[]) {p->np, 3}, NULL);
-        big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        for(i = 0; i < (NTask + Nwriters - 1)/ Nwriters; i ++) {
-            MPI_Barrier(comm);
-            if(ThisTask / Nwriters != i) continue;
-            big_block_write(&bb, &ptr, &array);
-        }
+        big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                    Nfile, size, comm);
+
+        big_array_init(&array, bdesc->base, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
+        big_block_seek(&bb, &ptr, 0);
+        big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);
     }
-    {
-        BigBlock bb;
-        BigArray array;
-        BigBlockPtr ptr;
-        big_file_mpi_create_block(&bf, &bb, "Velocity", "f4", 3, Nfile, size, comm);
-        big_array_init(&array, p->v, "f4", 2, (size_t[]) {p->np, 3}, NULL);
-        big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        for(i = 0; i < (NTask + Nwriters - 1)/ Nwriters; i ++) {
-            MPI_Barrier(comm);
-            if(ThisTask / Nwriters != i) continue;
-            big_block_write(&bb, &ptr, &array);
-        }
-        big_block_mpi_close(&bb, comm);
-    }
-    {
-        BigBlock bb;
-        BigArray array;
-        BigBlockPtr ptr;
-        big_file_mpi_create_block(&bf, &bb, "ID", "i8", 1, Nfile, size, comm);
-        big_array_init(&array, p->id, "i8", 2, (size_t[]) {p->np, 1}, NULL);
-        big_block_seek(&bb, &ptr, offsets[ThisTask]);
-        for(i = 0; i < (NTask + Nwriters - 1)/ Nwriters; i ++) {
-            MPI_Barrier(comm);
-            if(ThisTask / Nwriters != i) continue;
-            big_block_write(&bb, &ptr, &array);
-        }
-        big_block_mpi_close(&bb, comm);
-    }
+
     big_file_mpi_close(&bf, comm);
     return 0;
 }
 
 int 
-read_snapshot(FastPM * fastpm, PMStore * p, char * filebase) 
+read_snapshot(FastPM * fastpm, PMStore * p, char * filebase)
 {
     return 0;
 }
