@@ -25,6 +25,12 @@ int big_file_set_buffer_size(size_t bytes) {
 char * big_file_get_error_message() {
     return ERRORSTR;
 }
+void big_file_clear_error_message() {
+    if(ERRORSTR) {
+        free(ERRORSTR);
+        ERRORSTR = NULL;
+    }
+}
 static void big_file_set_error_message2(const char * msg, const char * file, const int line, ...) {
     char * mymsg;
     if(!msg) {
@@ -441,6 +447,7 @@ static int big_block_read_attr_set_v1(BigBlock * bb) {
 
     FILE * fattr = open_a_file(bb->basename, FILEID_ATTR, "r");
     if(fattr == NULL) {
+        big_file_clear_error_message();
         return 0;
     }
     int nmemb;
@@ -488,6 +495,7 @@ static int big_block_read_attr_set_v2(BigBlock * bb) {
 
     FILE * fattr = open_a_file(bb->basename, FILEID_ATTR_V2, "r");
     if(fattr == NULL) {
+        big_file_clear_error_message();
         return 0;
     }
     fseek(fattr, 0, SEEK_END);
@@ -536,6 +544,7 @@ static int big_block_read_attr_set_v2(BigBlock * bb) {
             ex_set_attr,
             NULL);
     } 
+    free(data);
     free(buffer);
     bb->attrset.dirty = 0;
     return 0;
