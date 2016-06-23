@@ -36,7 +36,7 @@ int big_file_mpi_create_block(BigFile * bf, BigBlock * block, const char * block
     }
     if(comm == MPI_COMM_NULL) return 0;
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
-    if(0 != big_file_mksubdir_r(bf->basename, blockname)) return -1;
+    if(0 != _big_file_mksubdir_r(bf->basename, blockname)) return -1;
     sprintf(basename, "%s/%s/", bf->basename, blockname);
     return big_block_mpi_create(block, basename, dtype, nmemb, Nfile, fsize, comm);
 }
@@ -86,6 +86,7 @@ int big_block_mpi_create(BigBlock * bb, const char * basename, const char * dtyp
     big_block_mpi_broadcast(bb, 0, comm);
     return 0;
 }
+
 int big_block_mpi_close(BigBlock * block, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
     int rank;
@@ -97,13 +98,14 @@ int big_block_mpi_close(BigBlock * block, MPI_Comm comm) {
     int rt;
     if(rank == 0) {
         int i;
-        big_block_set_dirty(block, 1);
+        big_block_set_dirty(block, dirty);
         for(i = 0; i < block->Nfile; i ++) {
             block->fchecksum[i] = checksum[i];
         }
     } else {
         /* only the root rank updates */
         big_block_set_dirty(block, 0);
+        big_attrset_set_dirty(block->attrset, 0);
     }
     rt = big_block_close(block);
     if(rt) {

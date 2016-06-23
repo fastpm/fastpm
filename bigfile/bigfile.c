@@ -11,7 +11,7 @@
 #include <dirent.h>
 
 #include "bigfile.h"
-#define RAISE(ex, errormsg, ...) { big_file_set_error_message2(errormsg, __FILE__, __LINE__, ##__VA_ARGS__); goto ex; } 
+#define RAISE(ex, errormsg, ...) { __raise__(errormsg, __FILE__, __LINE__, ##__VA_ARGS__); goto ex; } 
 #define RAISEIF(condition, ex, errormsg, ...) { if(condition) RAISE(ex, errormsg, ##__VA_ARGS__); }
 
 static char * ERRORSTR = NULL;
@@ -51,12 +51,25 @@ attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data,
 static int
 attrset_get_attr(BigAttrSet * attrset, const char * attrname, void * data, const char * dtype, int nmemb);
 
+/* Internal dtype API */
+static int
+dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
+static int
+dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const char * srcdtype, size_t nmemb);
 
-int big_file_set_buffer_size(size_t bytes) {
+/* Internal Path functions */
+static FILE *
+open_a_file(const char * basename, int fileid, char * mode);
+
+/* global settings */
+int
+big_file_set_buffer_size(size_t bytes)
+{
     CHUNK_BYTES = bytes;
     return 0;
 }
 
+/* Error handling */
 char * big_file_get_error_message() {
     return ERRORSTR;
 }
@@ -67,7 +80,9 @@ void big_file_clear_error_message() {
     }
 }
 
-static void big_file_set_error_message2(const char * msg, const char * file, const int line, ...) {
+static void 
+__raise__(const char * msg, const char * file, const int line, ...)
+{
     char * mymsg;
     if(!msg) {
         if(ERRORSTR) {
@@ -91,12 +106,18 @@ static void big_file_set_error_message2(const char * msg, const char * file, con
     va_end(va);
 }
 
-void big_file_set_error_message(char * msg) {
+void
+big_file_set_error_message(char * msg)
+{
     if(ERRORSTR) free(ERRORSTR);
     ERRORSTR = strdup(msg);
 }
 
-int big_file_open(BigFile * bf, const char * basename) {
+/* BigFile */
+
+int
+big_file_open(BigFile * bf, const char * basename)
+{
     memset(bf, 0, sizeof(bf[0]));
     struct stat st;
     RAISEIF(0 != stat(basename, &st),
@@ -112,7 +133,7 @@ ex_stat:
 int big_file_create(BigFile * bf, const char * basename) {
     memset(bf, 0, sizeof(bf[0]));
     bf->basename = strdup(basename);
-    RAISEIF(0 != big_file_mksubdir_r("", basename),
+    RAISEIF(0 != _big_file_mksubdir_r("", basename),
         ex_subdir,
         NULL);
     return 0;
@@ -170,7 +191,10 @@ static struct bblist * listbigfile_r(BigFile * bf, char * path, struct bblist * 
     }
     return bblist;
 }
-int big_file_list(BigFile * bf, char *** blocknames, int * Nblocks) {
+
+int
+big_file_list(BigFile * bf, char *** blocknames, int * Nblocks)
+{
     struct bblist * bblist = listbigfile_r(bf, "", NULL);
     struct bblist * p;
     int N = 0;
@@ -189,15 +213,19 @@ int big_file_list(BigFile * bf, char *** blocknames, int * Nblocks) {
     return 0;
 }
 
-
-int big_file_open_block(BigFile * bf, BigBlock * block, const char * blockname) {
+int
+big_file_open_block(BigFile * bf, BigBlock * block, const char * blockname)
+{
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
     sprintf(basename, "%s/%s/", bf->basename, blockname);
     return big_block_open(block, basename);
 }
-int big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, const size_t fsize[]) {
+
+int
+big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, const size_t fsize[])
+{
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
-    RAISEIF(0 != big_file_mksubdir_r(bf->basename, blockname),
+    RAISEIF(0 != _big_file_mksubdir_r(bf->basename, blockname),
             ex_subdir,
             NULL);
     sprintf(basename, "%s/%s/", bf->basename, blockname);
@@ -205,44 +233,13 @@ int big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname
 ex_subdir:
     return -1;
 }
-int big_file_close(BigFile * bf) {
+
+int
+big_file_close(BigFile * bf)
+{
     free(bf->basename);
     bf->basename = NULL;
     return 0;
-}
-
-static void path_join(char * dst, const char * path1, const char * path2) {
-    if(strlen(path1) > 0) {
-        sprintf(dst, "%s/%s", path1, path2);
-    } else {
-        strcpy(dst, path2);
-    }
-}
-/* make subdir rel to pathname, recursively making parents */
-int big_file_mksubdir_r(const char * pathname, const char * subdir) {
-    char * subdirname = alloca(strlen(subdir) + 10);
-    char * mydirname = alloca(strlen(subdir) + strlen(pathname) + 10);
-    strcpy(subdirname, subdir);
-    char * p = subdirname;
-    for(p = subdirname; *p; p ++) {
-        if(*p != '/') continue;
-        *p = 0;
-        path_join(mydirname, pathname, subdirname);
-        mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        *p = '/';
-    }
-    path_join(mydirname, pathname, subdirname);
-    mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    struct stat buf;
-    RAISEIF(0 != stat(mydirname, &buf),
-            ex_mkdir,
-            "Failed to create directory structure at `%s' (%s)", 
-            mydirname,
-            strerror(errno)
-    );
-    return 0;
-ex_mkdir:
-    return -1;
 }
 
 #define EXT_HEADER "header"
@@ -253,34 +250,20 @@ ex_mkdir:
 #define FILEID_ATTR_V2 -3
 #define FILEID_HEADER -1
 
-static void sysvsum(unsigned int * sum, void * buf, size_t size);
-void big_file_checksum(unsigned int * sum, void * buf, size_t size) {
+static void
+sysvsum(unsigned int * sum, void * buf, size_t size);
+
+void
+big_file_checksum(unsigned int * sum, void * buf, size_t size)
+{
     sysvsum(sum, buf, size);
 }
-/* */
-static FILE * open_a_file(const char * basename, int fileid, char * mode) {
-    char * filename = alloca(strlen(basename) + 128);
-    if(fileid == FILEID_HEADER) {
-        sprintf(filename, "%s%s", basename, EXT_HEADER);
-    } else
-    if(fileid == FILEID_ATTR) {
-        sprintf(filename, "%s%s", basename, EXT_ATTR);
-    } else
-    if(fileid == FILEID_ATTR_V2) {
-        sprintf(filename, "%s%s", basename, EXT_ATTR_V2);
-    } else {
-        sprintf(filename, "%s" EXT_DATA, basename, fileid);
-    }
-    FILE * fp = fopen(filename, mode); 
-    RAISEIF(fp == NULL,
-        ex_fopen,
-        "Failed to open physical file `%s' with mode `%s' (%s)", 
-        filename, mode, strerror(errno));
-ex_fopen:
-    return fp;
-}
 
-int big_block_open(BigBlock * bb, const char * basename) {
+
+/* Bigblock */
+int
+big_block_open(BigBlock * bb, const char * basename)
+{
     memset(bb, 0, sizeof(bb[0]));
     if(basename == NULL) basename = "";
     bb->basename = strdup(basename);
@@ -356,7 +339,9 @@ ex_open:
     return -1;
 }
 
-int big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]) {
+int
+big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[])
+{
     memset(bb, 0, sizeof(bb[0]));
     if(basename == NULL) basename = "";
     bb->basename = strdup(basename);
@@ -416,18 +401,22 @@ ex_fsize:
     return -1;
 }
 
-int big_block_clear_checksum(BigBlock * bb) {
+int
+big_block_clear_checksum(BigBlock * bb)
+{
     memset(bb->fchecksum, 0, bb->Nfile * sizeof(int));
     return 0;
 }
 
-void big_block_set_dirty(BigBlock * block, int value)
+void
+big_block_set_dirty(BigBlock * block, int value)
 {
     block->dirty = value;
-    block->attrset->dirty = value;
 }
 
-int big_block_flush(BigBlock * block) {
+int
+big_block_flush(BigBlock * block)
+{
     FILE * fheader = NULL;
     if(block->dirty) {
         int i;
@@ -464,7 +453,9 @@ ex_fileio:
     return -1;
 }
 
-int big_block_close(BigBlock * block) {
+int
+big_block_close(BigBlock * block)
+{
     int rt = 0;
     RAISEIF(0 != big_block_flush(block),
             ex_flush,
@@ -485,26 +476,31 @@ ex_flush:
     goto finalize;
 }
 
-BigAttr * big_block_lookup_attr(BigBlock * block, const char * attrname)
+BigAttr *
+big_block_lookup_attr(BigBlock * block, const char * attrname)
 {
     return attrset_lookup_attr(block->attrset, attrname);
 }
 
-int big_block_remove_attr(BigBlock * block, const char * attrname)
+int
+big_block_remove_attr(BigBlock * block, const char * attrname)
 {
     return attrset_remove_attr(block->attrset, attrname);
 }
 
-BigAttr * big_block_list_attrs(BigBlock * block, size_t * count)
+BigAttr *
+big_block_list_attrs(BigBlock * block, size_t * count)
 {
     return attrset_list_attrs(block->attrset, count);
 }
-int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb)
+int
+big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb)
 {
     return attrset_set_attr(block->attrset, attrname, data, dtype, nmemb);
 }
 
-int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb)
+int
+big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb)
 {
     return attrset_get_attr(block->attrset, attrname, data, dtype, nmemb);
 }
@@ -520,7 +516,9 @@ int big_block_get_attr(BigBlock * block, const char * attrname, void * data, con
  *
  * 0 4 5 10 140  
  * */
-int big_block_seek(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t offset) {
+int
+big_block_seek(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t offset)
+{
     /* handle 0 sized files */
     if(bb->size == 0 && offset == 0) {
         ptr->fileid = 0;
@@ -556,12 +554,16 @@ ex_eof:
     return -1;
 }
 
-int big_block_seek_rel(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t rel) {
+int
+big_block_seek_rel(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t rel)
+{
     ptrdiff_t abs = bb->foffset[ptr->fileid] + ptr->roffset + rel;
     return big_block_seek(bb, ptr, abs);
 }
 
-int big_block_eof(BigBlock * bb, BigBlockPtr * ptr) {
+int
+big_block_eof(BigBlock * bb, BigBlockPtr * ptr)
+{
     ptrdiff_t abs = bb->foffset[ptr->fileid] + ptr->roffset;
     return abs >= bb->size;
 }
@@ -576,7 +578,9 @@ int big_block_eof(BigBlock * bb, BigBlockPtr * ptr) {
  * if dtype is NULL use the dtype of the block.
  * otherwise cast the array to the dtype
  * */
-int big_block_read_simple(BigBlock * bb, ptrdiff_t start, ptrdiff_t size, BigArray * array, const char * dtype) {
+int
+big_block_read_simple(BigBlock * bb, ptrdiff_t start, ptrdiff_t size, BigArray * array, const char * dtype)
+{
     BigBlockPtr ptr = {0};
     if(dtype == NULL) {
         dtype = bb->dtype;
@@ -613,7 +617,10 @@ ex_read:
 ex_seek:
     return -1;
 }
-int big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array) {
+
+int
+big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
+{
     char * chunkbuf = malloc(CHUNK_BYTES);
     int felsize = dtype_itemsize(bb->dtype) * bb->nmemb;
     size_t CHUNK_SIZE = CHUNK_BYTES / felsize;
@@ -632,7 +639,7 @@ int big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array) {
     RAISEIF(chunkbuf == NULL,
             ex_malloc,
             "Not enough memory for chunkbuf");
-    
+
     big_array_init(&chunk_array, chunkbuf, bb->dtype, 2, dims, NULL);
     big_array_iter_init(&array_iter, array);
 
@@ -699,7 +706,9 @@ ex_malloc:
     return -1;
 }
 
-int big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array) {
+int
+big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
+{
     if(array->size == 0) return 0;
     /* the file header is modified */
     bb->dirty = 1;
@@ -720,7 +729,7 @@ int big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array) {
     RAISEIF(chunkbuf == NULL,
             ex_malloc,
             "not enough memory for chunkbuf of size %d bytes", CHUNK_BYTES);
-    
+
     big_array_init(&chunk_array, chunkbuf, bb->dtype, 2, dims, NULL);
     big_array_iter_init(&array_iter, array);
 
@@ -786,16 +795,16 @@ ex_malloc:
  * */
 
 #define MACHINE_ENDIANNESS MACHINE_ENDIAN_F()
-static char MACHINE_ENDIAN_F(void) {
-    uint32_t i =0x01234567;
-    if((*((uint8_t*)(&i))) == 0x67) {
-        return '<';
-    } else {
-        return '>';
-    }
+static char
+MACHINE_ENDIAN_F(void)
+{
+    uint32_t i = 0x01234567;
+    return ((*((uint8_t*)(&i))) == 0x67)?'<':'>';
 }
 
-int dtype_normalize(char * dst, const char * src) {
+int
+dtype_normalize(char * dst, const char * src)
+{
 /* normalize a dtype, so that
  * dst[0] is the endian-ness
  * dst[1] is the type kind char
@@ -818,30 +827,17 @@ int dtype_normalize(char * dst, const char * src) {
     return 0;
 }
 
-int dtype_itemsize(const char * dtype) {
+int
+dtype_itemsize(const char * dtype)
+{
     char ndtype[8];
     dtype_normalize(ndtype, dtype);
     return atoi(&ndtype[2]);
 }
 
-int dtype_needswap(const char * dtype) {
-    char ndtype[8];
-    dtype_normalize(ndtype, dtype);
-    return dtype[0] != MACHINE_ENDIANNESS;
-}
-
-char dtype_kind(const char * dtype) {
-    char ndtype[8];
-    dtype_normalize(ndtype, dtype);
-    return dtype[1];
-}
-int dtype_cmp(const char * dtype1, const char * dtype2) {
-    char ndtype1[8], ndtype2[8];
-    dtype_normalize(ndtype1, dtype1);
-    dtype_normalize(ndtype2, dtype2);
-    return strcmp(ndtype1, ndtype2);
-}
-int big_array_init(BigArray * array, void * buf, const char * dtype, int ndim, const size_t dims[], const ptrdiff_t strides[]) {
+int
+big_array_init(BigArray * array, void * buf, const char * dtype, int ndim, const size_t dims[], const ptrdiff_t strides[])
+{
 
     memset(array, 0, sizeof(array[0]));
 
@@ -869,7 +865,9 @@ int big_array_init(BigArray * array, void * buf, const char * dtype, int ndim, c
     return 0;
 }
 
-int big_array_iter_init(BigArrayIter * iter, BigArray * array) {
+int
+big_array_iter_init(BigArrayIter * iter, BigArray * array)
+{
     memset(iter, 0, sizeof(iter[0]));
 
     iter->array = array;
@@ -893,8 +891,36 @@ int big_array_iter_init(BigArrayIter * iter, BigArray * array) {
     return 0;
 }
 
+void
+big_array_iter_advance(BigArrayIter * iter)
+{
+    BigArray * array = iter->array;
+
+    if(iter->contiguous) {
+        iter->dataptr = (char*) iter->dataptr + array->strides[array->ndim - 1];
+        return;
+    }
+    int k;
+    iter->pos[array->ndim - 1] ++;
+    iter->dataptr = ((char*) iter->dataptr) + array->strides[array->ndim - 1];
+    for(k = array->ndim - 1; k >= 0; k --) {
+        if(iter->pos[k] == array->dims[k]) {
+            iter->dataptr = ((char*) iter->dataptr) - array->strides[k] * iter->pos[k];
+            iter->pos[k] = 0;
+            if(k > 0) {
+                iter->pos[k - 1] ++;
+                iter->dataptr = ((char*) iter->dataptr) + array->strides[k - 1];
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 /* format data in dtype to a string in buffer */
-void dtype_format(char * buffer, const char * dtype, const void * data, const char * fmt) {
+void
+dtype_format(char * buffer, const char * dtype, const void * data, const char * fmt)
+{
     char ndtype[8];
     char ndtype2[8];
     union {
@@ -935,7 +961,9 @@ void dtype_format(char * buffer, const char * dtype, const void * data, const ch
 }
 
 /* parse data in dtype to a string in buffer */
-void dtype_parse(const char * buffer, const char * dtype, void * data, const char * fmt) {
+void
+dtype_parse(const char * buffer, const char * dtype, void * data, const char * fmt)
+{
     char ndtype[8];
     char ndtype2[8];
     union {
@@ -977,7 +1005,9 @@ void dtype_parse(const char * buffer, const char * dtype, void * data, const cha
 
 }
 
-int dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const char * srcdtype, size_t nmemb) {
+static int
+dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const char * srcdtype, size_t nmemb)
+{
     BigArray dst_array, src_array;
     BigArrayIter dst_iter, src_iter;
     big_array_init(&dst_array, dst, dstdtype, 1, &nmemb, NULL);
@@ -989,7 +1019,9 @@ int dtype_convert_simple(void * dst, const char * dstdtype, const void * src, co
 
 static void cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
 static void byte_swap(BigArrayIter * array, size_t nmemb);
-int dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb) {
+static int
+dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
+{
     /* cast buf2 of dtype2 into buf1 of dtype1 */
     /* match src to machine endianness */
     if(src->array->dtype[0] != MACHINE_ENDIANNESS) {
@@ -1011,33 +1043,10 @@ int dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb) {
     return 0;
 }
 
-static void advance(BigArrayIter * iter) {
-    BigArray * array = iter->array;
 
-    if(iter->contiguous) {
-        iter->dataptr = (char*) iter->dataptr + array->strides[array->ndim - 1];
-        return;
-    }
-    int k;
-    iter->pos[array->ndim - 1] ++;
-    iter->dataptr = ((char*) iter->dataptr) + array->strides[array->ndim - 1];
-    for(k = array->ndim - 1; k >= 0; k --) {
-        if(iter->pos[k] == array->dims[k]) {
-            iter->dataptr = ((char*) iter->dataptr) - array->strides[k] * iter->pos[k];
-            iter->pos[k] = 0;
-            if(k > 0) {
-                iter->pos[k - 1] ++;
-                iter->dataptr = ((char*) iter->dataptr) + array->strides[k - 1];
-            }
-        } else {
-            break;
-        }
-    }
-}
-void big_array_iter_advance(BigArrayIter * iter) {
-    advance(iter);
-}
-static void byte_swap(BigArrayIter * iter, size_t nmemb) {
+static void
+byte_swap(BigArrayIter * iter, size_t nmemb)
+{
     /* swap a buffer in-place */
     int elsize = dtype_itemsize(iter->array->dtype);
     if(elsize == 1) return;
@@ -1052,7 +1061,7 @@ static void byte_swap(BigArrayIter * iter, size_t nmemb) {
             ptr[j] = ptr[elsize - j - 1];
             ptr[elsize - j - 1] = tmp;
         }
-        advance(iter);
+        big_array_iter_advance(iter);
     }
 }
 
@@ -1062,11 +1071,13 @@ if(!strcmp(d1, dst->array->dtype + 1) && !strcmp(d2, src->array->dtype + 1)) { \
     for(i = 0; i < nmemb; i ++) { \
         t1 * p1 = dst->dataptr; t2 * p2 = src->dataptr; \
         * p1 = * p2; \
-        advance(dst); advance(src); \
+        big_array_iter_advance(dst); big_array_iter_advance(src); \
     } \
     return; \
 }
-static void cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb) {
+static void
+cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
+{
     /* doing cast assuming native byte order */
 
     /* convert buf2 to buf1, both are native;
@@ -1136,95 +1147,15 @@ static void cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb) {
 }
 #undef CAST_CONVERTER
 
-static void sysvsum(unsigned int * sum, void * buf, size_t size) {
+static void
+sysvsum(unsigned int * sum, void * buf, size_t size)
+{
     unsigned int thisrun = *sum;
     unsigned char * cp = buf;
     while(size --)    
         thisrun += *(cp++);
     *sum = thisrun;
 }
-
-
-#if TEST
-struct particledata {
-    int type;
-    int64_t id;
-    double mass;
-    double pos[3];
-    double vel[3];
-};
-
-struct particledata * P ;
-int main(int argc, char * argv[]) {
-    int NumPart = 1024;
-    double boxsize = 100.000;
-
-    P = malloc(sizeof(struct particledata) * NumPart);
-    int i;    
-    for(i = 0; i < NumPart; i++) {
-        P[i].id = i;
-        P[i].type = i;
-        P[i].pos[0] = i;
-        P[i].pos[1] = i + 0.1;
-        P[i].pos[2] = i + 0.2;
-        P[i].vel[0] = 10 * i;
-        P[i].vel[1] = 10 * i + 0.1;
-        P[i].vel[2] = 10 * i + 0.2;
-    }
-
-    size_t fsize[] = {512 * 3, 512 * 3};
-
-    BigFile bf;
-    BigBlock bb;
-    BigBlockPtr ptr;
-    BigArray ba;
-    size_t dims[2];
-    ptrdiff_t strides[2];
-
-    big_file_create(&bf, "testfile");
-
-    big_file_create_block(&bf, &bb, "header", NULL, 0, NULL);
-    big_block_set_attr(&bb, "boxsize", &boxsize, "f8", 1);
-    big_block_set_attr(&bb, "NumPart", &NumPart, "i4", 1);
-    big_block_close(&bb);
-    
-    big_file_create_block(&bf, &bb, "0/vel", "f4", 2, fsize);
-
-    dims[0] = NumPart;
-    dims[1] = 3;
-    strides[0] = sizeof(P[0]);
-    strides[1] = sizeof(double);
-
-    big_array_init(&ba, P[0].vel, "f8", 2, dims, strides);
-    big_block_seek(&bb, &ptr, 0);
-    big_block_write(&bb, &ptr, &ba);
-    big_block_close(&bb);
-
-    big_file_close(&bf);
-
-    big_file_open(&bf, "testfile");
-    big_file_open_block(&bf, &bb, "header");
-    boxsize = 0.0;
-    big_block_get_attr(&bb, "boxsize", &boxsize, "f8", 1);
-    printf("boxsize = %f\n", boxsize);
-    NumPart = 0;
-    big_block_get_attr(&bb, "NumPart", &NumPart, "i4", 1);
-    printf("Numpart = %d\n", NumPart);
-    big_block_close(&bb);
-
-    memset(P, 0, sizeof(P[0]) * NumPart);
-    big_file_open_block(&bf, &bb, "0/vel");
-    big_array_init(&ba, P[0].vel, "f8", 2, dims, strides);
-    big_block_seek(&bb, &ptr, 0);
-    big_block_read(&bb, &ptr, &ba);
-    for(i = 0; i < NumPart; i ++) {
-        printf("%d %g %g %g\n", i, P[i].vel[0], P[i].vel[1], P[i].vel[2]);
-    }
-    big_block_close(&bb);
-    big_file_close(&bf);
-    return 0;
-}
-#endif
 
 /*
  * Internal API for AttrSet objects;
@@ -1554,6 +1485,10 @@ attrset_free(BigAttrSet * attrset)
     free(attrset);
 }
 
+void big_attrset_set_dirty(BigAttrSet * attrset, int dirty)
+{
+    attrset->dirty = dirty;
+}
 void * big_attrset_pack(BigAttrSet * attrset, size_t * bytes)
 {
     size_t n = 0;
@@ -1595,3 +1530,68 @@ BigAttrSet * big_attrset_unpack(void * p)
     }
     return attrset;
 }
+
+/* File Path */
+
+static FILE *
+open_a_file(const char * basename, int fileid, char * mode)
+{
+    char * filename = alloca(strlen(basename) + 128);
+    if(fileid == FILEID_HEADER) {
+        sprintf(filename, "%s%s", basename, EXT_HEADER);
+    } else
+    if(fileid == FILEID_ATTR) {
+        sprintf(filename, "%s%s", basename, EXT_ATTR);
+    } else
+    if(fileid == FILEID_ATTR_V2) {
+        sprintf(filename, "%s%s", basename, EXT_ATTR_V2);
+    } else {
+        sprintf(filename, "%s" EXT_DATA, basename, fileid);
+    }
+    FILE * fp = fopen(filename, mode);
+    RAISEIF(fp == NULL,
+        ex_fopen,
+        "Failed to open physical file `%s' with mode `%s' (%s)",
+        filename, mode, strerror(errno));
+ex_fopen:
+    return fp;
+}
+static void
+path_join(char * dst, const char * path1, const char * path2)
+{
+    if(strlen(path1) > 0) {
+        sprintf(dst, "%s/%s", path1, path2);
+    } else {
+        strcpy(dst, path2);
+    }
+}
+
+/* make subdir rel to pathname, recursively making parents */
+int
+_big_file_mksubdir_r(const char * pathname, const char * subdir)
+{
+    char * subdirname = alloca(strlen(subdir) + 10);
+    char * mydirname = alloca(strlen(subdir) + strlen(pathname) + 10);
+    strcpy(subdirname, subdir);
+    char * p = subdirname;
+    for(p = subdirname; *p; p ++) {
+        if(*p != '/') continue;
+        *p = 0;
+        path_join(mydirname, pathname, subdirname);
+        mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        *p = '/';
+    }
+    path_join(mydirname, pathname, subdirname);
+    mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    struct stat buf;
+    RAISEIF(0 != stat(mydirname, &buf),
+            ex_mkdir,
+            "Failed to create directory structure at `%s' (%s)", 
+            mydirname,
+            strerror(errno)
+    );
+    return 0;
+ex_mkdir:
+    return -1;
+}
+

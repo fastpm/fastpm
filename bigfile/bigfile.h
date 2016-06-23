@@ -89,7 +89,7 @@ int big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname
 int big_file_close(BigFile * bf);
 int big_block_flush(BigBlock * block);
 void big_block_set_dirty(BigBlock * block, int value);
-int big_file_mksubdir_r(const char * pathname, const char * subdir);
+int _big_file_mksubdir_r(const char * pathname, const char * subdir);
 
 int big_block_open(BigBlock * bb, const char * basename);
 int big_block_clear_checksum(BigBlock * bb);
@@ -97,6 +97,7 @@ int big_block_create(BigBlock * bb, const char * basename, const char * dtype, i
 int big_block_close(BigBlock * block);
 
 void * big_attrset_pack(BigAttrSet * attrset, size_t * bytes);
+void big_attrset_set_dirty(BigAttrSet * attrset, int value);
 BigAttrSet * big_attrset_unpack(void * p);
 
 /** Initialise BigBlockPtr to the place in the BigBlock offset elements from the beginning of the block.
@@ -184,15 +185,10 @@ BigAttr * big_block_list_attrs(BigBlock * block, size_t * count);
  *
  */
 
-int dtype_normalize(char * dst, const char * src);
 void dtype_format(char * buffer, const char * dtype, const void * data, const char * flags);
 void dtype_parse(const char * buffer, const char * dtype, void * data, const char * fmt);
-int dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
-int dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const char * srcdtype, size_t nmemb);
-int dtype_cmp(const char * dtype1, const char * dtype2);
-char dtype_kind(const char * dtype);
-int dtype_needswap(const char * dtype);
 int dtype_itemsize(const char * dtype);
+int dtype_normalize(char * dst, const char * src);
 
 /** Create a BigArray from raw memory.
  *
