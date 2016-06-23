@@ -25,7 +25,7 @@ pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to)
 }
 
 size_t 
-pm_size(PM * pm)
+pm_allocsize(PM * pm)
 {
     return pm->allocsize;
 }

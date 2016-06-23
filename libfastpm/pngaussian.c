@@ -116,7 +116,7 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
 
     avg_g_squared /= pm_norm(pm);
 
-    for(i = 0; i < pm_size(pm); i ++) {
+    for(i = 0; i < pm_allocsize(pm); i ++) {
         g_x[i] = g_x[i] + png->fNL * ( g_x[i] * g_x[i] - avg_g_squared );
     }
 

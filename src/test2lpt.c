@@ -62,7 +62,7 @@ int main(int argc, char * argv[]) {
     pm_assign(self->pm, self->rho_final_x, rho_final_xtruth);
 //    double amplitude = 10000;
 //    fastpm_utils_fill_deltak(self->pm, rho_init_k0, seed, (fastpm_fkfunc)fastpm_utils_powerspec_white, &amplitude, FASTPM_DELTAK_GADGET);
-    memset(rho_init_ktruth, 0, pm_size(self->pm) * sizeof(FastPMFloat));
+    memset(rho_init_ktruth, 0, pm_allocsize(self->pm) * sizeof(FastPMFloat));
 //    fastpm_utils_fill_deltak(self->pm, rho_init_ktruth, seed, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh, FASTPM_DELTAK_GADGET);
 
     fastpm_hmc_za_evolve(self, rho_init_ktruth, 5);
@@ -74,7 +74,7 @@ int main(int argc, char * argv[]) {
 
     double delta = 1e-2;
     ptrdiff_t i;
-    for(i = 0; i < pm_size(self->pm); i ++) {
+    for(i = 0; i < pm_allocsize(self->pm); i ++) {
         sigma[i] = 1.0;
     }
     /* Analytic */

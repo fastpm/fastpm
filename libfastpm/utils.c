@@ -112,7 +112,6 @@ fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, 
     pm_free(pm, delta_k);
 }
 
-
 void 
 fastpm_utils_dump(PM * pm , const char * filename, FastPMFloat *data) 
 {
