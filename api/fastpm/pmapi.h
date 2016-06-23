@@ -64,6 +64,7 @@ void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
 
 /* property accessors of PM objects */
 size_t pm_allocsize(PM * pm);
+MPI_Comm pm_comm(PM * pm);
 double pm_norm(PM * pm);
 ptrdiff_t * pm_nmesh(PM * pm);
 double * pm_boxsize(PM * pm);
