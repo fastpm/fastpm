@@ -9,6 +9,7 @@ all:
 	@(cd lua; CC="$(CC)" $(MAKE) generic)
 	@(cd depends; $(MAKE) "CC=$(CC)" -f Makefile.pfft)
 	@(cd bigfile; $(MAKE) "CC=$(CC)" "MPICC=$(CC)")
+	@(cd mpsort; $(MAKE) "CC=$(CC)" "MPICC=$(CC)")
 	@(cd libfastpm; $(MAKE))
 	@(cd src; $(MAKE))
 

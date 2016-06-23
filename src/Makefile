@@ -8,7 +8,7 @@ DIR_PATH = $(GSL_DIR)
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install 
+CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install -I../mpsort
 LUA ?= ../lua/lua
 
 FASTPM_SOURCES = fastpm.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c lua-config.c

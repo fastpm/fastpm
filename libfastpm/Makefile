@@ -1,7 +1,7 @@
 -include ../Makefile.local
 -include ../Makefile.rules
 
-CPPFLAGS += -I ../api
+CPPFLAGS += -I ../api -I ../mpsort/
 
 DIR_PATH = $(GSL_DIR) ../depends/install
 
@@ -40,6 +40,8 @@ LIBSOURCES = libfastpm.c \
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
 PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a
 PFFTLIBS0 += libfftw3f_omp.a libfftw3f_mpi.a libfftw3f.a
+
+MPSORTLIBS = ../mpsort/libradixsort.a ../mpsort/libmpsort-mpi.a
 # prefix the path
 PFFTLIBS = $(PFFTLIBS0:%.a=../depends/install/lib/%.a)
 
@@ -47,7 +49,7 @@ all: libfastpm.a
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rc $@ $^
-	../ar-join $@ $(PFFTLIBS)
+	../ar-join $@ $(PFFTLIBS) $(MPSORTLIBS)
 
 #libfastpm.so : libfastpm.a $(PFFTLIBS)
 #	$(CC) -shared -fvisibility=hidden -o $@ $^ 

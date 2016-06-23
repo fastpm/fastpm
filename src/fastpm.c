@@ -56,6 +56,12 @@ int
 write_snapshot(FastPM * fastpm, PMStore * p, const char * filebase, char * parameters, int Nwriters);
 
 int
+write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
+
+int
+read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
+
+int
 read_snapshot(FastPM * fastpm, PMStore * p, const char * filebase);
 
 int
@@ -204,7 +210,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
 
     if(CONF(prr, read_lineark)) {
         fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr, read_lineark));
-        fastpm_utils_load(fastpm->pm_2lpt, CONF(prr, read_lineark), delta_k);
+        read_complex(fastpm->pm_2lpt, delta_k, CONF(prr, read_lineark), "LinearDensityK", prr->Nwriters);
 
         if(CONF(prr, inverted_ic)) {
             fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
@@ -240,7 +246,7 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
     if(CONF(prr, read_whitenoisek)) {
         fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr, read_whitenoisek));
 
-        fastpm_utils_load(fastpm->pm_2lpt, CONF(prr, read_whitenoisek), delta_k);
+        read_complex(fastpm->pm_2lpt, delta_k, CONF(prr, read_whitenoisek), "WhiteNoiseK", prr->Nwriters);
         goto induce;
     }
 
@@ -263,7 +269,7 @@ induce:
 
     if(CONF(prr, write_whitenoisek)) {
         fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
-        fastpm_utils_dump(fastpm->pm_2lpt, CONF(prr, write_whitenoisek), delta_k);
+        write_complex(fastpm->pm_2lpt, delta_k, CONF(prr, write_whitenoisek), "WhiteNoiseK", prr->Nwriters);
     }
 
     /* FIXME: use enums */
@@ -297,7 +303,7 @@ produce:
 
     if(CONF(prr, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
-        fastpm_utils_dump(fastpm->pm_2lpt, CONF(prr, write_lineark), delta_k);
+        write_complex(fastpm->pm_2lpt, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
     fastpm_setup_ic(fastpm, delta_k);
@@ -363,7 +369,7 @@ take_a_snapshot(FastPM * fastpm, PMStore * snapshot, double aout, Parameters * p
         char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr, write_nonlineark), aout);
         FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
         fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
-        fastpm_utils_dump(fastpm->pm_2lpt, filename, rho_k);
+        write_complex(fastpm->pm_2lpt, rho_k, filename, "DensityK", prr->Nwriters);
         pm_free(fastpm->pm_2lpt, rho_k);
         free(filename);
     }

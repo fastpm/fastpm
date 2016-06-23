@@ -123,7 +123,7 @@ omega_m = 0.307494
 h       = 0.6774
 
 if has('lineark') then
-    read_lineark = 'results-ic/lineark'
+    read_lineark = 'results-ic/IC'
 else
     --Start with a power spectrum file
     -- Initial power spectrum: k P(k) in Mpc/h units
@@ -131,7 +131,7 @@ else
     read_powerspectrum = "powerspec.txt"
     random_seed= 100
     if has('whitenoisek') then
-        read_whitenoisek = 'results-ic/whitenoisek'
+        read_whitenoisek = 'results-ic/IC'
     end
 end
 
@@ -159,7 +159,7 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 write_snapshot= prefix .. "/fastpm"       -- comment out to suppress snapshot output
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = prefix .. "/powerspec"
-write_whitenoisek = prefix .. "/whitenoisek"
+write_whitenoisek = prefix .. "/IC"
 
-write_nonlineark = prefix .. "/nonlineark"
-write_lineark = prefix .. "/lineark"
+write_nonlineark = prefix .. "/fastpm"
+write_lineark = prefix .. "/IC"
