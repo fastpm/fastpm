@@ -351,7 +351,7 @@ fastpm_set_snapshot(FastPM * fastpm,
             if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA)
                 po->v[i][d] += p->dx1[i][d]*Dv1
                              + p->dx2[i][d]*Dv2;
-            /* convert the unit from a**2 dx/dt in Mpc/h to a dx/dt km/s */
+            /* convert the unit from a**2 H_0 dx/dt in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= H0 / aout;
         }
         po->id[i] = p->id[i];

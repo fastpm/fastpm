@@ -52,6 +52,8 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
     int64_t offsets[NTask];
 
     double H0 = 100.;
+    /* Conversion from peculiar velocity to RSD,
+     * http://mwhite.berkeley.edu/Talks/SantaFe12_RSD.pdf */
     double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, CP(fastpm)));
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
