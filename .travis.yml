@@ -31,4 +31,4 @@ script:
     - python plottests.py
     - popd
 
-after_success: ./update-ghpages.sh
+# after_success: ./update-ghpages.sh
