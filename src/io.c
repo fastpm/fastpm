@@ -11,6 +11,7 @@
 #include <fastpm/logging.h>
 #include <fastpm/cosmology.h>
 
+/*
 static void 
 cumsum(int64_t offsets[], int N) 
 {
@@ -25,7 +26,7 @@ cumsum(int64_t offsets[], int N)
         offsets[i] = tmp[i];
     }
 }
-
+*/
 static Cosmology CP(FastPM * fastpm) {
     Cosmology c = {
         .OmegaM = fastpm->omega_m,
@@ -40,7 +41,6 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
 
     FastPMSolverBase * base = &fastpm->base;
 
-    int ThisTask = base->ThisTask;
     int NTask = base->NTask;
     MPI_Comm comm = base->comm;
 
@@ -49,7 +49,6 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
     int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;
     int64_t size = p->np;
-    int64_t offsets[NTask];
 
     double H0 = 100.;
     /* Conversion from peculiar velocity to RSD,
@@ -58,7 +57,6 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    int i;
     BigFile bf;
     big_file_mpi_create(&bf, filebase, comm);
     {
@@ -186,7 +184,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         BigArray array;
         BigBlockPtr ptr;
         big_file_mpi_create_block(&bf, &bb, blockname, "f4", 2, Nfile, size, comm);
-        big_array_init(&array, &buf[0].value[0], "f4", 2, (size_t[]) {localsize, 2}, (size_t[]) { sizeof(buf[0]), sizeof(buf[0].value[0]) });
+        big_array_init(&array, &buf[0].value[0], "f4", 2, (size_t[]) {localsize, 2}, (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0].value[0]) });
         big_block_seek(&bb, &ptr, 0);
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
 
@@ -198,6 +196,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
 
     free(buf);
     big_file_mpi_close(&bf, comm);
+    return 0;
 }
 
 int
@@ -214,7 +213,6 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
 
     int Nmesh = pm_nmesh(pm)[0];
     ptrdiff_t strides[3] = {Nmesh * (Nmesh / 2 + 1), Nmesh / 2 + 1, 1};
-    size_t shape[3] = {Nmesh , Nmesh, Nmesh / 2 + 1};
 
     int ThisTask;
     int NTask;
@@ -251,11 +249,10 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
         big_block_get_attr(&bb, "shape", ishape, "i8", 3);
 
         /* FIXME: assert strides and shape is consistent */
-        size_t size = bb.size;
         size_t localstart = bb.size * ThisTask / NTask;
         size_t localend = bb.size * (ThisTask + 1) / NTask;
         size_t localsize = localend - localstart;
-        big_array_init(&array, &buf[0].value[0], "f4", 2, (size_t[]) {localsize, 2}, (size_t[]) { sizeof(buf[0]), sizeof(buf[0].value[0]) });
+        big_array_init(&array, &buf[0].value[0], "f4", 2, (size_t[]) {localsize, 2}, (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0].value[0]) });
         big_block_seek(&bb, &ptr, 0);
         big_block_mpi_read(&bb, &ptr, &array, Nwriters, comm);
 
@@ -278,4 +275,5 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
     }
 
     free(buf);
+    return 0;
 }
