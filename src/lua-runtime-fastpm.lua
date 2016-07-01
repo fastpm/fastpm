@@ -132,7 +132,7 @@ schema.declare{name='remove_cosmic_variance',  type='boolean', default=false}
 function schema.read_grafic.action (read_grafic)
     if read_grafic ~= nil then
         schema.random_seed.required = false
-        schema.read_powerspectrum.required = false
+        schema.read_powerspectrum.required = true
     end
 end
 
