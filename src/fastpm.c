@@ -236,6 +236,8 @@ prepare_ic(FastPM * fastpm, Parameters * prr, MPI_Comm comm)
 
         read_grafic_gaussian(fastpm->pm_2lpt, g_x, CONF(prr, read_grafic));
 
+        /* r2c will reduce the variance. Compensate here.*/
+        fastpm_apply_multiply_transfer(fastpm->pm_2lpt, g_x, g_x, sqrt(pm_norm(fastpm->pm_2lpt)));
         pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
 
         pm_free(fastpm->pm_2lpt, g_x);
