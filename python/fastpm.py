@@ -123,3 +123,26 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
     else:
         return center, H / N *boxsize ** 3
 
+def fftdown(field, size):
+    """ Down samples a fourier space field. Size can be scalar or vector.
+
+        Hermitian should be handled correctly. But I have only tested this
+        on hermitian compressed fields.
+    """
+
+    ashape = numpy.array(field.shape)
+    asize = ashape.copy()
+    fullaxes = ashape == ashape[0]
+    asize[:] = size
+    if numpy.isscalar(size):
+        asize[~fullaxes] = size // 2 + 1
+
+    t = numpy.fft.fftshift(field, axes=fullaxes.nonzero()[0])
+    left = (ashape - asize) // 2
+    left[~fullaxes] = 0
+    right = left + asize
+
+    sl = [ slice(left[i], right[i]) for i in range(len(ashape))]
+    t = t[sl]
+
+    return numpy.fft.ifftshift(t, axes=fullaxes.nonzero()[0])
