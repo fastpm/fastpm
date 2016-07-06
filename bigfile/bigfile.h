@@ -96,6 +96,11 @@ int big_block_clear_checksum(BigBlock * bb);
 int big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
 int big_block_close(BigBlock * block);
 
+/* The internal version of the code creates the meta data but not the physical back-end storage files */
+int _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
+/* The internal routine to open a physical file */
+FILE * _big_file_open_a_file(const char * basename, int fileid, char * mode);
+
 void * big_attrset_pack(BigAttrSet * attrset, size_t * bytes);
 void big_attrset_set_dirty(BigAttrSet * attrset, int value);
 BigAttrSet * big_attrset_unpack(void * p);
