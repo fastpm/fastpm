@@ -61,7 +61,7 @@ write_snapshot(FastPM * fastpm, PMStore * p, char * filebase, char * parameters,
     big_file_mpi_create(&bf, filebase, comm);
     {
         BigBlock bb;
-        big_file_mpi_create_block(&bf, &bb, "header", "i8", 0, 1, 0, comm);
+        big_file_mpi_create_block(&bf, &bb, ".", "i8", 0, 1, 0, comm);
         double ScalingFactor = p->a_x;
         double OmegaM = fastpm->omega_m;
         double BoxSize = fastpm->boxsize;
