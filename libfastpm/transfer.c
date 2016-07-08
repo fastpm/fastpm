@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include "pmpfft.h"
 
 void
@@ -202,4 +203,32 @@ fastpm_apply_multiply_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, do
     for(i = 0; i < pm_allocsize(pm); i ++) {
         to[i] = from[i] * value;
     }
+}
+
+void
+fastpm_apply_normalize_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
+{
+    double Norm = 0;
+#pragma omp parallel reduction(+: Norm)
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            int dir;
+            double kk = 0;
+            for(dir = 0; dir < 3; dir++) {
+                kk += kiter.kk[dir][kiter.iabs[dir]];
+            }
+            if(kk == 0) {
+                Norm += from[kiter.ind + 0];
+            }
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &Norm, 1, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+    if(Norm == 0) {
+        fastpm_raise(-1, "It makes no sense to normalize a field with a mean of zero.");
+    }
+    fastpm_apply_multiply_transfer(pm, from, to, 1 / Norm);
 }

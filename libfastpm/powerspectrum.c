@@ -36,6 +36,8 @@ fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, FastPMPowerSpectrum * o
 void
 fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
 {
+    /* This function measures powerspectrum from two overdensity or 1+overdensity fields */
+    /* normalize them with fastpm_apply_normalize_transfer if needed before using this function.*/
     /* N is used to store metadata -- the shot-noise level. */
     fastpm_powerspectrum_init(ps, pm_nmesh(pm)[0] / 2);
 
@@ -48,8 +50,6 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFl
     }
     ps->Volume = Volume;
     ps->k0 = k0;
-
-    double Norm = 0;
 
     memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
     memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
@@ -90,8 +90,7 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFl
                 if(kiter.iabs[0] == 0 &&
                    kiter.iabs[1] == 0 &&
                    kiter.iabs[2] == 0) {
-                    /* do not even count the zero mode it biases the measurements in rebinning */
-                    Norm = value;
+
                 } else {
                     #pragma omp atomic
                     ps->Nmodes[bin] += w;
@@ -105,7 +104,6 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFl
     }
 
 
-    MPI_Allreduce(MPI_IN_PLACE, &Norm, 1, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, ps->p, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, ps->Nmodes, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
     MPI_Allreduce(MPI_IN_PLACE, ps->k, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
@@ -116,8 +114,6 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFl
         ps->k[ind] /= ps->Nmodes[ind];
         ps->p[ind] /= ps->Nmodes[ind];
         ps->p[ind] *= ps->Volume;
-        if(Norm != 0)
-            ps->p[ind] /= Norm;
     }
 }
 

@@ -7,6 +7,7 @@
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
+#include <fastpm/transfer.h>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
@@ -217,6 +218,8 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
     pm_r2c(pm, canvas, delta_k);
 
     pm_ghosts_free(pgd);
+
+    fastpm_apply_normalize_transfer(pm, delta_k, delta_k);
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
