@@ -223,8 +223,8 @@ gaussian36(double k, double * knq)
 void
 fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
 {
-    PMStore * p = fastpm->base.p;
-    PM * pm = fastpm->base.pm;
+    PMStore * p = fastpm->p;
+    PM * pm = fastpm->pm;
     FastPMPainter reader[1];
     fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);
 

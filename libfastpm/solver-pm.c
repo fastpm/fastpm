@@ -52,22 +52,18 @@ void fastpm_init(FastPMSolver * fastpm,
             .use_fftw = UseFFTW,
         };
 
-    fastpm->base.comm = comm;
-    MPI_Comm_rank(comm, &fastpm->base.ThisTask);
-    MPI_Comm_size(comm, &fastpm->base.NTask);
+    fastpm->comm = comm;
+    MPI_Comm_rank(comm, &fastpm->ThisTask);
+    MPI_Comm_size(comm, &fastpm->NTask);
 
     fastpm->model = malloc(sizeof(FastPMModel));
 
-    if(!fastpm->USE_EXTERNAL_PSTORE) {
-        fastpm->base.p = malloc(sizeof(PMStore));
-        pm_store_init(fastpm->base.p);
+    fastpm->p = malloc(sizeof(PMStore));
+    pm_store_init(fastpm->p);
 
-        pm_store_alloc_evenly(fastpm->base.p, pow(1.0 * fastpm->nc, 3),
-            PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC,
-            fastpm->alloc_factor, comm);
-    } else {
-        fastpm->base.p = fastpm->USE_EXTERNAL_PSTORE;
-    }
+    pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
+        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC | (fastpm->SAVE_Q?PACK_Q:0),
+        fastpm->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, comm);
@@ -79,7 +75,7 @@ void fastpm_init(FastPMSolver * fastpm,
         fastpm->exts[i] = NULL;
     }
 
-    PMInit pm_2lptinit = {
+    PMInit basepminit = {
             .Nmesh = fastpm->nc,
             .BoxSize = fastpm->boxsize,
             .NprocY = 0, /* 0 for auto, 1 for slabs */
@@ -87,16 +83,16 @@ void fastpm_init(FastPMSolver * fastpm,
             .use_fftw = 0,
         };
 
-    fastpm->pm_2lpt = malloc(sizeof(PM));
-    pm_init(fastpm->pm_2lpt, &pm_2lptinit, fastpm->base.comm);
+    fastpm->basepm = malloc(sizeof(PM));
+    pm_init(fastpm->basepm, &basepminit, fastpm->comm);
 }
 
 void
 fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 {
 
-    PM * pm_2lpt = fastpm->pm_2lpt;
-    PMStore * p = fastpm->base.p;
+    PM * basepm = fastpm->basepm;
+    PMStore * p = fastpm->p;
 
     if(delta_k_ic) {
         double shift0;
@@ -109,16 +105,16 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 
         int nc[3] = {fastpm->nc, fastpm->nc, fastpm->nc};
 
-        pm_store_set_lagrangian_position(p, pm_2lpt, shift, nc);
+        pm_store_set_lagrangian_position(p, basepm, shift, nc);
 
         /* read out values at locations with an inverted shift */
-        pm_2lpt_solve(pm_2lpt, delta_k_ic, p, shift);
+        pm_2lpt_solve(basepm, delta_k_ic, p, shift);
     }
 
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
-    pm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->base.comm);
+    pm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
 }
 
 void
@@ -134,8 +130,8 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     CLOCK(correction);
 
     FastPMExtension * ext;
-    PMStore * p = fastpm->base.p;
-    MPI_Comm comm = fastpm->base.comm;
+    PMStore * p = fastpm->p;
+    MPI_Comm comm = fastpm->comm;
 
     fastpm_model_build(fastpm->model, time_step[0], time_step[nstep - 1]);
 
@@ -163,7 +159,7 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         fastpm_set_time(fastpm, istep, time_step, nstep,
                     &a_x, &a_x1, &a_v, &a_v1);
 
-        PM * pm = fastpm->base.pm;
+        PM * pm = fastpm->pm;
         fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
 
         ENTER(decompose);
@@ -241,11 +237,11 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 void
 fastpm_destroy(FastPMSolver * fastpm) 
 {
-    pm_destroy(fastpm->pm_2lpt);
-    free(fastpm->pm_2lpt);
+    pm_destroy(fastpm->basepm);
+    free(fastpm->basepm);
     fastpm_model_destroy(fastpm->model);
-    if(!fastpm->USE_EXTERNAL_PSTORE)
-        pm_store_destroy(fastpm->base.p);
+    pm_store_destroy(fastpm->p);
+
     vpm_free(fastpm->vpm_list);
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;
@@ -270,18 +266,18 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
 
 static void
 fastpm_decompose(FastPMSolver * fastpm) {
-    PM * pm = fastpm->base.pm;
-    PMStore * p = fastpm->base.p;
+    PM * pm = fastpm->pm;
+    PMStore * p = fastpm->p;
     /* apply periodic boundary and move particles to the correct rank */
-    pm_store_wrap(fastpm->base.p, pm->BoxSize);
-    pm_store_decompose(fastpm->base.p, to_rank, pm, fastpm->base.comm);
+    pm_store_wrap(fastpm->p, pm->BoxSize);
+    pm_store_decompose(fastpm->p, to_rank, pm, fastpm->comm);
     size_t np_max;
     size_t np_min;
 
     /* FIXME move NTask to somewhere else. */
     double np_mean = pow(fastpm->nc, 3) / pm->NTask;
-    MPI_Allreduce(&p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->base.comm);
-    MPI_Allreduce(&p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->base.comm);
+    MPI_Allreduce(&p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->comm);
+    MPI_Allreduce(&p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->comm);
 
     fastpm->info.imbalance.min = np_min / np_mean;
     fastpm->info.imbalance.max = np_max / np_mean;
@@ -293,7 +289,7 @@ fastpm_interp(FastPMSolver * fastpm, double * aout, int nout,
 {
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
-    PMStore * p = fastpm->base.p;
+    PMStore * p = fastpm->p;
     double a_x = p->a_x;
     double a_v = p->a_v;
     int iout;
@@ -358,14 +354,14 @@ fastpm_set_time(FastPMSolver * fastpm,
     *a_v1 = sqrt(*a_x * *a_x1);
 
     VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
-    fastpm->base.pm = &vpm->pm;
+    fastpm->pm = &vpm->pm;
 
     fastpm->info.istep = istep;
     fastpm->info.a_x = *a_x;
     fastpm->info.a_x1 = *a_x1;
     fastpm->info.a_v = *a_v;
     fastpm->info.a_v1 = *a_v1;
-    fastpm->info.Nmesh = fastpm->base.pm->init.Nmesh;
+    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
 }
 
 void 

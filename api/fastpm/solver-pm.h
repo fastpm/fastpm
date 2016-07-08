@@ -23,7 +23,12 @@ typedef enum { FASTPM_DEALIASING_NONE,
                FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN36 } FastPMDealiasingType;
 
 typedef struct {
-    FastPMSolverBase base;
+    PM * pm;
+    PMStore * p;
+
+    MPI_Comm comm;
+    int NTask;
+    int ThisTask;
 
     /* input parameters */
     size_t nc;
@@ -34,8 +39,8 @@ typedef struct {
     int USE_DX1_ONLY;
     int USE_NONSTDDA;
     int USE_SHIFT;
+    int SAVE_Q;
 
-    PMStore * USE_EXTERNAL_PSTORE;
     double nLPT;
     FastPMPainterType PAINTER_TYPE;
     int painter_support;
@@ -67,7 +72,7 @@ typedef struct {
     VPM * vpm_list;
 
     FastPMModel * model;
-    PM * pm_2lpt;
+    PM * basepm;
     FastPMPainter painter[1];
 } FastPMSolver;
 

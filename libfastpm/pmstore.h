@@ -36,5 +36,5 @@ void pm_store_read(PMStore * p, char * datasource);
 void pm_store_write(PMStore * p, char * datasource);
 
 void 
-pm_store_create_subsample(PMStore * out, PMStore * in, int attributes, int mod, int nc);
+pm_store_create_subsample(PMStore * out, PMStore * in, int mod, int nc);
 

@@ -160,8 +160,8 @@ void fastpm_clock_stat(MPI_Comm comm)
     FastPMClock * p;
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
-    FastPMClock foo;
-
+    FastPMClock foo = {0};
+    
     FastPMMemory * g = _libfastpm_get_gmem();
     size_t max_used_bytes = 0;
     size_t used_bytes = g->peak_bytes;

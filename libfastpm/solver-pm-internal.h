@@ -27,7 +27,6 @@ void fastpm_model_pt_init(FastPMModel * model);
 void fastpm_model_pm_init(FastPMModel * model);
 void fastpm_model_linear_init(FastPMModel * model);
 
-void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub);
 double fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p);
 void fastpm_model_destroy(FastPMModel * model);
 void fastpm_model_build(FastPMModel * model, double ainit, double afinal);

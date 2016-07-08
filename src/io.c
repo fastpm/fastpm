@@ -39,10 +39,8 @@ int
 write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
 
-    FastPMSolverBase * base = &fastpm->base;
-
-    int NTask = base->NTask;
-    MPI_Comm comm = base->comm;
+    int NTask = fastpm->NTask;
+    MPI_Comm comm = fastpm->comm;
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
@@ -82,7 +80,7 @@ write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * param
     }
     struct {
         char * name;
-        void * base;
+        void * fastpm;
         char * dtype;
         int nmemb;
         char * dtype_out;
@@ -103,7 +101,7 @@ write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * param
             fastpm_raise(-1, "Failed to create the block\n");
         }
 
-        big_array_init(&array, bdesc->base, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
+        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
         big_block_seek(&bb, &ptr, 0);
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);

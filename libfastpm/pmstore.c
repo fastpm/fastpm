@@ -486,14 +486,14 @@ pm_store_summary(PMStore * p, double dx1[3], double dx2[3], MPI_Comm comm)
     }
 
 }
-void 
-pm_store_create_subsample(PMStore * po, PMStore * p, int attributes, int mod, int nc) 
+
+void
+pm_store_create_subsample(PMStore * po, PMStore * p, int mod, int nc)
 {
     ptrdiff_t i;
     ptrdiff_t j;
-    pm_store_alloc(po, 1.0 * p->np_upper / mod, attributes);
     j = 0;
-    
+
     for(i = 0; i < p->np; i ++) {
         uint64_t id = p->id[i];
 //        double r = fastpm_utils_get_random(id);

@@ -21,15 +21,6 @@ typedef struct PM PM;
 typedef struct PMStore PMStore;
 typedef struct FastPMPainter FastPMPainter;
 
-typedef struct FastPMSolverBase {
-    PM * pm;
-    PMStore * p;
-
-    MPI_Comm comm;
-    int NTask;
-    int ThisTask;
-} FastPMSolverBase;
-
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32
 #endif

@@ -21,9 +21,14 @@ static void fastpm_model_pt_build(FastPMModel * model, double ainit, double afin
 {
     FastPMModelPTPriv * priv = model->priv;
     PMStore * psub = malloc(sizeof(PMStore));
-    fastpm_model_create_subsample(model, psub);
+    PMStore * p = model->fastpm->p;
+
+    pm_store_init(psub);
+    pm_store_alloc(psub, 1.0 * p->np_upper / model->factor, p->attributes);
+    pm_store_create_subsample(psub, p, model->factor, model->fastpm->nc);
     pm_2lpt_evolve(ainit, psub, model->fastpm->omega_m, 0);
     pm_store_wrap(psub, model->pm->BoxSize);
+
     priv->psub = psub;
 }
 

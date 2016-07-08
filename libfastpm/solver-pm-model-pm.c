@@ -25,7 +25,7 @@ static void _before_kick(FastPMSolver * solver, FastPMKick * kick, void * userda
 {
     FastPMModel * model = userdata;
     FastPMModelPMPriv * priv = model->priv;
-    PMStore * p = solver->base.p;
+    PMStore * p = solver->p;
     double P = fastpm_model_measure_large_scale_power(model, p);
     priv->NonLinearGrowthRateTime[priv->istep] = p->a_x;
     priv->NonLinearGrowthRate[priv->istep] = P;
@@ -35,16 +35,12 @@ static void _before_kick(FastPMSolver * solver, FastPMKick * kick, void * userda
 static void fastpm_model_pm_build(FastPMModel * model, double ainit, double afinal)
 {
     FastPMModelPMPriv * priv = model->priv;
-    PMStore * psub = malloc(sizeof(PMStore));
-
-    fastpm_model_create_subsample(model, psub);
 
     FastPMSolver * solver = &(FastPMSolver) {
         .FORCE_TYPE = FASTPM_FORCE_PM,
         .USE_NONSTDDA = 0,
         .USE_MODEL = FASTPM_MODEL_NONE, /* this does not use any model */
         .K_LINEAR = model->fastpm->K_LINEAR,
-        .USE_EXTERNAL_PSTORE = psub,
         .nc = model->fastpm->nc / model->factor,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = model->pm->Nmesh[0] / (model->fastpm->nc / model->factor)},
@@ -74,9 +70,12 @@ static void fastpm_model_pm_build(FastPMModel * model, double ainit, double afin
 
     fastpm_info("Calibrating Non-linear growth with a low resolution simulation.\n");
     /* From this point we run a small PM simulation internally, so mute the logging. */
-    fastpm_push_msg_handler(fastpm_void_msg_handler, model->fastpm->base.comm, NULL);
+    fastpm_push_msg_handler(fastpm_void_msg_handler, model->fastpm->comm, NULL);
 
-    fastpm_init(solver, 0, 0, model->fastpm->base.comm);
+    fastpm_init(solver, 0, 0, model->fastpm->comm);
+
+    /* replace the p store with a subsample */
+    pm_store_create_subsample(solver->p, model->fastpm->p, model->factor, model->fastpm->nc);
 
     fastpm_add_extension(solver, FASTPM_EXT_BEFORE_KICK, _before_kick, model);
 
@@ -87,7 +86,6 @@ static void fastpm_model_pm_build(FastPMModel * model, double ainit, double afin
     fastpm_pop_msg_handler();
 
     fastpm_destroy(solver);
-    pm_store_destroy(psub);
     model->Pexpect = priv->NonLinearGrowthRate[0];
 }
 

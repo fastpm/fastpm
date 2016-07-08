@@ -81,7 +81,7 @@ int main(int argc, char * argv[]) {
     pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.0005 * delta;
 
-    fastpm_hmc_za_evolve(self, rho_init_k, 5);
+    fastpm_hmc_za_evolve(self, rho_init_k, 1);
     fastpm_hmc_za_force_rhodk(self, rho_final_xtruth, sigma, rhodk);
     fastpm_hmc_za_force_s1(self, rhodk, Fk1);
     fastpm_hmc_za_force_s2(self, Fk1, Fk2);
@@ -92,14 +92,14 @@ int main(int argc, char * argv[]) {
     /* Numeric */
     pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.0 * delta;
-    fastpm_hmc_za_evolve(self, rho_init_k, 5);
+    fastpm_hmc_za_evolve(self, rho_init_k, 1);
     double chisq1 = fastpm_hmc_za_chisq(self, rho_final_xtruth, sigma);
     fastpm_utils_dump(self->pm, "rho_final_x1.raw", self->rho_final_x);
 
     pm_assign(self->pm, rho_init_k0, rho_init_k);
     rho_init_k[mode] += 1.001 * delta;
 
-    fastpm_hmc_za_evolve(self, rho_init_k, 5);
+    fastpm_hmc_za_evolve(self, rho_init_k, 1);
     double chisq2 = fastpm_hmc_za_chisq(self, rho_final_xtruth, sigma);
     fastpm_utils_dump(self->pm, "rho_final_x2.raw", self->rho_final_x);
 

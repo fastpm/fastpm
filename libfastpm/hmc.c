@@ -39,6 +39,7 @@ fastpm_pm_init(FastPMSolver * fastpm, int nmesh, int nc, double boxsize, double 
     fastpm->USE_NONSTDDA = 0;
     fastpm->USE_MODEL = FASTPM_MODEL_NONE;
     fastpm->USE_SHIFT = 0;
+    fastpm->SAVE_Q = 1;
     fastpm->nLPT = 2.5;
     fastpm->K_LINEAR = 4;
     fastpm->KERNEL_TYPE = FASTPM_KERNEL_EASTWOOD;
@@ -59,12 +60,10 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
             fastpm_raise(-1, "Wrong LPT Order, can only be 1 or 2\n");
     }
 
-    self->solver.USE_SHIFT = 0;
-
     fastpm_pm_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, self->OmegaM, comm);
 
     /* FIXME: create a new pm object */
-    self->pm = self->solver.base.pm;
+    self->pm = self->solver.basepm;
 
     /* We will set p after evolve is called. p contains the displacement field! */
     self->p = NULL;
@@ -110,7 +109,7 @@ fastpm_hmc_za_evolve_internal(
     fastpm_setup_ic(solver, self->delta_ic_k);
     fastpm_evolve(solver, time_step, Nsteps);
 
-    self->p = solver->base.p;
+    self->p = solver->p;
 
     if(self->IncludeRSD) {
         Cosmology c = {

@@ -36,7 +36,7 @@ void fastpm_model_init(FastPMModel * model, FastPMSolver * fastpm, FastPMModelTy
     model->build = NULL;
     model->evolve = NULL;
     model->destroy = NULL;
-    pm_init(model->pm, &pminit, fastpm->base.comm);
+    pm_init(model->pm, &pminit, fastpm->comm);
 
     fastpm_painter_init(model->painter, model->pm, FASTPM_PAINTER_CIC, 0);
 
@@ -58,12 +58,6 @@ void fastpm_model_init(FastPMModel * model, FastPMSolver * fastpm, FastPMModelTy
     if (type != FASTPM_MODEL_NONE && fastpm->nc <= 256) {
         fastpm_info("The mesh resolution is too low to to calibrate the correction model. The growth rate will be biased. \n");
     }
-}
-
-void fastpm_model_create_subsample(FastPMModel * model, PMStore * psub)
-{
-    pm_store_init(psub);
-    pm_store_create_subsample(psub, model->fastpm->base.p, model->fastpm->base.p->attributes, model->factor, model->fastpm->nc);
 }
 
 void fastpm_model_destroy(FastPMModel * model)
@@ -128,6 +122,8 @@ double
 fastpm_model_find_correction(FastPMModel * model,
         double a_x, double a_x1, double a_v, double a_v1)
 {
+    PMStore * p = model->fastpm->p;
+
     if(model->type == FASTPM_MODEL_NONE) {
         return 1.0;
     }
@@ -138,11 +134,12 @@ fastpm_model_find_correction(FastPMModel * model,
         return 1.0;
     }
 
-    PMStore * po = alloca(sizeof(PMStore));
+    PMStore po[1];
     pm_store_init(po);
 
     /* FIXME: get rid of DX1 DX2, since we do not need a model for COLA */
-    fastpm_model_create_subsample(model, po);
+    pm_store_alloc(po, 1.0 * p->np_upper / model->factor, p->attributes);
+    pm_store_create_subsample(po, p, model->factor, model->fastpm->nc);
 
     gsl_root_fsolver * s;
     gsl_function F;

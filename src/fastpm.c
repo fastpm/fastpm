@@ -197,23 +197,22 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
 {
-    FastPMSolverBase * base = &fastpm->base;
     /* we may need a read gadget ic here too */
     if(CONF(prr, read_runpbic)) {
-        read_runpb_ic(fastpm, base->p, CONF(prr, read_runpbic));
+        read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
         fastpm_setup_ic(fastpm, NULL);
         return;
     } 
 
     /* at this point generating the ic involves delta_k */
-    FastPMFloat * delta_k = pm_alloc(fastpm->pm_2lpt);
+    FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
     if(CONF(prr, read_lineark)) {
         fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr, read_lineark));
-        read_complex(fastpm->pm_2lpt, delta_k, CONF(prr, read_lineark), "LinearDensityK", prr->Nwriters);
+        read_complex(fastpm->basepm, delta_k, CONF(prr, read_lineark), "LinearDensityK", prr->Nwriters);
 
         if(CONF(prr, inverted_ic)) {
-            fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
+            fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
         }
         goto produce;
     }
@@ -232,15 +231,15 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
         fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
-        FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
+        FastPMFloat * g_x = pm_alloc(fastpm->basepm);
 
-        read_grafic_gaussian(fastpm->pm_2lpt, g_x, CONF(prr, read_grafic));
+        read_grafic_gaussian(fastpm->basepm, g_x, CONF(prr, read_grafic));
 
         /* r2c will reduce the variance. Compensate here.*/
-        fastpm_apply_multiply_transfer(fastpm->pm_2lpt, g_x, g_x, sqrt(pm_norm(fastpm->pm_2lpt)));
-        pm_r2c(fastpm->pm_2lpt, g_x, delta_k);
+        fastpm_apply_multiply_transfer(fastpm->basepm, g_x, g_x, sqrt(pm_norm(fastpm->basepm)));
+        pm_r2c(fastpm->basepm, g_x, delta_k);
 
-        pm_free(fastpm->pm_2lpt, g_x);
+        pm_free(fastpm->basepm, g_x);
 
         goto induce;
     }
@@ -248,37 +247,37 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     if(CONF(prr, read_whitenoisek)) {
         fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr, read_whitenoisek));
 
-        read_complex(fastpm->pm_2lpt, delta_k, CONF(prr, read_whitenoisek), "WhiteNoiseK", prr->Nwriters);
+        read_complex(fastpm->basepm, delta_k, CONF(prr, read_whitenoisek), "WhiteNoiseK", prr->Nwriters);
         goto induce;
     }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
-    fastpm_ic_fill_gaussiank(fastpm->pm_2lpt, delta_k, CONF(prr, random_seed), FASTPM_DELTAK_GADGET);
+    fastpm_ic_fill_gaussiank(fastpm->basepm, delta_k, CONF(prr, random_seed), FASTPM_DELTAK_GADGET);
 
 induce:
     if(CONF(prr, remove_cosmic_variance)) {
         fastpm_info("Remove Cosmic variance from initial condition.\n");
-        fastpm_ic_remove_variance(fastpm->pm_2lpt, delta_k);
+        fastpm_ic_remove_variance(fastpm->basepm, delta_k);
     }
 
     if(CONF(prr, fix_ic_mode)) {
-        fix_ic_mode(fastpm->pm_2lpt, delta_k, delta_k, CONF(prr, fix_ic_mode), CONF(prr, fix_ic_value));
+        fix_ic_mode(fastpm->basepm, delta_k, delta_k, CONF(prr, fix_ic_mode), CONF(prr, fix_ic_value));
     }
 
     if(CONF(prr, inverted_ic)) {
-        fastpm_apply_multiply_transfer(fastpm->pm_2lpt, delta_k, delta_k, -1);
+        fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
     }
 
     if(CONF(prr, write_whitenoisek)) {
         fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
-        write_complex(fastpm->pm_2lpt, delta_k, CONF(prr, write_whitenoisek), "WhiteNoiseK", prr->Nwriters);
+        write_complex(fastpm->basepm, delta_k, CONF(prr, write_whitenoisek), "WhiteNoiseK", prr->Nwriters);
     }
 
     /* FIXME: use enums */
     if(CONF(prr, f_nl_type) == FASTPM_FNL_NONE) {
         fastpm_info("Inducing correlation to the white noise.\n");
 
-        fastpm_ic_induce_correlation(fastpm->pm_2lpt, delta_k,
+        fastpm_ic_induce_correlation(fastpm->basepm, delta_k,
             (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
     } else {
 	double kmax_primordial;
@@ -296,7 +295,7 @@ induce:
             .scalar_pivot = CONF(prr, scalar_pivot)
         };
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
-        fastpm_png_induce_correlation(&png, fastpm->pm_2lpt, delta_k);
+        fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
     }
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
@@ -305,12 +304,12 @@ produce:
 
     if(CONF(prr, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
-        write_complex(fastpm->pm_2lpt, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
+        write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
     fastpm_setup_ic(fastpm, delta_k);
 
-    pm_free(fastpm->pm_2lpt, delta_k);
+    pm_free(fastpm->basepm, delta_k);
 }
 
 static int check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr) {
@@ -321,7 +320,6 @@ static int check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * pr
 static int 
 take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Parameters * prr) 
 {
-    FastPMSolverBase * base = &fastpm->base;
     CLOCK(io);
     CLOCK(meta);
 
@@ -330,7 +328,7 @@ take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Paramete
         double z_out= 1.0/aout - 1.0;
         int Nwriters = prr->Nwriters;
         if(Nwriters == 0) {
-            MPI_Comm_size(base->comm, &Nwriters);
+            MPI_Comm_size(fastpm->comm, &Nwriters);
         }
         sprintf(filebase, "%s_%0.04f", CONF(prr, write_snapshot), aout);
 
@@ -341,7 +339,7 @@ take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Paramete
         fastpm_path_ensure_dirname(filebase);
         LEAVE(meta);
 
-        MPI_Barrier(base->comm);
+        MPI_Barrier(fastpm->comm);
         ENTER(io);
         write_snapshot(fastpm, snapshot, filebase, prr->string, Nwriters);
         LEAVE(io);
@@ -357,7 +355,7 @@ take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Paramete
         fastpm_path_ensure_dirname(filebase);
         LEAVE(meta);
 
-        MPI_Barrier(base->comm);
+        MPI_Barrier(fastpm->comm);
         ENTER(io);
         write_runpb_snapshot(fastpm, snapshot, filebase);
 
@@ -369,10 +367,10 @@ take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Paramete
     }
     if(CONF(prr, write_nonlineark)) {
         char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr, write_nonlineark), aout);
-        FastPMFloat * rho_k = pm_alloc(fastpm->pm_2lpt);
-        fastpm_utils_paint(fastpm->pm_2lpt, snapshot, NULL, rho_k, NULL, 0);
-        write_complex(fastpm->pm_2lpt, rho_k, filename, "DensityK", prr->Nwriters);
-        pm_free(fastpm->pm_2lpt, rho_k);
+        FastPMFloat * rho_k = pm_alloc(fastpm->basepm);
+        fastpm_utils_paint(fastpm->basepm, snapshot, NULL, rho_k, NULL, 0);
+        write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->Nwriters);
+        pm_free(fastpm->basepm, rho_k);
         free(filename);
     }
     return 0;
@@ -381,8 +379,6 @@ take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Paramete
 static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
-    FastPMSolverBase * base = &fastpm->base;
-
     CLOCK(compute);
     CLOCK(io);
 
@@ -397,14 +393,14 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
     fastpm_info("Load imbalance is - %g / + %g\n",
         fastpm->info.imbalance.min, fastpm->info.imbalance.max);
 
-    fastpm_report_memory(base->comm);
+    fastpm_report_memory(fastpm->comm);
 
-    MPI_Barrier(base->comm);
+    MPI_Barrier(fastpm->comm);
     ENTER(compute);
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_powerspectrum_init_from_delta(&ps, base->pm, delta_k, delta_k);
+    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
 
     double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
 
@@ -417,11 +413,11 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
 
     LEAVE(compute);
 
-    MPI_Barrier(base->comm);
+    MPI_Barrier(fastpm->comm);
 
     ENTER(io);
     if(CONF(prr, write_powerspectrum)) {
-        if(base->ThisTask == 0) {
+        if(fastpm->ThisTask == 0) {
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);
