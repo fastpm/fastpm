@@ -61,7 +61,9 @@ write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * param
     big_file_mpi_create(&bf, filebase, comm);
     {
         BigBlock bb;
-        big_file_mpi_create_block(&bf, &bb, ".", "i8", 0, 1, 0, comm);
+        if(0 != big_file_mpi_create_block(&bf, &bb, ".", "i8", 0, 1, 0, comm)) {
+            fastpm_raise(-1, "Failed to create the attributes\n");
+        }
         double ScalingFactor = p->a_x;
         double OmegaM = fastpm->omega_m;
         double BoxSize = fastpm->boxsize;
@@ -96,8 +98,10 @@ write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * param
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
-                    Nfile, size, comm);
+        if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                    Nfile, size, comm)) {
+            fastpm_raise(-1, "Failed to create the block\n");
+        }
 
         big_array_init(&array, bdesc->base, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
         big_block_seek(&bb, &ptr, 0);
