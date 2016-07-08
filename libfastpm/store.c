@@ -8,6 +8,8 @@
 
 #include "pmpfft.h"
 
+#define HAS(a, b) ((a & b) != 0)
+
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->x[index][0];

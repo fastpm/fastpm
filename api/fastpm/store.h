@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define HAS(a, b) ((a & b) != 0)
+FASTPM_BEGIN_DECLS
 
 size_t
 fastpm_store_alloc_evenly(FastPMStore * p, size_t np_total, int attributes,
@@ -46,6 +46,8 @@ fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
 void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
+
+FASTPM_END_DECLS
 
 #endif
 
