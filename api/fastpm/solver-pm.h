@@ -69,7 +69,7 @@ typedef struct {
     FastPMModel * model;
     PM * pm_2lpt;
     FastPMPainter painter[1];
-} FastPMSolverPM;
+} FastPMSolver;
 
 enum FastPMExtensionPoint {
     FASTPM_EXT_AFTER_FORCE,
@@ -80,13 +80,13 @@ enum FastPMExtensionPoint {
 
 typedef int 
     (* fastpm_ext_after_force) 
-    (FastPMSolverPM * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
+    (FastPMSolver * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
 typedef int 
     (* fastpm_ext_before_kick) 
-    (FastPMSolverPM * fastpm, FastPMKick * kick, void * userdata);
+    (FastPMSolver * fastpm, FastPMKick * kick, void * userdata);
 typedef int
     (* fastpm_ext_before_drift) 
-    (FastPMSolverPM * fastpm, FastPMDrift * drift, void * userdata);
+    (FastPMSolver * fastpm, FastPMDrift * drift, void * userdata);
 
 struct FastPMExtension {
     void * function; /* The function signature must match the types above */
@@ -95,7 +95,7 @@ struct FastPMExtension {
 };
 
 struct FastPMDrift {
-    FastPMSolverPM * fastpm;
+    FastPMSolver * fastpm;
     PMStore * p;
     double dyyy;
     double da1;
@@ -104,7 +104,7 @@ struct FastPMDrift {
 };
 
 struct FastPMKick {
-    FastPMSolverPM * fastpm;
+    FastPMSolver * fastpm;
     PMStore * p;
     float q1;
     float q2;
@@ -112,42 +112,42 @@ struct FastPMKick {
     double af;
 };
 
-void fastpm_init(FastPMSolverPM * fastpm, 
+void fastpm_init(FastPMSolver * fastpm, 
     int NprocY,  /* Use 0 for auto */
     int UseFFTW, /* Use 0 for PFFT 1 for FFTW */
     MPI_Comm comm);
 
 void 
-fastpm_add_extension(FastPMSolverPM * fastpm, 
+fastpm_add_extension(FastPMSolver * fastpm, 
     enum FastPMExtensionPoint where,
     void * function, void * userdata);
 
 void 
-fastpm_destroy(FastPMSolverPM * fastpm);
+fastpm_destroy(FastPMSolver * fastpm);
 
 void 
-fastpm_setup_ic(FastPMSolverPM * fastpm, FastPMFloat * delta_k_ic);
+fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
 
 void
-fastpm_evolve(FastPMSolverPM * fastpm, double * time_step, int nstep);
+fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
 typedef int 
-(*fastpm_interp_action) (FastPMSolverPM * fastpm, PMStore * pout, double aout, void * userdata);
+(*fastpm_interp_action) (FastPMSolver * fastpm, PMStore * pout, double aout, void * userdata);
 
 /* This function can be used in after_kick and after_drift plugins for 
  * interpolating and writing a snapshot */
 void 
-fastpm_interp(FastPMSolverPM * fastpm, double * aout, int nout, 
+fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata);
 
-void fastpm_drift_init(FastPMDrift * drift, FastPMSolverPM * fastpm, PMStore * pi, double af);
-void fastpm_kick_init(FastPMKick * kick, FastPMSolverPM * fastpm, PMStore * pi, double af);
+void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, PMStore * pi, double af);
+void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, PMStore * pi, double af);
 void
 fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
 void
 fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3]);
 
 double
-fastpm_growth_factor(FastPMSolverPM * fastpm, double a);
+fastpm_growth_factor(FastPMSolver * fastpm, double a);
 
 FASTPM_END_DECLS

@@ -20,13 +20,11 @@ typedef struct {
     int Nmesh;
     int Ngrid;
     double BoxSize;
-    //int testing;
 
     PM * pm;
     PMStore * p;
 
-    FastPM2LPTSolver solver;
-    FastPMSolverPM pm_solver;
+    FastPMSolver solver;
     FastPMFloat * delta_ic_k;
     FastPMFloat * rho_final_x;
     FastPMFloat * transfer_function;

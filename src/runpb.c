@@ -16,7 +16,7 @@
 #include <fastpm/cosmology.h>
 #include <fastpm/logging.h>
 
-static Cosmology CP(FastPMSolverPM * fastpm) {
+static Cosmology CP(FastPMSolver * fastpm) {
     Cosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
@@ -35,7 +35,7 @@ typedef struct {
 } FileHeader;
 
 int 
-read_runpb_ic(FastPMSolverPM * fastpm, PMStore * p, const char * filename)
+read_runpb_ic(FastPMSolver * fastpm, PMStore * p, const char * filename)
 {
     FastPMSolverBase * base = &fastpm->base;
     int ThisTask = base->ThisTask;
@@ -382,7 +382,7 @@ static void write_mine(const char * filebase,
 }
 
 int 
-write_runpb_snapshot(FastPMSolverPM * fastpm, PMStore * p, const char * filebase)
+write_runpb_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase)
 {
     FastPMSolverBase * base = &fastpm->base;
 

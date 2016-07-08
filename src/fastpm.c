@@ -38,22 +38,22 @@ static void
 parse_args(int * argc, char *** argv, Parameters * prr);
 
 static int 
-take_a_snapshot(FastPMSolverPM * fastpm, PMStore * snapshot, double aout, Parameters * prr);
+take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Parameters * prr);
 
 static void
 fix_ic_mode(PM * pm, FastPMFloat * from, FastPMFloat * to, int * mode, double value);
 
 int 
-read_runpb_ic(FastPMSolverPM * fastpm, PMStore * p, const char * filename);
+read_runpb_ic(FastPMSolver * fastpm, PMStore * p, const char * filename);
 
 void 
 read_grafic_gaussian(PM * pm, FastPMFloat * g_x, const char * filename);
 
 int
-write_runpb_snapshot(FastPMSolverPM * fastpm, PMStore * p, const char * filebase);
+write_runpb_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase);
 
 int
-write_snapshot(FastPMSolverPM * fastpm, PMStore * p, const char * filebase, char * parameters, int Nwriters);
+write_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase, char * parameters, int Nwriters);
 
 int
 write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
@@ -62,7 +62,7 @@ int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
 
 int
-read_snapshot(FastPMSolverPM * fastpm, PMStore * p, const char * filebase);
+read_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase);
 
 int
 read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
@@ -70,7 +70,7 @@ read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI
 int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
-int run_fastpm(FastPMSolverPM * fastpm, Parameters * prr, MPI_Comm comm);
+int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
 
@@ -101,7 +101,7 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
 
-    FastPMSolverPM * fastpm = & (FastPMSolverPM) {
+    FastPMSolver * fastpm = & (FastPMSolver) {
         .nc = CONF(prr, nc),
         .alloc_factor = CONF(prr, np_alloc_factor),
         .vpminit = vpminit,
@@ -129,15 +129,15 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPMSolverPM * fastpm, void * unused, Parameters * prr);
+check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr);
 
 static int 
-write_powerspectrum(FastPMSolverPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
+write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 static void 
-prepare_ic(FastPMSolverPM * fastpm, Parameters * prr, MPI_Comm comm);
+prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
-int run_fastpm(FastPMSolverPM * fastpm, Parameters * prr, MPI_Comm comm) {
+int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
     CLOCK(ic);
     CLOCK(evolve);
@@ -195,7 +195,7 @@ int run_fastpm(FastPMSolverPM * fastpm, Parameters * prr, MPI_Comm comm) {
 }
 
 static void 
-prepare_ic(FastPMSolverPM * fastpm, Parameters * prr, MPI_Comm comm) 
+prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
 {
     FastPMSolverBase * base = &fastpm->base;
     /* we may need a read gadget ic here too */
@@ -229,7 +229,7 @@ prepare_ic(FastPMSolverPM * fastpm, Parameters * prr, MPI_Comm comm)
 
     if(CONF(prr, read_grafic)) {
         fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr, read_grafic));
-        fastpm_info("GrafIC noise is Fortran ordering. FastPMSolverPM is in C ordering.\n");
+        fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
         fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
         FastPMFloat * g_x = pm_alloc(fastpm->pm_2lpt);
@@ -313,13 +313,13 @@ produce:
     pm_free(fastpm->pm_2lpt, delta_k);
 }
 
-static int check_snapshots(FastPMSolverPM * fastpm, void * unused, Parameters * prr) {
+static int check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr) {
     fastpm_interp(fastpm, CONF(prr, aout), CONF(prr, n_aout), (fastpm_interp_action)take_a_snapshot, prr);
     return 0;
 }
 
 static int 
-take_a_snapshot(FastPMSolverPM * fastpm, PMStore * snapshot, double aout, Parameters * prr) 
+take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Parameters * prr) 
 {
     FastPMSolverBase * base = &fastpm->base;
     CLOCK(io);
@@ -379,7 +379,7 @@ take_a_snapshot(FastPMSolverPM * fastpm, PMStore * snapshot, double aout, Parame
 }
 
 static int
-write_powerspectrum(FastPMSolverPM * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
+write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
     FastPMSolverBase * base = &fastpm->base;
 

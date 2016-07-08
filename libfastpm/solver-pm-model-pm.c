@@ -21,7 +21,7 @@ typedef struct {
     int istep;
 } FastPMModelPMPriv;
 
-static void _before_kick(FastPMSolverPM * solver, FastPMKick * kick, void * userdata)
+static void _before_kick(FastPMSolver * solver, FastPMKick * kick, void * userdata)
 {
     FastPMModel * model = userdata;
     FastPMModelPMPriv * priv = model->priv;
@@ -39,7 +39,7 @@ static void fastpm_model_pm_build(FastPMModel * model, double ainit, double afin
 
     fastpm_model_create_subsample(model, psub);
 
-    FastPMSolverPM * solver = &(FastPMSolverPM) {
+    FastPMSolver * solver = &(FastPMSolver) {
         .FORCE_TYPE = FASTPM_FORCE_PM,
         .USE_NONSTDDA = 0,
         .USE_MODEL = FASTPM_MODEL_NONE, /* this does not use any model */

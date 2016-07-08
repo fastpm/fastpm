@@ -18,7 +18,7 @@
 #include "pm2lpt.h"
 #include "solver-pm-internal.h"
 
-void fastpm_model_init(FastPMModel * model, FastPMSolverPM * fastpm, FastPMModelType type)
+void fastpm_model_init(FastPMModel * model, FastPMSolver * fastpm, FastPMModelType type)
 {
     model->type = type;
 
@@ -106,7 +106,7 @@ static double
 find_correction_eval(double correction, void * data)
 {
     FastPMModel * model = (FastPMModel*) data;
-    FastPMSolverPM * fastpm = model->fastpm;
+    FastPMSolver * fastpm = model->fastpm;
     PMStore * po = model->ev.po;
 
     scale_acc(po, correction, 1.0);

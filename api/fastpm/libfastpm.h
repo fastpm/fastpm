@@ -62,7 +62,6 @@ typedef double (*fastpm_kernelfunc)(double x, int support);
 #include "initialcondition.h"
 #include "pngaussian.h"
 #include "powerspectrum.h"
-#include "solver-2lpt.h"
 #include "solver-pm.h"
 
 /* Following functions are internal API */

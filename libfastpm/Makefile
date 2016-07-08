@@ -9,7 +9,6 @@ CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
 LIBSOURCES = libfastpm.c \
-    solver-2lpt.c \
     solver-pm.c \
     solver-pm-steps.c \
     solver-pm-grav.c \

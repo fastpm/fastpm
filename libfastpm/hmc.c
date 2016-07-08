@@ -9,15 +9,15 @@
 #include <fastpm/transfer.h>
 #include <fastpm/hmc.h>
 
-static void 
-get_lagrangian_position(PMStore * p, ptrdiff_t index, double pos[3]) 
+static void
+get_lagrangian_position(PMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->q[index][0];
     pos[1] = p->q[index][1];
     pos[2] = p->q[index][2];
 }
-static void 
-get_position(PMStore * p, ptrdiff_t index, double pos[3]) 
+static void
+get_position(PMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->x[index][0];
     pos[1] = p->x[index][1];
@@ -25,7 +25,7 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
 }
 
 static void
-fastpm_pm_init(FastPMSolverPM * fastpm, PMStore * p, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
+fastpm_pm_init(FastPMSolver * fastpm, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
 {
     fastpm->nc = nc;
     fastpm->boxsize = boxsize;
@@ -37,7 +37,6 @@ fastpm_pm_init(FastPMSolverPM * fastpm, PMStore * p, int nmesh, int nc, double b
     };
     fastpm->FORCE_TYPE = FASTPM_FORCE_FASTPM;
     fastpm->USE_NONSTDDA = 0;
-    fastpm->USE_EXTERNAL_PSTORE = p;
     fastpm->USE_MODEL = FASTPM_MODEL_NONE;
     fastpm->USE_SHIFT = 0;
     fastpm->nLPT = 2.5;
@@ -46,26 +45,23 @@ fastpm_pm_init(FastPMSolverPM * fastpm, PMStore * p, int nmesh, int nc, double b
     fastpm_init(fastpm, 0, 0, comm);
 }
 
-void 
+void
 fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 {
     switch(self->LPTOrder) {
         case 1:
             self->solver.USE_DX1_ONLY = 1;
-            self->pm_solver.USE_DX1_ONLY = 1;
         break;
         case 2:
             self->solver.USE_DX1_ONLY = 0;
-            self->pm_solver.USE_DX1_ONLY = 0;
         break;
         default:
             fastpm_raise(-1, "Wrong LPT Order, can only be 1 or 2\n");
     }
 
-    fastpm_2lpt_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, comm);
     self->solver.USE_SHIFT = 0;
 
-    fastpm_pm_init(&self->pm_solver, self->solver.base.p, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, self->OmegaM, comm);
+    fastpm_pm_init(&self->solver, self->Nmesh, self->Ngrid, self->BoxSize, self->AllocFactor, self->OmegaM, comm);
 
     /* FIXME: create a new pm object */
     self->pm = self->solver.base.pm;
@@ -87,8 +83,7 @@ fastpm_hmc_za_destroy(FastPMHMCZA * self)
 {
     pm_free(self->pm, self->rho_final_x);
     pm_free(self->pm, self->delta_ic_k);
-    fastpm_destroy(&self->pm_solver);
-    fastpm_2lpt_destroy(&self->solver);
+    fastpm_destroy(&self->solver);
 }
 
 static void
@@ -98,28 +93,25 @@ fastpm_hmc_za_evolve_internal(
     FastPMFloat * delta_final
     )
 {
-    /* This is the pure N-body dynamics, no smoothing etc */
-    /* First run a PT simulation*/
-    if(Nsteps <= 0) {
-        FastPM2LPTSolver * solver = &self->solver;
-        fastpm_2lpt_evolve(solver, self->delta_ic_k, 1.0, self->OmegaM);
-
-        self->p = solver->base.p;
-    } else {
-        FastPMSolverPM * solver = &self->pm_solver;
-        double time_step[Nsteps];
-        double ainit = 0.1;
-        double afinal = 1.0;
-        int i;
-        for(i = 0; i < Nsteps; i ++) {
-            time_step[i] = ainit + 1.0 * i / (Nsteps - 1) * (afinal - ainit);
-        }
-        time_step[Nsteps - 1] = afinal;
-        fastpm_setup_ic(solver, self->delta_ic_k);
-        fastpm_evolve(solver, time_step, Nsteps);
-
-        self->p = solver->base.p;
+    if(Nsteps <= 1) {
+        Nsteps = 1;
     }
+    /* This is the pure N-body dynamics, no smoothing etc */
+    FastPMSolver * solver = &self->solver;
+    double time_step[Nsteps];
+    double ainit = 0.1;
+    double afinal = 1.0;
+    int i;
+    for(i = 0; i < Nsteps; i ++) {
+        time_step[i] = ainit + 1.0 * i / (Nsteps - 1) * (afinal - ainit);
+    }
+    time_step[Nsteps - 1] = afinal;
+
+    fastpm_setup_ic(solver, self->delta_ic_k);
+    fastpm_evolve(solver, time_step, Nsteps);
+
+    self->p = solver->base.p;
+
     if(self->IncludeRSD) {
         Cosmology c = {
             .OmegaM = self->OmegaM,
@@ -446,50 +438,3 @@ fastpm_hmc_za_force_s2(
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-//////////////////////////   TRASH SAVED HERE ///////////////////////////////////
-
-
-//From hmc_za_evolve, after declaring delta_final
-    /*
-    fastpm_utils_paint(solver->pm, solver->p, NULL, delta_final ,NULL, 0);
-
-    if(self->SmoothingLength > 0)
-        fastpm_apply_smoothing_transfer(solver->pm, delta_final, delta_final, self->SmoothingLength);
-    if(self->KThreshold > 0)
-        fastpm_apply_lowpass_transfer(solver->pm, delta_final, delta_final, self->KThreshold);
-    if(self->DeconvolveCIC)
-        fastpm_apply_decic_transfer(solver->pm, delta_final, delta_final);
-
-    pm_c2r(solver->pm, delta_final);
-    ptrdiff_t ind;
-    //  inv volume of a cell, to convert to density
-    double fac = (pm_norm(solver->pm) / pow(pm_boxsize(solver->pm)[0], 3));
-    for(ind = 0; ind < pm_allocsize(solver->pm); ind++) {
-        delta_final[ind] *= fac;
-    }
-    */
-    
-
-    /*
-    FastPM2LPTSolver * solver = &self->solver;
-    // Evolve with ZA for HMC, smoothed by sml and deconvolve CIC 
-    fastpm_2lpt_evolve(solver, delta_ic, 1.0, self->OmegaM);
-
-    pm_assign(solver->pm, delta_ic, self->delta_ic_k);
-
-    pmt = solver->pm;
-    pt = solver->p;
-    */
-    

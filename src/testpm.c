@@ -17,7 +17,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_set_msg_handler(fastpm_void_msg_handler, comm, NULL);
 
-    FastPMSolverPM * solver = & (FastPMSolverPM) {
+    FastPMSolver * solver = & (FastPMSolver) {
         .nc = 128,
         .boxsize = 32.,
         .alloc_factor = 2.0,

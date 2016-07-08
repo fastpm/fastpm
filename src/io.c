@@ -27,7 +27,7 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
-static Cosmology CP(FastPMSolverPM * fastpm) {
+static Cosmology CP(FastPMSolver * fastpm) {
     Cosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
@@ -36,7 +36,7 @@ static Cosmology CP(FastPMSolverPM * fastpm) {
 }
 
 int 
-write_snapshot(FastPMSolverPM * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters) 
+write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
 
     FastPMSolverBase * base = &fastpm->base;
@@ -110,7 +110,7 @@ write_snapshot(FastPMSolverPM * fastpm, PMStore * p, char * filebase, char * par
 }
 
 int 
-read_snapshot(FastPMSolverPM * fastpm, PMStore * p, char * filebase)
+read_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase)
 {
     return 0;
 }
