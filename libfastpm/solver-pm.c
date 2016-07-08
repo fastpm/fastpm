@@ -9,7 +9,6 @@
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "vpm.h"
@@ -33,7 +32,7 @@ fastpm_decompose(FastPMSolver * fastpm);
 #define BREAKPOINT raise(SIGTRAP);
 
 static void
-scale_acc(PMStore * po, double correction, double fudge);
+scale_acc(FastPMStore * po, double correction, double fudge);
 
 /* Useful stuff */
 static int 
@@ -58,10 +57,10 @@ void fastpm_init(FastPMSolver * fastpm,
 
     fastpm->model = malloc(sizeof(FastPMModel));
 
-    fastpm->p = malloc(sizeof(PMStore));
-    pm_store_init(fastpm->p);
+    fastpm->p = malloc(sizeof(FastPMStore));
+    fastpm_store_init(fastpm->p);
 
-    pm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
+    fastpm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
         PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC | (fastpm->SAVE_Q?PACK_Q:0),
         fastpm->alloc_factor, comm);
 
@@ -92,7 +91,7 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 {
 
     PM * basepm = fastpm->basepm;
-    PMStore * p = fastpm->p;
+    FastPMStore * p = fastpm->p;
 
     if(delta_k_ic) {
         double shift0;
@@ -105,7 +104,7 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 
         int nc[3] = {fastpm->nc, fastpm->nc, fastpm->nc};
 
-        pm_store_set_lagrangian_position(p, basepm, shift, nc);
+        fastpm_store_set_lagrangian_position(p, basepm, shift, nc);
 
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);
@@ -114,7 +113,7 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
     if(fastpm->USE_DX1_ONLY == 1) {
         memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
-    pm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
+    fastpm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
 }
 
 void
@@ -130,7 +129,7 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     CLOCK(correction);
 
     FastPMExtension * ext;
-    PMStore * p = fastpm->p;
+    FastPMStore * p = fastpm->p;
     MPI_Comm comm = fastpm->comm;
 
     fastpm_model_build(fastpm->model, time_step[0], time_step[nstep - 1]);
@@ -240,7 +239,7 @@ fastpm_destroy(FastPMSolver * fastpm)
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
     fastpm_model_destroy(fastpm->model);
-    pm_store_destroy(fastpm->p);
+    fastpm_store_destroy(fastpm->p);
 
     vpm_free(fastpm->vpm_list);
     /* FIXME: free VPM and stuff. */
@@ -257,7 +256,7 @@ fastpm_destroy(FastPMSolver * fastpm)
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data) 
 {
-    PMStore * p = (PMStore *) pdata;
+    FastPMStore * p = (FastPMStore *) pdata;
     PM * pm = (PM*) data;
     double pos[3];
     p->get_position(p, i, pos);
@@ -267,10 +266,10 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
 static void
 fastpm_decompose(FastPMSolver * fastpm) {
     PM * pm = fastpm->pm;
-    PMStore * p = fastpm->p;
+    FastPMStore * p = fastpm->p;
     /* apply periodic boundary and move particles to the correct rank */
-    pm_store_wrap(fastpm->p, pm->BoxSize);
-    pm_store_decompose(fastpm->p, to_rank, pm, fastpm->comm);
+    fastpm_store_wrap(fastpm->p, pm->BoxSize);
+    fastpm_store_decompose(fastpm->p, to_rank, pm, fastpm->comm);
     size_t np_max;
     size_t np_min;
 
@@ -289,7 +288,7 @@ fastpm_interp(FastPMSolver * fastpm, double * aout, int nout,
 {
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
-    PMStore * p = fastpm->p;
+    FastPMStore * p = fastpm->p;
     double a_x = p->a_x;
     double a_v = p->a_v;
     int iout;
@@ -302,9 +301,9 @@ fastpm_interp(FastPMSolver * fastpm, double * aout, int nout,
         (a_x >= aout[iout] && aout[iout] >= a_v)
         ) continue;
 
-        PMStore * snapshot = alloca(sizeof(PMStore));
-        pm_store_init(snapshot);
-        pm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
+        FastPMStore * snapshot = alloca(sizeof(FastPMStore));
+        fastpm_store_init(snapshot);
+        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
 
         fastpm_info("Taking a snapshot...\n");
 
@@ -312,14 +311,14 @@ fastpm_interp(FastPMSolver * fastpm, double * aout, int nout,
 
         action(fastpm, snapshot, aout[iout], userdata);
 
-        pm_store_destroy(snapshot);
+        fastpm_store_destroy(snapshot);
 
     }
 }
 
 
 static void
-scale_acc(PMStore * po, double correction, double fudge)
+scale_acc(FastPMStore * po, double correction, double fudge)
 {
     /* skip scaling if there is no correction. */
     if(correction == 1.0) return;

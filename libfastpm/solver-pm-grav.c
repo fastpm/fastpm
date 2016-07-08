@@ -8,7 +8,6 @@
 
 #include "pmpfft.h"
 #include "pmghosts.h"
-#include "pmstore.h"
 
 static void 
 apply_force_kernel(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) 
@@ -223,7 +222,7 @@ gaussian36(double k, double * knq)
 void
 fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
 {
-    PMStore * p = fastpm->p;
+    FastPMStore * p = fastpm->p;
     PM * pm = fastpm->pm;
     FastPMPainter reader[1];
     fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);

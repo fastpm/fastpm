@@ -8,7 +8,6 @@
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 #include "pmghosts.h"
 #include "pm2lpt.h"
 #include "solver-pm-internal.h"
@@ -25,7 +24,7 @@ static void _before_kick(FastPMSolver * solver, FastPMKick * kick, void * userda
 {
     FastPMModel * model = userdata;
     FastPMModelPMPriv * priv = model->priv;
-    PMStore * p = solver->p;
+    FastPMStore * p = solver->p;
     double P = fastpm_model_measure_large_scale_power(model, p);
     priv->NonLinearGrowthRateTime[priv->istep] = p->a_x;
     priv->NonLinearGrowthRate[priv->istep] = P;
@@ -75,7 +74,7 @@ static void fastpm_model_pm_build(FastPMModel * model, double ainit, double afin
     fastpm_init(solver, 0, 0, model->fastpm->comm);
 
     /* replace the p store with a subsample */
-    pm_store_create_subsample(solver->p, model->fastpm->p, model->factor, model->fastpm->nc);
+    fastpm_store_create_subsample(solver->p, model->fastpm->p, model->factor, model->fastpm->nc);
 
     fastpm_add_extension(solver, FASTPM_EXT_BEFORE_KICK, _before_kick, model);
 

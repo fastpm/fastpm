@@ -30,7 +30,7 @@ LIBSOURCES = libfastpm.c \
     pmghosts.c  \
     painter.c \
     painter-cic.c \
-    pmstore.c \
+    store.c \
     pm2lpt.c \
     pmapi.c \
     hmc.c \

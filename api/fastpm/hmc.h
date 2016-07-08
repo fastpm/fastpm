@@ -22,7 +22,7 @@ typedef struct {
     double BoxSize;
 
     PM * pm;
-    PMStore * p;
+    FastPMStore * p;
 
     FastPMSolver solver;
     FastPMFloat * delta_ic_k;

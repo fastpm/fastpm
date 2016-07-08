@@ -18,7 +18,7 @@
 FASTPM_BEGIN_DECLS
 
 typedef struct PM PM;
-typedef struct PMStore PMStore;
+typedef struct FastPMStore FastPMStore;
 typedef struct FastPMPainter FastPMPainter;
 
 #ifndef FASTPM_FFT_PRECISION
@@ -40,13 +40,14 @@ void libfastpm_set_memory_bound(size_t size);
 FASTPM_END_DECLS
 
 typedef double (*fastpm_fkfunc)(double k, void * data);
-typedef void   (*fastpm_posfunc)(PMStore * p, ptrdiff_t index, double pos[3]);
+typedef void   (*fastpm_posfunc)(FastPMStore * p, ptrdiff_t index, double pos[3]);
 typedef double (*fastpm_kernelfunc)(double x, int support);
 #define fastpm_pkfunc fastpm_fkfunc
 
 #include "painter.h"
 #include "memory.h"
 #include "pmapi.h"
+#include "store.h"
 
 #include "transfer.h"
 #include "utils.h"

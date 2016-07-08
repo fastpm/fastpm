@@ -10,7 +10,6 @@
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 
 static MPI_Datatype MPI_PTRDIFF = (MPI_Datatype) 0;
 

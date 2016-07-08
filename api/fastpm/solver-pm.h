@@ -24,7 +24,7 @@ typedef enum { FASTPM_DEALIASING_NONE,
 
 typedef struct {
     PM * pm;
-    PMStore * p;
+    FastPMStore * p;
 
     MPI_Comm comm;
     int NTask;
@@ -101,7 +101,7 @@ struct FastPMExtension {
 
 struct FastPMDrift {
     FastPMSolver * fastpm;
-    PMStore * p;
+    FastPMStore * p;
     double dyyy;
     double da1;
     double da2;
@@ -110,7 +110,7 @@ struct FastPMDrift {
 
 struct FastPMKick {
     FastPMSolver * fastpm;
-    PMStore * p;
+    FastPMStore * p;
     float q1;
     float q2;
     float dda;
@@ -137,7 +137,7 @@ void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
 typedef int 
-(*fastpm_interp_action) (FastPMSolver * fastpm, PMStore * pout, double aout, void * userdata);
+(*fastpm_interp_action) (FastPMSolver * fastpm, FastPMStore * pout, double aout, void * userdata);
 
 /* This function can be used in after_kick and after_drift plugins for 
  * interpolating and writing a snapshot */
@@ -145,8 +145,8 @@ void
 fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata);
 
-void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, PMStore * pi, double af);
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, PMStore * pi, double af);
+void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi, double af);
+void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi, double af);
 void
 fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
 void

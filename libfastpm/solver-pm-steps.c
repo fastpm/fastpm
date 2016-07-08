@@ -31,7 +31,6 @@
 #include <fastpm/cosmology.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 #include "vpm.h"
 
 static double 
@@ -84,7 +83,7 @@ fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
 
 void 
 fastpm_kick_store(FastPMSolver * fastpm, 
-              PMStore * pi, PMStore * po, double af)
+              FastPMStore * pi, FastPMStore * po, double af)
 {
     FastPMKick * kick = alloca(sizeof(FastPMKick));
 
@@ -138,7 +137,7 @@ static double g_f(double a, Cosmology c)
                    + a * a * a * E * d2Dda2;
     return g_f;
 }
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, PMStore * pi, double af)
+void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi, double af)
 {
     double ai = pi->a_v;
     double ac = pi->a_x;
@@ -162,7 +161,7 @@ void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, PMStore * pi, do
 }
 
 void
-fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, PMStore * pi,
+fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi,
                double af)
 {
     double ai = pi->a_x;
@@ -186,7 +185,7 @@ fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, PMStore * pi,
 
 void
 fastpm_drift_store(FastPMSolver * fastpm,
-               PMStore * pi, PMStore * po,
+               FastPMStore * pi, FastPMStore * po,
                double af)
 {
 
@@ -317,7 +316,7 @@ Sphi(double ai, double af, double aRef, FastPMSolver * fastpm)
 // Interpolate position and velocity for snapshot at a=aout
 void 
 fastpm_set_snapshot(FastPMSolver * fastpm,
-                PMStore * p, PMStore * po,
+                FastPMStore * p, FastPMStore * po,
                 double aout)
 {
     int np= p->np;

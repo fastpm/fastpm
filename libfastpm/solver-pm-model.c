@@ -14,7 +14,6 @@
 #include <gsl/gsl_roots.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 #include "pmghosts.h"
 #include "pm2lpt.h"
 #include "solver-pm-internal.h"
@@ -82,7 +81,7 @@ void fastpm_model_evolve(FastPMModel * model, double af)
 }
 
 static void
-scale_acc(PMStore * po, double correction, double fudge)
+scale_acc(FastPMStore * po, double correction, double fudge)
 {
     ptrdiff_t i;
     correction = pow(correction, fudge);
@@ -102,7 +101,7 @@ find_correction_eval(double correction, void * data)
 {
     FastPMModel * model = (FastPMModel*) data;
     FastPMSolver * fastpm = model->fastpm;
-    PMStore * po = model->ev.po;
+    FastPMStore * po = model->ev.po;
 
     scale_acc(po, correction, 1.0);
 
@@ -123,7 +122,7 @@ double
 fastpm_model_find_correction(FastPMModel * model,
         double a_x, double a_x1, double a_v, double a_v1)
 {
-    PMStore * p = model->fastpm->p;
+    FastPMStore * p = model->fastpm->p;
 
     if(model->type == FASTPM_MODEL_NONE) {
         return 1.0;
@@ -135,12 +134,12 @@ fastpm_model_find_correction(FastPMModel * model,
         return 1.0;
     }
 
-    PMStore po[1];
-    pm_store_init(po);
+    FastPMStore po[1];
+    fastpm_store_init(po);
 
     /* FIXME: get rid of DX1 DX2, since we do not need a model for COLA */
-    pm_store_alloc(po, 1.0 * p->np_upper / model->factor, p->attributes);
-    pm_store_create_subsample(po, p, model->factor, model->fastpm->nc);
+    fastpm_store_alloc(po, 1.0 * p->np_upper / model->factor, p->attributes);
+    fastpm_store_create_subsample(po, p, model->factor, model->fastpm->nc);
 
     gsl_root_fsolver * s;
     gsl_function F;
@@ -172,7 +171,7 @@ fastpm_model_find_correction(FastPMModel * model,
     }
 
     if(fabs(r_hi) < 1e-7 && fabs(r_lo) < 1e-7) {
-        pm_store_destroy(po);
+        fastpm_store_destroy(po);
         return 1.0;
     }
 
@@ -194,17 +193,17 @@ fastpm_model_find_correction(FastPMModel * model,
     while (status == GSL_CONTINUE && iter < 10);
     gsl_root_fsolver_free(s);
 
-    pm_store_destroy(po);
+    fastpm_store_destroy(po);
 
     return x;
 }
 
 double
-fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p)
+fastpm_model_measure_large_scale_power(FastPMModel * model, FastPMStore * p)
 {
     PM * pm = model->pm;
 
-    pm_store_wrap(p, pm->BoxSize);
+    fastpm_store_wrap(p, pm->BoxSize);
 
     FastPMFloat * canvas = pm_alloc(pm);
     FastPMFloat * delta_k = pm_alloc(pm);

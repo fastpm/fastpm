@@ -7,12 +7,11 @@
 #include <fastpm/transfer.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 #include "pmghosts.h"
 #include "pm2lpt.h"
 
 void 
-pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3]) 
+pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3]) 
 {
     /* calculate dx1, dx2, for initial fluctuation delta_k.
      * shift: martin has shift = 0.5, 0.5, 0.5.
@@ -134,7 +133,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, PMStore * p, double shift[3])
 
 // Interpolate position and velocity for snapshot at a=aout
 void 
-pm_2lpt_evolve(double aout, PMStore * p, double Omega, int zaonly)
+pm_2lpt_evolve(double aout, FastPMStore * p, double Omega, int zaonly)
 {
     int np = p->np;
 

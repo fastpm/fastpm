@@ -7,15 +7,14 @@
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 
-static void get_position(PMStore * p, ptrdiff_t index, double pos[3]) {
+static void get_position(FastPMStore * p, ptrdiff_t index, double pos[3]) {
     pos[0] = p->x[index][0];
     pos[1] = p->x[index][1];
     pos[2] = p->x[index][2];
 }
 
-static size_t pack(PMStore * p, ptrdiff_t index, void * buf, int flags) {
+static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -61,7 +60,7 @@ static size_t pack(PMStore * p, ptrdiff_t index, void * buf, int flags) {
     }
     return s;
 }
-static void unpack(PMStore * p, ptrdiff_t index, void * buf, int flags) {
+static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -103,7 +102,7 @@ static void unpack(PMStore * p, ptrdiff_t index, void * buf, int flags) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
-static void reduce(PMStore * p, ptrdiff_t index, void * buf, int flags) {
+static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -129,7 +128,7 @@ static void reduce(PMStore * p, ptrdiff_t index, void * buf, int flags) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
     }
 }
-static double to_double(PMStore * p, ptrdiff_t index, int flags) {
+static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
     double rt = 0.;
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
@@ -157,7 +156,7 @@ byebye:
         return rt;
     }
 }
-static void from_double(PMStore * p, ptrdiff_t index, int flags, double value) {
+static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double value) {
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -183,7 +182,7 @@ byebye:
 }
 
 void
-pm_store_init(PMStore * p)
+fastpm_store_init(FastPMStore * p)
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -196,9 +195,9 @@ pm_store_init(PMStore * p)
 }
 
 void 
-pm_store_alloc(PMStore * p, size_t np_upper, int attributes) 
+fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes) 
 {
-    pm_store_init(p);
+    fastpm_store_init(p);
 
     p->np = 0; 
     p->np_upper = np_upper;
@@ -242,17 +241,17 @@ pm_store_alloc(PMStore * p, size_t np_upper, int attributes)
 };
 
 size_t 
-pm_store_alloc_evenly(PMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_alloc_evenly(FastPMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    pm_store_alloc(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
+    fastpm_store_alloc(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
     return 0;
 }
 
 void 
-pm_store_destroy(PMStore * p) 
+fastpm_store_destroy(FastPMStore * p) 
 {
     if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
     if(p->dx1) fastpm_memory_free(p->mem, p->dx1);
@@ -263,11 +262,11 @@ pm_store_destroy(PMStore * p)
     if(p->q) fastpm_memory_free(p->mem, p->q);
 }
 
-void pm_store_read(PMStore * p, char * datasource) {
+void fastpm_store_read(FastPMStore * p, char * datasource) {
     /* parse data soure and read */
 }
 
-void pm_store_write(PMStore * p, char * datasource) {
+void fastpm_store_write(FastPMStore * p, char * datasource) {
     /* parse data soure and write */
 }
 
@@ -284,7 +283,7 @@ static void permute(void * data, int np, size_t elsize, int * ind) {
     free(tmp);
 }
 
-static void pm_store_permute(PMStore * p, int * ind) {
+static void fastpm_store_permute(FastPMStore * p, int * ind) {
     permute(p->x, p->np, sizeof(p->x[0]), ind);
     permute(p->v, p->np, sizeof(p->v[0]), ind);
     permute(p->id, p->np, sizeof(p->id[0]), ind);
@@ -299,7 +298,7 @@ static void pm_store_permute(PMStore * p, int * ind) {
 }
 
 void 
-pm_store_wrap(PMStore * p, double BoxSize[3])
+fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
 {
     int i;
     int d;
@@ -311,7 +310,7 @@ pm_store_wrap(PMStore * p, double BoxSize[3])
     } 
 }
 
-void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * data, MPI_Comm comm) {
+void fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm) {
     int * target = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int NTask, ThisTask;
 
@@ -345,7 +344,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
         int offset = offsets[target[i]] ++;
         arg[offset] = i;
     }
-    pm_store_permute(p, arg);
+    fastpm_store_permute(p, arg);
 
     fastpm_memory_free(p->mem, arg);
     fastpm_memory_free(p->mem, target);
@@ -393,7 +392,7 @@ void pm_store_decompose(PMStore * p, pm_store_target_func target_func, void * da
 }
 
 void 
-pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3], int Nc[3])
+fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], int Nc[3])
 {
     /* fill p with a uniform grid, respecting domain given by pm. use a subsample ratio. 
      * (every subsample grid points) */
@@ -453,7 +452,7 @@ pm_store_set_lagrangian_position(PMStore * p, PM * pm, double shift[3], int Nc[3
 }
 
 void 
-pm_store_summary(PMStore * p, double dx1[3], double dx2[3], MPI_Comm comm) 
+fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm) 
 {
 
     int d;
@@ -488,7 +487,27 @@ pm_store_summary(PMStore * p, double dx1[3], double dx2[3], MPI_Comm comm)
 }
 
 void
-pm_store_create_subsample(PMStore * po, PMStore * p, int mod, int nc)
+fastpm_store_copy(FastPMStore * p, FastPMStore * po)
+{
+    if(p->np > po->np_upper) {
+        fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
+    }
+    if(po->x) memcpy(po->x, p->x, sizeof(p->x[0][0]) * 3 * p->np);
+    if(po->q) memcpy(po->q, p->q, sizeof(p->q[0][0]) * 3 * p->np);
+    if(po->v) memcpy(po->v, p->v, sizeof(p->v[0][0]) * 3 * p->np);
+    if(po->acc) memcpy(po->acc, p->acc, sizeof(p->acc[0][0]) * 3 * p->np);
+    if(po->dx1) memcpy(po->dx1, p->dx1, sizeof(p->dx1[0][0]) * 3 * p->np);
+    if(po->dx2) memcpy(po->dx2, p->dx2, sizeof(p->dx2[0][0]) * 3 * p->np);
+    if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
+
+    po->np = p->np;
+    po->a_x = p->a_x;
+    po->a_v = p->a_v;
+
+}
+
+void
+fastpm_store_create_subsample(FastPMStore * po, FastPMStore * p, int mod, int nc)
 {
     ptrdiff_t i;
     ptrdiff_t j;

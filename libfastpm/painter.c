@@ -4,7 +4,6 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
-#include "pmstore.h"
 
 /* from cic.c */
 void fastpm_painter_init_cic(FastPMPainter * painter);
@@ -219,7 +218,7 @@ outside:
 
 void
 fastpm_paint_store(FastPMPainter * painter, FastPMFloat * canvas,
-    PMStore * p, size_t size,
+    FastPMStore * p, size_t size,
     fastpm_posfunc get_position, int attribute)
 {
     ptrdiff_t i;
@@ -241,7 +240,7 @@ fastpm_paint_store(FastPMPainter * painter, FastPMFloat * canvas,
 
 void
 fastpm_readout_store(FastPMPainter * painter, FastPMFloat * canvas,
-    PMStore * p, size_t size,
+    FastPMStore * p, size_t size,
     fastpm_posfunc get_position, int attribute)
 {
 

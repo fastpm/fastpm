@@ -6,7 +6,6 @@
 #include <fastpm/logging.h>
 #include "pmpfft.h"
 #include "pmghosts.h"
-#include "pmstore.h"
 
 void pm_ghosts_free(PMGhostData * pgd) {
     fastpm_memory_free(pgd->pm->mem, pgd->ighost_to_ipar);
@@ -67,7 +66,7 @@ static void count_ghosts(PM * pm, PMGhostData * pgd) {
 }
 
 static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
-    PMStore * p = pgd->p;
+    FastPMStore * p = pgd->p;
     double pos[3];
     pgd->get_position(pgd->p, pgd->ipar, pos);
 
@@ -86,7 +85,7 @@ static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
 }
 
 PMGhostData *
-pm_ghosts_create(PM * pm, PMStore *p,
+pm_ghosts_create(PM * pm, FastPMStore *p,
     int attributes,
     fastpm_posfunc get_position)
 {
@@ -164,7 +163,7 @@ pm_ghosts_create(PM * pm, PMStore *p,
 
 void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
     PM * pm = pgd->pm;
-    PMStore * p = pgd->p;
+    FastPMStore * p = pgd->p;
 
     size_t Nsend = cumsum(NULL, pgd->Nsend, pm->NTask);
     size_t Nrecv = cumsum(NULL, pgd->Nrecv, pm->NTask);

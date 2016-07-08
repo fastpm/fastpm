@@ -6,7 +6,7 @@ struct FastPMModel {
     double Pexpect;
     int factor;
     struct {
-        PMStore * po;
+        FastPMStore * po;
         double a_x;
         double a_x1;
         double a_v;
@@ -27,7 +27,7 @@ void fastpm_model_pt_init(FastPMModel * model);
 void fastpm_model_pm_init(FastPMModel * model);
 void fastpm_model_linear_init(FastPMModel * model);
 
-double fastpm_model_measure_large_scale_power(FastPMModel * model, PMStore * p);
+double fastpm_model_measure_large_scale_power(FastPMModel * model, FastPMStore * p);
 void fastpm_model_destroy(FastPMModel * model);
 void fastpm_model_build(FastPMModel * model, double ainit, double afinal);
 void fastpm_model_evolve(FastPMModel * model, double af);
@@ -36,15 +36,15 @@ void fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k);
 
 void 
 fastpm_kick_store(FastPMSolver * fastpm, 
-              PMStore * pi, PMStore * po,
+              FastPMStore * pi, FastPMStore * po,
               double af);
 
 void 
 fastpm_drift_store(FastPMSolver * fastpm,
-               PMStore * pi, PMStore * po,
+               FastPMStore * pi, FastPMStore * po,
                double af);
 
 void 
 fastpm_set_snapshot(FastPMSolver * fastpm,
-                PMStore * p, PMStore * po,
+                FastPMStore * p, FastPMStore * po,
                 double aout);

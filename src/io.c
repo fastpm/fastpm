@@ -36,7 +36,7 @@ static Cosmology CP(FastPMSolver * fastpm) {
 }
 
 int 
-write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * parameters, int Nwriters) 
+write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
 
     int NTask = fastpm->NTask;
@@ -112,7 +112,7 @@ write_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase, char * param
 }
 
 int 
-read_snapshot(FastPMSolver * fastpm, PMStore * p, char * filebase)
+read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase)
 {
     return 0;
 }

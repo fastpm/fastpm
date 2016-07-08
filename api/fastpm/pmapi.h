@@ -32,14 +32,14 @@ typedef struct {
 #define PACK_DX2_Y   (1 << 17)
 #define PACK_DX2_Z   (1 << 18)
 
-struct PMStore {
+struct FastPMStore {
     fastpm_posfunc get_position;
 
-    size_t (*pack)  (PMStore * p, ptrdiff_t index, void * packed, int attributes);
-    void   (*unpack)(PMStore * p, ptrdiff_t index, void * packed, int attributes);
-    void   (*reduce)(PMStore * p, ptrdiff_t index, void * packed, int attributes);
-    double (*to_double)(PMStore * p, ptrdiff_t index, int attribute);
-    void   (*from_double)(PMStore * p, ptrdiff_t index, int attribute, double value);
+    size_t (*pack)  (FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
+    void   (*unpack)(FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
+    void   (*reduce)(FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
+    double (*to_double)(FastPMStore * p, ptrdiff_t index, int attribute);
+    void   (*from_double)(FastPMStore * p, ptrdiff_t index, int attribute, double value);
 
     FastPMMemory * mem;
 

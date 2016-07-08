@@ -9,7 +9,6 @@
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
-#include "pmstore.h"
 #include "pmghosts.h"
 #include "pm2lpt.h"
 #include "solver-pm-internal.h"
@@ -21,18 +20,18 @@ typedef struct {
 static void fastpm_model_linear_build(FastPMModel * model, double ainit, double afinal)
 {
     FastPMModelLinearPriv * priv = model->priv;
-    PMStore * p = model->fastpm->p;
+    FastPMStore * p = model->fastpm->p;
 
-    PMStore psub[1];
-    pm_store_init(psub);
-    pm_store_alloc(psub, 1.0 * p->np_upper / model->factor, p->attributes);
-    pm_store_create_subsample(psub, p, model->factor, model->fastpm->nc);
+    FastPMStore psub[1];
+    fastpm_store_init(psub);
+    fastpm_store_alloc(psub, 1.0 * p->np_upper / model->factor, p->attributes);
+    fastpm_store_create_subsample(psub, p, model->factor, model->fastpm->nc);
 
     pm_2lpt_evolve(ainit, psub, model->fastpm->omega_m, 0);
-    pm_store_wrap(psub, model->pm->BoxSize);
+    fastpm_store_wrap(psub, model->pm->BoxSize);
     priv->Plin = fastpm_model_measure_large_scale_power(model, psub);
     priv->Plin /= pow(fastpm_growth_factor(model->fastpm, ainit), 2);
-    pm_store_destroy(psub);
+    fastpm_store_destroy(psub);
 }
 
 static void fastpm_model_linear_evolve(FastPMModel * model, double af)

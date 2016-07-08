@@ -8,7 +8,6 @@
 #include <fastpm/string.h>
 #include <fastpm/transfer.h>
 
-#include "pmstore.h"
 #include "pmpfft.h"
 #include "pmghosts.h"
 
@@ -43,7 +42,7 @@ fastpm_utils_get_random(uint64_t id)
 }
 
 void
-fastpm_utils_paint(PM * pm, PMStore * p, 
+fastpm_utils_paint(PM * pm, FastPMStore * p, 
     FastPMFloat * delta_x, 
     FastPMFloat * delta_k,
     fastpm_posfunc get_position,
@@ -75,7 +74,7 @@ fastpm_utils_paint(PM * pm, PMStore * p,
 }
 
 void
-fastpm_utils_readout(PM * pm, PMStore * p,
+fastpm_utils_readout(PM * pm, FastPMStore * p,
     FastPMFloat * delta_x,
     fastpm_posfunc get_position,
     int attribute

@@ -21,12 +21,12 @@ double fastpm_painter_readout(FastPMPainter * painter, FastPMFloat * canvas, dou
 
 void
 fastpm_paint_store(FastPMPainter * pm, FastPMFloat * canvas,
-        PMStore * p, size_t size,
+        FastPMStore * p, size_t size,
         fastpm_posfunc get_position, int attribute);
 
 void
 fastpm_readout_store(FastPMPainter * pm, FastPMFloat * canvas,
-        PMStore * p, size_t size,
+        FastPMStore * p, size_t size,
         fastpm_posfunc get_position, int attribute);
 
 FASTPM_END_DECLS

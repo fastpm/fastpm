@@ -10,14 +10,14 @@
 #include <fastpm/hmc.h>
 
 static void
-get_lagrangian_position(PMStore * p, ptrdiff_t index, double pos[3])
+get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->q[index][0];
     pos[1] = p->q[index][1];
     pos[2] = p->q[index][2];
 }
 static void
-get_position(PMStore * p, ptrdiff_t index, double pos[3])
+get_position(FastPMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->x[index][0];
     pos[1] = p->x[index][1];

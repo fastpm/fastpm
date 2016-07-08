@@ -38,22 +38,22 @@ static void
 parse_args(int * argc, char *** argv, Parameters * prr);
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Parameters * prr);
+take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
 
 static void
 fix_ic_mode(PM * pm, FastPMFloat * from, FastPMFloat * to, int * mode, double value);
 
 int 
-read_runpb_ic(FastPMSolver * fastpm, PMStore * p, const char * filename);
+read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename);
 
 void 
 read_grafic_gaussian(PM * pm, FastPMFloat * g_x, const char * filename);
 
 int
-write_runpb_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase);
+write_runpb_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
-write_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase, char * parameters, int Nwriters);
+write_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase, char * parameters, int Nwriters);
 
 int
 write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
@@ -62,7 +62,7 @@ int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
 
 int
-read_snapshot(FastPMSolver * fastpm, PMStore * p, const char * filebase);
+read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
 read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
@@ -318,7 +318,7 @@ static int check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * pr
 }
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, PMStore * snapshot, double aout, Parameters * prr) 
+take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr) 
 {
     CLOCK(io);
     CLOCK(meta);

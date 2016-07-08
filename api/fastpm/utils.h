@@ -14,11 +14,11 @@ double
 fastpm_utils_powerspec_white(double k, double * amplitude); /* white noise. */
 
 void
-fastpm_utils_paint(PM * pm, PMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k,
+fastpm_utils_paint(PM * pm, FastPMStore * p, FastPMFloat * delta_x, FastPMFloat * delta_k,
         fastpm_posfunc get_position, int attribute);
 
 void
-fastpm_utils_readout(PM * pm, PMStore * p, FastPMFloat * delta_x,
+fastpm_utils_readout(PM * pm, FastPMStore * p, FastPMFloat * delta_x,
         fastpm_posfunc get_position, int attribute);
 
 void
