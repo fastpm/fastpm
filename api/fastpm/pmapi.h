@@ -68,6 +68,7 @@ MPI_Comm pm_comm(PM * pm);
 double pm_norm(PM * pm);
 ptrdiff_t * pm_nmesh(PM * pm);
 double * pm_boxsize(PM * pm);
+double pm_volume(PM * pm);
 PMRegion * pm_i_region(PM * pm);
 PMRegion * pm_o_region(PM * pm);
 

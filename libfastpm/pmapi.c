@@ -48,6 +48,10 @@ double * pm_boxsize(PM * pm) {
     return pm->BoxSize;
 }
 
+double pm_volume(PM * pm) {
+    return pm->Volume;
+}
+
 PMRegion * pm_i_region(PM * pm) {
     return &pm->IRegion;
 }

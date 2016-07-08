@@ -8,10 +8,18 @@
 
 #include "pmpfft.h"
 
-static void get_position(FastPMStore * p, ptrdiff_t index, double pos[3]) {
+void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3])
+{
     pos[0] = p->x[index][0];
     pos[1] = p->x[index][1];
     pos[2] = p->x[index][2];
+}
+
+void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3])
+{
+    pos[0] = p->q[index][0];
+    pos[1] = p->q[index][1];
+    pos[2] = p->q[index][2];
 }
 
 static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
@@ -189,7 +197,7 @@ fastpm_store_init(FastPMStore * p)
     p->pack = pack;
     p->unpack = unpack;
     p->reduce = reduce;
-    p->get_position = get_position;
+    p->get_position = fastpm_store_get_position;
     p->to_double = to_double;
     p->from_double = from_double;
 }

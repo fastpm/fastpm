@@ -44,5 +44,8 @@ fastpm_store_create_subsample(FastPMStore * out, FastPMStore * in, int mod, int 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
+void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
+void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
+
 #endif
 

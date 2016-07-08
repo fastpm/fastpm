@@ -13,7 +13,7 @@
 #include "pmpfft.h"
 
 void
-fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, size_t size)
+fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, const size_t size)
 {
     ps->size = size;
     ps->pm = NULL;
@@ -24,7 +24,7 @@ fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, size_t size)
 }
 
 void
-fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, FastPMPowerSpectrum * other)
+fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, const FastPMPowerSpectrum * other)
 {
     fastpm_powerspectrum_init(ps, other->size);
     memcpy(ps->k, other->k, sizeof(ps->k[0]) * ps->size);
@@ -34,7 +34,7 @@ fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, FastPMPowerSpectrum * o
 }
 
 void
-fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k)
+fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const FastPMFloat * delta1_k, const FastPMFloat * delta2_k)
 {
     /* This function measures powerspectrum from two overdensity or 1+overdensity fields */
     /* normalize them with fastpm_apply_normalize_transfer if needed before using this function.*/

@@ -16,10 +16,10 @@ void
 fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, size_t size);
 
 void
-fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, FastPMPowerSpectrum * other);
+fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, const FastPMPowerSpectrum * other);
 
 void
-fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * delta1_k, FastPMFloat * delta2_k);
+fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const FastPMFloat * delta1_k, const FastPMFloat * delta2_k);
 
 void
 fastpm_transferfunction_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * src_k, FastPMFloat * dest_k);
