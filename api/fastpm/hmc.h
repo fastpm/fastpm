@@ -26,7 +26,7 @@ typedef struct {
     PMStore * p;
 
     FastPM2LPTSolver solver;
-    FastPM pm_solver;
+    FastPMSolverPM pm_solver;
     FastPMFloat * delta_ic_k;
     FastPMFloat * rho_final_x;
     FastPMFloat * transfer_function;

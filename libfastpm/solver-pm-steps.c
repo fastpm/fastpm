@@ -35,12 +35,12 @@
 #include "vpm.h"
 
 static double 
-Sq(double ai, double af, double aRef, FastPM * );
+Sq(double ai, double af, double aRef, FastPMSolverPM * );
 
 static double 
-Sphi(double ai, double af, double aRef, FastPM * );
+Sphi(double ai, double af, double aRef, FastPMSolverPM * );
 
-static Cosmology CP(FastPM * fastpm) {
+static Cosmology CP(FastPMSolverPM * fastpm) {
     Cosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
@@ -49,7 +49,7 @@ static Cosmology CP(FastPM * fastpm) {
 }
 
 double
-fastpm_growth_factor(FastPM * fastpm, double a)
+fastpm_growth_factor(FastPMSolverPM * fastpm, double a)
 {
     return GrowthFactor(a, CP(fastpm));
 }
@@ -83,7 +83,7 @@ fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
 // Leap frog time integration
 
 void 
-fastpm_kick_store(FastPM * fastpm, 
+fastpm_kick_store(FastPMSolverPM * fastpm, 
               PMStore * pi, PMStore * po, double af)
 {
     FastPMKick * kick = alloca(sizeof(FastPMKick));
@@ -138,7 +138,7 @@ static double g_f(double a, Cosmology c)
                    + a * a * a * E * d2Dda2;
     return g_f;
 }
-void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double af)
+void fastpm_kick_init(FastPMKick * kick, FastPMSolverPM * fastpm, PMStore * pi, double af)
 {
     double ai = pi->a_v;
     double ac = pi->a_x;
@@ -162,7 +162,7 @@ void fastpm_kick_init(FastPMKick * kick, FastPM * fastpm, PMStore * pi, double a
 }
 
 void
-fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
+fastpm_drift_init(FastPMDrift * drift, FastPMSolverPM * fastpm, PMStore * pi,
                double af)
 {
     double ai = pi->a_x;
@@ -185,7 +185,7 @@ fastpm_drift_init(FastPMDrift * drift, FastPM * fastpm, PMStore * pi,
 }
 
 void
-fastpm_drift_store(FastPM * fastpm,
+fastpm_drift_store(FastPMSolverPM * fastpm,
                PMStore * pi, PMStore * po,
                double af)
 {
@@ -218,28 +218,28 @@ double gpQ(double a, double nLPT) {
     return pow(a, nLPT);
 }
 
-static double stddriftfunc (double a, FastPM * fastpm) {
+static double stddriftfunc (double a, FastPMSolverPM * fastpm) {
     return 1 / (pow(a, 3) * HubbleEa(a, CP(fastpm)));
 }
 
-static double nonstddriftfunc (double a, FastPM * fastpm) {
+static double nonstddriftfunc (double a, FastPMSolverPM * fastpm) {
     return gpQ(a, fastpm->nLPT)/(pow(a, 3) * HubbleEa(a, CP(fastpm)));
 }
 
-static double stdkickfunc (double a, FastPM * fastpm) {
+static double stdkickfunc (double a, FastPMSolverPM * fastpm) {
     return 1/ (pow(a, 2) * HubbleEa(a, CP(fastpm)));
 }
 
 static double integrand(double a, void * params) {
     void ** p = (void**) params;
-    double (*func)(double a, FastPM * s) = p[0];
-    FastPM * s = p[1];
+    double (*func)(double a, FastPMSolverPM * s) = p[0];
+    FastPMSolverPM * s = p[1];
     return func(a, s);
 }
 
 double integrate(double ai, double af,
-        FastPM * fastpm,
-        double (*func)(double , FastPM * )) {
+        FastPMSolverPM * fastpm,
+        double (*func)(double , FastPMSolverPM * )) {
 
     gsl_integration_workspace * w
         = gsl_integration_workspace_alloc (5000);
@@ -266,7 +266,7 @@ double integrate(double ai, double af,
        */
 
 static double 
-Sq(double ai, double af, double aRef, FastPM * fastpm)
+Sq(double ai, double af, double aRef, FastPMSolverPM * fastpm)
 {
     double resultstd, result;
 
@@ -292,7 +292,7 @@ double DERgpQ(double a, double nLPT) {
 
 
 static double 
-Sphi(double ai, double af, double aRef, FastPM * fastpm) 
+Sphi(double ai, double af, double aRef, FastPMSolverPM * fastpm) 
 {
     double result;
     double resultstd;
@@ -316,7 +316,7 @@ Sphi(double ai, double af, double aRef, FastPM * fastpm)
 
 // Interpolate position and velocity for snapshot at a=aout
 void 
-fastpm_set_snapshot(FastPM * fastpm,
+fastpm_set_snapshot(FastPMSolverPM * fastpm,
                 PMStore * p, PMStore * po,
                 double aout)
 {

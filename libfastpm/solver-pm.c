@@ -16,7 +16,7 @@
 #include "solver-pm-internal.h"
 
 static void 
-fastpm_set_time(FastPM * fastpm, 
+fastpm_set_time(FastPMSolverPM * fastpm, 
     int istep,
     double * time_step,
     int nstep,
@@ -26,7 +26,7 @@ fastpm_set_time(FastPM * fastpm,
     double * a_v1);
 
 static void
-fastpm_decompose(FastPM * fastpm);
+fastpm_decompose(FastPMSolverPM * fastpm);
 
 
 #define MAX(a, b) (a)>(b)?(a):(b)
@@ -39,7 +39,7 @@ scale_acc(PMStore * po, double correction, double fudge);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 
-void fastpm_init(FastPM * fastpm, 
+void fastpm_init(FastPMSolverPM * fastpm, 
     int NprocY, 
     int UseFFTW, 
     MPI_Comm comm) {
@@ -92,7 +92,7 @@ void fastpm_init(FastPM * fastpm,
 }
 
 void
-fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
+fastpm_setup_ic(FastPMSolverPM * fastpm, FastPMFloat * delta_k_ic)
 {
 
     PM * pm_2lpt = fastpm->pm_2lpt;
@@ -122,7 +122,7 @@ fastpm_setup_ic(FastPM * fastpm, FastPMFloat * delta_k_ic)
 }
 
 void
-fastpm_evolve(FastPM * fastpm, double * time_step, int nstep) 
+fastpm_evolve(FastPMSolverPM * fastpm, double * time_step, int nstep) 
 {
     CLOCK(decompose);
     CLOCK(force);
@@ -239,7 +239,7 @@ fastpm_evolve(FastPM * fastpm, double * time_step, int nstep)
 }
 
 void
-fastpm_destroy(FastPM * fastpm) 
+fastpm_destroy(FastPMSolverPM * fastpm) 
 {
     pm_destroy(fastpm->pm_2lpt);
     free(fastpm->pm_2lpt);
@@ -269,7 +269,7 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
 }
 
 static void
-fastpm_decompose(FastPM * fastpm) {
+fastpm_decompose(FastPMSolverPM * fastpm) {
     PM * pm = fastpm->base.pm;
     PMStore * p = fastpm->base.p;
     /* apply periodic boundary and move particles to the correct rank */
@@ -288,7 +288,7 @@ fastpm_decompose(FastPM * fastpm) {
 }
 
 void 
-fastpm_interp(FastPM * fastpm, double * aout, int nout, 
+fastpm_interp(FastPMSolverPM * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata) 
 {
     /* interpolate and write snapshots, assuming p 
@@ -340,7 +340,7 @@ scale_acc(PMStore * po, double correction, double fudge)
 }
 
 static void 
-fastpm_set_time(FastPM * fastpm, 
+fastpm_set_time(FastPMSolverPM * fastpm, 
     int istep,
     double * time_step,
     int nstep,
@@ -369,7 +369,7 @@ fastpm_set_time(FastPM * fastpm,
 }
 
 void 
-fastpm_add_extension(FastPM * fastpm, 
+fastpm_add_extension(FastPMSolverPM * fastpm, 
     enum FastPMExtensionPoint where,
     void * function, void * userdata) 
 {

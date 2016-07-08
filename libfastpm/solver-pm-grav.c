@@ -221,7 +221,7 @@ gaussian36(double k, double * knq)
 }
 
 void
-fastpm_calculate_forces(FastPM * fastpm, FastPMFloat * delta_k)
+fastpm_calculate_forces(FastPMSolverPM * fastpm, FastPMFloat * delta_k)
 {
     PMStore * p = fastpm->base.p;
     PM * pm = fastpm->base.pm;

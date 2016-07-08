@@ -25,7 +25,7 @@ get_position(PMStore * p, ptrdiff_t index, double pos[3])
 }
 
 static void
-fastpm_pm_init(FastPM * fastpm, PMStore * p, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
+fastpm_pm_init(FastPMSolverPM * fastpm, PMStore * p, int nmesh, int nc, double boxsize, double alloc_factor, double omega_m, MPI_Comm comm)
 {
     fastpm->nc = nc;
     fastpm->boxsize = boxsize;
@@ -76,7 +76,6 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 
     self->delta_ic_k = pm_alloc(self->pm);
     self->rho_final_x = pm_alloc(self->pm);
-    self->transfer_function = pm_alloc(self->pm);
     if(self->IncludeRSD) {
         fastpm_info("Using RSD along z\n");
     }
@@ -86,7 +85,6 @@ fastpm_hmc_za_init(FastPMHMCZA * self, MPI_Comm comm)
 void
 fastpm_hmc_za_destroy(FastPMHMCZA * self)
 {
-    pm_free(self->pm, self->transfer_function);
     pm_free(self->pm, self->rho_final_x);
     pm_free(self->pm, self->delta_ic_k);
     fastpm_destroy(&self->pm_solver);
@@ -108,7 +106,7 @@ fastpm_hmc_za_evolve_internal(
 
         self->p = solver->base.p;
     } else {
-        FastPM * solver = &self->pm_solver;
+        FastPMSolverPM * solver = &self->pm_solver;
         double time_step[Nsteps];
         double ainit = 0.1;
         double afinal = 1.0;
