@@ -2,7 +2,7 @@
 ------ Size of the simulation -------- 
 
 -- For Testing
-nc = 128
+nc = 32
 boxsize = 384.0
 if args[2] == 'za' then
     za = true
