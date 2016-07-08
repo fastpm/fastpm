@@ -3,6 +3,22 @@
 #include <stdio.h>
 #include <string.h>
 #include "bigfile-mpi.h"
+
+/* disable aggregation by default */
+static size_t _BigFileAggThreshold = 0;
+
+void
+big_file_mpi_set_aggregated_threshold(size_t bytes)
+{
+    _BigFileAggThreshold = bytes;
+}
+
+size_t
+big_file_mpi_get_aggregated_threshold()
+{
+    return _BigFileAggThreshold;
+}
+
 int big_file_mpi_open(BigFile * bf, const char * basename, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
     int rank;
@@ -177,18 +193,33 @@ static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm) {
     return 0;
 }
 
-typedef struct {
+typedef struct ThrottlePlan {
     MPI_Comm group;
     int GroupSize;
     int GroupRank;
     size_t offset;
     size_t totalsize;
+    size_t localsize;
+    size_t grouptotalsize;
+    size_t elsize;
+    MPI_Datatype mpidtype;
+    BigBlock * block;
+    int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
+    int (*execute)(struct ThrottlePlan * plan, BigBlockPtr * ptr, BigArray * array);
 } ThrottlePlan;
 
-static int _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, size_t localsize)
+static int
+_throttle_plan_execute_agg(ThrottlePlan * plan,
+            BigBlockPtr * ptr, BigArray * array);
+static int
+_throttle_plan_execute_turns(ThrottlePlan * plan,
+            BigBlockPtr * ptr, BigArray * array);
+static int
+_throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, BigBlock * block, size_t localsize,
+    int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
+)
 {
-    int ThisTask;
-    int NTask;
+    int ThisTask, NTask;
 
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
@@ -196,14 +227,16 @@ static int _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurr
     if(concurrency <= 0) {
         concurrency = NTask;
     }
+
     int color = ThisTask * concurrency / NTask;
     MPI_Comm_split(MPI_COMM_WORLD, color, ThisTask, &plan->group);
     MPI_Comm_size(plan->group, &plan->GroupSize);
     MPI_Comm_rank(plan->group, &plan->GroupRank);
     MPI_Allreduce(MPI_IN_PLACE, &plan->GroupSize, 1, MPI_INT, MPI_MAX, comm);
 
-    ptrdiff_t offsets[NTask + 1];
-    ptrdiff_t sizes[NTask];
+    ptrdiff_t offsets[NTask + 1], sizes[NTask];
+    ptrdiff_t grouptotalsize;
+
     MPI_Datatype MPI_PTRDIFFT;
 
     if(sizeof(ptrdiff_t) == sizeof(long)) {
@@ -216,68 +249,137 @@ static int _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurr
     }
     sizes[ThisTask] = localsize;
 
+    MPI_Allreduce(&localsize, &grouptotalsize, 1, MPI_PTRDIFFT, MPI_SUM, plan->group);
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_PTRDIFFT, comm);
-    ptrdiff_t size = 0;
     offsets[0] = 0;
     int i;
     for(i = 0; i < NTask; i ++) {
         offsets[i + 1] = offsets[i] + sizes[i];
     }
     plan->offset = offsets[ThisTask];
-    plan->totalsize = sizes[NTask];
+    plan->totalsize = offsets[NTask];
+    plan->localsize = localsize;
+    plan->grouptotalsize = grouptotalsize;
+    plan->elsize = dtype_itemsize(block->dtype) * block->nmemb;
+    plan->action = action;
+    plan->block = block;
+
+    MPI_Type_contiguous(plan->elsize, MPI_BYTE, &plan->mpidtype);
+    MPI_Type_commit(&plan->mpidtype);
+
+    size_t gbytes = plan->grouptotalsize * plan->elsize;
+    if(gbytes <= _BigFileAggThreshold) {
+        plan->execute = _throttle_plan_execute_agg;
+    } else {
+        plan->execute = _throttle_plan_execute_turns;
+    }
     return 0;
 }
 
 static int _throttle_plan_destroy(ThrottlePlan * plan)
 {
     MPI_Comm_free(&plan->group);
+    MPI_Type_free(&plan->mpidtype);
 }
 
-int big_block_mpi_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array, int concurrency, MPI_Comm comm)
+static int
+_throttle_plan_execute_agg(ThrottlePlan * plan,
+            BigBlockPtr * ptr, BigArray * array)
 {
-    /* FIXME: make the exception collective */
-    ThrottlePlan plan;
-    _throttle_plan_create(&plan, comm, concurrency, array->dims[0]);
-
-    BigBlockPtr ptr1 = * ptr;
-
-    /* TODO: aggregrate if the array is sufficiently small */
+    /* This will aggregate to the root and write */
+    BigBlockPtr ptr1[1] = {*ptr};
     int i;
     int e = 0;
-    for(i = 0; i < plan.GroupSize; i ++) {
-        MPI_Allreduce(MPI_IN_PLACE, &e, 1, MPI_INT, MPI_LOR, plan.group);
-        if (e) continue;
-        if (i != plan.GroupRank) continue;
-        big_block_seek_rel(bb, &ptr1, plan.offset);
-        e = big_block_write(bb, &ptr1, array);
+    BigArray garray[1], larray[1];
+    BigArrayIter iarray[1], ilarray[1];
+    void * lbuf = malloc(plan->elsize * plan->localsize);
+    void * gbuf = NULL;
+
+    int recvcounts[plan->GroupSize];
+    int recvdispls[plan->GroupSize + 1];
+
+    recvdispls[0] = 0;
+    recvcounts[plan->GroupRank] = plan->localsize;
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, recvcounts, 1, MPI_INT, plan->group);
+
+    for(i = 0; i < plan->GroupSize; i ++) {
+        recvdispls[i + 1] = recvdispls[i] + recvcounts[i];
     }
 
-    big_block_seek_rel(bb, ptr, plan.totalsize);
+    big_array_init(larray, lbuf, plan->block->dtype, 2, (size_t[]){plan->localsize, plan->block->nmemb}, NULL);
 
-    _throttle_plan_destroy(&plan);
+    big_array_iter_init(iarray, array);
+    big_array_iter_init(ilarray, larray);
+
+    if(plan->GroupRank == 0) {
+        gbuf = malloc(plan->grouptotalsize * plan->elsize);
+        big_array_init(garray, gbuf, plan->block->dtype, 2, (size_t[]){plan->grouptotalsize, plan->block->nmemb}, NULL);
+    }
+
+    if(plan->action == big_block_write) {
+        _dtype_convert(ilarray, iarray, plan->localsize * plan->block->nmemb);
+        MPI_Gatherv(lbuf, recvcounts[plan->GroupRank], plan->mpidtype,
+                    gbuf, recvcounts, recvdispls, plan->mpidtype, 0, plan->group);
+    }
+    if(plan->GroupRank == 0) {
+        big_block_seek_rel(plan->block, ptr1, plan->offset);
+        e = plan->action(plan->block, ptr1, garray);
+    }
+    if(plan->action == big_block_read) {
+        MPI_Scatterv(gbuf, recvcounts, recvdispls, plan->mpidtype,
+                    lbuf, plan->localsize, plan->mpidtype, 0, plan->group);
+        _dtype_convert(iarray, ilarray, plan->localsize * plan->block->nmemb);
+    }
+    if(plan->GroupRank == 0) {
+        free(gbuf);
+    }
+    free(lbuf);
+
+    big_block_seek_rel(plan->block, ptr, plan->totalsize);
     return e;
 }
 
-int big_block_mpi_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array, int concurrency, MPI_Comm comm)
+static int
+_throttle_plan_execute_turns(ThrottlePlan * plan,
+            BigBlockPtr * ptr, BigArray * array)
 {
-    /* FIXME: make the exception collective */
-    ThrottlePlan plan;
-    _throttle_plan_create(&plan, comm, concurrency, array->dims[0]);
-
-    BigBlockPtr ptr1 = * ptr;
-    /* TODO: aggregrate if the array is sufficiently small */
     int i;
     int e = 0;
-    for(i = 0; i < plan.GroupSize; i ++) {
-        MPI_Allreduce(MPI_IN_PLACE, &e, 1, MPI_INT, MPI_LOR, plan.group);
+    BigBlockPtr ptr1[1] = {*ptr};
+    for(i = 0; i < plan->GroupSize; i ++) {
+        MPI_Allreduce(MPI_IN_PLACE, &e, 1, MPI_INT, MPI_LOR, plan->group);
         if (e) continue;
-        if (i != plan.GroupRank) continue;
-        big_block_seek_rel(bb, &ptr1, plan.offset);
-        e = big_block_read(bb, &ptr1, array);
+        if (i != plan->GroupRank) continue;
+        big_block_seek_rel(plan->block, ptr1, plan->offset);
+        e = plan->action(plan->block, ptr1, array);
     }
 
-    big_block_seek_rel(bb, ptr, plan.totalsize);
-
-    _throttle_plan_destroy(&plan);
+    big_block_seek_rel(plan->block, ptr, plan->totalsize);
     return e;
+}
+
+int
+big_block_mpi_write(BigBlock * block, BigBlockPtr * ptr, BigArray * array, int concurrency, MPI_Comm comm)
+{
+    /* FIXME: make the exception collective */
+    ThrottlePlan plan[1];
+    _throttle_plan_create(plan, comm, concurrency, block, array->dims[0], big_block_write);
+
+    int rt = plan->execute(plan, ptr, array);
+
+    _throttle_plan_destroy(plan);
+    return rt;
+}
+
+int
+big_block_mpi_read(BigBlock * block, BigBlockPtr * ptr, BigArray * array, int concurrency, MPI_Comm comm)
+{
+    /* FIXME: make the exception collective */
+    ThrottlePlan plan[1];
+
+    _throttle_plan_create(plan, comm, concurrency, block, array->dims[0], big_block_read);
+    int rt = plan->execute(plan, ptr, array);
+
+    _throttle_plan_destroy(plan);
+    return rt;
 }

@@ -63,6 +63,16 @@ int big_block_mpi_close(BigBlock * block, MPI_Comm comm);
 /** Helper function for big_file_mpi_open_block, above*/
 int big_block_mpi_open(BigBlock * bb, const char * basename, MPI_Comm comm);
 
+/** Set the threshold that enables the aggregated IO.
+ *
+ *  If the total size of data per concurrent writer group is less than the threshold,
+ *  the data is aggregated to the leader rank of the writer group for writing, to reduce
+ *  the total number of IO requests issued to the file server.
+ *
+ * */
+void big_file_mpi_set_aggregated_threshold(size_t bytes);
+size_t big_file_mpi_get_aggregated_threshold();
+
 /** Write data stored in a BigArray to a BigBlock.
  * You cannot write beyond the end of the size of the block.
  * The value may be a (small) array.

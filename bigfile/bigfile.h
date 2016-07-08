@@ -195,6 +195,8 @@ void dtype_parse(const char * buffer, const char * dtype, void * data, const cha
 int dtype_itemsize(const char * dtype);
 int dtype_normalize(char * dst, const char * src);
 
+int _dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
+
 /** Create a BigArray from raw memory.
  *
  * A BigArray is a checked, multidimensional, array format. It is used to provide metadata

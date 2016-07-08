@@ -62,8 +62,6 @@ attrset_get_attr(BigAttrSet * attrset, const char * attrname, void * data, const
 
 /* Internal dtype API */
 static int
-dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
-static int
 dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const char * srcdtype, size_t nmemb);
 
 /* global settings */
@@ -727,7 +725,7 @@ big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
         fclose(fp);
 
         /* now translate the data from chunkbuf to mptr */
-        dtype_convert(&array_iter, &chunk_iter, chunk_size * bb->nmemb);
+        _dtype_convert(&array_iter, &chunk_iter, chunk_size * bb->nmemb);
 
         toread -= chunk_size;
         RAISEIF(0 != big_block_seek_rel(bb, ptr, chunk_size),
@@ -798,7 +796,7 @@ big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
         big_array_iter_init(&chunk_iter, &chunk_array);
 
         /* now translate the data to format in the file*/
-        dtype_convert(&chunk_iter, &array_iter, chunk_size * bb->nmemb);
+        _dtype_convert(&chunk_iter, &array_iter, chunk_size * bb->nmemb);
 
         sysvsum(&bb->fchecksum[ptr->fileid], chunkbuf, chunk_size * felsize);
 
@@ -1057,13 +1055,13 @@ dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const 
     big_array_init(&src_array, (void*) src, srcdtype, 1, &nmemb, NULL);
     big_array_iter_init(&dst_iter, &dst_array);
     big_array_iter_init(&src_iter, &src_array);
-    return dtype_convert(&dst_iter, &src_iter, nmemb);
+    return _dtype_convert(&dst_iter, &src_iter, nmemb);
 }
 
 static void cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
 static void byte_swap(BigArrayIter * array, size_t nmemb);
-static int
-dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
+int
+_dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
 {
     /* cast buf2 of dtype2 into buf1 of dtype1 */
     /* match src to machine endianness */
