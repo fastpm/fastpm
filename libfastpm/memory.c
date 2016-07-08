@@ -28,12 +28,12 @@ _align(size_t old, size_t alignment)
 }
 
 void
-fastpm_memory_init(FastPMMemory * m, size_t total_bytes)
+fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered)
 {
     m->heap = &head;
     m->stack = &head;
 
-    if(total_bytes != 0) {
+    if(total_bytes > 0) {
         total_bytes = _align(total_bytes, m->alignment);
 
         m->base0 = (char*) malloc(total_bytes + m->alignment);
@@ -44,8 +44,10 @@ fastpm_memory_init(FastPMMemory * m, size_t total_bytes)
         m->base0 = NULL;
         m->base = NULL;
         m->top = NULL;
+
     }
 
+    m->allow_unordered = 1;
     m->free_bytes = total_bytes;
     m->total_bytes = total_bytes;
     m->used_bytes = 0;
@@ -122,38 +124,65 @@ fastpm_memory_alloc(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
     return entry->p;
 }
 
+MemoryBlock * _delist(MemoryBlock ** start, void * p, int * isfirst)
+{
+    MemoryBlock * entry = NULL;
+    MemoryBlock * last= NULL;
+    *isfirst = entry == *start;
+
+    for(entry=*start;
+        entry != &head; last=entry, entry=entry->prev) {
+        if(entry->p == p) {
+            break;
+        }
+    }
+    if(entry == &head) return NULL;
+
+    if(last) {
+        last->prev = entry->prev;
+    } else {
+        *start = entry->prev;
+    }
+    return entry;
+}
+
+
 void
 fastpm_memory_free(FastPMMemory * m, void * p)
 {
-    MemoryBlock * entry = NULL;
-
-    if(m->stack->p == p) {
-        entry = m->stack;
-        m->stack = entry->prev;
+    MemoryBlock * entry;
+    int isfirst = 0;
+    entry = _delist(&m->stack, p, &isfirst);
+    if(entry) {
+        if(!m->allow_unordered && !isfirst) {
+            abort();
+        }
         if(m->top) {
             m->top += entry->size;
         } else {
             free(entry->p);
         }
-    } else
-    if(m->heap->p == p) {
-        entry = m->heap;
-        m->heap = entry->prev;
+        goto exit;
+    }
+
+    entry = _delist(&m->heap, p, &isfirst);
+    if(entry) {
+        if(!m->allow_unordered && !isfirst) {
+            abort();
+        }
         if(m->base) {
             m->base -= entry->size;
         } else {
             free(entry->p);
         }
-    } else {
-        goto fail;
+        goto exit;
     }
 
+exit:
     m->used_bytes -= entry->size;
     m->free_bytes += entry->size;
 
     free(entry);
 
     return;
-fail:
-    abort();
 }

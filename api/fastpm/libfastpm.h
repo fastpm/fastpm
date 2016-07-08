@@ -35,7 +35,7 @@ typedef struct FastPMPainter FastPMPainter;
 
 void libfastpm_init();
 void libfastpm_cleanup();
-void libfastpm_set_memory_bound(size_t size);
+void libfastpm_set_memory_bound(size_t size, int allow_unordered);
 
 FASTPM_END_DECLS
 

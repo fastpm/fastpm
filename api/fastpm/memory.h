@@ -20,6 +20,8 @@ struct FastPMMemory {
     size_t alignment;
     size_t total_bytes;
 
+    int allow_unordered;
+
     MemoryBlock * heap;
     MemoryBlock * stack;
     size_t peak_bytes;
@@ -36,7 +38,7 @@ enum FastPMMemoryLocation {
 };
 
 void
-fastpm_memory_init(FastPMMemory * m, size_t total_bytes);
+fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered);
 
 void
 fastpm_memory_tag(FastPMMemory * m, void * p, const char * tag);
