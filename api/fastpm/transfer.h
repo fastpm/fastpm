@@ -24,4 +24,7 @@ fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_
 void
 fastpm_apply_normalize_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 
+void
+fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value);
+
 FASTPM_END_DECLS

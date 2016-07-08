@@ -232,3 +232,37 @@ fastpm_apply_normalize_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
     }
     fastpm_apply_multiply_transfer(pm, from, to, 1 / Norm);
 }
+void
+fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value)
+{
+    ptrdiff_t * Nmesh = pm_nmesh(pm);
+
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            to[kiter.ind + 0] = from[kiter.ind + 0];
+            to[kiter.ind + 1] = from[kiter.ind + 1];
+
+            if((
+                kiter.iabs[0] == mode[0] &&
+                kiter.iabs[1] == mode[1] &&
+                kiter.iabs[2] == mode[2]
+            )) {
+                to[kiter.ind + mode[3]] = value;
+            }
+            if((
+                kiter.iabs[0] == (Nmesh[0] - mode[0]) % Nmesh[0] &&
+                kiter.iabs[1] == (Nmesh[1] - mode[1]) % Nmesh[1] &&
+                kiter.iabs[2] == (Nmesh[2] - mode[2]) % Nmesh[2]
+            )) {
+                /* conjugate plane */
+                to[kiter.ind + mode[3]] = value;
+                to[kiter.ind + mode[3]] *= ((mode[3] == 0)?1:-1);
+            }
+        }
+    }
+}
