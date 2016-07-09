@@ -20,16 +20,16 @@ int main(int argc, char * argv[]) {
 
 
     FastPMHMCZA * self = &(FastPMHMCZA) {
-            .BoxSize = 512.,
-            .Nmesh = 128,
-            .Ngrid = 128,
-            .OmegaM = 0.304,
+            .BoxSize = 256.,
+            .Nmesh = 64,
+            .Ngrid = 64,
+            .OmegaM = 0.300,
             .KThreshold = 0.0,
             .DeconvolveCIC = 0,
             .LPTOrder = 1,
             .SmoothingLength = 8,
             .IncludeRSD = 0,
-	    .AllocFactor = 2.0,
+            .AllocFactor = 2.0,
         };
 
     fastpm_hmc_za_init(self, comm);

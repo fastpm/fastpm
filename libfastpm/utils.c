@@ -48,6 +48,7 @@ fastpm_utils_paint(PM * pm, FastPMStore * p,
     fastpm_posfunc get_position,
     int attribute)
 {
+    /* This paints count per cell */
     FastPMPainter painter;
 
     if(get_position == NULL) {
