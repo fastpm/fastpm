@@ -9,9 +9,9 @@
 void fastpm_painter_init_cic(FastPMPainter * painter);
 
 static void
-_generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
+_generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight, int diffdir);
 static double
-_generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+_generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], int diffdir);
 
 static double
 _linear_kernel(double x, double invh) {
@@ -101,6 +101,7 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     painter->hsupport = 0.5 * support;
     painter->invh= 1 / (0.5 * support);
     painter->left = (support  - 1) / 2;
+    painter->diffdir = -1;
 
     switch(type) {
         case FASTPM_PAINTER_CIC:
@@ -126,19 +127,15 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
 }
 
 void
-fastpm_painter_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
+fastpm_painter_init_diff(FastPMPainter * painter, PM * pm,
+    FastPMPainterType type, int support, int diffdir)
 {
-    painter->paint(painter, canvas, pos, weight);
-}
-
-double
-fastpm_painter_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
-{
-    return painter->readout(painter, canvas, pos);
+    fastpm_painter_init(painter, pm, type, support);
+    painter->diffdir = diffdir;
 }
 
 static void
-_fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64])
+_fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64], int diffdir)
 {
     PM * pm = painter->pm;
     double gpos[3];
@@ -152,6 +149,14 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64])
         for(i = 0; i < painter->support; i ++) {
             k[d][i] = painter->kernel(dx - i, painter->invh);
             sum += k[d][i];
+
+            /*
+             * norm is still from the true kernel,
+             * but we replace the value with the derivative
+             * */
+            if(d == diffdir) {
+                k[d][i] = painter->diff(dx - i, painter->invh);
+            }
         }
         /* normalize the kernel to conserve mass */
         for(i = 0; i < painter->support; i ++) {
@@ -162,14 +167,14 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64])
 }
 
 static void
-_generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
+_generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight, int diffdir)
 {
     PM * pm = painter->pm;
     int ipos[3];
     /* the max support is 32 */
     double k[3][64];
 
-    _fill_k(painter, pos, ipos, k);
+    _fill_k(painter, pos, ipos, k, diffdir);
 
     int rel[3] = {0, 0, 0};
     int s2 = painter->support;
@@ -210,14 +215,14 @@ _generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], dou
 }
 
 static double
-_generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
+_generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], int diffdir)
 {
     PM * pm = painter->pm;
     double value = 0;
     int ipos[3];
     double k[3][64];
 
-    _fill_k(painter, pos, ipos, k);
+    _fill_k(painter, pos, ipos, k, diffdir);
 
     int rel[3] = {0, 0, 0};
 
@@ -278,7 +283,7 @@ fastpm_paint_store(FastPMPainter * painter, FastPMFloat * canvas,
         double pos[3];
         double weight = attribute? p->to_double(p, i, attribute): 1.0;
         get_position(p, i, pos);
-        fastpm_painter_paint(painter, canvas, pos, weight);
+        painter->paint(painter, canvas, pos, weight, -1);
     }
 }
 
@@ -296,7 +301,7 @@ fastpm_readout_store(FastPMPainter * painter, FastPMFloat * canvas,
     for (i = 0; i < size; i ++) {
         double pos[3];
         get_position(p, i, pos);
-        double weight = fastpm_painter_readout(painter, canvas, pos);
+        double weight = painter->readout(painter, canvas, pos, -1);
         p->from_double(p, i, attribute, weight);
     }
 }

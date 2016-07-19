@@ -5,11 +5,12 @@ typedef enum { FASTPM_PAINTER_CIC, FASTPM_PAINTER_LINEAR, FASTPM_PAINTER_LANCZOS
 struct FastPMPainter {
     PM * pm;
 
-    void   (*paint)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
-    double (*readout)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+    void   (*paint)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight, int diffdir);
+    double (*readout)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], int diffdir);
     fastpm_kernelfunc kernel;
     fastpm_kernelfunc diff;
 
+    int diffdir;
     int support;
     double hsupport;
     double invh;
@@ -20,8 +21,8 @@ struct FastPMPainter {
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,
         FastPMPainterType type, int support);
 
-void fastpm_painter_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
-double fastpm_painter_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+void fastpm_painter_init_diff(FastPMPainter * painter, PM * pm,
+        FastPMPainterType type, int support, int diffdir);
 
 void
 fastpm_paint_store(FastPMPainter * pm, FastPMFloat * canvas,

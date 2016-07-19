@@ -6,10 +6,10 @@
 /* paint and read out */
 
 static double
-cic_readout_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
+cic_readout_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], int diffdir);
 
 static void
-cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
+cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight, int diffdir);
 
 void
 fastpm_painter_init_cic(FastPMPainter * painter) {
@@ -31,7 +31,7 @@ static inline double REd(FastPMFloat const * const d, const int i, const int j, 
 }
 
 static void
-cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight)
+cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight, int diffdir)
 {
     PM * pm = painter->pm;
     double X=pos[0]*pm->InvCellSize[0];
@@ -39,20 +39,37 @@ cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], do
     double Z=pos[2]*pm->InvCellSize[2];
 
     int I=(int) floor(X); // without floor, -1 < X < 0 is mapped to I=0
-    int J=(int) floor(Y);          // Assumes Y,Z are positive
+    int J=(int) floor(Y);
     int K=(int) floor(Z);
     double D1=X-((double) I);
     double D2=Y-((double) J);
     double D3=Z-((double) K);
     double T1=1.-D1;
+    double T2=1.-D2;
     double T3=1.-D3;
 
+    switch(diffdir) {
+        case 0:
+            D1 = 1;
+            T1 = -1;
+            break;
+        case 1:
+            D2 = 1;
+            T2 = -1;
+            break;
+        case 2:
+            D3 = 1;
+            T3 = -1;
+            break;
+        default:
+            break;
+    }
     double D2W = D2*weight;
-    double T2W = weight -D2W;
+    double T2W = T2*weight;
 
-    int I1=I+1; 
-    int J1=J+1; 
-    int K1=K+1; 
+    int I1=I+1;
+    int J1=J+1;
+    int K1=K+1;
 
     // Do periodic wrapup in all directions. 
     // Buffer particles are copied from adjacent nodes
@@ -108,7 +125,7 @@ cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], do
 }
 
 static double
-cic_readout_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
+cic_readout_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], int diffdir)
 {
     PM * pm = painter->pm;
     double X=pos[0]*pm->InvCellSize[0];
@@ -124,6 +141,23 @@ cic_readout_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
     double T1=1.-D1;
     double T2=1.-D2;
     double T3=1.-D3;
+
+    switch(diffdir) {
+        case 0:
+            D1 = 1;
+            T1 = -1;
+            break;
+        case 1:
+            D2 = 1;
+            T2 = -1;
+            break;
+        case 2:
+            D3 = 1;
+            T3 = -1;
+            break;
+        default:
+            break;
+    }
 
     double T2W =T2;
     double D2W =D2;
