@@ -14,8 +14,8 @@ static double
 _generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
 
 static double
-_linear_kernel(double x, int support) {
-    return 1.0 - fabs(x / support);
+_linear_kernel(double x, double hsupport) {
+    return 1.0 - fabs(x / hsupport);
 }
 
 static double __sinc__(double x) {
@@ -47,9 +47,9 @@ static double __sinc__(double x) {
 }
 
 static double
-_lanczos_kernel(double x, int support) {
-    if(x >= support || x <= - support) return 0;
-    return __sinc__(x) * __sinc__(x / support);
+_lanczos_kernel(double x, double hsupport) {
+    if(x >= hsupport || x <= - hsupport) return 0;
+    return __sinc__(x) * __sinc__(x / hsupport);
 }
 
 void
@@ -60,6 +60,8 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     painter->paint = _generic_paint;
     painter->readout = _generic_readout;
     painter->support = support;
+    painter->hsupport = 0.5 * support;
+    painter->left = (support  - 1) / 2;
 
     switch(type) {
         case FASTPM_PAINTER_CIC:
@@ -76,7 +78,7 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     int nmax = 1;
     int d;
     for(d = 0; d < 3; d++) {
-        nmax *= (2 * support);
+        nmax *= (support);
     }
     painter->Npoints = nmax;
 }
@@ -101,16 +103,16 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64])
     int d;
     for(d = 0; d < 3; d++) {
         gpos[d] = pos[d] * pm->InvCellSize[d];
-        ipos[d] = floor(gpos[d]) - (painter->support - 1);
+        ipos[d] = floor(gpos[d]) - painter->left;
         double dx = gpos[d] - ipos[d];
         int i;
         double sum = 0;
-        for(i = 0; i < 2 * painter->support; i ++) {
-            k[d][i] = painter->kernel(dx - i, painter->support);
+        for(i = 0; i < painter->support; i ++) {
+            k[d][i] = painter->kernel(dx - i, painter->hsupport);
             sum += k[d][i];
         }
         /* normalize the kernel to conserve mass */
-        for(i = 0; i < 2 * painter->support; i ++) {
+        for(i = 0; i < painter->support; i ++) {
             k[d][i] /= sum;
         }
         ipos[d] -= pm->IRegion.start[d];
@@ -128,7 +130,7 @@ _generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], dou
     _fill_k(painter, pos, ipos, k);
 
     int rel[3] = {0, 0, 0};
-    int s2 = 2 * painter->support;
+    int s2 = painter->support;
     while(rel[0] != s2) {
         double kernel = 1.0;
         ptrdiff_t ind = 0;
@@ -177,7 +179,7 @@ _generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3])
 
     int rel[3] = {0, 0, 0};
 
-    int s2 = 2 * painter->support;
+    int s2 = painter->support;
     while(rel[0] != s2) {
         double kernel = 1.0;
         ptrdiff_t ind = 0;

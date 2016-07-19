@@ -41,7 +41,7 @@ FASTPM_END_DECLS
 
 typedef double (*fastpm_fkfunc)(double k, void * data);
 typedef void   (*fastpm_posfunc)(FastPMStore * p, ptrdiff_t index, double pos[3]);
-typedef double (*fastpm_kernelfunc)(double x, int support);
+typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #define fastpm_pkfunc fastpm_fkfunc
 
 #include "painter.h"

@@ -10,7 +10,9 @@ struct FastPMPainter {
     fastpm_kernelfunc kernel;
 
     int support;
-    int Npoints; /* (2 * support) ** 3 */
+    double hsupport;
+    int left; /* offset to start the kernel, (support - 1) / 2*/
+    int Npoints; /* (support) ** 3 */
 };
 
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,

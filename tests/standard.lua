@@ -46,19 +46,19 @@ local function has(keyword)
 end
 if has('lanczos3') then
     painter_type = "lanczos"
-    painter_support = 3
+    painter_support = 6
 end
 if has('lanczos2') then
     painter_type = "lanczos"
-    painter_support = 2
+    painter_support = 4
 end
 if has('linear1') then
     painter_type = "linear"
-    painter_support = 1
+    painter_support = 2
 end
 if has('linear2') then
     painter_type = "linear"
-    painter_support = 2
+    painter_support = 4
 end
 if has('inverted') then
     inverted_ic = true

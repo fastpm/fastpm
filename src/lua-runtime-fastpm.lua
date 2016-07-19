@@ -33,7 +33,7 @@ schema.declare{name='np_alloc_factor',   type='number', required=true, help="Ove
 
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
-schema.declare{name='painter_support',     type='int', default=1, help="Support (size) of the painting kernel"}
+schema.declare{name='painter_support',     type='int', default=2, help="Support (size) of the painting kernel"}
 schema.painter_type.choices = {
     cic = 'FASTPM_PAINTER_CIC',
     linear = 'FASTPM_PAINTER_LINEAR',
