@@ -33,7 +33,6 @@ LIBSOURCES = libfastpm.c \
     store.c \
     pm2lpt.c \
     pmapi.c \
-    hmc.c \
     string.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
