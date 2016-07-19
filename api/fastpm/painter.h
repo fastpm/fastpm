@@ -25,13 +25,21 @@ void fastpm_painter_init_diff(FastPMPainter * painter, PM * pm,
         FastPMPainterType type, int support, int diffdir);
 
 void
-fastpm_paint_store(FastPMPainter * pm, FastPMFloat * canvas,
+fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, size_t size,
         fastpm_posfunc get_position, int attribute);
 
 void
-fastpm_readout_store(FastPMPainter * pm, FastPMFloat * canvas,
+fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, size_t size,
         fastpm_posfunc get_position, int attribute);
+
+void
+fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
+        FastPMStore * p, fastpm_posfunc get_position, int attribute);
+
+void
+fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
+        FastPMStore * p, fastpm_posfunc get_position, int attribute);
 
 FASTPM_END_DECLS

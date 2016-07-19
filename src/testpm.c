@@ -54,7 +54,10 @@ int main(int argc, char * argv[]) {
 
     fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
-    fastpm_utils_paint(solver->basepm, solver->p, rho_final_xtruth, rho_final_ktruth, NULL, 0);
+    FastPMPainter painter[1];
+    fastpm_painter_init(painter, solver->basepm, solver->PAINTER_TYPE, solver->painter_support);
+
+    fastpm_paint(painter, rho_final_xtruth, solver->p, NULL, 0);
     fastpm_utils_dump(solver->basepm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
 
     pm_free(solver->basepm, rho_final_xtruth);

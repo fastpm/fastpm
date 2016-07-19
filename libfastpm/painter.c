@@ -4,6 +4,7 @@
 
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
+#include "pmghosts.h"
 
 /* from cic.c */
 void fastpm_painter_init_cic(FastPMPainter * painter);
@@ -266,7 +267,7 @@ outside:
 }
 
 void
-fastpm_paint_store(FastPMPainter * painter, FastPMFloat * canvas,
+fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
     fastpm_posfunc get_position, int attribute)
 {
@@ -288,7 +289,23 @@ fastpm_paint_store(FastPMPainter * painter, FastPMFloat * canvas,
 }
 
 void
-fastpm_readout_store(FastPMPainter * painter, FastPMFloat * canvas,
+fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
+    FastPMStore * p, fastpm_posfunc get_position, int attribute)
+{
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, get_position);
+
+    fastpm_paint_local(painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
+
+    pm_ghosts_free(pgd);
+}
+
+
+void
+fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
     fastpm_posfunc get_position, int attribute)
 {
@@ -304,4 +321,20 @@ fastpm_readout_store(FastPMPainter * painter, FastPMFloat * canvas,
         double weight = painter->readout(painter, canvas, pos, -1);
         p->from_double(p, i, attribute, weight);
     }
+}
+
+void
+fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
+    FastPMStore * p, fastpm_posfunc get_position, int attribute)
+{
+    if(get_position == NULL) {
+        get_position = p->get_position;
+    }
+
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, get_position);
+
+    fastpm_readout_local(painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
+
+    pm_ghosts_reduce(pgd, attribute);
+    pm_ghosts_free(pgd);
 }

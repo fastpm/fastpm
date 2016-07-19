@@ -370,10 +370,20 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
     }
     if(CONF(prr, write_nonlineark)) {
         char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr, write_nonlineark), aout);
+        FastPMPainter painter[1];
+
+        FastPMFloat * rho_x = pm_alloc(fastpm->basepm);
         FastPMFloat * rho_k = pm_alloc(fastpm->basepm);
-        fastpm_utils_paint(fastpm->basepm, snapshot, NULL, rho_k, NULL, 0);
+
+        fastpm_painter_init(painter, fastpm->basepm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+
+        fastpm_paint(painter, rho_x, snapshot, NULL, 0);
+        pm_r2c(fastpm->basepm, rho_x, rho_k);
+
         write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->Nwriters);
+
         pm_free(fastpm->basepm, rho_k);
+        pm_free(fastpm->basepm, rho_x);
         free(filename);
     }
     return 0;

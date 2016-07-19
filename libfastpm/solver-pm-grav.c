@@ -241,7 +241,7 @@ fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
      * We thus have to boost the density by density_factor.
      * */
     CLOCK(paint);
-    fastpm_paint_store(fastpm->painter, canvas,
+    fastpm_paint_local(fastpm->painter, canvas,
                 p, p->np + pgd->nghosts, NULL, 0);
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
     LEAVE(paint);
@@ -312,7 +312,7 @@ fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
         LEAVE(c2r);
 
         CLOCK(readout);
-        fastpm_readout_store(reader, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
+        fastpm_readout_local(reader, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
         LEAVE(readout);
 
         CLOCK(reduce);

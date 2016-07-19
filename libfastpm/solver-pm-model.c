@@ -212,7 +212,7 @@ fastpm_model_measure_large_scale_power(FastPMModel * model, FastPMStore * p)
 
     /* Note that power will divide by the 0-th mode
      * thus we do not need to scale the density correctly */
-    fastpm_paint_store(model->painter, canvas, p, p->np + pgd->nghosts, NULL, 0);
+    fastpm_paint_local(model->painter, canvas, p, p->np + pgd->nghosts, NULL, 0);
 
     pm_r2c(pm, canvas, delta_k);
 

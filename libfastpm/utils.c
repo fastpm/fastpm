@@ -62,7 +62,7 @@ fastpm_utils_paint(PM * pm, FastPMStore * p,
      * otherwise increase this to (Nmesh / Ngrid) **3 */
     FastPMFloat * canvas = pm_alloc(pm);
 
-    fastpm_paint_store(&painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
+    fastpm_paint_local(&painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
 
     if(delta_x)
         pm_assign(pm, canvas, delta_x);
@@ -92,24 +92,10 @@ fastpm_utils_readout(PM * pm, FastPMStore * p,
     fastpm_painter_init(&painter, pm,
                 FASTPM_PAINTER_CIC, 1);
 
-    fastpm_readout_store(&painter, delta_x, p, p->np + pgd->nghosts, get_position, attribute);
+    fastpm_readout_local(&painter, delta_x, p, p->np + pgd->nghosts, get_position, attribute);
 
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);
-}
-
-void
-fastpm_utils_smooth(PM * pm, FastPMFloat * delta_x, FastPMFloat * delta_smooth, double sml) 
-{
-
-    /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
-     * otherwise increase this to (Nmesh / Ngrid) **3 */
-    FastPMFloat * delta_k = pm_alloc(pm);
-
-    pm_r2c(pm, delta_x, delta_k);
-    fastpm_apply_smoothing_transfer(pm, delta_k, delta_smooth, sml);
-    pm_c2r(pm, delta_smooth);
-    pm_free(pm, delta_k);
 }
 
 void 
