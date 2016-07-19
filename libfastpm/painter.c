@@ -14,30 +14,41 @@ static double
 _generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
 
 static double
-_linear_kernel(double x, double hsupport) {
-    return 1.0 - fabs(x / hsupport);
+_linear_kernel(double x, double invh) {
+    return 1.0 - fabs(x * invh);
 }
 
-static double __sinc__(double x) {
+static double
+_linear_diff(double x, double invh) {
+    if( x < 0) {
+        return 1 * invh;
+    } else {
+        return - 1 * invh;
+    }
+}
+
+static inline double __cached__(int *status, double * table, double x, double (*func)(double)){
     const double dx = 1e-3;
     const double tablemax = dx * 16384;
     const double tablemin = dx * 1;
-    static double table[16384];
-    static int hastable = 0;
-    if(! hastable) {
+    if(!*status) {
         int i;
         for(i = 0; i < 16384; i ++) {
             double x = dx * i;
-            table[i] = sin(x) / x;
+            table[i] = func(x);
         }
-        hastable = 1;
+        *status = 1;
     }
-    x *= 3.1415927;
     if(x > tablemin && x < tablemax) {
         int i = fabs(x) / dx;
         return table[i];
     }
+    return func(x);
+}
 
+
+static double __sinc__(double x) {
+    x *= 3.1415927;
     if(x < 1e-5 && x > -1e-5) {
         double x2 = x * x;
         return 1.0 - x2 / 6. + x2  * x2 / 120.;
@@ -46,10 +57,37 @@ static double __sinc__(double x) {
     }
 }
 
+static double __dsinc__(double x) {
+    x *= 3.1415927;
+    double r = 3.1415927;
+    if(x < 1e-5 && x > -1e-5) {
+        double xx = x * x;
+        double xxxx = xx * xx;
+        r *= - x / 3 + x*xx / 30 - xxxx*x/ 840 + xxxx * xx * x / 45360;
+    } else {
+        r *= 1 / x * cos(x) - 1 / (x *x) * sin(x);
+    }
+    return r;
+}
+
 static double
-_lanczos_kernel(double x, double hsupport) {
-    if(x >= hsupport || x <= - hsupport) return 0;
-    return __sinc__(x) * __sinc__(x / hsupport);
+_lanczos_kernel(double x, double invh) {
+    static int status = 0;
+    static double table[16384];
+    double s1 = __cached__(&status, table, x, __sinc__);
+    double s2 = __cached__(&status, table, x * invh, __sinc__);
+    return s1 * s2;
+}
+
+static double
+_lanczos_diff(double x, double invh) {
+    static int status = 0;
+    static double table[16384];
+    double u1 = __cached__(&status, table, x, __sinc__);
+    double u2 = __cached__(&status, table, x, __dsinc__);
+    double v1 = __cached__(&status, table, x * invh, __sinc__);
+    double v2 = __cached__(&status, table, x * invh, __dsinc__) * invh;
+    return u1 * v2 + u2 * v1;
 }
 
 void
@@ -61,18 +99,22 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     painter->readout = _generic_readout;
     painter->support = support;
     painter->hsupport = 0.5 * support;
+    painter->invh= 1 / (0.5 * support);
     painter->left = (support  - 1) / 2;
 
     switch(type) {
         case FASTPM_PAINTER_CIC:
             fastpm_painter_init_cic(painter);
             painter->kernel = NULL;
+            painter->diff = NULL;
         break;
         case FASTPM_PAINTER_LINEAR:
             painter->kernel = _linear_kernel;
+            painter->diff = _linear_diff;
         break;
         case FASTPM_PAINTER_LANCZOS:
             painter->kernel = _lanczos_kernel;
+            painter->diff = _lanczos_diff;
         break;
     }
     int nmax = 1;
@@ -108,7 +150,7 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64])
         int i;
         double sum = 0;
         for(i = 0; i < painter->support; i ++) {
-            k[d][i] = painter->kernel(dx - i, painter->hsupport);
+            k[d][i] = painter->kernel(dx - i, painter->invh);
             sum += k[d][i];
         }
         /* normalize the kernel to conserve mass */

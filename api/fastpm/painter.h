@@ -8,9 +8,11 @@ struct FastPMPainter {
     void   (*paint)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight);
     double (*readout)(FastPMPainter * painter, FastPMFloat * canvas, double pos[3]);
     fastpm_kernelfunc kernel;
+    fastpm_kernelfunc diff;
 
     int support;
     double hsupport;
+    double invh;
     int left; /* offset to start the kernel, (support - 1) / 2*/
     int Npoints; /* (support) ** 3 */
 };
