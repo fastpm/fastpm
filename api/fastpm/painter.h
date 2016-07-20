@@ -21,8 +21,7 @@ struct FastPMPainter {
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,
         FastPMPainterType type, int support);
 
-void fastpm_painter_init_diff(FastPMPainter * painter, PM * pm,
-        FastPMPainterType type, int support, int diffdir);
+void fastpm_painter_init_diff(FastPMPainter * painter, FastPMPainter * base, int diffdir);
 
 void
 fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,

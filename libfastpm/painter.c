@@ -128,10 +128,9 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
 }
 
 void
-fastpm_painter_init_diff(FastPMPainter * painter, PM * pm,
-    FastPMPainterType type, int support, int diffdir)
+fastpm_painter_init_diff(FastPMPainter * painter, FastPMPainter * base, int diffdir)
 {
-    fastpm_painter_init(painter, pm, type, support);
+    *painter = *base;
     painter->diffdir = diffdir;
 }
 
@@ -156,7 +155,7 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64], in
              * but we replace the value with the derivative
              * */
             if(d == diffdir) {
-                k[d][i] = painter->diff(dx - i, painter->invh);
+                k[d][i] = painter->diff(dx - i, painter->invh) * pm->InvCellSize[d];
             }
         }
         /* normalize the kernel to conserve mass */
@@ -284,7 +283,7 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
         double pos[3];
         double weight = attribute? p->to_double(p, i, attribute): 1.0;
         get_position(p, i, pos);
-        painter->paint(painter, canvas, pos, weight, -1);
+        painter->paint(painter, canvas, pos, weight, painter->diffdir);
     }
 }
 
@@ -318,7 +317,7 @@ fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
     for (i = 0; i < size; i ++) {
         double pos[3];
         get_position(p, i, pos);
-        double weight = painter->readout(painter, canvas, pos, -1);
+        double weight = painter->readout(painter, canvas, pos, painter->diffdir);
         p->from_double(p, i, attribute, weight);
     }
 }
