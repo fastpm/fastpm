@@ -44,6 +44,11 @@ MPI_Comm pm_comm(PM * pm)
 ptrdiff_t * pm_nmesh(PM * pm) {
     return pm->Nmesh;
 }
+
+int * pm_nproc(PM * pm) {
+    return pm->Nproc;
+}
+
 double * pm_boxsize(PM * pm) {
     return pm->BoxSize;
 }

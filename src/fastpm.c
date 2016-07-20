@@ -14,6 +14,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
+#include <omp.h>
 
 #include "lua-config.h"
 
@@ -150,6 +151,9 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     fastpm_init(fastpm, 
         prr->NprocY, prr->UseFFTW, 
         comm);
+
+    fastpm_info("BaseProcMesh : %d x %d ( %d Threads)\n",
+            pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1], omp_get_max_threads());
 
     LEAVE(init);
 

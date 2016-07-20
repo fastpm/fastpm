@@ -174,7 +174,6 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
     }
-    fastpm_info("ProcMesh : %d x %d ( %d Threads)\n", pm->Nproc[0], pm->Nproc[1], omp_get_max_threads());
 
     /* Note that we need to fix up the padded size of the real data;
      * and transpose with strides , */
