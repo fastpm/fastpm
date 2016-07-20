@@ -34,92 +34,77 @@ static void
 cic_paint_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], double weight, int diffdir)
 {
     PM * pm = painter->pm;
-    double X=pos[0]*pm->InvCellSize[0];
-    double Y=pos[1]*pm->InvCellSize[1];
-    double Z=pos[2]*pm->InvCellSize[2];
+    int d;
 
-    int I=(int) floor(X); // without floor, -1 < X < 0 is mapped to I=0
-    int J=(int) floor(Y);
-    int K=(int) floor(Z);
-    double D1=X-((double) I);
-    double D2=Y-((double) J);
-    double D3=Z-((double) K);
-    double T1=1.-D1;
-    double T2=1.-D2;
-    double T3=1.-D3;
+    double XYZ[3];
+    int IJK[3];
+    int IJK1[3];
+    double D[3];
+    double T[3];
 
-    switch(diffdir) {
-        case 0:
-            D1 = 1;
-            T1 = -1;
-            break;
-        case 1:
-            D2 = 1;
-            T2 = -1;
-            break;
-        case 2:
-            D3 = 1;
-            T3 = -1;
-            break;
-        default:
-            break;
+    for(d = 0; d < 3; d ++) {
+        XYZ[d] = pos[d]*pm->InvCellSize[d];
+        // without floor, -1 < X < 0 is mapped to I=0
+        IJK[d] = (int) floor(XYZ[d]);
+        IJK1[d] = IJK[d] + 1;
+    };
+
+    for(d = 0; d < 3; d ++) {
+        D[d] = XYZ[d] - IJK[d];
+        T[d] = 1. - D[d];
     }
-    double D2W = D2*weight;
-    double T2W = T2*weight;
 
-    int I1=I+1;
-    int J1=J+1;
-    int K1=K+1;
+    if(diffdir >= 0) {
+        D[diffdir] = pm->InvCellSize[diffdir];
+        T[diffdir] = -pm->InvCellSize[diffdir];
+    }
+
 
     // Do periodic wrapup in all directions. 
     // Buffer particles are copied from adjacent nodes
-    while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
-    while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
-    while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
-    while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
-    while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
-    while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
+    for(d = 0; d < 3; d ++) {
+        while(UNLIKELY(IJK[d] < 0)) IJK[d] += pm->Nmesh[d];
+        while(UNLIKELY(IJK[d] >= pm->Nmesh[d])) IJK[d] -= pm->Nmesh[d];
+        while(UNLIKELY(IJK1[d] < 0)) IJK1[d] += pm->Nmesh[d];
+        while(UNLIKELY(IJK1[d] >= pm->Nmesh[d])) IJK1[d] -= pm->Nmesh[d];
+    }
 
+    /* start[2] == 0 */
+    for(d = 0; d < 2; d ++) {
+        IJK[d] -= pm->IRegion.start[d];
+        IJK1[d] -= pm->IRegion.start[d];
+    }
 
-    while(UNLIKELY(I1 < 0)) I1 += pm->Nmesh[0];
-    while(UNLIKELY(J1 < 0)) J1 += pm->Nmesh[1];
-    while(UNLIKELY(K1 < 0)) K1 += pm->Nmesh[2];
-    while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
-    while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
-    while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
+    D[1] *= weight;
+    T[1] *= weight;
 
-    I -= pm->IRegion.start[0];
-    J -= pm->IRegion.start[1];
-    I1 -= pm->IRegion.start[0];
-    J1 -= pm->IRegion.start[1];
-
-    if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J,  K,  T3*T1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J,  K1, D3*T1*T2W, pm);
+    if(LIKELY(0 <= IJK[0] && IJK[0] < pm->IRegion.size[0])) {
+        if(LIKELY(0 <= IJK[1] && IJK[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK[0], IJK[1],  IJK[2],  T[2]*T[0]*T[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK[0], IJK[1],  IJK1[2], D[2]*T[0]*T[1], pm);
         }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J1, K,  T3*T1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I, J1, K1, D3*T1*D2W, pm);
+        if(LIKELY(0 <= IJK1[1] && IJK1[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK[0], IJK1[1], IJK[2],  T[2]*T[0]*D[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK[0], IJK1[1], IJK1[2], D[2]*T[0]*D[1], pm);
         }
     }
 
-    if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J,  K,  T3*D1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J,  K1, D3*D1*T2W, pm);
+    if(LIKELY(0 <= IJK1[0] && IJK1[0] < pm->IRegion.size[0])) {
+        if(LIKELY(0 <= IJK[1] && IJK[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK1[0], IJK[1],  IJK[2],  T[2]*D[0]*T[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK1[0], IJK[1],  IJK1[2], D[2]*D[0]*T[1], pm);
         }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J1, K,  T3*D1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                WRtPlus(canvas, I1, J1, K1, D3*D1*D2W, pm);
+        if(LIKELY(0 <= IJK1[1] && IJK1[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK1[0], IJK1[1], IJK[2],  T[2]*D[0]*D[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                WRtPlus(canvas, IJK1[0], IJK1[1], IJK1[2], D[2]*D[0]*D[1], pm);
         }
     }
 }
@@ -128,96 +113,77 @@ static double
 cic_readout_tuned(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], int diffdir)
 {
     PM * pm = painter->pm;
-    double X=pos[0]*pm->InvCellSize[0];
-    double Y=pos[1]*pm->InvCellSize[1];
-    double Z=pos[2]*pm->InvCellSize[2];
 
-    int I=(int) floor(X); // without floor, -1 < X < 0 is mapped to I=0
-    int J=(int) floor(Y);          // Assumes Y,Z are positive
-    int K=(int) floor(Z);
-    double D1=X-((double) I);
-    double D2=Y-((double) J);
-    double D3=Z-((double) K);
-    double T1=1.-D1;
-    double T2=1.-D2;
-    double T3=1.-D3;
+    int d;
 
-    switch(diffdir) {
-        case 0:
-            D1 = 1;
-            T1 = -1;
-            break;
-        case 1:
-            D2 = 1;
-            T2 = -1;
-            break;
-        case 2:
-            D3 = 1;
-            T3 = -1;
-            break;
-        default:
-            break;
+    double XYZ[3];
+    int IJK[3];
+    int IJK1[3];
+    double D[3];
+    double T[3];
+
+    for(d = 0; d < 3; d ++) {
+        XYZ[d] = pos[d]*pm->InvCellSize[d];
+        // without floor, -1 < X < 0 is mapped to I=0
+        IJK[d] = (int) floor(XYZ[d]);
+        IJK1[d] = IJK[d] + 1;
+    };
+
+    for(d = 0; d < 3; d ++) {
+        D[d] = XYZ[d] - IJK[d];
+        T[d] = 1. - D[d];
     }
 
-    double T2W =T2;
-    double D2W =D2;
+    if(diffdir >= 0) {
+        D[diffdir] = pm->InvCellSize[diffdir];
+        T[diffdir] = -pm->InvCellSize[diffdir];
+    }
 
-    int I1=I+1; 
-    int J1=J+1; 
-    int K1=K+1; 
 
     // Do periodic wrapup in all directions. 
     // Buffer particles are copied from adjacent nodes
+    for(d = 0; d < 3; d ++) {
+        while(UNLIKELY(IJK[d] < 0)) IJK[d] += pm->Nmesh[d];
+        while(UNLIKELY(IJK[d] >= pm->Nmesh[d])) IJK[d] -= pm->Nmesh[d];
+        while(UNLIKELY(IJK1[d] < 0)) IJK1[d] += pm->Nmesh[d];
+        while(UNLIKELY(IJK1[d] >= pm->Nmesh[d])) IJK1[d] -= pm->Nmesh[d];
+    }
 
-    while(UNLIKELY(I < 0)) I += pm->Nmesh[0];
-    while(UNLIKELY(J < 0)) J += pm->Nmesh[1];
-    while(UNLIKELY(K < 0)) K += pm->Nmesh[2];
-    while(UNLIKELY(I >= pm->Nmesh[0])) I -= pm->Nmesh[0];
-    while(UNLIKELY(J >= pm->Nmesh[1])) J -= pm->Nmesh[1];
-    while(UNLIKELY(K >= pm->Nmesh[2])) K -= pm->Nmesh[2];
-
-
-    while(UNLIKELY(I1 < 0)) I1 += pm->Nmesh[0];
-    while(UNLIKELY(J1 < 0)) J1 += pm->Nmesh[1];
-    while(UNLIKELY(K1 < 0)) K1 += pm->Nmesh[2];
-    while(UNLIKELY(I1 >= pm->Nmesh[0])) I1-=pm->Nmesh[0];
-    while(UNLIKELY(J1 >= pm->Nmesh[1])) J1-=pm->Nmesh[1];
-    while(UNLIKELY(K1 >= pm->Nmesh[2])) K1-=pm->Nmesh[2];
-
-    I -= pm->IRegion.start[0];
-    J -= pm->IRegion.start[1];
-    I1 -= pm->IRegion.start[0];
-    J1 -= pm->IRegion.start[1];
+    /* start[2] == 0 */
+    for(d = 0; d < 2; d ++) {
+        IJK[d] -= pm->IRegion.start[d];
+        IJK1[d] -= pm->IRegion.start[d];
+    }
 
     double value = 0;
 
-    if(LIKELY(0 <= I && I < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I, J,  K,  T3*T1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I, J,  K1, D3*T1*T2W, pm);
+    if(LIKELY(0 <= IJK[0] && IJK[0] < pm->IRegion.size[0])) {
+        if(LIKELY(0 <= IJK[1] && IJK[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK[0], IJK[1],  IJK[2],  T[2]*T[0]*T[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK[0], IJK[1],  IJK1[2], D[2]*T[0]*T[1], pm);
         }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I, J1, K,  T3*T1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I, J1, K1, D3*T1*D2W, pm);
+        if(LIKELY(0 <= IJK1[1] && IJK1[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK[0], IJK1[1], IJK[2],  T[2]*T[0]*D[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK[0], IJK1[1], IJK1[2], D[2]*T[0]*D[1], pm);
         }
     }
 
-    if(LIKELY(0 <= I1 && I1 < pm->IRegion.size[0])) {
-        if(LIKELY(0 <= J && J < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J,  K,  T3*D1*T2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J,  K1, D3*D1*T2W, pm);
+    if(LIKELY(0 <= IJK1[0] && IJK1[0] < pm->IRegion.size[0])) {
+        if(LIKELY(0 <= IJK[1] && IJK[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK1[0], IJK[1],  IJK[2],  T[2]*D[0]*T[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK1[0], IJK[1],  IJK1[2], D[2]*D[0]*T[1], pm);
         }
-        if(LIKELY(0 <= J1 && J1 < pm->IRegion.size[1])) {
-            if(LIKELY(0 <= K && K < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J1, K,  T3*D1*D2W, pm);
-            if(LIKELY(0 <= K1 && K1 < pm->IRegion.size[2]))
-                value += REd(canvas, I1, J1, K1, D3*D1*D2W, pm);
+        if(LIKELY(0 <= IJK1[1] && IJK1[1] < pm->IRegion.size[1])) {
+            if(LIKELY(0 <= IJK[2] && IJK[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK1[0], IJK1[1], IJK[2],  T[2]*D[0]*D[1], pm);
+            if(LIKELY(0 <= IJK1[2] && IJK1[2] < pm->IRegion.size[2]))
+                value += REd(canvas, IJK1[0], IJK1[1], IJK1[2], D[2]*D[0]*D[1], pm);
         }
     }
     return value;
