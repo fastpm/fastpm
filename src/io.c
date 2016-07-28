@@ -193,6 +193,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         big_block_set_attr(&bb, "ndarray.ndim", (int[]){3,}, "i4", 1);
         big_block_set_attr(&bb, "ndarray.strides", strides, "i8", 3);
         big_block_set_attr(&bb, "ndarray.shape", shape, "i8", 3);
+        big_block_set_attr(&bb, "Nmesh", &Nmesh, "i4", 1);
         big_block_mpi_close(&bb, comm);
     }
 
