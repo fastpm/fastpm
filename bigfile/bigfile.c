@@ -957,6 +957,20 @@ big_array_iter_advance(BigArrayIter * iter)
         }
     }
 }
+typedef struct {double r; double i;} cplx128_t;
+typedef struct {float r; float i;} cplx64_t;
+typedef union {
+    char *S1;
+    int64_t *i8;
+    uint64_t *u8;
+    double *f8;
+    int32_t *i4;
+    uint32_t *u4;
+    float *f4;
+    cplx128_t * c16;
+    cplx64_t * c8;
+    void * v;
+} variant_t;
 
 /* format data in dtype to a string in buffer */
 void
@@ -964,16 +978,7 @@ dtype_format(char * buffer, const char * dtype, const void * data, const char * 
 {
     char ndtype[8];
     char ndtype2[8];
-    union {
-        char *S1;
-        int64_t *i8;
-        uint64_t *u8;
-        double *f8;
-        int32_t *i4;
-        uint32_t *u4;
-        float *f4;
-        void * v;
-    } p;
+    variant_t p;
 
     /* handle the endianness stuff in case it is not machine */
     char converted[128];
@@ -984,21 +989,27 @@ dtype_format(char * buffer, const char * dtype, const void * data, const char * 
     dtype_convert_simple(converted, ndtype, data, dtype, 1);
 
     p.v = converted;
-#define _HANDLE_FMT_(dtype, defaultfmt) \
-    if(!strcmp(ndtype + 1, # dtype)) { \
+#define FORMAT1(dtype, defaultfmt) \
+    if(0 == strcmp(ndtype + 1, # dtype)) { \
         if(fmt == NULL) fmt = defaultfmt; \
         sprintf(buffer, fmt, *p.dtype); \
     } else
+#define FORMAT2(dtype, defaultfmt) \
+    if(0 == strcmp(ndtype + 1, # dtype)) { \
+        if(fmt == NULL) fmt = defaultfmt; \
+        sprintf(buffer, fmt, p.dtype->r, p.dtype->i); \
+    } else
 
-    _HANDLE_FMT_(S1, "%c")
-    _HANDLE_FMT_(i8, "%ld")
-    _HANDLE_FMT_(i4, "%d")
-    _HANDLE_FMT_(u8, "%lu")
-    _HANDLE_FMT_(u4, "%u")
-    _HANDLE_FMT_(f8, "%g")
-    _HANDLE_FMT_(f4, "%g")
+    FORMAT1(S1, "%c")
+    FORMAT1(i8, "%ld")
+    FORMAT1(i4, "%d")
+    FORMAT1(u8, "%lu")
+    FORMAT1(u4, "%u")
+    FORMAT1(f8, "%g")
+    FORMAT1(f4, "%g")
+    FORMAT2(c8, "%g+%gI")
+    FORMAT2(c16, "%g+%gI")
     abort();
-#undef _HANDLE_FMT_
 }
 
 /* parse data in dtype to a string in buffer */
@@ -1007,16 +1018,7 @@ dtype_parse(const char * buffer, const char * dtype, void * data, const char * f
 {
     char ndtype[8];
     char ndtype2[8];
-    union {
-        char *S1;
-        int64_t *i8;
-        uint64_t *u8;
-        double *f8;
-        int32_t *i4;
-        uint32_t *u4;
-        float *f4;
-        void * v;
-    } p;
+    variant_t p;
 
     /* handle the endianness stuff in case it is not machine */
     char converted[128];
@@ -1026,21 +1028,26 @@ dtype_parse(const char * buffer, const char * dtype, void * data, const char * f
     dtype_normalize(ndtype, ndtype2);
 
     p.v = converted;
-#define _HANDLE_FMT_(dtype, defaultfmt) \
-    if(!strcmp(ndtype + 1, # dtype)) { \
+#define PARSE1(dtype, defaultfmt) \
+    if(0 == strcmp(ndtype + 1, # dtype)) { \
         if(fmt == NULL) fmt = defaultfmt; \
         sscanf(buffer, fmt, p.dtype); \
     } else
-
-    _HANDLE_FMT_(S1, "%c")
-    _HANDLE_FMT_(i8, "%ld")
-    _HANDLE_FMT_(i4, "%d")
-    _HANDLE_FMT_(u8, "%lu")
-    _HANDLE_FMT_(u4, "%u")
-    _HANDLE_FMT_(f8, "%lf")
-    _HANDLE_FMT_(f4, "%f")
+#define PARSE2(dtype, defaultfmt) \
+    if(0 == strcmp(ndtype + 1, # dtype)) { \
+        if(fmt == NULL) fmt = defaultfmt; \
+        sscanf(buffer, fmt, &p.dtype->r, &p.dtype->i); \
+    } else
+    PARSE1(S1, "%c")
+    PARSE1(i8, "%ld")
+    PARSE1(i4, "%d")
+    PARSE1(u8, "%lu")
+    PARSE1(u4, "%u")
+    PARSE1(f8, "%lf")
+    PARSE1(f4, "%f")
+    PARSE2(c8, "%f + %f I")
+    PARSE2(c16, "%lf + %lf I")
     abort();
-#undef _HANDLE_FMT_
 
     dtype_convert_simple(data, dtype, converted, ndtype, 1);
 
@@ -1106,12 +1113,20 @@ byte_swap(BigArrayIter * iter, size_t nmemb)
     }
 }
 
-#define CAST_CONVERTER(d1, t1, d2, t2) \
-if(!strcmp(d1, dst->array->dtype + 1) && !strcmp(d2, src->array->dtype + 1)) { \
-    ptrdiff_t i; \
+#define CAST(d1, t1, d2, t2) \
+if((0 == strcmp(d1, dst->array->dtype + 1)) && (0 == strcmp(d2, src->array->dtype + 1))) { \
     for(i = 0; i < nmemb; i ++) { \
         t1 * p1 = dst->dataptr; t2 * p2 = src->dataptr; \
         * p1 = * p2; \
+        big_array_iter_advance(dst); big_array_iter_advance(src); \
+    } \
+    return; \
+}
+#define CAST2(d1, t1, d2, t2) \
+if((0 == strcmp(d1, dst->array->dtype + 1)) && (0 == strcmp(d2, src->array->dtype + 1))) { \
+    for(i = 0; i < nmemb; i ++) { \
+        t1 * p1 = dst->dataptr; t2 * p2 = src->dataptr; \
+        p1->r = p2->r; p1->i = p2->i; \
         big_array_iter_advance(dst); big_array_iter_advance(src); \
     } \
     return; \
@@ -1120,73 +1135,81 @@ static void
 cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
 {
     /* doing cast assuming native byte order */
-
     /* convert buf2 to buf1, both are native;
      * dtype has no endian-ness prefix
      *   */
-    if((dst->contiguous && src->contiguous) 
-    && !strcmp(dst->array->dtype + 1, src->array->dtype + 1)) {
+    ptrdiff_t i; \
+    if((dst->contiguous && src->contiguous)
+    && (0 == strcmp(dst->array->dtype + 1, src->array->dtype + 1))) {
+        /* directly copy. This is no casting */
         memcpy(dst->dataptr, src->dataptr, nmemb * dst->array->strides[dst->array->ndim-1]);
         dst->dataptr = (char*) dst->dataptr + nmemb * dst->array->strides[dst->array->ndim - 1];
         src->dataptr = (char*) src->dataptr + nmemb * src->array->strides[src->array->ndim - 1];
         return;
     }
-    if(!strcmp(dst->array->dtype + 1, "i8")) {
-        CAST_CONVERTER("i8", int64_t, "i8", int64_t);
-        CAST_CONVERTER("i8", int64_t, "i4", int32_t);
-        CAST_CONVERTER("i8", int64_t, "u4", uint32_t);
-        CAST_CONVERTER("i8", int64_t, "u8", uint64_t);
-        CAST_CONVERTER("i8", int64_t, "f8", double);
-        CAST_CONVERTER("i8", int64_t, "f4", float);
+    if(0 == strcmp(dst->array->dtype + 1, "i8")) {
+        CAST("i8", int64_t, "i8", int64_t);
+        CAST("i8", int64_t, "i4", int32_t);
+        CAST("i8", int64_t, "u4", uint32_t);
+        CAST("i8", int64_t, "u8", uint64_t);
+        CAST("i8", int64_t, "f8", double);
+        CAST("i8", int64_t, "f4", float);
     } else
-    if(!strcmp(dst->array->dtype + 1, "u8")) {
-        CAST_CONVERTER("u8", uint64_t, "u8", uint64_t);
-        CAST_CONVERTER("u8", uint64_t, "u4", uint32_t);
-        CAST_CONVERTER("u8", uint64_t, "i4", int32_t);
-        CAST_CONVERTER("u8", uint64_t, "i8", int64_t);
-        CAST_CONVERTER("u8", uint64_t, "f8", double);
-        CAST_CONVERTER("u8", uint64_t, "f4", float);
-    } else 
-    if(!strcmp(dst->array->dtype + 1, "f8")) {
-        CAST_CONVERTER("f8", double, "f8", double);
-        CAST_CONVERTER("f8", double, "f4", float);
-        CAST_CONVERTER("f8", double, "i4", int32_t);
-        CAST_CONVERTER("f8", double, "i8", int64_t);
-        CAST_CONVERTER("f8", double, "u4", uint32_t);
-        CAST_CONVERTER("f8", double, "u8", uint64_t);
+    if(0 == strcmp(dst->array->dtype + 1, "u8")) {
+        CAST("u8", uint64_t, "u8", uint64_t);
+        CAST("u8", uint64_t, "u4", uint32_t);
+        CAST("u8", uint64_t, "i4", int32_t);
+        CAST("u8", uint64_t, "i8", int64_t);
+        CAST("u8", uint64_t, "f8", double);
+        CAST("u8", uint64_t, "f4", float);
     } else
-    if(!strcmp(dst->array->dtype + 1, "i4")) {
-        CAST_CONVERTER("i4", int32_t, "i4", int32_t);
-        CAST_CONVERTER("i4", int32_t, "i8", int64_t);
-        CAST_CONVERTER("i4", int32_t, "u4", uint32_t);
-        CAST_CONVERTER("i4", int32_t, "u8", uint64_t);
-        CAST_CONVERTER("i4", int32_t, "f8", double);
-        CAST_CONVERTER("i4", int32_t, "f4", float);
+    if(0 == strcmp(dst->array->dtype + 1, "f8")) {
+        CAST("f8", double, "f8", double);
+        CAST("f8", double, "f4", float);
+        CAST("f8", double, "i4", int32_t);
+        CAST("f8", double, "i8", int64_t);
+        CAST("f8", double, "u4", uint32_t);
+        CAST("f8", double, "u8", uint64_t);
     } else
-    if(!strcmp(dst->array->dtype + 1, "u4")) {
-        CAST_CONVERTER("u4", uint32_t, "u4", uint32_t);
-        CAST_CONVERTER("u4", uint32_t, "u8", uint64_t);
-        CAST_CONVERTER("u4", uint32_t, "i4", int32_t);
-        CAST_CONVERTER("u4", uint32_t, "i8", int64_t);
-        CAST_CONVERTER("u4", uint32_t, "f8", double);
-        CAST_CONVERTER("u4", uint32_t, "f4", float);
+    if(0 == strcmp(dst->array->dtype + 1, "i4")) {
+        CAST("i4", int32_t, "i4", int32_t);
+        CAST("i4", int32_t, "i8", int64_t);
+        CAST("i4", int32_t, "u4", uint32_t);
+        CAST("i4", int32_t, "u8", uint64_t);
+        CAST("i4", int32_t, "f8", double);
+        CAST("i4", int32_t, "f4", float);
     } else
-    if(!strcmp(dst->array->dtype + 1, "f4")) {
-        CAST_CONVERTER("f4", float, "f4", float);
-        CAST_CONVERTER("f4", float, "f8", double);
-        CAST_CONVERTER("f4", float, "i4", int32_t);
-        CAST_CONVERTER("f4", float, "i8", int64_t);
-        CAST_CONVERTER("f4", float, "u4", uint32_t);
-        CAST_CONVERTER("f4", float, "u8", uint64_t);
+    if(0 == strcmp(dst->array->dtype + 1, "u4")) {
+        CAST("u4", uint32_t, "u4", uint32_t);
+        CAST("u4", uint32_t, "u8", uint64_t);
+        CAST("u4", uint32_t, "i4", int32_t);
+        CAST("u4", uint32_t, "i8", int64_t);
+        CAST("u4", uint32_t, "f8", double);
+        CAST("u4", uint32_t, "f4", float);
     } else
-    if(!strcmp(dst->array->dtype + 1, "S1")) {
-        CAST_CONVERTER("S1", char, "S1", char);
+    if(0 == strcmp(dst->array->dtype + 1, "f4")) {
+        CAST("f4", float, "f4", float);
+        CAST("f4", float, "f8", double);
+        CAST("f4", float, "i4", int32_t);
+        CAST("f4", float, "i8", int64_t);
+        CAST("f4", float, "u4", uint32_t);
+        CAST("f4", float, "u8", uint64_t);
+    } else
+    if(0 == strcmp(dst->array->dtype + 1, "c8")) {
+        CAST2("c8", cplx64_t, "c8", cplx64_t);
+        CAST2("c8", cplx64_t, "c16", cplx128_t);
+    } else
+    if(0 == strcmp(dst->array->dtype + 1, "c16")) {
+        CAST2("c16", cplx128_t, "c8", cplx64_t);
+        CAST2("c16", cplx128_t, "c16", cplx128_t);
+    } else
+    if(0 == strcmp(dst->array->dtype + 1, "S1")) {
+        CAST("S1", char, "S1", char);
     }
     /* */
     fprintf(stderr, "Unsupported conversion from %s to %s\n", src->array->dtype, dst->array->dtype);
     abort();
 }
-#undef CAST_CONVERTER
 
 static void
 sysvsum(unsigned int * sum, void * buf, size_t size)
