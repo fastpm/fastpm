@@ -119,10 +119,8 @@ read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase)
 
 struct BufType {
     uint64_t ind;
-    union {
-        float value[2];
-        uint64_t ind2;
-    };
+    uint64_t ind2;
+    float value[2];
 };
 
 void _radix(const void * ptr, void * radix, void * arg)
@@ -147,12 +145,17 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
     if(Nwriters == 0) {
         MPI_Comm_size(comm, &Nwriters);
     }
+    int ThisTask;
+    int NTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
 
     struct BufType * buf = malloc(sizeof(struct BufType) * pm_allocsize(pm) / 2);
 
     int Nmesh = pm_nmesh(pm)[0];
-    ptrdiff_t strides[3] = {Nmesh * (Nmesh / 2 + 1), Nmesh / 2 + 1, 1};
-    size_t shape[3] = {Nmesh , Nmesh, Nmesh / 2 + 1};
+    int64_t strides[3] = {Nmesh * (Nmesh / 2 + 1), Nmesh / 2 + 1, 1};
+    int64_t shape[3] = {Nmesh , Nmesh, Nmesh / 2 + 1};
 
     size_t localsize = 0;
     for(pm_kiter_init(pm, &kiter);
@@ -161,21 +164,17 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         uint64_t iabs = kiter.iabs[0] * strides[0] + kiter.iabs[1] * strides[1] + kiter.iabs[2] * strides[2];
         buf[localsize].value[0] = data[kiter.ind];
         buf[localsize].value[1] = data[kiter.ind + 1];
-        buf[localsize].ind = iabs;
+        buf[localsize].ind2 = iabs;
+        buf[localsize].ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
         localsize ++;
     }
 
     /* sort by k */
-    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix, 8, NULL, comm);
-
-    int ThisTask;
-    int NTask;
+    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix2, 8, NULL, comm);
 
     size_t size = localsize;
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    MPI_Comm_rank(comm, &ThisTask);
-    MPI_Comm_size(comm, &NTask);
 
     int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;
@@ -185,14 +184,15 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        big_file_mpi_create_block(&bf, &bb, blockname, "f4", 2, Nfile, size, comm);
-        big_array_init(&array, &buf[0].value[0], "f4", 2, (size_t[]) {localsize, 2}, (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0].value[0]) });
+        big_file_mpi_create_block(&bf, &bb, blockname, "c8", 1, Nfile, size, comm);
+        big_array_init(&array, &buf[0].value[0], "c8", 1, (size_t[]) {localsize, 1},
+                (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0])});
         big_block_seek(&bb, &ptr, 0);
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
 
-        big_block_set_attr(&bb, "ndims", (int[]){3,}, "i4", 1);
-        big_block_set_attr(&bb, "strides", strides, "i8", 3);
-        big_block_set_attr(&bb, "shape", shape, "i8", 3);
+        big_block_set_attr(&bb, "ndarray.ndim", (int[]){3,}, "i4", 1);
+        big_block_set_attr(&bb, "ndarray.strides", strides, "i8", 3);
+        big_block_set_attr(&bb, "ndarray.shape", shape, "i8", 3);
         big_block_mpi_close(&bb, comm);
     }
 
@@ -215,6 +215,7 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
 
     int Nmesh = pm_nmesh(pm)[0];
     ptrdiff_t strides[3] = {Nmesh * (Nmesh / 2 + 1), Nmesh / 2 + 1, 1};
+    int64_t shape[3] = {Nmesh , Nmesh, Nmesh / 2 + 1};
 
     int ThisTask;
     int NTask;
@@ -222,13 +223,15 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
     MPI_Comm_rank(comm, &ThisTask);
     MPI_Comm_size(comm, &NTask);
 
-    size_t localsize = 0;
+    uint64_t localsize = 0;
     for(pm_kiter_init(pm, &kiter);
        !pm_kiter_stop(&kiter);
         pm_kiter_next(&kiter)) {
         uint64_t iabs = kiter.iabs[0] * strides[0] + kiter.iabs[1] * strides[1] + kiter.iabs[2] * strides[2];
+        buf[localsize].value[0] = 0;
+        buf[localsize].value[1] = 0;
         buf[localsize].ind2 = iabs;
-        buf[localsize].ind = ThisTask * (size_t) Nmesh * Nmesh * Nmesh + localsize;
+        buf[localsize].ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
         localsize ++;
     }
     /* sort by ind2, such that ind is the original linear location in 2d decomposition */
@@ -247,14 +250,18 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
         BigBlockPtr ptr;
         big_file_mpi_open_block(&bf, &bb, blockname, comm);
 
-        big_block_get_attr(&bb, "strides", istrides, "i8", 3);
-        big_block_get_attr(&bb, "shape", ishape, "i8", 3);
+        big_block_get_attr(&bb, "ndarray.strides", istrides, "i8", 3);
+        big_block_get_attr(&bb, "ndarray.shape", ishape, "i8", 3);
 
-        /* FIXME: assert strides and shape is consistent */
-        size_t localstart = bb.size * ThisTask / NTask;
-        size_t localend = bb.size * (ThisTask + 1) / NTask;
-        size_t localsize = localend - localstart;
-        big_array_init(&array, &buf[0].value[0], "f4", 2, (size_t[]) {localsize, 2}, (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0].value[0]) });
+        int d;
+        for(d = 0; d < 3; d++) {
+            if(ishape[d] != shape[d]) {
+                fastpm_raise(-1, "Shape of complex field mismatch. Expecting (%ld %ld %ld), file has (%ld %ld %ld)\n",
+                    shape[0], shape[1], shape[2], ishape[0], ishape[1], ishape[2]);
+            }
+        }
+        /* FIXME: assert strides is consistent */
+        big_array_init(&array, &buf[0].value[0], "c8", 1, (size_t[]) {localsize, 1}, (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0])});
         big_block_seek(&bb, &ptr, 0);
         big_block_mpi_read(&bb, &ptr, &array, Nwriters, comm);
 
