@@ -154,6 +154,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
     struct BufType * buf = malloc(sizeof(struct BufType) * pm_allocsize(pm) / 2);
 
     int Nmesh = pm_nmesh(pm)[0];
+    double BoxSize = pm_boxsize(pm)[0];
     int64_t strides[3] = {Nmesh * (Nmesh / 2 + 1), Nmesh / 2 + 1, 1};
     int64_t shape[3] = {Nmesh , Nmesh, Nmesh / 2 + 1};
 
@@ -194,6 +195,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         big_block_set_attr(&bb, "ndarray.strides", strides, "i8", 3);
         big_block_set_attr(&bb, "ndarray.shape", shape, "i8", 3);
         big_block_set_attr(&bb, "Nmesh", &Nmesh, "i4", 1);
+        big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
         big_block_mpi_close(&bb, comm);
     }
 
