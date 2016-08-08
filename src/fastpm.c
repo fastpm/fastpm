@@ -311,6 +311,8 @@ produce:
 
     if(CONF(prr, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
+        ptrdiff_t mode[4] = { 0, 0, 0, 0, };
+        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
