@@ -11,7 +11,7 @@ typedef struct FastPMKick FastPMKick;
 typedef struct FastPMExtension FastPMExtension;
 typedef struct FastPMModel FastPMModel;
 
-typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA} FastPMForceType;
+typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
 typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
                FASTPM_KERNEL_GADGET,
@@ -102,10 +102,13 @@ struct FastPMExtension {
 struct FastPMDrift {
     FastPMSolver * fastpm;
     FastPMStore * p;
-    double dyyy;
-    double da1;
-    double da2;
+    double ai;
     double af;
+    /* */
+    int nsamples;
+    double dyyy[32];
+    double da1[32];
+    double da2[32];
 };
 
 struct FastPMKick {
@@ -150,7 +153,7 @@ void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi
 void
 fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
 void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3]);
+fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3], double ae);
 
 double
 fastpm_growth_factor(FastPMSolver * fastpm, double a);

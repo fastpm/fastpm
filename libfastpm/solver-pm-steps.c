@@ -54,16 +54,36 @@ fastpm_growth_factor(FastPMSolver * fastpm, double a)
 }
 
 inline void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
+fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3], double af)
 {
+    double ind;
+    double dyyy, da1, da2;
+    if(af == drift->af) {
+        dyyy = drift->dyyy[drift->nsamples - 1];
+        da1  = drift->da1[drift->nsamples - 1];
+        da2  = drift->da2[drift->nsamples - 1];
+    } else {
+        ind = (af - drift->ai) / (drift->af - drift->ai) * (drift->nsamples - 1);
+        int l = floor(ind);
+        double u = l + 1 - ind;
+        double v = ind - l;
+        dyyy = drift->dyyy[l] * u + drift->dyyy[l + 1] * v;
+        da1  = drift->da1[l] * u + drift->da1[l + 1] * v;
+        da2  = drift->da2[l] * u + drift->da2[l + 1] * v;
+    }
     int d;
     for(d = 0; d < 3; d ++) {
-        xo[d] = drift->p->x[i][d] + drift->p->v[i][d]*drift->dyyy;
-        if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-            xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
+        if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_2LPT) {
+            xo[d] = drift->p->x[i][d] + drift->p->dx1[i][d] * da1 + drift->p->dx2[i][d] * da2;
+        } else if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_ZA) {
+            xo[d] = drift->p->x[i][d] + drift->p->dx1[i][d] * da1;
+        } else {
+            xo[d] = drift->p->x[i][d] + drift->p->v[i][d] * dyyy;
+            if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+                xo[d] += drift->p->dx1[i][d] * da1 + drift->p->dx2[i][d] * da2;
+            }
         }
     }
-
 }
 
 inline void
@@ -169,18 +189,26 @@ fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi,
 
     Cosmology c = CP(fastpm);
 
-    if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
-        drift->dyyy = 1 / (ac * ac * ac * HubbleEa(ac, c))
-                    * (G_p(af, c) - G_p(ai, c)) / g_p(ac, c);
-    } else {
-        drift->dyyy = Sq(ai, af, ac, fastpm);
-    }
-    drift->da1 = GrowthFactor(af, c) - GrowthFactor(ai, c);    // change in D_1lpt
-    drift->da2 = GrowthFactor2(af, c) - GrowthFactor2(ai, c);  // change in D_2lpt
+    drift->nsamples = 32;
+    int i;
 
+    for(i = 0; i < drift->nsamples; i ++ ) {
+        double ae = ai * (1.0 * (drift->nsamples - 1 - i) / (drift->nsamples - 1))
+                  + af * (1.0 * i / (drift->nsamples - 1));
+
+        if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
+            drift->dyyy[i] = 1 / (ac * ac * ac * HubbleEa(ac, c))
+                        * (G_p(ae, c) - G_p(ai, c)) / g_p(ac, c);
+        } else {
+            drift->dyyy[i] = Sq(ai, ae, ac, fastpm);
+        }
+        drift->da1[i] = GrowthFactor(ae, c) - GrowthFactor(ai, c);    // change in D_1lpt
+        drift->da2[i] = GrowthFactor2(ae, c) - GrowthFactor2(ai, c);  // change in D_2lpt
+    }
     drift->fastpm = fastpm;
     drift->p = pi;
     drift->af = af;
+    drift->ai = ai;
 }
 
 void
@@ -200,7 +228,7 @@ fastpm_drift_store(FastPMSolver * fastpm,
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         double xo[3];
-        fastpm_drift_one(drift, i, xo);
+        fastpm_drift_one(drift, i, xo, drift->af);
         int d;
         for(d = 0; d < 3; d ++) {
             po->x[i][d] = xo[d];

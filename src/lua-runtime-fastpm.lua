@@ -162,6 +162,7 @@ schema.declare{name='write_powerspectrum', type='string'}
 schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
+schema.declare{name='write_lightcone',         type='string'}
 
 schema.declare{name='za',                      type='boolean', default=false}
 schema.declare{name='kernel_type',             type='enum', default="3_4"}
