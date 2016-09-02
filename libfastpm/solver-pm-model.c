@@ -48,8 +48,6 @@ void fastpm_model_init(FastPMModel * model, FastPMSolver * fastpm, FastPMModelTy
             break;
         case FASTPM_MODEL_ZA:
         case FASTPM_MODEL_2LPT:
-            fastpm_model_pt_init(model);
-            break;
         case FASTPM_MODEL_PM:
             fastpm_model_pm_init(model);
             break;

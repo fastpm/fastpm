@@ -48,6 +48,13 @@ static void fastpm_model_pm_build(FastPMModel * model, double ainit, double afin
         .alloc_factor = model->fastpm->alloc_factor,
         .boxsize = model->fastpm->boxsize
     };
+    if(model->type == FASTPM_MODEL_2LPT) {
+        solver->FORCE_TYPE = FASTPM_FORCE_2LPT;
+    }
+    if(model->type == FASTPM_MODEL_ZA) {
+        solver->FORCE_TYPE = FASTPM_FORCE_ZA;
+    }
+    /* FIXME: for PT we do not need this many steps */
     double stepsize = 1.02;
     double a = ainit;
     int i;
