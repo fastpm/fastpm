@@ -36,9 +36,9 @@ int main(int argc, char * argv[]) {
     };
 
     fastpm_init(solver, 0, 0, comm);
-    FastPMDrift drift;
 
-    fastpm_drift_init(&drift, solver, 
+    FastPMDrift drift;
+    fastpm_drift_init(&drift, solver, 0.1, 0.2, 0.3);
 
     FastPMLightCone lc[1];
 
@@ -52,7 +52,7 @@ int main(int argc, char * argv[]) {
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
         d = fastpm_lc_horizon(lc, a);
-        //fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d * HubbleDistance);
+        fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d * HubbleDistance);
     }
 
     // fastpm_lc_intersect test
@@ -72,6 +72,9 @@ int main(int argc, char * argv[]) {
     status = fastpm_lc_intersect(lc, &solution, 0.1, 0.0);
     status = fastpm_lc_intersect(lc, &solution, 0.0, 0.0);
 
+    if(status == 0) {
+        fastpm_info("last calculation failed");
+    }
     fastpm_lc_destroy(lc);
 
     libfastpm_cleanup();
