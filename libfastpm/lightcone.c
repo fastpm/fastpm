@@ -8,6 +8,7 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/cosmology.h>
 #include <fastpm/lightcone.h>
+#include <fastpm/logging.h>
 
 void
 fastpm_lc_init(FastPMLightCone * lc, Cosmology CP, size_t np_upper)
