@@ -7,6 +7,8 @@ typedef struct {
     FastPMStore * p;
     /* Need a table for drift factors */
 
+	void *s; // GSL solver pointer
+
     struct {
         double * Dc;
         size_t size;
