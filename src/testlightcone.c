@@ -31,8 +31,26 @@ int main(int argc, char * argv[]) {
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
         d = fastpm_lc_horizon(lc, a);
-        fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d * HubbleDistance);
+        //fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d * HubbleDistance);
     }
+
+	// fastpm_lc_intersect test
+	double solution;
+	int status;
+	
+	status = fastpm_lc_intersect(lc, &solution, 0.2, 0.5);
+	status = fastpm_lc_intersect(lc, &solution, 0.2, -0.5);
+	
+	status = fastpm_lc_intersect(lc, &solution, 0.3, -0.1);
+	status = fastpm_lc_intersect(lc, &solution, 0.1, -0.3);
+	status = fastpm_lc_intersect(lc, &solution, 0.3, 0.1);
+	status = fastpm_lc_intersect(lc, &solution, 0.1, 0.3);
+	
+	status = fastpm_lc_intersect(lc, &solution, 0.1, 0.1);
+	status = fastpm_lc_intersect(lc, &solution, 0.0, 0.1);
+	status = fastpm_lc_intersect(lc, &solution, 0.1, 0.0);
+	status = fastpm_lc_intersect(lc, &solution, 0.0, 0.0);
+	
     fastpm_lc_destroy(lc);
 
     libfastpm_cleanup();

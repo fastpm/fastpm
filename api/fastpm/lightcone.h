@@ -3,9 +3,9 @@ FASTPM_BEGIN_DECLS
 typedef struct {
     double LightSpeedFactor;
 
-    /* storage of the particles on light cone */
+    /* Storage of the particles on the light cone */
     FastPMStore * p;
-    /* need a table for drift factors */
+    /* Need a table for drift factors */
 
     struct {
         double * Dc;
@@ -13,6 +13,14 @@ typedef struct {
     } EventHorizonTable;
 
 } FastPMLightCone;
+
+struct funct_params { FastPMLightCone *lc; double a, b;};
+
+double
+fastpm_lc_horizon(FastPMLightCone * lc, double a);
+
+int
+fastpm_lc_intersect(FastPMLightCone * lc, double * solution, double a, double b);
 
 void
 fastpm_lc_init(FastPMLightCone * lc, Cosmology CP, size_t np_upper);
