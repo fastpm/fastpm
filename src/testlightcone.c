@@ -35,8 +35,6 @@ int main(int argc, char * argv[]) {
         .K_LINEAR = 0.04,
     };
 
-    fastpm_init(solver, 0, 0, comm);
-
     FastPMDrift drift;
     fastpm_drift_init(&drift, solver, 0.1, 0.2, 0.3);
 
