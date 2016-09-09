@@ -86,7 +86,12 @@ int main(int argc, char * argv[]) {
     fastpm_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};
     fastpm_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
-    write_snapshot(solver, solver->p, "nonlightconeresult", "", 1);
+    write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1);
+    
+    fastpm_setup_ic(solver, rho_init_ktruth);
+    double time_step3[] = {0.1};
+    fastpm_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
+    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1);
 
     fastpm_lc_destroy(lc);
 
