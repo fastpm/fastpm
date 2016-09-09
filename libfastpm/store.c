@@ -248,6 +248,11 @@ fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes)
         p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->dx2 = NULL;
+
+    if(attributes & PACK_AEMIT)
+        p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, FASTPM_MEMORY_HEAP);
+    else
+        p->aemit = NULL;
 };
 
 size_t 
@@ -263,6 +268,7 @@ fastpm_store_alloc_evenly(FastPMStore * p, size_t np_total, int attributes, doub
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
+    if(p->aemit) fastpm_memory_free(p->mem, p->aemit);
     if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
     if(p->dx1) fastpm_memory_free(p->mem, p->dx1);
     if(p->acc) fastpm_memory_free(p->mem, p->acc);

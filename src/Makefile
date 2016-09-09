@@ -39,7 +39,7 @@ testpm : .objs/testpm.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
-testlightcone : .objs/testlightcone.o ../libfastpm/libfastpm.a
+testlightcone : .objs/testlightcone.o .objs/io.o ../libfastpm/libfastpm.a ../bigfile/libbigfile.a ../bigfile/libbigfile-mpi.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 

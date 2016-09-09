@@ -9,6 +9,9 @@
 #include <fastpm/cosmology.h>
 #include <fastpm/lightcone.h>
 
+int
+write_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase, char * parameters, int Nwriters);
+
 int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
@@ -20,8 +23,8 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMSolver * solver = & (FastPMSolver) {
-        .nc = 32,
-        .boxsize = 32.,
+        .nc = 128,
+        .boxsize = 128.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
@@ -45,7 +48,7 @@ int main(int argc, char * argv[]) {
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
-        .Norm = 10000.0, /* FIXME: this is not any particular sigma8. */
+        .Norm = 5e6, /* FIXME: this is not any particular sigma8. */
         .hubble_param = 0.7,
         .omegam = 0.260,
         .omegab = 0.044,
@@ -54,16 +57,22 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     fastpm_setup_ic(solver, rho_init_ktruth);
-    pm_free(solver->basepm, rho_init_ktruth);
+
+    fastpm_info("dx1  : %g %g %g %g\n", 
+            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
+            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
+    fastpm_info("dx2  : %g %g %g %g\n", 
+            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
+            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
     double time_step[] = {0.1};
     fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
-    fastpm_lc_init(lc, solver, 1000000);
+    fastpm_lc_init(lc, 0.02, solver, solver->p->np_upper);
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
         d = fastpm_lc_horizon(lc, a);
-        fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d * HubbleDistance);
+        fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d);
     }
 
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
@@ -71,8 +80,17 @@ int main(int argc, char * argv[]) {
 
     fastpm_lc_intersect(lc, &drift, &kick, solver->p);
     fastpm_info("%td particles are in the light cone\n", lc->p->np);
+
+    write_snapshot(solver, lc->p, "lightconeresult", "", 1);
+
+    fastpm_setup_ic(solver, rho_init_ktruth);
+    double time_step2[] = {0.1, 1.0};
+    fastpm_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
+    write_snapshot(solver, solver->p, "nonlightconeresult", "", 1);
+
     fastpm_lc_destroy(lc);
 
+    pm_free(solver->basepm, rho_init_ktruth);
     fastpm_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();

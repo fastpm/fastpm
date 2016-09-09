@@ -19,7 +19,7 @@ static Cosmology CP(FastPMSolver * fastpm) {
 }
 
 void
-fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm, size_t np_upper)
+fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, size_t np_upper)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
@@ -41,11 +41,11 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm, size_t np_upper)
 
     for(i = 0; i < lc->EventHorizonTable.size; i ++) {
         double a = 1.0 * i / (lc->EventHorizonTable.size - 1);
-        lc->EventHorizonTable.Dc[i] = ComovingDistance(a, c);
+        lc->EventHorizonTable.Dc[i] = speedfactor * HubbleDistance * ComovingDistance(a, c);
     }
 
     fastpm_store_init(lc->p);
-    fastpm_store_alloc(lc->p, np_upper, PACK_ID | PACK_POS | PACK_VEL);
+    fastpm_store_alloc(lc->p, np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT);
 }
 
 void
@@ -201,6 +201,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDrift * drift, FastPMKick * kick
             /* XXX: convert units? */
             lc->p->v[next][d] = vo[d];
         }
+        lc->p->id[next] = p->id[i];
+        lc->p->aemit[next] = a_emit;
         lc->p->np ++;
     }
     return 0;

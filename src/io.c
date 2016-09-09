@@ -88,10 +88,13 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         {"Position", p->x, "f8", 3, "f4"},
         {"Velocity", p->v, "f4", 3, "f4"},
         {"ID", p->id, "i8", 1, "i8"},
+        {"Aemit", p->aemit, "f4", 1, "f4"},
         {NULL, },
     };
 
     for(bdesc = BLOCKS; bdesc->name; bdesc ++) {
+        if(bdesc->fastpm == NULL) continue;
+
         fastpm_info("Writing block %s\n", bdesc->name);
         BigBlock bb;
         BigArray array;

@@ -1,8 +1,6 @@
 FASTPM_BEGIN_DECLS
 
 typedef struct {
-    double LightSpeedFactor;
-
     /* remember the solver, might be useful. */
     FastPMSolver * fastpm;
     /* Storage of the particles on the light cone */
@@ -25,7 +23,7 @@ int
 fastpm_lc_intersect(FastPMLightCone * lc, FastPMDrift * drift, FastPMKick * kick, FastPMStore * pi);
 
 void
-fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm, size_t np_upper);
+fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, size_t np_upper);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);
