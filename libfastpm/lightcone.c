@@ -196,7 +196,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDrift * drift, FastPMKick * kick
         float vo[3];
         fastpm_drift_one(drift, p, i, xo, a_emit);
         fastpm_kick_one(kick, p, i, vo, a_emit);
-        for(int d = 0; d < 3; d ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
             lc->p->x[next][d] = xo[d];
             /* XXX: convert units? */
             lc->p->v[next][d] = vo[d];
