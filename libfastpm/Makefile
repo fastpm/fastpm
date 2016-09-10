@@ -21,6 +21,7 @@ LIBSOURCES = libfastpm.c \
     utils.c \
     initialcondition.c \
     pngaussian.c \
+    constrainedgaussian.c \
     cosmology.c \
     powerspectrum.c \
     logging.c \

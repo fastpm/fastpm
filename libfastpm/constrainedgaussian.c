@@ -3,30 +3,14 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/constrainedgaussian.h>
+
 #include "pmpfft.h"
 #include <gsl/gsl_linalg.h>
 
-struct FastPMConstraint
-{
-    double x[3];
-    double c;
-};
-
-struct FastPMConstrainedGaussian
-{
-    int size;
-    FastPMConstraint *constraints;
-};
-
-struct FastPM2PCF
-{
-    int size;
-    double *xi;
-    double step_size;
-};
-
 double fastpm_2pcf_eval(FastPM2PCF* self, double r)
 {
+    return 1.0;
 }
 
 /*
@@ -40,7 +24,8 @@ fastpm_2pcf_from_powerspectrum(FastPM2PCF *self, fastpm_fkfunc pkfunc, void * da
 {
 }
 
-void _solve(int size, double * Cij, double * dfi, double * x)
+static void
+_solve(int size, double * Cij, double * dfi, double * x)
 {
 
 
@@ -49,9 +34,9 @@ void _solve(int size, double * Cij, double * dfi, double * x)
 void
 fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *xi, FastPMFloat * delta_k)
 {
-    double dfi[cg->size] = {0};
-    double e[cg->size] = {0};
-    double Cij[cg->size * cg->size] = {0};
+    double dfi[cg->size];
+    double e[cg->size];
+    double Cij[cg->size * cg->size];
 
     FastPMFloat * delta_x = pm_alloc(pm);
 
@@ -73,21 +58,23 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
             index += ii[d] * pm->IRegion.strides[d];
         }
 
-        if(!inBox)
-            continue;
-
-        dfi[i] = cg->constrants[i].c - delta_x[index];
+        if(inBox) {
+            dfi[i] = cg->constraints[i].c - delta_x[index];
+        } else {
+            dfi[i] = 0;
+        }
     }
-    MPI_Allreduce(dfi, cg->size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+    MPI_Allreduce(MPI_IN_PLACE, dfi, cg->size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
 
     for(i = 0; i < cg->size; ++i) 
     {
+        int j;
         for(j = i; j < cg->size; ++j) 
         {
             int d;
             double r = 0;
             for(d = 0; d < 3; ++d) {
-                double dx = cg->constrains[i].x[d] - cg->constrains[j].x[d];
+                double dx = cg->constraints[i].x[d] - cg->constraints[j].x[d];
                 r += dx * dx;
             }
             r = sqrt(r);
@@ -111,7 +98,7 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
             
             double r = 0;
             for(d = 0; d < 3; d ++) {
-                double dx = xiter.iabs[d] * pm->CellSize[d] - cg->constrains[i].x[d];
+                double dx = xiter.iabs[d] * pm->CellSize[d] - cg->constraints[i].x[d];
                 r += dx * dx;
             }
             r = sqrt(r);
