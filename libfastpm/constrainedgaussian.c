@@ -31,21 +31,51 @@ _solve(int size, double * Cij, double * dfi, double * x)
 
 }
 
+static void
+_readout(FastPMConstraint * constraints, int size, PM * pm, FastPMFloat * delta_x, double * dfi)
+{
+    int i;
+
+    for(i = 0; i < size; ++i)
+    {
+        int ii[3];
+        int d;
+        int inBox = 1;
+        int index = 0;
+        for(d = 0; d < 3; ++d)
+        {
+            ii[d] = constraints[i].x[d] * pm->InvCellSize[d] - pm->IRegion.start[d];
+            if(ii[d] < 0 || ii[d] > pm->IRegion.size[d])
+                inBox = 0;
+            index += ii[d] * pm->IRegion.strides[d];
+        }
+
+        if(inBox) {
+            dfi[i] = delta_x[index];
+        } else {
+            dfi[i] = 0;
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, dfi, size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+}
+
 void
 fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *xi, FastPMFloat * delta_k)
 {
+    FastPMConstraint * constraints = cg->constraints;
+
     int size;
-    for(size = 0; cg->constraints[size].x[0] >= 0; size ++)
+    for(size = 0; constraints[size].x[0] >= 0; size ++)
         continue;
 
     int i;
     fastpm_info("Constrained Gaussian with %d constraints\n", size);
     for(i = 0; i < size; i ++) {
         fastpm_info("x[] = %g %g %g ; c = %g\n",
-                cg->constraints[i].x[0],
-                cg->constraints[i].x[1],
-                cg->constraints[i].x[2],
-                cg->constraints[i].c);
+                constraints[i].x[0],
+                constraints[i].x[1],
+                constraints[i].x[2],
+                constraints[i].c);
     }
 
     double dfi[size];
@@ -57,37 +87,19 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
     pm_assign(pm, delta_k, delta_x);
     pm_c2r(pm, delta_x);
 
+    _readout(constraints, size, pm, delta_x, dfi);
+
     for(i = 0; i < size; ++i)
     {
-        int ii[3];
-        int d;
-        int inBox = 1;
-        int index = 0;
-        for(d = 0; d < 3; ++d)
-        {
-            ii[d] = cg->constraints[i].x[d] * pm->InvCellSize[d] - pm->IRegion.start[d];
-            if(ii[d] < 0 || ii[d] > pm->IRegion.size[d])
-                inBox = 0;
-            index += ii[d] * pm->IRegion.strides[d];
-        }
+        dfi[i] = constraints[i].c - dfi[i];
 
-        if(inBox) {
-            dfi[i] = cg->constraints[i].c - delta_x[index];
-        } else {
-            dfi[i] = 0;
-        }
-    }
-    MPI_Allreduce(MPI_IN_PLACE, dfi, size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
-
-    for(i = 0; i < size; ++i) 
-    {
         int j;
-        for(j = i; j < size; ++j) 
+        for(j = i; j < size; ++j)
         {
             int d;
             double r = 0;
             for(d = 0; d < 3; ++d) {
-                double dx = cg->constraints[i].x[d] - cg->constraints[j].x[d];
+                double dx = constraints[i].x[d] - constraints[j].x[d];
                 r += dx * dx;
             }
             r = sqrt(r);
@@ -108,10 +120,10 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
         for(i = 0; i < size; ++i)
         {
             int d;
-            
+
             double r = 0;
             for(d = 0; d < 3; d ++) {
-                double dx = xiter.iabs[d] * pm->CellSize[d] - cg->constraints[i].x[d];
+                double dx = xiter.iabs[d] * pm->CellSize[d] - constraints[i].x[d];
                 r += dx * dx;
             }
             r = sqrt(r);
@@ -121,6 +133,14 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
         delta_x[xiter.ind] += v;
     }
 
+    _readout(constraints, size, pm, delta_x, dfi);
+    for(i = 0; i < size; i ++) {
+        fastpm_info("Realization x[] = %g %g %g v = %g\n",
+                constraints[i].x[0],
+                constraints[i].x[1],
+                constraints[i].x[2],
+                dfi[i]);
+    }
     pm_r2c(pm, delta_x, delta_k);
     pm_free(pm, delta_x);
 }
