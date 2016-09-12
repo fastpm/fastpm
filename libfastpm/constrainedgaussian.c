@@ -34,17 +34,30 @@ _solve(int size, double * Cij, double * dfi, double * x)
 void
 fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *xi, FastPMFloat * delta_k)
 {
-    double dfi[cg->size];
-    double e[cg->size];
-    double Cij[cg->size * cg->size];
+    int size;
+    for(size = 0; cg->constraints[size].x[0] >= 0; size ++)
+        continue;
+
+    int i;
+    fastpm_info("Constrained Gaussian with %d constraints\n", size);
+    for(i = 0; i < size; i ++) {
+        fastpm_info("x[] = %g %g %g ; c = %g\n",
+                cg->constraints[i].x[0],
+                cg->constraints[i].x[1],
+                cg->constraints[i].x[2],
+                cg->constraints[i].c);
+    }
+
+    double dfi[size];
+    double e[size];
+    double Cij[size * size];
 
     FastPMFloat * delta_x = pm_alloc(pm);
 
     pm_assign(pm, delta_k, delta_x);
     pm_c2r(pm, delta_x);
 
-    int i;
-    for(i = 0; i < cg->size; ++i)
+    for(i = 0; i < size; ++i)
     {
         int ii[3];
         int d;
@@ -64,12 +77,12 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
             dfi[i] = 0;
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, dfi, cg->size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+    MPI_Allreduce(MPI_IN_PLACE, dfi, size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
 
-    for(i = 0; i < cg->size; ++i) 
+    for(i = 0; i < size; ++i) 
     {
         int j;
-        for(j = i; j < cg->size; ++j) 
+        for(j = i; j < size; ++j) 
         {
             int d;
             double r = 0;
@@ -79,12 +92,12 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
             }
             r = sqrt(r);
             double v = fastpm_2pcf_eval(xi, r);
-            Cij[i * cg->size + j] = v;
-            Cij[j * cg->size + i] = v;
+            Cij[i * size + j] = v;
+            Cij[j * size + i] = v;
         }
     }
 
-    _solve(cg->size, Cij, dfi, e);
+    _solve(size, Cij, dfi, e);
 
     PMXIter xiter;
     for(pm_xiter_init(pm, &xiter);
@@ -92,7 +105,7 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
         pm_xiter_next(&xiter))
     {
         double v = 0;
-        for(i = 0; i < cg->size; ++i)
+        for(i = 0; i < size; ++i)
         {
             int d;
             

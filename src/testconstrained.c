@@ -16,7 +16,7 @@ int main(int argc, char * argv[]) {
 
     MPI_Comm comm = MPI_COMM_WORLD;
 
-    fastpm_set_msg_handler(fastpm_void_msg_handler, comm, NULL);
+    fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMSolver * solver = & (FastPMSolver) {
         .nc = 128,
@@ -58,7 +58,6 @@ int main(int argc, char * argv[]) {
                 {{64, 64, 64}, 10},
                 {{-1, -1, -1}, -1},
             },
-            .size = 2, /* get rid of this.*/
     };
 
     fastpm_cg_induce_correlation(&cg, solver->basepm, &xi, rho_init_ktruth);
