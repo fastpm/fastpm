@@ -20,7 +20,7 @@ int main(int argc, char * argv[]) {
 
     FastPMSolver * solver = & (FastPMSolver) {
         .nc = 128,
-        .boxsize = 32.,
+        .boxsize = 128.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {

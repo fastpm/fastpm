@@ -10,7 +10,9 @@
 
 double fastpm_2pcf_eval(FastPM2PCF* self, double r)
 {
-    return 1.0;
+    if(r < 1.0)
+        return 1.0;
+    return 0.0;
 }
 
 /*
@@ -28,7 +30,11 @@ static void
 _solve(int size, double * Cij, double * dfi, double * x)
 {
     /* XXX: Ah we need to solve this. */
-
+    int i;
+    /* assume Cij is identity for now. */
+    for(i = 0; i < size; i ++) {
+        x[i] = dfi[i];
+    }
 }
 
 static void
