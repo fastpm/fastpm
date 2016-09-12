@@ -6,8 +6,8 @@ typedef struct {
 } FastPMConstraint;
 
 typedef struct {
-    int size;
     FastPMConstraint *constraints;
+    int size;
 } FastPMConstrainedGaussian;
 
 typedef struct {
