@@ -27,7 +27,7 @@ fastpm_2pcf_from_powerspectrum(FastPM2PCF *self, fastpm_fkfunc pkfunc, void * da
 static void
 _solve(int size, double * Cij, double * dfi, double * x)
 {
-
+    /* XXX: Ah we need to solve this. */
 
 }
 
