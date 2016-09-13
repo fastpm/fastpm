@@ -574,7 +574,10 @@ function config.parse(schema, filename, runmain, args)
     local namespace = setmetatable({}, {__index=_G})
 
     namespace['__file__'] = filename
-    namespace['args'] = args
+    namespace['args'] = {}
+    for i, k in pairs(args) do
+        namespace['args'][i - 1] = k 
+    end
 
     local param, err = loadfile(filename, 'bt', namespace)
     if param == nil then

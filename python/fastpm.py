@@ -81,7 +81,7 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
         if f1.dtype.kind == 'c':
             return f1
         else:
-            return numpy.rfftn(f1)
+            return numpy.fft.rfftn(f1)
     f1 = tocomplex(f1)
     if f1[0, 0, 0] != 0.0:
         f1 /= abs(f1[0, 0, 0])
