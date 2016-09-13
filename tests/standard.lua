@@ -106,7 +106,7 @@ end
 
 prefix = 'results'
 for i,k in pairs(args) do
-    if i > 1 then
+    if i > 0 then
     prefix = prefix .. '-' .. k
     end
 end
