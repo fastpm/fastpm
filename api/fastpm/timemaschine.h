@@ -1,24 +1,23 @@
 FASTPM_BEGIN_DECLS
 
-// Typedef
+// Typedefs
 
-typedef struct FastPMTEStep FastPMTEStep;
-typedef struct FastPMTEStates FastPMTEStates;
-typedef struct FastPMTEEntry FastPMTEEntry;
+typedef struct {
+    int a, x, v;
+} FastPMTEEntry;
 
-// Struct
-
-struct FastPMTEEntry { int a, x, v; };
-struct FastPMTEStep { int i, f, r;};
-
-struct FastPMTEStates {
+typedef struct {
     FastPMTEEntry *table;
     int cycle_len;
     int cycles;
     double *timesteps;
-};
+} FastPMTEStates;
 
-// Proto
+typedef struct {
+    int i, f, r;
+} FastPMTEStep;
+
+// Protos
 
 int fastpm_tevo_block_len(FastPMTEEntry *template);
 
@@ -29,6 +28,5 @@ void fastpm_tevo_destroy_states(FastPMTEStates *states);
 double fastpm_tevo_i2t(double time_steps[], int i, int N);
 
 void fastpm_tevo_print_states(FastPMTEStates *states);
-
 
 FASTPM_END_DECLS

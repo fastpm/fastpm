@@ -54,4 +54,4 @@ lua-config.c lua-config.h : $(LUASOURCES) make-lua-config.lua
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm fastpm-lua testpm testtimemaschine test2lpt
+	rm -rf fastpm fastpm-lua testpm test2lpt

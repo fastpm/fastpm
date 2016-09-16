@@ -7,6 +7,7 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include <fastpm/cosmology.h>
+#include <fastpm/timemaschine.h>
 
 int main(int argc, char * argv[]) {
 
@@ -15,6 +16,8 @@ int main(int argc, char * argv[]) {
     libfastpm_init();
 
     MPI_Comm comm = MPI_COMM_WORLD;
+
+    /* timemaschine test */
 
     //~ entry template[] = {
     //~ {0, 0, 1}, /* Kick */
@@ -54,6 +57,8 @@ int main(int argc, char * argv[]) {
 
     fastpm_tevo_print_states(states);
     fastpm_tevo_destroy_states(states);
+
+    /* timemaschine test */
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
     libfastpm_cleanup();

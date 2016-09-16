@@ -1,4 +1,12 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <alloca.h>
+#include <mpi.h>
 #include <math.h>
+#include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
+#include <fastpm/cosmology.h>
 #include <fastpm/timemaschine.h>
 
 int fastpm_tevo_block_len(FastPMTEEntry *template) {
