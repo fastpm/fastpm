@@ -7,7 +7,7 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include <fastpm/cosmology.h>
-#include <fastpm/timemaschine.h>
+#include <fastpm/timemachine.h>
 
 int main(int argc, char * argv[]) {
 

@@ -20,7 +20,7 @@ LIBSOURCES = libfastpm.c \
     utils.c \
     initialcondition.c \
     pngaussian.c \
-    timemaschine.c \
+    timemachine.c \
     cosmology.c \
     powerspectrum.c \
     logging.c \

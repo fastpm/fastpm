@@ -7,7 +7,7 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include <fastpm/cosmology.h>
-#include <fastpm/timemaschine.h>
+#include <fastpm/timemachine.h>
 
 int fastpm_tevo_block_len(FastPMTEEntry *template) {
     /* Return number of elements in a template */
