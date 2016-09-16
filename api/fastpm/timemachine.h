@@ -25,7 +25,7 @@ FastPMTEStates *fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, 
 
 void fastpm_tevo_destroy_states(FastPMTEStates *states);
 
-double fastpm_tevo_i2t(double time_steps[], int i, int N);
+double fastpm_tevo_i2t(FastPMTEStates *states, int i);
 
 void fastpm_tevo_print_states(FastPMTEStates *states);
 

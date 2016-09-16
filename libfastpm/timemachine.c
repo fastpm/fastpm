@@ -55,11 +55,17 @@ FastPMTEStates *fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, 
 
 void fastpm_tevo_destroy_states(FastPMTEStates *states) { free(states->table); free(states->timesteps); }
 
-double fastpm_tevo_i2t(double time_steps[], int i, int N) {
-    int d = i / N;
-    double r = (i - N * d) / (1.0 * N);
+double fastpm_tevo_i2t(FastPMTEStates *states, int i) {
+    int d = i / states->cycle_len;
+    double r = (i - states->cycle_len * d) / (1.0 * states->cycle_len);
     
-    return exp((1 - r) * log(time_steps[d]) + r * log(time_steps[d+1]));
+    if(d+1 >= states->cycles) {
+		return states->timesteps[states->cycles - 1];
+	} else if(d < 0) {
+		return states->timesteps[0];
+	}
+    
+    return exp((1 - r) * log(states->timesteps[d]) + r * log(states->timesteps[d+1]));
 }
 
 void fastpm_tevo_print_states(FastPMTEStates *states) {
@@ -124,23 +130,17 @@ void fastpm_tevo_print_states(FastPMTEStates *states) {
                 printf("FORCE");
                 break;
             case KICK:
-                printf("KICK (v=%d, %d, a=%d)", thiskick.f,
-                                                thiskick.i,
-                                                thiskick.r);
                                                 
-                //~ printf("KICK (v=%g, %g, a=%g)", fastpm_tevo_i2t(states->timesteps, thiskick.f, states->cycle_len),
-                                                //~ fastpm_tevo_i2t(states->timesteps, thiskick.i, states->cycle_len),
-                                                //~ fastpm_tevo_i2t(states->timesteps, thiskick.r, states->cycle_len));
+                printf("KICK (v=%g, %g, a=%g)", fastpm_tevo_i2t(states, thiskick.f),
+                                                fastpm_tevo_i2t(states, thiskick.i),
+                                                fastpm_tevo_i2t(states, thiskick.r));
                 lastkick = thiskick;
                 break;
             case DRIFT:
-                printf("DRIFT(x=%d, %d, v=%d)", thisdrift.f,
-                                                thisdrift.i,
-                                                thisdrift.r);
                                                 
-                //~ printf("DRIFT(x=%g, %g, v=%g)", fastpm_tevo_i2t(states->timesteps, thisdrift.f, states->cycle_len),
-                                                //~ fastpm_tevo_i2t(states->timesteps, thisdrift.i, states->cycle_len),
-                                                //~ fastpm_tevo_i2t(states->timesteps, thisdrift.r, states->cycle_len));
+                printf("DRIFT(x=%g, %g, v=%g)", fastpm_tevo_i2t(states, thisdrift.f),
+                                                fastpm_tevo_i2t(states, thisdrift.i),
+                                                fastpm_tevo_i2t(states, thisdrift.r));
                 lastdrift = thisdrift;
                 break;
         }
