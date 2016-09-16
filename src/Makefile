@@ -13,7 +13,7 @@ LUA ?= ../lua/lua
 
 FASTPM_SOURCES = fastpm.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c lua-config.c
 FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c lua-runtime.c lua-config.c
-TEST_SOURCES = testtimemaschine.c
+TEST_SOURCES = testpm.c testtimemaschine.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
@@ -23,7 +23,7 @@ LUASOURCES = \
 	lua-runtime-config.lua \
 	lua-runtime-fastpm.lua \
 
-all: fastpm-lua fastpm testtimemaschine
+all: fastpm-lua fastpm testpm testtimemaschine
 
 fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a
@@ -41,7 +41,7 @@ testpm : .objs/testpm.o ../libfastpm/libfastpm.a
 
 testtimemaschine : .objs/testtimemaschine.o .objs/io.o ../libfastpm/libfastpm.a ../bigfile/libbigfile.a ../bigfile/libbigfile-mpi.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-		$(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 
@@ -54,5 +54,4 @@ lua-config.c lua-config.h : $(LUASOURCES) make-lua-config.lua
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm fastpm-lua testtimemaschine test2lpt
-
+	rm -rf fastpm fastpm-lua testpm testtimemaschine test2lpt
