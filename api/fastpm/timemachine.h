@@ -29,4 +29,6 @@ double fastpm_tevo_i2t(FastPMTEStates *states, int i);
 
 void fastpm_tevo_print_states(FastPMTEStates *states);
 
+void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
+
 FASTPM_END_DECLS

@@ -379,4 +379,3 @@ fastpm_add_extension(FastPMSolver * fastpm,
     q->next = fastpm->exts[where];
     fastpm->exts[where] = q;
 }
-
