@@ -54,7 +54,7 @@ fastpm_growth_factor(FastPMSolver * fastpm, double a)
 }
 
 inline void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3], double af)
+fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
 {
     double ind;
     double dyyy, da1, da2;
@@ -74,28 +74,28 @@ fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3], double af)
     int d;
     for(d = 0; d < 3; d ++) {
         if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_2LPT) {
-            xo[d] = drift->p->x[i][d] + drift->p->dx1[i][d] * da1 + drift->p->dx2[i][d] * da2;
+            xo[d] = p->x[i][d] + p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
         } else if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_ZA) {
-            xo[d] = drift->p->x[i][d] + drift->p->dx1[i][d] * da1;
+            xo[d] = p->x[i][d] + p->dx1[i][d] * da1;
         } else {
-            xo[d] = drift->p->x[i][d] + drift->p->v[i][d] * dyyy;
+            xo[d] = p->x[i][d] + p->v[i][d] * dyyy;
             if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-                xo[d] += drift->p->dx1[i][d] * da1 + drift->p->dx2[i][d] * da2;
+                xo[d] += p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
             }
         }
     }
 }
 
 inline void
-fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
+fastpm_kick_one(FastPMKick * kick, FastPMStore * p, ptrdiff_t i, float vo[3])
 {
     int d;
     for(d = 0; d < 3; d++) {
-        float ax = kick->p->acc[i][d];
+        float ax = p->acc[i][d];
         if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-            ax += (kick->p->dx1[i][d]*kick->q1 + kick->p->dx2[i][d]*kick->q2);
+            ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
         }
-        vo[d] = kick->p->v[i][d] + ax * kick->dda;
+        vo[d] = p->v[i][d] + ax * kick->dda;
     }
 }
 
@@ -107,7 +107,10 @@ fastpm_kick_store(FastPMSolver * fastpm,
 {
     FastPMKick * kick = alloca(sizeof(FastPMKick));
 
-    fastpm_kick_init(kick, fastpm, pi, af);
+    double ai = pi->a_v;
+    double ac = pi->a_x;
+
+    fastpm_kick_init(kick, fastpm, ai, ac, af);
 
     int np = pi->np;
 
@@ -119,7 +122,7 @@ fastpm_kick_store(FastPMSolver * fastpm,
     for(i=0; i<np; i++) {
         int d;
         float vo[3];
-        fastpm_kick_one(kick, i, vo);
+        fastpm_kick_one(kick, pi, i, vo);
         for(d = 0; d < 3; d++) {
             po->v[i][d] = vo[d];
         }
@@ -157,10 +160,8 @@ static double g_f(double a, Cosmology c)
                    + a * a * a * E * d2Dda2;
     return g_f;
 }
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi, double af)
+void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
-    double ai = pi->a_v;
-    double ac = pi->a_x;
     double OmegaM = fastpm->omega_m;
     Cosmology c = CP(fastpm);
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
@@ -176,17 +177,16 @@ void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi
         kick->dda = -1.5 * OmegaM * Sphi(ai, af, ac, fastpm);
     }
     kick->fastpm = fastpm;
-    kick->p = pi;
+
+    kick->ai = ai;
+    kick->ac = ac;
     kick->af = af;
 }
 
 void
-fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi,
-               double af)
+fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm,
+                double ai, double ac, double af)
 {
-    double ai = pi->a_x;
-    double ac = pi->a_v;
-
     Cosmology c = CP(fastpm);
 
     drift->nsamples = 32;
@@ -206,9 +206,9 @@ fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi,
         drift->da2[i] = GrowthFactor2(ae, c) - GrowthFactor2(ai, c);  // change in D_2lpt
     }
     drift->fastpm = fastpm;
-    drift->p = pi;
     drift->af = af;
     drift->ai = ai;
+    drift->ac = ac;
 }
 
 void
@@ -218,8 +218,10 @@ fastpm_drift_store(FastPMSolver * fastpm,
 {
 
     FastPMDrift * drift = alloca(sizeof(FastPMDrift));
+    double ai = pi->a_x;
+    double ac = pi->a_v;
 
-    fastpm_drift_init(drift, fastpm, pi, af);
+    fastpm_drift_init(drift, fastpm, ai, ac, af);
 
     int np = pi->np;
 
@@ -228,7 +230,7 @@ fastpm_drift_store(FastPMSolver * fastpm,
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         double xo[3];
-        fastpm_drift_one(drift, i, xo, drift->af);
+        fastpm_drift_one(drift, pi, i, xo, drift->af);
         int d;
         for(d = 0; d < 3; d ++) {
             po->x[i][d] = xo[d];
