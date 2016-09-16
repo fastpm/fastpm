@@ -101,9 +101,10 @@ struct FastPMExtension {
 
 struct FastPMDrift {
     FastPMSolver * fastpm;
-    FastPMStore * p;
     double ai;
+    double ac;
     double af;
+
     /* */
     int nsamples;
     double dyyy[32];
@@ -113,10 +114,11 @@ struct FastPMDrift {
 
 struct FastPMKick {
     FastPMSolver * fastpm;
-    FastPMStore * p;
     float q1;
     float q2;
     float dda;
+    double ai;
+    double ac;
     double af;
 };
 
@@ -148,12 +150,12 @@ void
 fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
             fastpm_interp_action action, void * userdata);
 
-void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi, double af);
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi, double af);
+void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, double ai, double ac, double af);
+void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af);
 void
-fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
+fastpm_kick_one(FastPMKick * kick, FastPMStore * p,  ptrdiff_t i, float vo[3]);
 void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3], double ae);
+fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
 double
 fastpm_growth_factor(FastPMSolver * fastpm, double a);

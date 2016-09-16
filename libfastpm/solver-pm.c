@@ -193,10 +193,10 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         LEAVE(correction);
 
         ENTER(beforekick);
+
+        /* Used by callbacks */
         FastPMKick kick;
-        fastpm_kick_init(&kick, fastpm, p, a_v1);
-        FastPMDrift drift;
-        fastpm_drift_init(&drift, fastpm, p, a_x1);
+        fastpm_kick_init(&kick, fastpm, p->a_v, p->a_x, a_v1);
 
         /* take snapshots if needed, before the kick */
         for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
@@ -215,7 +215,12 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         fastpm_kick_store(fastpm, p, p, a_v1);
         LEAVE(kick);
 
+
         ENTER(beforedrift);
+
+        /* Used by callbacks */
+        FastPMDrift drift;
+        fastpm_drift_init(&drift, fastpm, p->a_x, p->a_v, a_x1);
         /* take snapshots if needed, before the drift */
         for(ext = fastpm->exts[FASTPM_EXT_BEFORE_DRIFT];
             ext; ext = ext->next) {
