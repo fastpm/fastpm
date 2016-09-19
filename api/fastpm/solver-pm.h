@@ -114,12 +114,14 @@ struct FastPMDrift {
 
 struct FastPMKick {
     FastPMSolver * fastpm;
-    float q1;
-    float q2;
-    float dda;
     double ai;
     double ac;
     double af;
+
+    int nsamples;
+    float q1[32];
+    float q2[32];
+    float dda[32];
 };
 
 void fastpm_init(FastPMSolver * fastpm, 
@@ -153,7 +155,7 @@ fastpm_interp(FastPMSolver * fastpm, double * aout, int nout,
 void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, double ai, double ac, double af);
 void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af);
 void
-fastpm_kick_one(FastPMKick * kick, FastPMStore * p,  ptrdiff_t i, float vo[3]);
+fastpm_kick_one(FastPMKick * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
 void
 fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
