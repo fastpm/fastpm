@@ -87,15 +87,33 @@ fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3]
 }
 
 inline void
-fastpm_kick_one(FastPMKick * kick, FastPMStore * p, ptrdiff_t i, float vo[3])
+fastpm_kick_one(FastPMKick * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
 {
+    double ind;
+    double q1, q2;
+    double dda;
+
+    if(af == kick->af) {
+        dda = kick->dda[kick->nsamples - 1];
+        q1  = kick->q1[kick->nsamples - 1];
+        q2  = kick->q2[kick->nsamples - 1];
+    } else {
+        ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
+        int l = floor(ind);
+        double u = l + 1 - ind;
+        double v = ind - l;
+        dda = kick->dda[l] * u + kick->dda[l + 1] * v;
+        q1  = kick->q1[l] * u + kick->q1[l + 1] * v;
+        q2  = kick->q2[l] * u + kick->q2[l + 1] * v;
+    }
+
     int d;
     for(d = 0; d < 3; d++) {
         float ax = p->acc[i][d];
         if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-            ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
+            ax += (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
         }
-        vo[d] = p->v[i][d] + ax * kick->dda;
+        vo[d] = p->v[i][d] + ax * dda;
     }
 }
 
@@ -122,7 +140,7 @@ fastpm_kick_store(FastPMSolver * fastpm,
     for(i=0; i<np; i++) {
         int d;
         float vo[3];
-        fastpm_kick_one(kick, pi, i, vo);
+        fastpm_kick_one(kick, pi, i, vo, af);
         for(d = 0; d < 3; d++) {
             po->v[i][d] = vo[d];
         }
@@ -162,20 +180,31 @@ static double g_f(double a, Cosmology c)
 }
 void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
-    double OmegaM = fastpm->omega_m;
     Cosmology c = CP(fastpm);
+
+    double OmegaM = fastpm->omega_m;
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double growth1 = GrowthFactor(ac, c);
 
-    kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    kick->q1 = growth1;
-    if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
-        kick->dda = -1.5 * OmegaM
-           * 1 / (ac * ac * HubbleEa(ac, c))
-           * (G_f(af, c) - G_f(ai, c)) / g_f(ac, c);
-    } else {
-        kick->dda = -1.5 * OmegaM * Sphi(ai, af, ac, fastpm);
+    kick->nsamples = 32;
+    int i;
+
+    for(i = 0; i < kick->nsamples; i ++) {
+        double ae = ai * (1.0 * (kick->nsamples - 1 - i) / (kick->nsamples - 1))
+                  + af * (1.0 * i / (kick->nsamples - 1));
+
+        kick->q1[i] = growth1;
+        kick->q2[i] = growth1*growth1*(1.0 + 7.0/3.0*Om143);
+
+        if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
+            kick->dda[i] = -1.5 * OmegaM
+               * 1 / (ac * ac * HubbleEa(ac, c))
+               * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
+        } else {
+            kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm);
+        }
     }
+
     kick->fastpm = fastpm;
 
     kick->ai = ai;
