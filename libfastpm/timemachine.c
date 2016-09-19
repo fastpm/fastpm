@@ -220,8 +220,14 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     printf("# | a | x | v | p_x | p_ v | OP\n");
     printf("%d | \\ | %d | %d | %g | %g | INIT. COND.\n", i, states->table[i].x, states->table[i].v, p->a_x, p->a_v);
 
-    
     while(states->table[i].a != -1) {
+
+        fastpm->info.istep = i;
+        fastpm->info.a_x = states->table[i-1].x;
+        fastpm->info.a_x1 = states->table[i].x;
+        fastpm->info.a_v = states->table[i-1].v;
+        fastpm->info.a_v1 = states->table[i].v;
+    
         if(states->table[i].a != states->table[i-1].a) {
             /* Force */
             action = FORCE;
@@ -263,23 +269,25 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
             case FORCE:
                 printf("FORCE");
 
-				/* Calculate forces */
-				fastpm->pm = fastpm->basepm;
-				PM * pm = fastpm->basepm;
-				
-				fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
-				
-				FastPMFloat * delta_k = pm_alloc(pm);
+                /* Calculate forces */
+                VPM * vpm = vpm_find(fastpm->vpm_list, fastpm_tevo_i2t(states, states->table[i].a));
+                fastpm->pm = &vpm->pm;
+                PM * pm = fastpm->pm;
 
-				ENTER(force);
-				fastpm_calculate_forces(fastpm, delta_k);
-				LEAVE(force);
-				
-				pm_free(pm, delta_k);
+                fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
+
+                fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+
+                FastPMFloat * delta_k = pm_alloc(pm);
+
+                ENTER(force);
+                fastpm_calculate_forces(fastpm, delta_k);
+                LEAVE(force);
+
+                pm_free(pm, delta_k);
 
                 break;
             case KICK:
-                                                
                 printf("KICK (v=%g, %g, a=%g) [v=%d, %d, a=%d]", fastpm_tevo_i2t(states, thiskick.f),
                                                 fastpm_tevo_i2t(states, thiskick.i),
                                                 fastpm_tevo_i2t(states, thiskick.r),
@@ -287,16 +295,12 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
                                                 thiskick.i,
                                                 thiskick.r);
                 lastkick = thiskick;
-                
-                
                 /* Do kick */
                 ENTER(kick);
-				fastpm_kick_store(fastpm, p, p, fastpm_tevo_i2t(states, thiskick.f));
-				LEAVE(kick);
-                
+                fastpm_kick_store(fastpm, p, p, fastpm_tevo_i2t(states, thiskick.f));
+                LEAVE(kick);
                 break;
             case DRIFT:
-                                                
                 printf("DRIFT(x=%g, %g, v=%g) [x=%d, %d, v=%d]", fastpm_tevo_i2t(states, thisdrift.f),
                                                 fastpm_tevo_i2t(states, thisdrift.i),
                                                 fastpm_tevo_i2t(states, thisdrift.r),
@@ -304,19 +308,19 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
                                                 thisdrift.i,
                                                 thisdrift.r);
                 lastdrift = thisdrift;
-                
+
                 /* Do drift */
                 ENTER(drift);
-				fastpm_drift_store(fastpm, p, p, fastpm_tevo_i2t(states, thisdrift.f));
-				LEAVE(drift);
-				
+                fastpm_drift_store(fastpm, p, p, fastpm_tevo_i2t(states, thisdrift.f));
+                LEAVE(drift);
+
                 break;
         }
-        
+
         printf("\n");
-        
+
         i++;
     }
-    
+
     printf("%d | %d | %d | %d | %g | %g\n", i, states->table[i].a, states->table[i].x, states->table[i].v, p->a_x, p->a_v);
 }
