@@ -401,12 +401,11 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
     CLOCK(compute);
     CLOCK(io);
 
-    fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
+    fastpm_info("==== Force Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f Nmesh = %d ====\n", 
         fastpm->info.istep,
         fastpm->info.a_x,
         fastpm->info.a_x1,
         fastpm->info.a_v,
-        fastpm->info.a_v1,
         fastpm->info.Nmesh);
 
     fastpm_info("Load imbalance is - %g / + %g\n",

@@ -59,7 +59,6 @@ typedef struct {
         double a_x;
         double a_x1;
         double a_v;
-        double a_v1;
         double dx1[3];
         double dx2[3];
         struct {
@@ -78,6 +77,7 @@ typedef struct {
 
 enum FastPMExtensionPoint {
     FASTPM_EXT_AFTER_FORCE,
+    FASTPM_EXT_INTERPOLATE,
     FASTPM_EXT_BEFORE_KICK,
     FASTPM_EXT_BEFORE_DRIFT,
     FASTPM_EXT_MAX,

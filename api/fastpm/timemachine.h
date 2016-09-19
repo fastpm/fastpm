@@ -15,20 +15,17 @@ typedef struct {
 
 typedef struct {
     int i, f, r;
-} FastPMTEStep;
+    double a_i, a_f, a_r;
+} FastPMTETransition;
 
 // Protos
 
-int fastpm_tevo_block_len(FastPMTEEntry *template);
-
-FastPMTEStates *fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *template, double *ts);
+FastPMTEStates * fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *template, double *ts);
 
 void fastpm_tevo_destroy_states(FastPMTEStates *states);
 
-double fastpm_tevo_i2t(FastPMTEStates *states, int i);
-
+void
+fastpm_tevo_transition_init(FastPMTETransition * transition, FastPMTEStates * states, int i, int r, int f);
 void fastpm_tevo_print_states(FastPMTEStates *states);
-
-void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
 FASTPM_END_DECLS
