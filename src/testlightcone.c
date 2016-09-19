@@ -20,7 +20,7 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMSolver * solver = & (FastPMSolver) {
-        .nc = 128,
+        .nc = 32,
         .boxsize = 32.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
@@ -36,16 +36,29 @@ int main(int argc, char * argv[]) {
     };
 
     FastPMDrift drift;
-    fastpm_drift_init(&drift, solver, 0.1, 0.2, 0.3);
-
+    FastPMKick kick;
     FastPMLightCone lc[1];
 
-    Cosmology CP = {
-        .OmegaM = 0.3,
-        .OmegaLambda = 0.7,
-    };
+    fastpm_init(solver, 0, 0, comm);
 
-    fastpm_lc_init(lc, CP, 10000);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
+
+    /* First establish the truth by 2lpt -- this will be replaced with PM. */
+    struct fastpm_powerspec_eh_params eh = {
+        .Norm = 10000.0, /* FIXME: this is not any particular sigma8. */
+        .hubble_param = 0.7,
+        .omegam = 0.260,
+        .omegab = 0.044,
+    };
+    fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+
+    fastpm_setup_ic(solver, rho_init_ktruth);
+    pm_free(solver->basepm, rho_init_ktruth);
+    double time_step[] = {0.1};
+    fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
+
+    fastpm_lc_init(lc, solver, 1000000);
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
@@ -53,28 +66,14 @@ int main(int argc, char * argv[]) {
         fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d * HubbleDistance);
     }
 
-    // fastpm_lc_intersect test
-    double solution;
-    int status;
+    fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
+    fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    status = fastpm_lc_intersect(lc, &solution, 0.2, 0.5);
-    status = fastpm_lc_intersect(lc, &solution, 0.2, -0.5);
-
-    status = fastpm_lc_intersect(lc, &solution, 0.3, -0.1);
-    status = fastpm_lc_intersect(lc, &solution, 0.1, -0.3);
-    status = fastpm_lc_intersect(lc, &solution, 0.3, 0.1);
-    status = fastpm_lc_intersect(lc, &solution, 0.1, 0.3);
-
-    status = fastpm_lc_intersect(lc, &solution, 0.1, 0.1);
-    status = fastpm_lc_intersect(lc, &solution, 0.0, 0.1);
-    status = fastpm_lc_intersect(lc, &solution, 0.1, 0.0);
-    status = fastpm_lc_intersect(lc, &solution, 0.0, 0.0);
-
-    if(status == 0) {
-        fastpm_info("last calculation failed");
-    }
+    fastpm_lc_intersect(lc, &drift, &kick, solver->p);
+    fastpm_info("%td particles are in the light cone\n", lc->p->np);
     fastpm_lc_destroy(lc);
 
+    fastpm_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;
