@@ -7,6 +7,7 @@
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
+#include <fastpm/timemachine.h>
 
 #include "pmpfft.h"
 #include "pm2lpt.h"
@@ -14,25 +15,12 @@
 #include "vpm.h"
 #include "solver-pm-internal.h"
 
-static void 
-fastpm_set_time(FastPMSolver * fastpm, 
-    int istep,
-    double * time_step,
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1);
-
 static void
 fastpm_decompose(FastPMSolver * fastpm);
 
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
-
-static void
-scale_acc(FastPMStore * po, double correction, double fudge);
 
 /* Useful stuff */
 static int 
@@ -55,7 +43,7 @@ void fastpm_init(FastPMSolver * fastpm,
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
-    fastpm->model = malloc(sizeof(FastPMModel));
+//    fastpm->model = malloc(sizeof(FastPMModel));
 
     fastpm->p = malloc(sizeof(FastPMStore));
     fastpm_store_init(fastpm->p);
@@ -67,7 +55,7 @@ void fastpm_init(FastPMSolver * fastpm,
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, comm);
 
-    fastpm_model_init(fastpm->model, fastpm, fastpm->USE_MODEL);
+//    fastpm_model_init(fastpm->model, fastpm, fastpm->USE_MODEL);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {
@@ -126,13 +114,12 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     CLOCK(afterforce);
     CLOCK(beforekick);
     CLOCK(beforedrift);
-    CLOCK(correction);
 
     FastPMExtension * ext;
     FastPMStore * p = fastpm->p;
     MPI_Comm comm = fastpm->comm;
 
-    fastpm_model_build(fastpm->model, time_step[0], time_step[nstep - 1]);
+//    fastpm_model_build(fastpm->model, time_step[0], time_step[nstep - 1]);
 
     pm_2lpt_evolve(time_step[0], p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 
@@ -147,93 +134,148 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
     LEAVE(warmup);
 
+    FastPMTEStates *states = malloc(sizeof(FastPMTEStates));
+
+    FastPMTEEntry template[] = {
+    {0, 0, 1}, /* Kick */
+    {0, 1, 1}, /* Drift */
+    {0, 2, 1}, /* Drift */
+    {2, 2, 1}, /* Force */
+    {2, 2, 2}, /* Kick */
+    {-1, -1, -1} /* End of table */
+    };
+
+    fastpm_tevo_generate_states(states, nstep-1, template, time_step);
+
+    fastpm_tevo_print_states(states);
+//    FastPMTEStep lastkick = {-1, -1, -1}, lastdrift = {-1, -1, -1};
+    FastPMTEStep thisdrift, thiskick;
+
+    enum {
+        FORCE = 1,
+        KICK = 2,
+        DRIFT = 3,
+    } action;
+
     MPI_Barrier(comm);
 
-    double correction = 1.0;
     /* The last step is the 'terminal' step */
-    int istep;
-    for (istep = 0; istep < nstep; istep++) {
-        double a_v, a_x, a_v1, a_x1;
-        /* begining and ending of drift(x) and kick(v)*/
-        fastpm_set_time(fastpm, istep, time_step, nstep,
-                    &a_x, &a_x1, &a_v, &a_v1);
-
-        PM * pm = fastpm->pm;
-        fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
-
-        ENTER(decompose);
-        fastpm_decompose(fastpm);
-        LEAVE(decompose);
-
-        /* Calculate PM forces. */
-        FastPMFloat * delta_k = pm_alloc(pm);
-
-        ENTER(force);
-        fastpm_calculate_forces(fastpm, delta_k);
-        LEAVE(force);
-
-        ENTER(afterforce);
-        for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
-            ext; ext = ext->next) {
-                ((fastpm_ext_after_force) ext->function)
-                    (fastpm, delta_k, a_x, ext->userdata);
+    int i = 1;
+    while(states->table[i].a != -1) {
+        fastpm->info.istep = i;
+        fastpm->info.a_x = fastpm_tevo_i2t(states, states->table[i-1].x);
+        fastpm->info.a_x1 = fastpm_tevo_i2t(states, states->table[i].x);
+        fastpm->info.a_v =  fastpm_tevo_i2t(states, states->table[i-1].v);
+        fastpm->info.a_v1 = fastpm_tevo_i2t(states, states->table[i].v);
+    
+        if(states->table[i].a != states->table[i-1].a) {
+            /* Force */
+            action = FORCE;
         }
-        LEAVE(afterforce);
-
-        pm_free(pm, delta_k);
-
-        /* correct for linear theory before kick and drift */
-        ENTER(correction);
-        fastpm_model_evolve(fastpm->model, a_x1);
-
-        correction = fastpm_model_find_correction(fastpm->model, a_x, a_x1, a_v, a_v1);
-        scale_acc(p, correction, 1.0);
-        /* the value of correction is leaked to the next step for reporting. */
-
-        LEAVE(correction);
-
-        ENTER(beforekick);
-
-        /* Used by callbacks */
-        FastPMKick kick;
-        fastpm_kick_init(&kick, fastpm, p->a_v, p->a_x, a_v1);
-
-        /* take snapshots if needed, before the kick */
-        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
-            ext; ext = ext->next) {
-                ((fastpm_ext_before_kick) ext->function) 
-                    (fastpm, &kick, ext->userdata);
+        if(states->table[i].v != states->table[i-1].v) {
+            /* Kick */
+            thiskick.i = states->table[i-1].v;
+            thiskick.f = states->table[i].v;
+            thiskick.r = states->table[i-1].a;
+            action = KICK;
         }
-        LEAVE(beforekick);
-
-        /* never go beyond 1.0 */
-        if(a_x >= 1.0) break; 
-
-        // Leap-frog "kick" -- velocities updated
-
-        ENTER(kick);
-        fastpm_kick_store(fastpm, p, p, a_v1);
-        LEAVE(kick);
-
-
-        ENTER(beforedrift);
-
-        /* Used by callbacks */
-        FastPMDrift drift;
-        fastpm_drift_init(&drift, fastpm, p->a_x, p->a_v, a_x1);
-        /* take snapshots if needed, before the drift */
-        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_DRIFT];
-            ext; ext = ext->next) {
-                ((fastpm_ext_before_drift) ext->function)
-                    (fastpm, &drift, ext->userdata);
+        if(states->table[i].x != states->table[i-1].x) {
+            /* Drift */
+            thisdrift.i = states->table[i-1].x;
+            thisdrift.f = states->table[i].x;
+            thisdrift.r = states->table[i-1].v;
+            action = DRIFT;
         }
-        LEAVE(beforedrift);
 
-        // Leap-frog "drift" -- positions updated
+        switch(action) {
+            case FORCE:
+                /* Calculate forces */
 
-        ENTER(drift);
-        fastpm_drift_store(fastpm, p, p, a_x1);
-        LEAVE(drift);
+                {
+                double a_x = fastpm_tevo_i2t(states, states->table[i].x);
+
+                VPM * vpm = vpm_find(fastpm->vpm_list, a_x);
+                fastpm->pm = &vpm->pm;
+                PM * pm = fastpm->pm;
+
+                fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
+                fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+
+                fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+
+                FastPMFloat * delta_k = pm_alloc(pm);
+                ENTER(decompose);
+                fastpm_decompose(fastpm);
+                LEAVE(decompose);
+
+                ENTER(force);
+                fastpm_calculate_forces(fastpm, delta_k);
+                LEAVE(force);
+
+                ENTER(afterforce);
+                for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
+                    ext; ext = ext->next) {
+                        ((fastpm_ext_after_force) ext->function)
+                            (fastpm, delta_k, a_x, ext->userdata);
+                }
+                LEAVE(afterforce);
+
+                pm_free(pm, delta_k);
+
+                break;
+                }
+            case KICK:
+                //lastkick = thiskick;
+
+                ENTER(beforekick);
+
+                /* Used by callbacks */
+                FastPMKick kick;
+                fastpm_kick_init(&kick, fastpm,
+                        fastpm_tevo_i2t(states, thiskick.i),
+                        fastpm_tevo_i2t(states, thiskick.r),
+                        fastpm_tevo_i2t(states, thiskick.f));
+
+                /* take snapshots if needed, before the kick */
+                for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
+                    ext; ext = ext->next) {
+                        ((fastpm_ext_before_kick) ext->function) 
+                            (fastpm, &kick, ext->userdata);
+                }
+                LEAVE(beforekick);
+                /* Do kick */
+                ENTER(kick);
+                fastpm_kick_store(fastpm, p, p, fastpm_tevo_i2t(states, thiskick.f));
+                LEAVE(kick);
+                break;
+
+            case DRIFT:
+                //lastdrift = thisdrift;
+
+                ENTER(beforedrift);
+
+                /* Used by callbacks */
+                FastPMDrift drift;
+                fastpm_drift_init(&drift, fastpm,
+                        fastpm_tevo_i2t(states, thisdrift.i),
+                        fastpm_tevo_i2t(states, thisdrift.r),
+                        fastpm_tevo_i2t(states, thisdrift.f));
+
+                /* take snapshots if needed, before the drift */
+                for(ext = fastpm->exts[FASTPM_EXT_BEFORE_DRIFT];
+                    ext; ext = ext->next) {
+                        ((fastpm_ext_before_drift) ext->function)
+                            (fastpm, &drift, ext->userdata);
+                }
+                LEAVE(beforedrift);
+                /* Do drift */
+                ENTER(drift);
+                fastpm_drift_store(fastpm, p, p, fastpm_tevo_i2t(states, thisdrift.f));
+                LEAVE(drift);
+
+                break;
+        }
+        i++;
     }
 
 }
@@ -243,7 +285,7 @@ fastpm_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    fastpm_model_destroy(fastpm->model);
+//    fastpm_model_destroy(fastpm->model);
     fastpm_store_destroy(fastpm->p);
 
     vpm_free(fastpm->vpm_list);
@@ -319,53 +361,6 @@ fastpm_interp(FastPMSolver * fastpm, double * aout, int nout,
         fastpm_store_destroy(snapshot);
 
     }
-}
-
-
-static void
-scale_acc(FastPMStore * po, double correction, double fudge)
-{
-    /* skip scaling if there is no correction. */
-    if(correction == 1.0) return;
-    ptrdiff_t i;
-    correction = pow(correction, fudge);
-
-#pragma omp parallel for
-    for(i = 0; i < po->np; i ++) {
-        int d;
-        for(d = 0; d < 3; d ++) {
-            po->acc[i][d] *= correction;
-        }
-    }
-}
-
-static void 
-fastpm_set_time(FastPMSolver * fastpm, 
-    int istep,
-    double * time_step,
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1) 
-{
-    /* The last step is the terminal step. */
-    *a_x = time_step[(istep >= nstep)?(nstep - 1):istep];
-    *a_x1 = time_step[(istep + 1 >= nstep)?(nstep - 1):(istep + 1)];
-
-    double a_xm1 = time_step[(istep > 0)?(istep - 1):0];
-    *a_v = sqrt(a_xm1 * *(a_x));
-    *a_v1 = sqrt(*a_x * *a_x1);
-
-    VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
-    fastpm->pm = &vpm->pm;
-
-    fastpm->info.istep = istep;
-    fastpm->info.a_x = *a_x;
-    fastpm->info.a_x1 = *a_x1;
-    fastpm->info.a_v = *a_v;
-    fastpm->info.a_v1 = *a_v1;
-    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
 }
 
 void 
