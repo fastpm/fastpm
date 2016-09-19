@@ -171,7 +171,6 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     CLOCK(beforedrift);
     CLOCK(correction);
 
-    FastPMExtension * ext;
     FastPMStore * p = fastpm->p;
     MPI_Comm comm = fastpm->comm;
 
@@ -190,7 +189,6 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
     MPI_Barrier(comm);
 
-    double correction = 1.0;
     /* The last step is the 'terminal' step */
     
     FastPMTEEntry template[] = {
@@ -201,8 +199,8 @@ void fastpm_tevo_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     {2, 2, 2}, /* Kick */
     {-1, -1, -1} /* End of table */
     };
-	
-	FastPMTEStates *states = malloc(sizeof(FastPMTEStates));
+
+    FastPMTEStates *states = malloc(sizeof(FastPMTEStates));
     fastpm_tevo_generate_states(states, nstep-1, template, time_step);
     
     int i = 0;
