@@ -126,7 +126,7 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPMSolver * fastpm, FastPMDrift * drift, FastPMKick * kick, double a1, double a2, Parameters * prr);
+check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr);
 
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
@@ -315,7 +315,7 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
-static int check_snapshots(FastPMSolver * fastpm, FastPMDrift * drift, FastPMKick * kick, double a1, double a2, Parameters * prr) {
+static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr) {
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
     FastPMStore * p = fastpm->p;

@@ -54,7 +54,7 @@ fastpm_growth_factor(FastPMSolver * fastpm, double a)
 }
 
 inline void
-fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
+fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
 {
     double ind;
     double dyyy, da1, da2;
@@ -87,7 +87,7 @@ fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3]
 }
 
 inline void
-fastpm_kick_one(FastPMKick * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
+fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
 {
     double ind;
     double q1, q2;
@@ -120,7 +120,7 @@ fastpm_kick_one(FastPMKick * kick, FastPMStore * p, ptrdiff_t i, float vo[3], do
 // Leap frog time integration
 
 void 
-fastpm_kick_store(FastPMKick * kick,
+fastpm_kick_store(FastPMKickFactor * kick,
     FastPMStore * pi, FastPMStore * po, double af)
 {
 
@@ -178,7 +178,7 @@ static double g_f(double a, Cosmology c)
                    + a * a * a * E * d2Dda2;
     return g_f;
 }
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af)
+void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
     Cosmology c = CP(fastpm);
 
@@ -213,7 +213,7 @@ void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, doubl
 }
 
 void
-fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm,
+fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
                 double ai, double ac, double af)
 {
     Cosmology c = CP(fastpm);
@@ -241,7 +241,7 @@ fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm,
 }
 
 void
-fastpm_drift_store(FastPMDrift * drift,
+fastpm_drift_store(FastPMDriftFactor * drift,
                FastPMStore * pi, FastPMStore * po,
                double af)
 {
@@ -374,8 +374,8 @@ Sphi(double ai, double af, double aRef, FastPMSolver * fastpm)
 // Interpolate position and velocity for snapshot at a=aout
 void 
 fastpm_set_snapshot(
-                FastPMDrift * drift,
-                FastPMKick * kick,
+                FastPMDriftFactor * drift,
+                FastPMKickFactor * kick,
                 FastPMStore * p, FastPMStore * po,
                 double aout)
 {

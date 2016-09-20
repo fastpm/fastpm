@@ -6,8 +6,8 @@ typedef struct VPMInit {
     int pm_nc_factor;
 } VPMInit;
 
-typedef struct FastPMDrift FastPMDrift;
-typedef struct FastPMKick FastPMKick;
+typedef struct FastPMDriftFactor FastPMDriftFactor;
+typedef struct FastPMKickFactor FastPMKickFactor;
 typedef struct FastPMExtension FastPMExtension;
 
 typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
@@ -84,14 +84,14 @@ typedef int
     (FastPMSolver * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
 typedef int 
     (* fastpm_ext_before_kick) 
-    (FastPMSolver * fastpm, FastPMKick * kick, void * userdata);
+    (FastPMSolver * fastpm, FastPMKickFactor * kick, void * userdata);
 typedef int
     (* fastpm_ext_before_drift) 
-    (FastPMSolver * fastpm, FastPMDrift * drift, void * userdata);
+    (FastPMSolver * fastpm, FastPMDriftFactor * drift, void * userdata);
 
 typedef int
     (* fastpm_ext_interpolation) 
-    (FastPMSolver * fastpm, FastPMDrift * drift, FastPMKick * kick, double a1, double a2, void * userdata);
+    (FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, void * userdata);
 
 struct FastPMExtension {
     void * function; /* The function signature must match the types above */
@@ -99,7 +99,7 @@ struct FastPMExtension {
     struct FastPMExtension * next;
 };
 
-struct FastPMDrift {
+struct FastPMDriftFactor {
     FastPMSolver * fastpm;
     double ai;
     double ac;
@@ -112,7 +112,7 @@ struct FastPMDrift {
     double da2[32];
 };
 
-struct FastPMKick {
+struct FastPMKickFactor {
     FastPMSolver * fastpm;
     double ai;
     double ac;
@@ -143,10 +143,10 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
 void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
-void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, double ai, double ac, double af);
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af);
-void fastpm_kick_one(FastPMKick * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
-void fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
+void fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm, double ai, double ac, double af);
+void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af);
+void fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
+void fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
 double
 fastpm_growth_factor(FastPMSolver * fastpm, double a);
@@ -154,16 +154,16 @@ fastpm_growth_factor(FastPMSolver * fastpm, double a);
 void fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k);
 
 void 
-fastpm_kick_store(FastPMKick * kick,
+fastpm_kick_store(FastPMKickFactor * kick,
     FastPMStore * pi, FastPMStore * po, double af);
 
 void 
-fastpm_drift_store(FastPMDrift * drift,
+fastpm_drift_store(FastPMDriftFactor * drift,
                FastPMStore * pi, FastPMStore * po,
                double af);
 
 void 
-fastpm_set_snapshot(FastPMDrift * drift, FastPMKick * kick,
+fastpm_set_snapshot(FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * p, FastPMStore * po,
                 double aout);
 

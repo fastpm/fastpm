@@ -264,8 +264,8 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
     CLOCK(interpolation);
     ENTER(interpolation);
     /* Used by callbacks */
-    FastPMKick kick;
-    FastPMDrift drift;
+    FastPMKickFactor kick;
+    FastPMDriftFactor drift;
 
     fastpm_info("I with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
         thiskick->a_f, thiskick->a_i, thiskick->a_r,
@@ -331,7 +331,7 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTETransition * thiskick)
     CLOCK(beforekick);
 
     /* Used by callbacks */
-    FastPMKick kick;
+    FastPMKickFactor kick;
     fastpm_kick_init(&kick, fastpm, thiskick->a_i, thiskick->a_r, thiskick->a_f);
 
     ENTER(beforekick);
@@ -360,7 +360,7 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTETransition * thisdrift)
     ENTER(beforedrift);
 
     /* Used by callbacks */
-    FastPMDrift drift;
+    FastPMDriftFactor drift;
     fastpm_drift_init(&drift, fastpm, thisdrift->a_i, thisdrift->a_r, thisdrift->a_f);
 
     /* take snapshots if needed, before the drift */
