@@ -28,7 +28,6 @@ int main(int argc, char * argv[]) {
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .USE_NONSTDDA = 0,
-        .USE_MODEL = 0,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };

@@ -111,7 +111,6 @@ int main(int argc, char ** argv) {
         .K_LINEAR = CONF(prr, enforce_broadband_kmax),
         .USE_SHIFT = CONF(prr, shift),
         .FORCE_TYPE = CONF(prr, force_mode),
-        .USE_MODEL = CONF(prr, enforce_broadband_mode),
         .KERNEL_TYPE = CONF(prr, kernel_type),
         .DEALIASING_TYPE = CONF(prr, dealiasing_type),
         .PAINTER_TYPE = CONF(prr, painter_type),

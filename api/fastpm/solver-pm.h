@@ -9,10 +9,8 @@ typedef struct VPMInit {
 typedef struct FastPMDrift FastPMDrift;
 typedef struct FastPMKick FastPMKick;
 typedef struct FastPMExtension FastPMExtension;
-typedef struct FastPMModel FastPMModel;
 
 typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
-typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
                FASTPM_KERNEL_GADGET,
                FASTPM_KERNEL_EASTWOOD,
@@ -47,7 +45,6 @@ typedef struct {
     FastPMForceType FORCE_TYPE;
     FastPMKernelType KERNEL_TYPE;
     FastPMDealiasingType DEALIASING_TYPE;
-    FastPMModelType USE_MODEL;
     int K_LINEAR;
 
     /* Extensions */
@@ -70,7 +67,6 @@ typedef struct {
 
     VPM * vpm_list;
 
-    FastPMModel * model;
     PM * basepm;
     FastPMPainter painter[1];
 } FastPMSolver;
