@@ -16,7 +16,6 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "vpm.h"
-#include "solver-pm-internal.h"
 
 static int
 fastpm_tevo_block_len(FastPMTEEntry *template)

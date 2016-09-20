@@ -13,7 +13,6 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "vpm.h"
-#include "solver-pm-internal.h"
 
 static void
 fastpm_decompose(FastPMSolver * fastpm);
