@@ -344,7 +344,7 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTETransition * thiskick)
     LEAVE(beforekick);
     /* Do kick */
     ENTER(kick);
-    fastpm_kick_store(fastpm, p, p, thiskick->a_f);
+    fastpm_kick_store(&kick, p, p, thiskick->a_f);
     LEAVE(kick);
 }
 
@@ -372,7 +372,7 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTETransition * thisdrift)
     LEAVE(beforedrift);
     /* Do drift */
     ENTER(drift);
-    fastpm_drift_store(fastpm, p, p, thisdrift->a_f);
+    fastpm_drift_store(&drift, p, p, thisdrift->a_f);
     LEAVE(drift);
 }
 
@@ -426,43 +426,9 @@ fastpm_decompose(FastPMSolver * fastpm) {
 }
 
 void 
-fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
-            fastpm_interp_action action, void * userdata) 
-{
-    /* interpolate and write snapshots, assuming p 
-     * is at time a_x and a_v. */
-    FastPMStore * p = fastpm->p;
-    double a_x = p->a_x;
-    double a_v = p->a_v;
-    int iout;
-    for(iout = 0; iout < nout; iout ++) {
-        if(
-        ! /* after a kick */
-        (a_x < aout[iout] && aout[iout] < a_v)
-        &&
-        ! /* after a drift */
-        (a_x >= aout[iout] && aout[iout] >= a_v)
-        ) continue;
-
-        FastPMStore * snapshot = alloca(sizeof(FastPMStore));
-        fastpm_store_init(snapshot);
-        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
-
-        fastpm_info("Taking a snapshot...\n");
-
-        fastpm_set_snapshot(fastpm, p, snapshot, aout[iout]);
-
-        action(fastpm, snapshot, aout[iout], userdata);
-
-        fastpm_store_destroy(snapshot);
-
-    }
-}
-
-void 
-fastpm_add_extension(FastPMSolver * fastpm, 
+fastpm_add_extension(FastPMSolver * fastpm,
     enum FastPMExtensionPoint where,
-    void * function, void * userdata) 
+    void * function, void * userdata)
 {
     FastPMExtension * q = malloc(sizeof(FastPMExtension));
     q->userdata = userdata;

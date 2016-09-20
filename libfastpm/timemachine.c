@@ -85,7 +85,13 @@ fastpm_tevo_i2t(FastPMTEStates * states, int i)
         return states->timesteps[0];
     }
 
-    return exp((1 - r) * log(states->timesteps[d]) + r * log(states->timesteps[d+1]));
+    if(r != 0.0) {
+        return exp((1 - r) * log(states->timesteps[d]) + r * log(states->timesteps[d+1]));
+    } else {
+        /* no interpolation return an exact value from the table. */
+        /* otherwise we mess up comparisons from the intial condition. */
+        return states->timesteps[d];
+    }
 }
 
 void

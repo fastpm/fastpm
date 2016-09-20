@@ -143,23 +143,28 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
 void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
-typedef int 
-(*fastpm_interp_action) (FastPMSolver * fastpm, FastPMStore * pout, double aout, void * userdata);
-
-/* This function can be used in after_kick and after_drift plugins for 
- * interpolating and writing a snapshot */
-void 
-fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
-            fastpm_interp_action action, void * userdata);
-
 void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, double ai, double ac, double af);
 void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, double ai, double ac, double af);
-void
-fastpm_kick_one(FastPMKick * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
-void
-fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
+void fastpm_kick_one(FastPMKick * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
+void fastpm_drift_one(FastPMDrift * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
 double
 fastpm_growth_factor(FastPMSolver * fastpm, double a);
+
+void fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k);
+
+void 
+fastpm_kick_store(FastPMKick * kick,
+    FastPMStore * pi, FastPMStore * po, double af);
+
+void 
+fastpm_drift_store(FastPMDrift * drift,
+               FastPMStore * pi, FastPMStore * po,
+               double af);
+
+void 
+fastpm_set_snapshot(FastPMDrift * drift, FastPMKick * kick,
+                FastPMStore * p, FastPMStore * po,
+                double aout);
 
 FASTPM_END_DECLS

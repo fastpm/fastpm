@@ -126,7 +126,7 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr);
+check_snapshots(FastPMSolver * fastpm, FastPMDrift * drift, FastPMKick * kick, double a1, double a2, Parameters * prr);
 
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
@@ -162,12 +162,7 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
         prr);
 
     fastpm_add_extension(fastpm,
-        FASTPM_EXT_BEFORE_KICK,
-        check_snapshots,
-        prr);
-
-    fastpm_add_extension(fastpm,
-        FASTPM_EXT_BEFORE_DRIFT,
+        FASTPM_EXT_INTERPOLATE,
         check_snapshots,
         prr);
 
@@ -320,8 +315,35 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
-static int check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr) {
-    fastpm_interp(fastpm, CONF(prr, aout), CONF(prr, n_aout), (fastpm_interp_action)take_a_snapshot, prr);
+static int check_snapshots(FastPMSolver * fastpm, FastPMDrift * drift, FastPMKick * kick, double a1, double a2, Parameters * prr) {
+    /* interpolate and write snapshots, assuming p 
+     * is at time a_x and a_v. */
+    FastPMStore * p = fastpm->p;
+    int nout = CONF(prr, n_aout);
+    double * aout= CONF(prr, aout);
+    int iout;
+    for(iout = 0; iout < nout; iout ++) {
+        if(a1 == a2) {
+            /* initial condition */
+            if(a1 != aout[iout]) continue;
+        } else {
+            if(a1 >= aout[iout]) continue;
+            if(a2 < aout[iout]) continue;
+        }
+
+        FastPMStore * snapshot = alloca(sizeof(FastPMStore));
+        fastpm_store_init(snapshot);
+        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
+
+        fastpm_info("Taking a snapshot...\n");
+
+        fastpm_set_snapshot(drift, kick, p, snapshot, aout[iout]);
+
+        take_a_snapshot(fastpm, snapshot, aout[iout], prr);
+
+        fastpm_store_destroy(snapshot);
+
+    }
     return 0;
 }
 
@@ -572,4 +594,5 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
     }
     return 0;
 }
+
 
