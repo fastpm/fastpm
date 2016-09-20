@@ -183,16 +183,20 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
             action = DRIFT;
         }
 
-        if(states->table[i].x == states->table[i].v && states->table[i].x != states->table[i].a) {
+        fastpm_info("Time stamps : %d %d %d -> %d %d %d\n",
+            states->table[i-1].x, states->table[i-1].v, states->table[i-1].a,
+            states->table[i].x, states->table[i].v, states->table[i].a);
+
+        if(states->table[i].x == states->table[i].v) {
             /* Interpolation */
             if(action == KICK) {
-                printf("I with K(%d %d %d) D(%d %d %d) ",
+                fastpm_info("I with K(%d %d %d) D(%d %d %d) before Kick\n",
                     thiskick.f, thiskick.i, thiskick.r,
                     lastdrift.i, lastdrift.f, lastdrift.r
                 );
             }
             if(action == DRIFT) {
-                printf("I with K(%d %d %d) D(%d %d %d) ",
+                fastpm_info("I with K(%d %d %d) D(%d %d %d) before Drift\n",
                     lastkick.i, lastkick.f, lastkick.r,
                     thisdrift.f, thisdrift.i, thisdrift.r
                 );
