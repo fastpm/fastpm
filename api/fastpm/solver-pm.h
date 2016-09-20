@@ -93,6 +93,10 @@ typedef int
     (* fastpm_ext_before_drift) 
     (FastPMSolver * fastpm, FastPMDrift * drift, void * userdata);
 
+typedef int
+    (* fastpm_ext_interpolation) 
+    (FastPMSolver * fastpm, FastPMDrift * drift, FastPMKick * kick, double a1, double a2, void * userdata);
+
 struct FastPMExtension {
     void * function; /* The function signature must match the types above */
     void * userdata;
