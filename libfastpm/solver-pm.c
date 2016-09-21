@@ -303,7 +303,7 @@ fastpm_destroy(FastPMSolver * fastpm)
     for(i = 0; i < FASTPM_EXT_MAX; i++) {
         for(ext = fastpm->exts[i]; ext; ext = e2) {
             e2 = ext->next;
-            free(e2);
+            free(ext);
         }
     }
 }
