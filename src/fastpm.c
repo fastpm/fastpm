@@ -111,7 +111,6 @@ int main(int argc, char ** argv) {
         .K_LINEAR = CONF(prr, enforce_broadband_kmax),
         .USE_SHIFT = CONF(prr, shift),
         .FORCE_TYPE = CONF(prr, force_mode),
-        .USE_MODEL = CONF(prr, enforce_broadband_mode),
         .KERNEL_TYPE = CONF(prr, kernel_type),
         .DEALIASING_TYPE = CONF(prr, dealiasing_type),
         .PAINTER_TYPE = CONF(prr, painter_type),
@@ -127,13 +126,16 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr);
+check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr);
 
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+
+static int 
+print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr);
 
 int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
@@ -163,13 +165,13 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
         prr);
 
     fastpm_add_extension(fastpm,
-        FASTPM_EXT_BEFORE_KICK,
+        FASTPM_EXT_INTERPOLATE,
         check_snapshots,
         prr);
 
     fastpm_add_extension(fastpm,
-        FASTPM_EXT_BEFORE_DRIFT,
-        check_snapshots,
+        FASTPM_EXT_BEFORE_TRANSITION,
+        print_transition,
         prr);
 
     MPI_Barrier(comm);
@@ -321,8 +323,42 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
-static int check_snapshots(FastPMSolver * fastpm, void * unused, Parameters * prr) {
-    fastpm_interp(fastpm, CONF(prr, aout), CONF(prr, n_aout), (fastpm_interp_action)take_a_snapshot, prr);
+static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr) {
+    fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
+        a1, a2,
+        kick->af, kick->ai, kick->ac,
+        drift->af, drift->ai, drift->ac
+    );
+
+    /* interpolate and write snapshots, assuming p 
+     * is at time a_x and a_v. */
+    FastPMStore * p = fastpm->p;
+    int nout = CONF(prr, n_aout);
+    double * aout= CONF(prr, aout);
+    int iout;
+    for(iout = 0; iout < nout; iout ++) {
+        if(a1 == a2) {
+            /* initial condition */
+            if(a1 != aout[iout]) continue;
+        } else {
+            if(a1 >= aout[iout]) continue;
+            if(a2 < aout[iout]) continue;
+        }
+
+        FastPMStore * snapshot = alloca(sizeof(FastPMStore));
+        fastpm_store_init(snapshot);
+        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
+
+        fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
+        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_growth_factor(fastpm, aout[iout]), aout[iout]);
+
+        fastpm_set_snapshot(drift, kick, p, snapshot, aout[iout]);
+
+        take_a_snapshot(fastpm, snapshot, aout[iout], prr);
+
+        fastpm_store_destroy(snapshot);
+
+    }
     return 0;
 }
 
@@ -395,18 +431,41 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
     return 0;
 }
 
+static int 
+print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr)
+{
+    char * action;
+    switch (trans->action) {
+        case FASTPM_ACTION_FORCE:
+            action = "FORCE";
+        break;
+        case FASTPM_ACTION_KICK:
+            action = "KICK";
+        break;
+        case FASTPM_ACTION_DRIFT:
+            action = "DRIFT";
+        break;
+    }
+    fastpm_info("==== -> %03d [%03d %03d %03d] a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %s(%d) ====\n",
+            trans->iend,
+            trans->end->x,
+            trans->end->v,
+            trans->end->force,
+            trans->a.i, trans->a.f, trans->a.r, action, trans->action);
+    return 0;
+}
+
 static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
 {
     CLOCK(compute);
     CLOCK(io);
 
-    fastpm_info("==== Step %d a_x = %6.4f a_x1 = %6.4f a_v = %6.4f a_v1 = %6.4f Nmesh = %d ====\n", 
+    fastpm_info("Force Calculation a_i = %6.4f a_f = %6.4f a_r = %6.4f Nmesh = %d ====\n", 
         fastpm->info.istep,
         fastpm->info.a_x,
         fastpm->info.a_x1,
         fastpm->info.a_v,
-        fastpm->info.a_v1,
         fastpm->info.Nmesh);
 
     fastpm_info("Load imbalance is - %g / + %g\n",
@@ -574,4 +633,5 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
     }
     return 0;
 }
+
 

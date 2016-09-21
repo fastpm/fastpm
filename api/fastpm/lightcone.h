@@ -20,7 +20,7 @@ double
 fastpm_lc_horizon(FastPMLightCone * lc, double a);
 
 int
-fastpm_lc_intersect(FastPMLightCone * lc, FastPMDrift * drift, FastPMKick * kick, FastPMStore * pi);
+fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * pi);
 
 void
 fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, size_t np_upper);

@@ -10,17 +10,15 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
 LIBSOURCES = libfastpm.c \
     solver-pm.c \
-    solver-pm-steps.c \
+    factors.c \
     solver-pm-grav.c \
-    solver-pm-model.c \
-    solver-pm-model-linear.c \
-    solver-pm-model-pm.c \
     transfer.c \
     memory.c \
     utils.c \
     initialcondition.c \
     pngaussian.c \
     lightcone.c \
+    timemachine.c \
     cosmology.c \
     powerspectrum.c \
     logging.c \

@@ -4,31 +4,31 @@
 -- For Testing
 nc = 32
 boxsize = 384.0
-if args[2] == 'za' then
+if args[1] == 'za' then
     za = true
     force_mode = "pm"
     time_step = {1.0}
-elseif args[2] == '2lpt' then
+elseif args[1] == '2lpt' then
     za = false
     force_mode = "pm"
     time_step = {1.0}
-elseif args[2] == 'cola' then
+elseif args[1] == 'cola' then
     za = false
     force_mode = "cola"
     time_step = linspace(0.1, 1, 5)
-elseif args[2] == 'pm' then
+elseif args[1] == 'pm' then
     za = false
     force_mode = "pm"
     time_step = linspace(0.1, 1, 5)
-elseif args[2] == 'zola' then
+elseif args[1] == 'zola' then
     za = false
     force_mode = "zola"
     time_step = linspace(0.1, 1, 5)
-elseif args[2] == 'fastpm' then
+elseif args[1] == 'fastpm' then
     za = false
     force_mode = "fastpm"
     time_step = linspace(0.1, 1, 5)
-elseif args[2] == 'ic' then
+elseif args[1] == 'ic' then
     za = false
     force_mode = "zola"
     time_step = {0.1}
@@ -106,7 +106,7 @@ end
 
 prefix = 'results'
 for i,k in pairs(args) do
-    if i > 1 then
+    if i > 0 then
     prefix = prefix .. '-' .. k
     end
 end
@@ -116,7 +116,7 @@ end
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-output_redshifts= {9.0, 0.0}  -- redshifts of output
+output_redshifts= {9.0, 2.0, 1.0, 0.0}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 0.307494

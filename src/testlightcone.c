@@ -33,13 +33,12 @@ int main(int argc, char * argv[]) {
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .USE_NONSTDDA = 0,
-        .USE_MODEL = 0,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };
 
-    FastPMDrift drift;
-    FastPMKick kick;
+    FastPMDriftFactor drift;
+    FastPMKickFactor kick;
     FastPMLightCone lc[1];
 
     fastpm_init(solver, 0, 0, comm);

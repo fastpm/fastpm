@@ -81,7 +81,7 @@ fastpm_lc_horizon(FastPMLightCone * lc, double a)
 struct funct_params {
     FastPMLightCone *lc;
     FastPMStore * p;
-    FastPMDrift * drift;
+    FastPMDriftFactor * drift;
     ptrdiff_t i;
 };
 
@@ -92,7 +92,7 @@ funct(double a, void *params)
 
     FastPMLightCone *lc = Fp->lc;
     FastPMStore * p = Fp->p;
-    FastPMDrift * drift = Fp->drift;
+    FastPMDriftFactor * drift = Fp->drift;
     ptrdiff_t i = Fp->i;
     double xo[3];
 
@@ -173,7 +173,7 @@ _fastpm_lc_intersect_one(FastPMLightCone * lc,
 }
 
 int
-fastpm_lc_intersect(FastPMLightCone * lc, FastPMDrift * drift, FastPMKick * kick, FastPMStore * p)
+fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * p)
 {
     struct funct_params params = {
         .lc = lc, 
