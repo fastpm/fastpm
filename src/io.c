@@ -53,6 +53,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
      * http://mwhite.berkeley.edu/Talks/SantaFe12_RSD.pdf */
     double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, CP(fastpm)));
 
+    fastpm_info("RSD factor %e\n", RSD);
+
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
     BigFile bf;
@@ -88,10 +90,13 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         {"Position", p->x, "f8", 3, "f4"},
         {"Velocity", p->v, "f4", 3, "f4"},
         {"ID", p->id, "i8", 1, "i8"},
+        {"Aemit", p->aemit, "f4", 1, "f4"},
         {NULL, },
     };
 
     for(bdesc = BLOCKS; bdesc->name; bdesc ++) {
+        if(bdesc->fastpm == NULL) continue;
+
         fastpm_info("Writing block %s\n", bdesc->name);
         BigBlock bb;
         BigArray array;

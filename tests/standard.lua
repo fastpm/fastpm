@@ -163,3 +163,8 @@ write_whitenoisek = prefix .. "/IC"
 
 write_nonlineark = prefix .. "/fastpm"
 write_lineark = prefix .. "/IC"
+
+if has('lightcone') then
+    write_lightcone = prefix .. "/lightcone"
+    dh_factor = 0.05
+end

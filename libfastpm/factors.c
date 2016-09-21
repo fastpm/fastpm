@@ -58,6 +58,7 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
 {
     double ind;
     double dyyy, da1, da2;
+
     if(af == drift->af) {
         dyyy = drift->dyyy[drift->nsamples - 1];
         da1  = drift->da1[drift->nsamples - 1];
@@ -67,21 +68,33 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
         int l = floor(ind);
         double u = l + 1 - ind;
         double v = ind - l;
+        if(l + 1 >= drift->nsamples) {
+            fastpm_raise(-1, "drift beyond factor's available range. ");
+        }
         dyyy = drift->dyyy[l] * u + drift->dyyy[l + 1] * v;
         da1  = drift->da1[l] * u + drift->da1[l + 1] * v;
         da2  = drift->da2[l] * u + drift->da2[l + 1] * v;
     }
     int d;
     for(d = 0; d < 3; d ++) {
-        if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_2LPT) {
-            xo[d] = p->x[i][d] + p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
-        } else if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_ZA) {
-            xo[d] = p->x[i][d] + p->dx1[i][d] * da1;
-        } else {
-            xo[d] = p->x[i][d] + p->v[i][d] * dyyy;
-            if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+        double v;
+        switch(drift->fastpm->FORCE_TYPE) {
+            case FASTPM_FORCE_2LPT:
+                xo[d] = p->x[i][d] + p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
+            break;
+            case FASTPM_FORCE_ZA:
+                xo[d] = p->x[i][d] + p->dx1[i][d] * da1;
+            break;
+            case FASTPM_FORCE_FASTPM:
+            case FASTPM_FORCE_PM:
+                xo[d] = p->x[i][d] + p->v[i][d] * dyyy;
+            break;
+            case FASTPM_FORCE_COLA:
+                /* For cola, remove the lpt velocity to find the residual velocity v*/
+                v = p->v[i][d] - (p->dx1[i][d]*drift->Dv1 + p->dx2[i][d]*drift->Dv2);
+                xo[d] = p->x[i][d] + v * dyyy;
                 xo[d] += p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
-            }
+            break;
         }
     }
 }
@@ -90,30 +103,35 @@ inline void
 fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
 {
     double ind;
-    double q1, q2;
-    double dda;
+    double dda, Dv1, Dv2;
 
     if(af == kick->af) {
         dda = kick->dda[kick->nsamples - 1];
-        q1  = kick->q1[kick->nsamples - 1];
-        q2  = kick->q2[kick->nsamples - 1];
+        Dv1 = kick->Dv1[kick->nsamples - 1];
+        Dv2 = kick->Dv2[kick->nsamples - 1];
     } else {
         ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
         int l = floor(ind);
         double u = l + 1 - ind;
         double v = ind - l;
+        if(l + 1 >= kick->nsamples) {
+            fastpm_raise(-1, "kick beyond factor's available range. ");
+        }
         dda = kick->dda[l] * u + kick->dda[l + 1] * v;
-        q1  = kick->q1[l] * u + kick->q1[l + 1] * v;
-        q2  = kick->q2[l] * u + kick->q2[l + 1] * v;
+        Dv1 = kick->Dv1[l] * u + kick->Dv1[l + 1] * v;
+        Dv2 = kick->Dv2[l] * u + kick->Dv2[l + 1] * v;
     }
 
     int d;
     for(d = 0; d < 3; d++) {
         float ax = p->acc[i][d];
         if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-            ax += (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
+            ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
         }
         vo[d] = p->v[i][d] + ax * dda;
+        if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+            vo[d] += (p->dx1[i][d] * Dv1 + p->dx2[i][d] * Dv2);
+        }
     }
 }
 
@@ -186,15 +204,17 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double growth1 = GrowthFactor(ac, c);
 
+    kick->q1 = growth1;
+    kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
+
     kick->nsamples = 32;
     int i;
 
+    double Dv1i = GrowthFactor(ai, c) * ai * ai * HubbleEa(ai, c) * DLogGrowthFactor(ai, c);
+    double Dv2i = GrowthFactor2(ai, c) * ai * ai * HubbleEa(ai, c) * DLogGrowthFactor2(ai, c);
     for(i = 0; i < kick->nsamples; i ++) {
         double ae = ai * (1.0 * (kick->nsamples - 1 - i) / (kick->nsamples - 1))
                   + af * (1.0 * i / (kick->nsamples - 1));
-
-        kick->q1[i] = growth1;
-        kick->q2[i] = growth1*growth1*(1.0 + 7.0/3.0*Om143);
 
         if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
             kick->dda[i] = -1.5 * OmegaM
@@ -203,6 +223,8 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
         } else {
             kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm);
         }
+        kick->Dv1[i] = GrowthFactor(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor(ae, c) - Dv1i;
+        kick->Dv2[i] = GrowthFactor2(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor2(ae, c) - Dv2i;
     }
 
     kick->fastpm = fastpm;
@@ -210,6 +232,7 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     kick->ai = ai;
     kick->ac = ac;
     kick->af = af;
+
 }
 
 void
@@ -238,6 +261,8 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
     drift->af = af;
     drift->ai = ai;
     drift->ac = ac;
+    drift->Dv1 = GrowthFactor(ac, c) * ac * ac * HubbleEa(ac, c) * DLogGrowthFactor(ac, c);
+    drift->Dv2 = GrowthFactor2(ac, c) * ac * ac * HubbleEa(ac, c) * DLogGrowthFactor2(ac, c);
 }
 
 void
@@ -369,48 +394,3 @@ Sphi(double ai, double af, double aRef, FastPMSolver * fastpm)
         return resultstd;
     }
 }
-
-
-// Interpolate position and velocity for snapshot at a=aout
-void 
-fastpm_set_snapshot(
-                FastPMDriftFactor * drift,
-                FastPMKickFactor * kick,
-                FastPMStore * p, FastPMStore * po,
-                double aout)
-{
-    int np= p->np;
-
-    double H0 = 100.0f; // H0= 100 km/s/(h^-1 Mpc)
-
-    Cosmology c = CP(drift->fastpm);
-
-    double Dv1 = GrowthFactor(aout, c) * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
-    double Dv2 = GrowthFactor2(aout, c) * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
-
-    fastpm_info("RSD factor %e\n", 1 /(aout * HubbleEa(aout, c) *H0));
-
-    fastpm_kick_store(kick, p, po, aout);
-
-    fastpm_drift_store(drift, p, po, aout);
-
-    int i;
-#pragma omp parallel for
-    for(i=0; i<np; i++) {
-        int d;
-        for(d = 0; d < 3; d ++) {
-            /* For cola,
-             * add the lpt velocity to the residual velocity v*/
-            if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA)
-                po->v[i][d] += p->dx1[i][d]*Dv1
-                             + p->dx2[i][d]*Dv2;
-            /* convert the unit from a**2 H_0 dx/dt in Mpc/h to a dx/dt km/s */
-            po->v[i][d] *= H0 / aout;
-        }
-        po->id[i] = p->id[i];
-    }
-
-    po->np = np;
-    po->a_x = po->a_v = aout;
-}
-

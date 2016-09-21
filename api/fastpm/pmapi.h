@@ -20,6 +20,7 @@ typedef struct {
 #define PACK_ACC   (1 << 4)
 #define PACK_ID    (1 << 5)
 #define PACK_Q     (1 << 6)
+#define PACK_AEMIT     (1 << 7)
 
 
 #define PACK_ACC_X (1 << 10)
@@ -51,6 +52,7 @@ struct FastPMStore {
     float (* acc)[3];
     float (* dx1)[3];
     float (* dx2)[3];
+    float (* aemit);
     uint64_t * id;
     size_t np;
     size_t np_upper;

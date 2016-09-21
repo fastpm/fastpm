@@ -108,6 +108,9 @@ double comoving_distance_int(double a, void * params)
 
 /* In Hubble Distance */
 double ComovingDistance(double a, Cosmology c) {
+
+    /* We tested using ln_a doesn't seem to improve accuracy */
+
     int WORKSIZE = 100000;
 
     double result, abserr;

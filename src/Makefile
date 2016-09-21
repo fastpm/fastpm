@@ -13,8 +13,10 @@ LUA ?= ../lua/lua
 
 FASTPM_SOURCES = fastpm.c lua-main.c lua-runtime.c runpb.c readgrafic.c io.c lua-config.c
 FASTPM_LUA_SOURCES = fastpm-lua.c lua-main.c lua-runtime.c lua-config.c
+
 TEST_SOURCES = testpm.c \
-               testconstrained.c
+               testconstrained.c \
+               testlightcone.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
@@ -27,7 +29,8 @@ LUASOURCES = \
 all: fastpm-lua \
      fastpm \
      testpm \
-     testconstrained
+     testconstrained \
+     testlightcone
 
 fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a
@@ -47,6 +50,11 @@ testconstrained : .objs/testconstrained.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
+testlightcone : .objs/testlightcone.o .objs/io.o ../libfastpm/libfastpm.a ../bigfile/libbigfile.a ../bigfile/libbigfile-mpi.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
+
+
 -include $(SOURCES:%.c=.deps/%.d)
 
 lua-runtime.c : $(LUASOURCES) make-lua-runtime.sh
@@ -58,5 +66,5 @@ lua-config.c lua-config.h : $(LUASOURCES) make-lua-config.lua
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm fastpm-lua testpm test2lpt testconstrained
+	rm -rf fastpm fastpm-lua testpm test2lpt testconstrained testlightcone
 

@@ -113,6 +113,8 @@ struct FastPMDriftFactor {
     double dyyy[32];
     double da1[32];
     double da2[32];
+    double Dv1; /* at ac */
+    double Dv2; /* at ac */
 };
 
 struct FastPMKickFactor {
@@ -122,9 +124,11 @@ struct FastPMKickFactor {
     double af;
 
     int nsamples;
-    float q1[32];
-    float q2[32];
+    float q1;
+    float q2;
     float dda[32];
+    double Dv1[32];
+    double Dv2[32];
 };
 
 void fastpm_init(FastPMSolver * fastpm, 
