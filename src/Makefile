@@ -51,4 +51,3 @@ clean:
 	rm -rf .objs
 	rm -rf .deps
 	rm -rf fastpm fastpm-lua testpm test2lpt
-

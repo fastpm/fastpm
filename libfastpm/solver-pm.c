@@ -12,17 +12,6 @@
 #include "pm2lpt.h"
 #include "pmghosts.h"
 #include "vpm.h"
-#include "solver-pm-internal.h"
-
-static void 
-fastpm_set_time(FastPMSolver * fastpm, 
-    int istep,
-    double * time_step,
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1);
 
 static void
 fastpm_decompose(FastPMSolver * fastpm);
@@ -30,9 +19,6 @@ fastpm_decompose(FastPMSolver * fastpm);
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
-
-static void
-scale_acc(FastPMStore * po, double correction, double fudge);
 
 /* Useful stuff */
 static int 
@@ -55,8 +41,6 @@ void fastpm_init(FastPMSolver * fastpm,
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
-    fastpm->model = malloc(sizeof(FastPMModel));
-
     fastpm->p = malloc(sizeof(FastPMStore));
     fastpm_store_init(fastpm->p);
 
@@ -66,8 +50,6 @@ void fastpm_init(FastPMSolver * fastpm,
 
     fastpm->vpm_list = vpm_create(fastpm->vpminit,
                            &baseinit, comm);
-
-    fastpm_model_init(fastpm->model, fastpm, fastpm->USE_MODEL);
 
     int i = 0;
     for (i = 0; i < FASTPM_EXT_MAX; i ++) {
@@ -115,127 +97,199 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
     }
     fastpm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
 }
+static void
+fastpm_do_warmup(FastPMSolver * fastpm, double a0);
+static void
+fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans);
+static void
+fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans);
+static void
+fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans);
+
+static void
+fastpm_do_interpolation(FastPMSolver * fastpm,
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
 
 void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
 {
-    CLOCK(decompose);
-    CLOCK(force);
-    CLOCK(kick);
-    CLOCK(drift);
-    CLOCK(afterforce);
-    CLOCK(beforekick);
-    CLOCK(beforedrift);
-    CLOCK(correction);
+
+    fastpm_do_warmup(fastpm, time_step[0]);
+
+    FastPMStates * states = malloc(sizeof(FastPMStates));
+
+    FastPMState template[] = {
+    {0, 0, 1}, /* Kick */
+    {0, 1, 1}, /* Drift */
+    {0, 2, 1}, /* Drift */
+    {2, 2, 1}, /* Force */
+    {2, 2, 2}, /* Kick */
+    {-1, -1, -1} /* End of table */
+    };
+
+    fastpm_tevo_generate_states(states, nstep-1, template, time_step);
+
+    FastPMTransition transition[1];
+
+    /* The last step is the 'terminal' step */
+    int i;
+    for(i = 1; states->table[i].force != -1; i ++) {
+        fastpm_tevo_transition_init(transition, states, i - 1, i);
+
+        CLOCK(beforetransit);
+        ENTER(beforetransit);
+        FastPMExtension * ext;
+
+        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_TRANSITION];
+                ext; ext = ext->next) {
+            ((fastpm_ext_transition) ext->function)
+                (fastpm, transition, ext->userdata);
+        }
+        LEAVE(beforetransit);
+
+        switch(transition->action) {
+            case FASTPM_ACTION_KICK:
+                fastpm_do_kick(fastpm, transition);
+            break;
+            case FASTPM_ACTION_DRIFT:
+                fastpm_do_drift(fastpm, transition);
+            break;
+            case FASTPM_ACTION_FORCE:
+                fastpm_do_force(fastpm, transition);
+            break;
+        }
+    }
+    fastpm_tevo_destroy_states(states);
+}
+
+static void
+fastpm_do_interpolation(FastPMSolver * fastpm,
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2)
+{
+    CLOCK(interpolation);
+
+    ENTER(interpolation);
 
     FastPMExtension * ext;
-    FastPMStore * p = fastpm->p;
-    MPI_Comm comm = fastpm->comm;
+    for(ext = fastpm->exts[FASTPM_EXT_INTERPOLATE];
+            ext; ext = ext->next) {
+        ((fastpm_ext_interpolate) ext->function)
+            (fastpm, drift, kick, a1, a2, ext->userdata);
+    }
+    LEAVE(interpolation);
+}
 
-    fastpm_model_build(fastpm->model, time_step[0], time_step[nstep - 1]);
-
-    pm_2lpt_evolve(time_step[0], p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
-
-    MPI_Barrier(comm);
-
+static void
+fastpm_do_warmup(FastPMSolver * fastpm, double a0)
+{
     CLOCK(warmup);
+    ENTER(warmup);
+
+    pm_2lpt_evolve(a0, fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 
     if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* If doing COLA, v_res = 0 at initial. */
-        memset(p->v, 0, sizeof(p->v[0]) * p->np);
+        memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
     }
-
     LEAVE(warmup);
 
-    MPI_Barrier(comm);
+    FastPMKickFactor kick;
+    FastPMDriftFactor drift;
+    fastpm_kick_init(&kick, fastpm, a0, a0, a0);
+    fastpm_drift_init(&drift, fastpm, a0, a0, a0);
+    fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
+}
 
-    double correction = 1.0;
-    /* The last step is the 'terminal' step */
-    int istep;
-    for (istep = 0; istep < nstep; istep++) {
-        double a_v, a_x, a_v1, a_x1;
-        /* begining and ending of drift(x) and kick(v)*/
-        fastpm_set_time(fastpm, istep, time_step, nstep,
-                    &a_x, &a_x1, &a_v, &a_v1);
 
-        PM * pm = fastpm->pm;
-        fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+static void
+fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
+{
 
-        ENTER(decompose);
-        fastpm_decompose(fastpm);
-        LEAVE(decompose);
+    FastPMExtension * ext;
 
-        /* Calculate PM forces. */
-        FastPMFloat * delta_k = pm_alloc(pm);
+    CLOCK(decompose);
+    CLOCK(force);
+    CLOCK(afterforce);
 
-        ENTER(force);
-        fastpm_calculate_forces(fastpm, delta_k);
-        LEAVE(force);
+    VPM * vpm = vpm_find(fastpm->vpm_list, trans->a.f);
+    fastpm->pm = &vpm->pm;
+    PM * pm = fastpm->pm;
 
-        ENTER(afterforce);
-        for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
+    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
+    fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+
+    FastPMFloat * delta_k = pm_alloc(pm);
+    ENTER(decompose);
+    fastpm_decompose(fastpm);
+    LEAVE(decompose);
+
+    ENTER(force);
+    fastpm_calculate_forces(fastpm, delta_k);
+    LEAVE(force);
+
+    ENTER(afterforce);
+    for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
             ext; ext = ext->next) {
-                ((fastpm_ext_after_force) ext->function)
-                    (fastpm, delta_k, a_x, ext->userdata);
-        }
-        LEAVE(afterforce);
+        ((fastpm_ext_after_force) ext->function)
+            (fastpm, delta_k, trans->a.f, ext->userdata);
+    }
+    LEAVE(afterforce);
 
-        pm_free(pm, delta_k);
+    pm_free(pm, delta_k);
 
-        /* correct for linear theory before kick and drift */
-        ENTER(correction);
-        fastpm_model_evolve(fastpm->model, a_x1);
+}
 
-        correction = fastpm_model_find_correction(fastpm->model, a_x, a_x1, a_v, a_v1);
-        scale_acc(p, correction, 1.0);
-        /* the value of correction is leaked to the next step for reporting. */
+static void
+fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
+{
 
-        LEAVE(correction);
+    FastPMStore * p = fastpm->p;
 
-        ENTER(beforekick);
+    CLOCK(kick);
 
-        /* Used by callbacks */
-        FastPMKick kick;
-        fastpm_kick_init(&kick, fastpm, p->a_v, p->a_x, a_v1);
+    FastPMKickFactor kick;
+    fastpm_kick_init(&kick, fastpm, trans->a.i, trans->a.r, trans->a.f);
+    if(trans->end->v == trans->end->x) {
+        FastPMDriftFactor drift;
 
-        /* take snapshots if needed, before the kick */
-        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_KICK];
-            ext; ext = ext->next) {
-                ((fastpm_ext_before_kick) ext->function) 
-                    (fastpm, &kick, ext->userdata);
-        }
-        LEAVE(beforekick);
+        FastPMTransition dual[1];
+        fastpm_tevo_transition_find_dual(trans, dual);
 
-        /* never go beyond 1.0 */
-        if(a_x >= 1.0) break; 
+        fastpm_drift_init(&drift, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
-        // Leap-frog "kick" -- velocities updated
-
-        ENTER(kick);
-        fastpm_kick_store(fastpm, p, p, a_v1);
-        LEAVE(kick);
-
-
-        ENTER(beforedrift);
-
-        /* Used by callbacks */
-        FastPMDrift drift;
-        fastpm_drift_init(&drift, fastpm, p->a_x, p->a_v, a_x1);
-        /* take snapshots if needed, before the drift */
-        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_DRIFT];
-            ext; ext = ext->next) {
-                ((fastpm_ext_before_drift) ext->function)
-                    (fastpm, &drift, ext->userdata);
-        }
-        LEAVE(beforedrift);
-
-        // Leap-frog "drift" -- positions updated
-
-        ENTER(drift);
-        fastpm_drift_store(fastpm, p, p, a_x1);
-        LEAVE(drift);
+        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
     }
 
+    /* Do kick */
+    ENTER(kick);
+    fastpm_kick_store(&kick, p, p, trans->a.f);
+    LEAVE(kick);
+}
+
+static void
+fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
+{
+    FastPMStore * p = fastpm->p;
+
+    CLOCK(drift);
+
+    FastPMDriftFactor drift;
+    fastpm_drift_init(&drift, fastpm, trans->a.i, trans->a.r, trans->a.f);
+
+    if(trans->end->v == trans->end->x) {
+        FastPMKickFactor kick;
+
+        FastPMTransition dual[1];
+        fastpm_tevo_transition_find_dual(trans, dual);
+        fastpm_kick_init(&kick, fastpm, dual->a.i, dual->a.r, dual->a.f);
+
+        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
+    }
+
+    /* Do drift */
+    ENTER(drift);
+    fastpm_drift_store(&drift, p, p, trans->a.f);
+    LEAVE(drift);
 }
 
 void
@@ -243,10 +297,10 @@ fastpm_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    fastpm_model_destroy(fastpm->model);
     fastpm_store_destroy(fastpm->p);
 
     vpm_free(fastpm->vpm_list);
+
     /* FIXME: free VPM and stuff. */
     FastPMExtension * ext, * e2;
     int i;
@@ -288,90 +342,9 @@ fastpm_decompose(FastPMSolver * fastpm) {
 }
 
 void 
-fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
-            fastpm_interp_action action, void * userdata) 
-{
-    /* interpolate and write snapshots, assuming p 
-     * is at time a_x and a_v. */
-    FastPMStore * p = fastpm->p;
-    double a_x = p->a_x;
-    double a_v = p->a_v;
-    int iout;
-    for(iout = 0; iout < nout; iout ++) {
-        if(
-        ! /* after a kick */
-        (a_x < aout[iout] && aout[iout] < a_v)
-        &&
-        ! /* after a drift */
-        (a_x >= aout[iout] && aout[iout] >= a_v)
-        ) continue;
-
-        FastPMStore * snapshot = alloca(sizeof(FastPMStore));
-        fastpm_store_init(snapshot);
-        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
-
-        fastpm_info("Taking a snapshot...\n");
-
-        fastpm_set_snapshot(fastpm, p, snapshot, aout[iout]);
-
-        action(fastpm, snapshot, aout[iout], userdata);
-
-        fastpm_store_destroy(snapshot);
-
-    }
-}
-
-
-static void
-scale_acc(FastPMStore * po, double correction, double fudge)
-{
-    /* skip scaling if there is no correction. */
-    if(correction == 1.0) return;
-    ptrdiff_t i;
-    correction = pow(correction, fudge);
-
-#pragma omp parallel for
-    for(i = 0; i < po->np; i ++) {
-        int d;
-        for(d = 0; d < 3; d ++) {
-            po->acc[i][d] *= correction;
-        }
-    }
-}
-
-static void 
-fastpm_set_time(FastPMSolver * fastpm, 
-    int istep,
-    double * time_step,
-    int nstep,
-    double * a_x,
-    double * a_x1,
-    double * a_v,
-    double * a_v1) 
-{
-    /* The last step is the terminal step. */
-    *a_x = time_step[(istep >= nstep)?(nstep - 1):istep];
-    *a_x1 = time_step[(istep + 1 >= nstep)?(nstep - 1):(istep + 1)];
-
-    double a_xm1 = time_step[(istep > 0)?(istep - 1):0];
-    *a_v = sqrt(a_xm1 * *(a_x));
-    *a_v1 = sqrt(*a_x * *a_x1);
-
-    VPM * vpm = vpm_find(fastpm->vpm_list, *a_x);
-    fastpm->pm = &vpm->pm;
-
-    fastpm->info.istep = istep;
-    fastpm->info.a_x = *a_x;
-    fastpm->info.a_x1 = *a_x1;
-    fastpm->info.a_v = *a_v;
-    fastpm->info.a_v1 = *a_v1;
-    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
-}
-
-void 
-fastpm_add_extension(FastPMSolver * fastpm, 
+fastpm_add_extension(FastPMSolver * fastpm,
     enum FastPMExtensionPoint where,
-    void * function, void * userdata) 
+    void * function, void * userdata)
 {
     FastPMExtension * q = malloc(sizeof(FastPMExtension));
     q->userdata = userdata;
@@ -379,4 +352,3 @@ fastpm_add_extension(FastPMSolver * fastpm,
     q->next = fastpm->exts[where];
     fastpm->exts[where] = q;
 }
-
