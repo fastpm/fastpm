@@ -143,7 +143,7 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         for(ext = fastpm->exts[FASTPM_EXT_BEFORE_TRANSITION];
                 ext; ext = ext->next) {
             ((fastpm_ext_transition) ext->function)
-                (fastpm, transition->action, transition, ext->userdata);
+                (fastpm, transition, ext->userdata);
         }
         LEAVE(beforetransit);
 

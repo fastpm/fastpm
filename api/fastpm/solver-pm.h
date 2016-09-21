@@ -94,7 +94,7 @@ typedef int
 
 typedef int
     (* fastpm_ext_transition) 
-    (FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * transition, void * userdata);
+    (FastPMSolver * fastpm, FastPMTransition * transition, void * userdata);
 
 struct FastPMExtension {
     void * function; /* The function signature must match the types above */

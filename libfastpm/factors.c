@@ -380,14 +380,8 @@ fastpm_set_snapshot(
                 double aout)
 {
     int np= p->np;
-    double a_x = p->a_x;
-    double a_v = p->a_v;
-
-    fastpm_info("Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
     double H0 = 100.0f; // H0= 100 km/s/(h^-1 Mpc)
-
-    fastpm_info("Growth factor of snapshot %f (a=%.3f)\n", fastpm_growth_factor(drift->fastpm, aout), aout);
 
     Cosmology c = CP(drift->fastpm);
 

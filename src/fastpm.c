@@ -135,7 +135,7 @@ static void
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
 static int 
-print_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans, Parameters * prr);
+print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr);
 
 int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
@@ -324,7 +324,8 @@ produce:
 }
 
 static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr) {
-    fastpm_info("Checking Snapshots with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
+    fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
+        a1, a2,
         kick->af, kick->ai, kick->ac,
         drift->af, drift->ai, drift->ac
     );
@@ -348,7 +349,8 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, Fas
         fastpm_store_init(snapshot);
         fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
 
-        fastpm_info("Taking a snapshot...\n");
+        fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
+        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_growth_factor(fastpm, aout[iout]), aout[iout]);
 
         fastpm_set_snapshot(drift, kick, p, snapshot, aout[iout]);
 
@@ -430,19 +432,26 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 }
 
 static int 
-print_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans, Parameters * prr)
+print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr)
 {
-
-    fastpm_info("==== %03d [%03d %03d %03d] -> %03d [%03d %03d %03d] a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %d ====\n",
-            trans->istart, 
-            trans->start->x,
-            trans->start->v,
-            trans->start->force,
+    char * action;
+    switch (trans->action) {
+        case FASTPM_ACTION_FORCE:
+            action = "FORCE";
+        break;
+        case FASTPM_ACTION_KICK:
+            action = "KICK";
+        break;
+        case FASTPM_ACTION_DRIFT:
+            action = "DRIFT";
+        break;
+    }
+    fastpm_info("==== -> %03d [%03d %03d %03d] a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %s(%d) ====\n",
             trans->iend,
             trans->end->x,
             trans->end->v,
             trans->end->force,
-            trans->a.i, trans->a.f, trans->a.r, trans->action);
+            trans->a.i, trans->a.f, trans->a.r, action, trans->action);
     return 0;
 }
 
