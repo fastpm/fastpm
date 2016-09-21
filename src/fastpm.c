@@ -134,6 +134,9 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
+static int 
+print_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans, Parameters * prr);
+
 int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
     CLOCK(ic);
@@ -164,6 +167,11 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     fastpm_add_extension(fastpm,
         FASTPM_EXT_INTERPOLATE,
         check_snapshots,
+        prr);
+
+    fastpm_add_extension(fastpm,
+        FASTPM_EXT_BEFORE_TRANSITION,
+        print_transition,
         prr);
 
     MPI_Barrier(comm);
@@ -413,6 +421,14 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         pm_free(fastpm->basepm, rho_x);
         free(filename);
     }
+    return 0;
+}
+
+static int 
+print_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans, Parameters * prr)
+{
+
+    fastpm_info("==== a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %d ====\n", trans->a_i, trans->a_f, trans->a_r, action);
     return 0;
 }
 
