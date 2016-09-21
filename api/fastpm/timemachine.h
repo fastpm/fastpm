@@ -16,7 +16,7 @@ typedef struct {
 typedef struct {
     int i, f, r;
     double a_i, a_f, a_r;
-} FastPMTETransition;
+} FastPMTransition;
 
 // Protos
 
@@ -25,7 +25,7 @@ FastPMTEStates * fastpm_tevo_generate_states(FastPMTEStates *states, int cycles,
 void fastpm_tevo_destroy_states(FastPMTEStates *states);
 
 void
-fastpm_tevo_transition_init(FastPMTETransition * transition, FastPMTEStates * states, int i, int r, int f);
+fastpm_tevo_transition_init(FastPMTransition * transition, FastPMTEStates * states, int i, int r, int f);
 void fastpm_tevo_print_states(FastPMTEStates *states);
 
 FASTPM_END_DECLS

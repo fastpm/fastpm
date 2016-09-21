@@ -12,11 +12,6 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 
-#include "pmpfft.h"
-#include "pm2lpt.h"
-#include "pmghosts.h"
-#include "vpm.h"
-
 static int
 fastpm_tevo_block_len(FastPMTEEntry *template)
 {
@@ -26,23 +21,23 @@ fastpm_tevo_block_len(FastPMTEEntry *template)
     return i++;
 }
 
-FastPMTEStates *
+    FastPMTEStates *
 fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *template, double *ts)
 {
     /* Generate state table */
     int i, j, len = fastpm_tevo_block_len(template), N = len * cycles;
-    
+
     double *timesteps = malloc((cycles + 1) * sizeof(double));
     FastPMTEEntry *table = malloc((N + 3) * sizeof(FastPMTEEntry));
-    
+
     table[0].x = 0; // Initial conditions
     table[0].v = 0;
     table[0].a = -2;
-    
+
     table[1].x = 0; // Force calculation
     table[1].v = 0;
     table[1].a = 0;
-    
+
     for(i = 0; i < cycles; i++) { // Templates
         for(j = 0; j < len; j++) {
             table[j + i * len + 2].a = table[i * len + 1].a + template[j].a;
@@ -50,18 +45,18 @@ fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *t
             table[j + i * len + 2].v = table[i * len + 1].v + template[j].v;
         }
     }
-    
+
     table[N+2].a = -1; // End of table
     table[N+2].x = -1;
     table[N+2].v = -1;
-    
+
     states->table = table; // Pack in struct
     states->cycle_len = template[len-1].a;
     states->cycles = cycles;
-    
+
     for(i = 0; i <= cycles; i++) { timesteps[i] = ts[i]; }
     states->timesteps = timesteps;
-    
+
     return states;
 }
 
@@ -94,7 +89,7 @@ fastpm_tevo_i2t(FastPMTEStates * states, int i)
 }
 
 void
-fastpm_tevo_transition_init(FastPMTETransition * transition, FastPMTEStates * states, int i, int r, int f)
+fastpm_tevo_transition_init(FastPMTransition * transition, FastPMTEStates * states, int i, int r, int f)
 {
     transition->i = i;
     transition->r = r;
@@ -102,4 +97,27 @@ fastpm_tevo_transition_init(FastPMTETransition * transition, FastPMTEStates * st
     transition->a_i = fastpm_tevo_i2t(states, i);
     transition->a_r = fastpm_tevo_i2t(states, r);
     transition->a_f = fastpm_tevo_i2t(states, f);
+}
+
+void
+fastpm_tevo_transition_revert(FastPMTransition * transition, FastPMTransition * reverted)
+{
+    reverted->i = transition->f;
+    reverted->f = transition->i;
+    reverted->r = transition->r;
+    reverted->a_i = transition->a_f;
+    reverted->a_f = transition->a_i;
+    reverted->a_r = transition->a_r;
+}
+
+void
+fastpm_tevo_transition_to_kick(FastPMTransition * transition, FastPMSolver * fastpm, FastPMKickFactor * kick)
+{
+    fastpm_kick_init(kick, fastpm, transition->a_i, transition->a_r, transition->a_f);
+}
+
+void
+fastpm_tevo_transition_to_drift(FastPMTransition * transition, FastPMSolver * fastpm, FastPMDriftFactor * drift)
+{
+    fastpm_drift_init(drift, fastpm, transition->a_i, transition->a_r, transition->a_f);
 }
