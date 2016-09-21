@@ -29,12 +29,13 @@ fastpm_2pcf_from_powerspectrum(FastPM2PCF *self, fastpm_fkfunc pkfunc, void * da
 static void
 _solve(int size, double * Cij, double * dfi, double * x)
 {
-    /* XXX: Ah we need to solve this. */
-    int i;
-    /* assume Cij is identity for now. */
-    for(i = 0; i < size; i ++) {
-        x[i] = dfi[i];
-    }
+    gsl_matrix_view m = gsl_matrix_view_array(Cij, size, size);
+    gsl_vector_view b = gsl_vector_view_array(dfi, size);
+    gsl_vector_view xx = gsl_vector_view_array(x, size);
+    gsl_permutation *p = gsl_permutation_alloc(size);
+    int s;
+    gsl_linalg_LU_decomp(&m.matrix, p, &s);
+    gsl_linalg_LU_solve(&m.matrix, p, &b.vector, &xx.vector);
 }
 
 static void
