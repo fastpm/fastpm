@@ -187,6 +187,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
     };
     ptrdiff_t i;
 
+    const double H0 = 100.f;
+
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
         if(0 == _fastpm_lc_intersect_one(lc, &params, i, &a_emit)) continue;
@@ -203,8 +205,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         int d;
         for(d = 0; d < 3; d ++) {
             lc->p->x[next][d] = xo[d];
-            /* XXX: convert units? */
-            lc->p->v[next][d] = vo[d];
+            /* convert to peculiar velocity a dx / dt in kms */
+            lc->p->v[next][d] = vo[d] * H0 / a_emit;
         }
         lc->p->id[next] = p->id[i];
         lc->p->aemit[next] = a_emit;
