@@ -74,24 +74,27 @@ typedef struct {
 enum FastPMExtensionPoint {
     FASTPM_EXT_AFTER_FORCE,
     FASTPM_EXT_INTERPOLATE,
-    FASTPM_EXT_BEFORE_KICK,
-    FASTPM_EXT_BEFORE_DRIFT,
+    FASTPM_EXT_BEFORE_TRANSITION,
     FASTPM_EXT_MAX,
+};
+
+enum FastPMAction {
+    FASTPM_ACTION_FORCE,
+    FASTPM_ACTION_KICK,
+    FASTPM_ACTION_DRIFT,
 };
 
 typedef int 
     (* fastpm_ext_after_force) 
     (FastPMSolver * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
-typedef int 
-    (* fastpm_ext_before_kick) 
-    (FastPMSolver * fastpm, FastPMKickFactor * kick, void * userdata);
-typedef int
-    (* fastpm_ext_before_drift) 
-    (FastPMSolver * fastpm, FastPMDriftFactor * drift, void * userdata);
 
 typedef int
-    (* fastpm_ext_interpolation) 
+    (* fastpm_ext_interpolate) 
     (FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, void * userdata);
+
+typedef int
+    (* fastpm_ext_transition) 
+    (FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * transition, void * userdata);
 
 struct FastPMExtension {
     void * function; /* The function signature must match the types above */
