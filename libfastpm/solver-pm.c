@@ -187,10 +187,6 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
 
     pm_2lpt_evolve(a0, fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
 
-    if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-        /* If doing COLA, v_res = 0 at initial. */
-        memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
-    }
     LEAVE(warmup);
 
     FastPMKickFactor kick;
