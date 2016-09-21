@@ -51,32 +51,18 @@ schema.force_mode.choices = {
     fastpm = 'FASTPM_FORCE_FASTPM',
     pm   = 'FASTPM_FORCE_PM',
 }
-schema.declare{name='enforce_broadband_mode',  type='enum',
-            default='none', choices={'pm', 'linear', '2lpt', 'za', 'none'}}
-schema.enforce_broadband_mode.choices = {
-    pm = 'FASTPM_MODEL_PM',
-    linear = 'FASTPM_MODEL_LINEAR',
-    ['2lpt'] = 'FASTPM_MODEL_2LPT',
-    za = 'FASTPM_MODEL_ZA',
-    none = 'FASTPM_MODEL_NONE',
-}
-
 schema.declare{name='enforce_broadband_kmax',  type='int', default=4}
 schema.declare{name='cola_stdda',           type='boolean'}
 
 function schema.force_mode.action (force_mode)
     if force_mode == "pm" then
         schema.cola_stdda.default = true
-        schema.enforce_broadband_mode.default = "pm"
     elseif force_mode == "cola" then
         schema.cola_stdda.default = false
-        schema.enforce_broadband_mode.default = "none"
     elseif force_mode == "zola" then
         schema.cola_stdda.default = true
-        schema.enforce_broadband_mode.default = "none"
     elseif force_mode == "fastpm" then
         schema.cola_stdda.default = true
-        schema.enforce_broadband_mode.default = "none"
     end
 end
 
@@ -162,6 +148,7 @@ schema.declare{name='write_powerspectrum', type='string'}
 schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
+schema.declare{name='write_lightcone',         type='string'}
 
 schema.declare{name='za',                      type='boolean', default=false}
 schema.declare{name='kernel_type',             type='enum', default="3_4"}
@@ -227,7 +214,6 @@ function fastpm.test()
         cola_stdda = true,
         dealiasing_type = "none",
         enforce_broadband_kmax = 4,
-        enforce_broadband_mode = "pm",
         f_nl = 0.100000000000000006,
         f_nl_type = "local",
         force_mode = "pm",

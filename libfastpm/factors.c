@@ -54,41 +54,82 @@ fastpm_growth_factor(FastPMSolver * fastpm, double a)
 }
 
 inline void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3])
+fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
 {
+    double ind;
+    double dyyy, da1, da2;
+    if(af == drift->af) {
+        dyyy = drift->dyyy[drift->nsamples - 1];
+        da1  = drift->da1[drift->nsamples - 1];
+        da2  = drift->da2[drift->nsamples - 1];
+    } else {
+        ind = (af - drift->ai) / (drift->af - drift->ai) * (drift->nsamples - 1);
+        int l = floor(ind);
+        double u = l + 1 - ind;
+        double v = ind - l;
+        dyyy = drift->dyyy[l] * u + drift->dyyy[l + 1] * v;
+        da1  = drift->da1[l] * u + drift->da1[l + 1] * v;
+        da2  = drift->da2[l] * u + drift->da2[l + 1] * v;
+    }
     int d;
     for(d = 0; d < 3; d ++) {
-        xo[d] = drift->p->x[i][d] + drift->p->v[i][d]*drift->dyyy;
-        if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-            xo[d] += drift->p->dx1[i][d]*drift->da1 + drift->p->dx2[i][d]*drift->da2;
+        if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_2LPT) {
+            xo[d] = p->x[i][d] + p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
+        } else if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_ZA) {
+            xo[d] = p->x[i][d] + p->dx1[i][d] * da1;
+        } else {
+            xo[d] = p->x[i][d] + p->v[i][d] * dyyy;
+            if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+                xo[d] += p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
+            }
         }
     }
-
 }
 
 inline void
-fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3])
+fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
 {
+    double ind;
+    double q1, q2;
+    double dda;
+
+    if(af == kick->af) {
+        dda = kick->dda[kick->nsamples - 1];
+        q1  = kick->q1[kick->nsamples - 1];
+        q2  = kick->q2[kick->nsamples - 1];
+    } else {
+        ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
+        int l = floor(ind);
+        double u = l + 1 - ind;
+        double v = ind - l;
+        dda = kick->dda[l] * u + kick->dda[l + 1] * v;
+        q1  = kick->q1[l] * u + kick->q1[l + 1] * v;
+        q2  = kick->q2[l] * u + kick->q2[l + 1] * v;
+    }
+
     int d;
     for(d = 0; d < 3; d++) {
-        float ax = kick->p->acc[i][d];
+        float ax = p->acc[i][d];
         if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-            ax += (kick->p->dx1[i][d]*kick->q1 + kick->p->dx2[i][d]*kick->q2);
+            ax += (p->dx1[i][d]*q1 + p->dx2[i][d]*q2);
         }
-        vo[d] = kick->p->v[i][d] + ax * kick->dda;
+        vo[d] = p->v[i][d] + ax * dda;
     }
 }
 
 // Leap frog time integration
 
 void 
-fastpm_kick_store(FastPMSolver * fastpm, 
-              FastPMStore * pi, FastPMStore * po, double af)
+fastpm_kick_store(FastPMKickFactor * kick,
+    FastPMStore * pi, FastPMStore * po, double af)
 {
-    FastPMKick * kick = alloca(sizeof(FastPMKick));
 
-    fastpm_kick_init(kick, fastpm, pi, af);
-
+    if(kick->ai != pi->a_v) {
+        fastpm_raise(-1, "kick is inconsitant with state.\n");
+    }
+    if(kick->ac != pi->a_x) {
+        fastpm_raise(-1, "kick is inconsitant with state.\n");
+    }
     int np = pi->np;
 
     // Kick using acceleration at a= ac
@@ -99,7 +140,7 @@ fastpm_kick_store(FastPMSolver * fastpm,
     for(i=0; i<np; i++) {
         int d;
         float vo[3];
-        fastpm_kick_one(kick, i, vo);
+        fastpm_kick_one(kick, pi, i, vo, af);
         for(d = 0; d < 3; d++) {
             po->v[i][d] = vo[d];
         }
@@ -137,62 +178,79 @@ static double g_f(double a, Cosmology c)
                    + a * a * a * E * d2Dda2;
     return g_f;
 }
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi, double af)
+void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
-    double ai = pi->a_v;
-    double ac = pi->a_x;
-    double OmegaM = fastpm->omega_m;
     Cosmology c = CP(fastpm);
+
+    double OmegaM = fastpm->omega_m;
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double growth1 = GrowthFactor(ac, c);
 
-    kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    kick->q1 = growth1;
-    if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
-        kick->dda = -1.5 * OmegaM
-           * 1 / (ac * ac * HubbleEa(ac, c))
-           * (G_f(af, c) - G_f(ai, c)) / g_f(ac, c);
-    } else {
-        kick->dda = -1.5 * OmegaM * Sphi(ai, af, ac, fastpm);
+    kick->nsamples = 32;
+    int i;
+
+    for(i = 0; i < kick->nsamples; i ++) {
+        double ae = ai * (1.0 * (kick->nsamples - 1 - i) / (kick->nsamples - 1))
+                  + af * (1.0 * i / (kick->nsamples - 1));
+
+        kick->q1[i] = growth1;
+        kick->q2[i] = growth1*growth1*(1.0 + 7.0/3.0*Om143);
+
+        if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
+            kick->dda[i] = -1.5 * OmegaM
+               * 1 / (ac * ac * HubbleEa(ac, c))
+               * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
+        } else {
+            kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm);
+        }
     }
+
     kick->fastpm = fastpm;
-    kick->p = pi;
+
+    kick->ai = ai;
+    kick->ac = ac;
     kick->af = af;
 }
 
 void
-fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi,
-               double af)
+fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
+                double ai, double ac, double af)
 {
-    double ai = pi->a_x;
-    double ac = pi->a_v;
-
     Cosmology c = CP(fastpm);
 
-    if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
-        drift->dyyy = 1 / (ac * ac * ac * HubbleEa(ac, c))
-                    * (G_p(af, c) - G_p(ai, c)) / g_p(ac, c);
-    } else {
-        drift->dyyy = Sq(ai, af, ac, fastpm);
-    }
-    drift->da1 = GrowthFactor(af, c) - GrowthFactor(ai, c);    // change in D_1lpt
-    drift->da2 = GrowthFactor2(af, c) - GrowthFactor2(ai, c);  // change in D_2lpt
+    drift->nsamples = 32;
+    int i;
 
+    for(i = 0; i < drift->nsamples; i ++ ) {
+        double ae = ai * (1.0 * (drift->nsamples - 1 - i) / (drift->nsamples - 1))
+                  + af * (1.0 * i / (drift->nsamples - 1));
+
+        if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
+            drift->dyyy[i] = 1 / (ac * ac * ac * HubbleEa(ac, c))
+                        * (G_p(ae, c) - G_p(ai, c)) / g_p(ac, c);
+        } else {
+            drift->dyyy[i] = Sq(ai, ae, ac, fastpm);
+        }
+        drift->da1[i] = GrowthFactor(ae, c) - GrowthFactor(ai, c);    // change in D_1lpt
+        drift->da2[i] = GrowthFactor2(ae, c) - GrowthFactor2(ai, c);  // change in D_2lpt
+    }
     drift->fastpm = fastpm;
-    drift->p = pi;
     drift->af = af;
+    drift->ai = ai;
+    drift->ac = ac;
 }
 
 void
-fastpm_drift_store(FastPMSolver * fastpm,
+fastpm_drift_store(FastPMDriftFactor * drift,
                FastPMStore * pi, FastPMStore * po,
                double af)
 {
-
-    FastPMDrift * drift = alloca(sizeof(FastPMDrift));
-
-    fastpm_drift_init(drift, fastpm, pi, af);
-
+    if(drift->ai != pi->a_x) {
+        fastpm_raise(-1, "drift is inconsitant with state.\n");
+    }
+    if(drift->ac != pi->a_v) {
+        fastpm_raise(-1, "drift is inconsitant with state.\n");
+    }
     int np = pi->np;
 
     int i;
@@ -200,7 +258,7 @@ fastpm_drift_store(FastPMSolver * fastpm,
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         double xo[3];
-        fastpm_drift_one(drift, i, xo);
+        fastpm_drift_one(drift, pi, i, xo, drift->af);
         int d;
         for(d = 0; d < 3; d ++) {
             po->x[i][d] = xo[d];
@@ -315,30 +373,26 @@ Sphi(double ai, double af, double aRef, FastPMSolver * fastpm)
 
 // Interpolate position and velocity for snapshot at a=aout
 void 
-fastpm_set_snapshot(FastPMSolver * fastpm,
+fastpm_set_snapshot(
+                FastPMDriftFactor * drift,
+                FastPMKickFactor * kick,
                 FastPMStore * p, FastPMStore * po,
                 double aout)
 {
     int np= p->np;
-    double a_x = p->a_x;
-    double a_v = p->a_v;
-
-    fastpm_info("Setting up snapshot at a= %6.4f (z=%6.4f) <- %6.4f %6.4f.\n", aout, 1.0f/aout-1, a_x, a_v);
 
     double H0 = 100.0f; // H0= 100 km/s/(h^-1 Mpc)
 
-    fastpm_info("Growth factor of snapshot %f (a=%.3f)\n", fastpm_growth_factor(fastpm, aout), aout);
-
-    Cosmology c = CP(fastpm);
+    Cosmology c = CP(drift->fastpm);
 
     double Dv1 = GrowthFactor(aout, c) * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
     double Dv2 = GrowthFactor2(aout, c) * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
 
     fastpm_info("RSD factor %e\n", 1 /(aout * HubbleEa(aout, c) *H0));
 
-    fastpm_kick_store(fastpm, p, po, aout);
+    fastpm_kick_store(kick, p, po, aout);
 
-    fastpm_drift_store(fastpm, p, po, aout);
+    fastpm_drift_store(drift, p, po, aout);
 
     int i;
 #pragma omp parallel for
@@ -347,7 +401,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
         for(d = 0; d < 3; d ++) {
             /* For cola,
              * add the lpt velocity to the residual velocity v*/
-            if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA)
+            if(drift->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA)
                 po->v[i][d] += p->dx1[i][d]*Dv1
                              + p->dx2[i][d]*Dv2;
             /* convert the unit from a**2 H_0 dx/dt in Mpc/h to a dx/dt km/s */

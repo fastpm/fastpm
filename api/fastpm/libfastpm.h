@@ -20,6 +20,7 @@ FASTPM_BEGIN_DECLS
 typedef struct PM PM;
 typedef struct FastPMStore FastPMStore;
 typedef struct FastPMPainter FastPMPainter;
+typedef struct FastPMTransition FastPMTransition;
 
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32
@@ -55,6 +56,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "pngaussian.h"
 #include "powerspectrum.h"
 #include "solver-pm.h"
+#include "timemachine.h"
 
 /* Following functions are internal API */
 

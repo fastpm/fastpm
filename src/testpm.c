@@ -15,10 +15,10 @@ int main(int argc, char * argv[]) {
 
     MPI_Comm comm = MPI_COMM_WORLD;
 
-    fastpm_set_msg_handler(fastpm_void_msg_handler, comm, NULL);
+    fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMSolver * solver = & (FastPMSolver) {
-        .nc = 128,
+        .nc = 32,
         .boxsize = 32.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
@@ -28,7 +28,6 @@ int main(int argc, char * argv[]) {
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .USE_NONSTDDA = 0,
-        .USE_MODEL = 0,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };
@@ -58,12 +57,13 @@ int main(int argc, char * argv[]) {
     fastpm_painter_init(painter, solver->basepm, solver->PAINTER_TYPE, solver->painter_support);
 
     fastpm_paint(painter, rho_final_xtruth, solver->p, NULL, 0);
-    fastpm_utils_dump(solver->basepm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
+    //fastpm_utils_dump(solver->basepm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
 
     pm_free(solver->basepm, rho_final_xtruth);
     pm_free(solver->basepm, rho_final_ktruth);
     pm_free(solver->basepm, rho_init_ktruth);
 
+    fastpm_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;

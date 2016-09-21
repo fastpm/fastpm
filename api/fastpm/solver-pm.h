@@ -6,13 +6,11 @@ typedef struct VPMInit {
     int pm_nc_factor;
 } VPMInit;
 
-typedef struct FastPMDrift FastPMDrift;
-typedef struct FastPMKick FastPMKick;
+typedef struct FastPMDriftFactor FastPMDriftFactor;
+typedef struct FastPMKickFactor FastPMKickFactor;
 typedef struct FastPMExtension FastPMExtension;
-typedef struct FastPMModel FastPMModel;
 
-typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA} FastPMForceType;
-typedef enum { FASTPM_MODEL_NONE, FASTPM_MODEL_LINEAR, FASTPM_MODEL_ZA, FASTPM_MODEL_2LPT, FASTPM_MODEL_PM } FastPMModelType;
+typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
                FASTPM_KERNEL_GADGET,
                FASTPM_KERNEL_EASTWOOD,
@@ -47,7 +45,6 @@ typedef struct {
     FastPMForceType FORCE_TYPE;
     FastPMKernelType KERNEL_TYPE;
     FastPMDealiasingType DEALIASING_TYPE;
-    FastPMModelType USE_MODEL;
     int K_LINEAR;
 
     /* Extensions */
@@ -59,7 +56,6 @@ typedef struct {
         double a_x;
         double a_x1;
         double a_v;
-        double a_v1;
         double dx1[3];
         double dx2[3];
         struct {
@@ -71,27 +67,34 @@ typedef struct {
 
     VPM * vpm_list;
 
-    FastPMModel * model;
     PM * basepm;
     FastPMPainter painter[1];
 } FastPMSolver;
 
 enum FastPMExtensionPoint {
     FASTPM_EXT_AFTER_FORCE,
-    FASTPM_EXT_BEFORE_KICK,
-    FASTPM_EXT_BEFORE_DRIFT,
+    FASTPM_EXT_INTERPOLATE,
+    FASTPM_EXT_BEFORE_TRANSITION,
     FASTPM_EXT_MAX,
+};
+
+enum FastPMAction {
+    FASTPM_ACTION_FORCE,
+    FASTPM_ACTION_KICK,
+    FASTPM_ACTION_DRIFT,
 };
 
 typedef int 
     (* fastpm_ext_after_force) 
     (FastPMSolver * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
-typedef int 
-    (* fastpm_ext_before_kick) 
-    (FastPMSolver * fastpm, FastPMKick * kick, void * userdata);
+
 typedef int
-    (* fastpm_ext_before_drift) 
-    (FastPMSolver * fastpm, FastPMDrift * drift, void * userdata);
+    (* fastpm_ext_interpolate) 
+    (FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, void * userdata);
+
+typedef int
+    (* fastpm_ext_transition) 
+    (FastPMSolver * fastpm, FastPMTransition * transition, void * userdata);
 
 struct FastPMExtension {
     void * function; /* The function signature must match the types above */
@@ -99,22 +102,29 @@ struct FastPMExtension {
     struct FastPMExtension * next;
 };
 
-struct FastPMDrift {
+struct FastPMDriftFactor {
     FastPMSolver * fastpm;
-    FastPMStore * p;
-    double dyyy;
-    double da1;
-    double da2;
+    double ai;
+    double ac;
     double af;
+
+    /* */
+    int nsamples;
+    double dyyy[32];
+    double da1[32];
+    double da2[32];
 };
 
-struct FastPMKick {
+struct FastPMKickFactor {
     FastPMSolver * fastpm;
-    FastPMStore * p;
-    float q1;
-    float q2;
-    float dda;
+    double ai;
+    double ac;
     double af;
+
+    int nsamples;
+    float q1[32];
+    float q2[32];
+    float dda[32];
 };
 
 void fastpm_init(FastPMSolver * fastpm, 
@@ -136,23 +146,28 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
 void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
-typedef int 
-(*fastpm_interp_action) (FastPMSolver * fastpm, FastPMStore * pout, double aout, void * userdata);
-
-/* This function can be used in after_kick and after_drift plugins for 
- * interpolating and writing a snapshot */
-void 
-fastpm_interp(FastPMSolver * fastpm, double * aout, int nout, 
-            fastpm_interp_action action, void * userdata);
-
-void fastpm_drift_init(FastPMDrift * drift, FastPMSolver * fastpm, FastPMStore * pi, double af);
-void fastpm_kick_init(FastPMKick * kick, FastPMSolver * fastpm, FastPMStore * pi, double af);
-void
-fastpm_kick_one(FastPMKick * kick, ptrdiff_t i, float vo[3]);
-void
-fastpm_drift_one(FastPMDrift * drift, ptrdiff_t i, double xo[3]);
+void fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm, double ai, double ac, double af);
+void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af);
+void fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
+void fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
 double
 fastpm_growth_factor(FastPMSolver * fastpm, double a);
+
+void fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k);
+
+void 
+fastpm_kick_store(FastPMKickFactor * kick,
+    FastPMStore * pi, FastPMStore * po, double af);
+
+void 
+fastpm_drift_store(FastPMDriftFactor * drift,
+               FastPMStore * pi, FastPMStore * po,
+               double af);
+
+void 
+fastpm_set_snapshot(FastPMDriftFactor * drift, FastPMKickFactor * kick,
+                FastPMStore * p, FastPMStore * po,
+                double aout);
 
 FASTPM_END_DECLS

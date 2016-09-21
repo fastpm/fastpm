@@ -26,6 +26,7 @@ static void fastpm_abort() {
     void * ptrs[128];
     size = backtrace(&ptrs[0], 128);
     backtrace_symbols_fd(&ptrs[0], size, 0);
+    abort();
 }
 #else
 static void fastpm_abort() {
