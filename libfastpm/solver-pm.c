@@ -98,8 +98,7 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
     fastpm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
 }
 static void
-fastpm_do_interpolation(FastPMSolver * fastpm,
-        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
+fastpm_do_warmup(FastPMSolver * fastpm, double a0);
 static void
 fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans);
 static void
@@ -107,23 +106,15 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans);
 static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans);
 
+static void
+fastpm_do_interpolation(FastPMSolver * fastpm,
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
+
 void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
 {
-    MPI_Comm comm = fastpm->comm;
 
-    pm_2lpt_evolve(time_step[0], fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
-
-    MPI_Barrier(comm);
-
-    CLOCK(warmup);
-
-    if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
-        /* If doing COLA, v_res = 0 at initial. */
-        memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
-    }
-
-    LEAVE(warmup);
+    fastpm_do_warmup(fastpm, time_step[0]);
 
     FastPMStates * states = malloc(sizeof(FastPMStates));
 
@@ -139,8 +130,6 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     fastpm_tevo_generate_states(states, nstep-1, template, time_step);
 
     FastPMTransition transition[1];
-
-    MPI_Barrier(comm);
 
     /* The last step is the 'terminal' step */
     int i;
@@ -189,6 +178,28 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
     }
     LEAVE(interpolation);
 }
+
+static void
+fastpm_do_warmup(FastPMSolver * fastpm, double a0)
+{
+    CLOCK(warmup);
+    ENTER(warmup);
+
+    pm_2lpt_evolve(a0, fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
+
+    if(fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+        /* If doing COLA, v_res = 0 at initial. */
+        memset(fastpm->p->v, 0, sizeof(fastpm->p->v[0]) * fastpm->p->np);
+    }
+    LEAVE(warmup);
+
+    FastPMKickFactor kick;
+    FastPMDriftFactor drift;
+    fastpm_kick_init(&kick, fastpm, a0, a0, a0);
+    fastpm_drift_init(&drift, fastpm, a0, a0, a0);
+    fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
+}
+
 
 static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
