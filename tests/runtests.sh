@@ -2,7 +2,12 @@
 
 source testfunctions.sh
 
+export OMP_NUM_THREADS=1
+
+FASTPM=`dirname $0`/../src/fastpm
+
 set -x
+
 mpirun -n 4 $FASTPM standard.lua ic || fail
 
 mpirun -n 4 $FASTPM standard.lua fastpm lineark || fail
