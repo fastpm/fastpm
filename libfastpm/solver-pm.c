@@ -99,9 +99,13 @@ fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 }
 static void
 fastpm_do_interpolation(FastPMSolver * fastpm,
-        FastPMTransition * xtrans, FastPMTransition * vtrans, double a1, double a2);
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
 static void
-fastpm_do_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans);
+fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans);
+static void
+fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans);
+static void
+fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans);
 
 void
 fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
@@ -121,9 +125,9 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
     LEAVE(warmup);
 
-    FastPMTEStates * states = malloc(sizeof(FastPMTEStates));
+    FastPMStates * states = malloc(sizeof(FastPMStates));
 
-    FastPMTEEntry template[] = {
+    FastPMState template[] = {
     {0, 0, 1}, /* Kick */
     {0, 1, 1}, /* Drift */
     {0, 2, 1}, /* Drift */
@@ -134,106 +138,36 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
     fastpm_tevo_generate_states(states, nstep-1, template, time_step);
 
-    FastPMTransition trans;
-    FastPMTransition last_xtrans, last_vtrans;
-
-    enum FastPMAction action;
+    FastPMTransition transition[1];
 
     MPI_Barrier(comm);
 
     /* The last step is the 'terminal' step */
     int i;
-    for(i = 0; ; i ++) {
-        if(i == 0) {
-            /* initial condition */
-            FastPMTransition vtrans, xtrans;
-            double a1, a2;
-            fastpm_tevo_transition_init(&vtrans, states,
-                    states->table[i].v,
-                    states->table[i].v,
-                    states->table[i].v);
-            fastpm_tevo_transition_init(&xtrans, states,
-                    states->table[i].x,
-                    states->table[i].x,
-                    states->table[i].x);
-            a1 = vtrans.a_i;
-            a2 = vtrans.a_i;
-            fastpm_do_interpolation(fastpm, &xtrans, &vtrans, a1, a2);
-            continue;
+    for(i = 1; states->table[i].force != -1; i ++) {
+        fastpm_tevo_transition_init(transition, states, i - 1, i);
+
+        CLOCK(beforetransit);
+        ENTER(beforetransit);
+        FastPMExtension * ext;
+
+        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_TRANSITION];
+                ext; ext = ext->next) {
+            ((fastpm_ext_transition) ext->function)
+                (fastpm, transition->action, transition, ext->userdata);
         }
-        if(states->table[i].a == -1) {
-            break;
-        }
+        LEAVE(beforetransit);
 
-        if(states->table[i].a != states->table[i-1].a) {
-            /* Force */
-            action = FASTPM_ACTION_FORCE;
-            fastpm_tevo_transition_init(&trans, states,
-                    states->table[i-1].a,
-                    states->table[i].x,
-                    states->table[i].a);
-
-        }
-        if(states->table[i].v != states->table[i-1].v) {
-            /* Kick */
-            fastpm_tevo_transition_init(&trans, states,
-                    states->table[i-1].v,
-                    states->table[i-1].a,
-                    states->table[i].v);
-
-            action = FASTPM_ACTION_KICK;
-        }
-        if(states->table[i].x != states->table[i-1].x) {
-            /* Drift */
-            fastpm_tevo_transition_init(&trans, states,
-                    states->table[i-1].x,
-                    states->table[i-1].v,
-                    states->table[i].x);
-            action = FASTPM_ACTION_DRIFT;
-        }
-
-        fastpm_info("==== Time Step [%03d] : x, v, a = %03d %03d %03d =====\n",
-            i, states->table[i].x, states->table[i].v, states->table[i].a);
-
-        if(states->table[i].x == states->table[i].v) {
-            FastPMTransition vtrans, xtrans;
-            double a1, a2;
-
-            /* Interpolation */
-            if(action == FASTPM_ACTION_KICK) {
-                fastpm_tevo_transition_init(&vtrans, states,
-                    trans.i, trans.r, trans.f);
-                fastpm_tevo_transition_init(&xtrans, states,
-                    last_xtrans.f, last_xtrans.r, last_xtrans.i);
-
-                a2 = last_xtrans.a_f;
-                a1 = last_xtrans.a_i;
-                fastpm_do_interpolation(fastpm, &xtrans, &vtrans, a1, a2);
-            }
-            if(action == FASTPM_ACTION_DRIFT) {
-                fastpm_tevo_transition_init(&vtrans, states,
-                    last_vtrans.f, last_vtrans.r, last_vtrans.i);
-                fastpm_tevo_transition_init(&xtrans, states,
-                    trans.i, trans.r, trans.f);
-
-                a2 = last_vtrans.a_f;
-                a1 = last_vtrans.a_i;
-                fastpm_do_interpolation(fastpm, &xtrans, &vtrans, a1, a2);
-            }
-            /* No interpolation on force calculation */
-        }
-
-        fastpm_do_transition(fastpm, action, &trans);
-
-        switch(action) {
-            case FASTPM_ACTION_FORCE:
-                break;
+        switch(transition->action) {
             case FASTPM_ACTION_KICK:
-                last_vtrans = trans;
-                break;
+                fastpm_do_kick(fastpm, transition);
+            break;
             case FASTPM_ACTION_DRIFT:
-                last_xtrans = trans;
-                break;
+                fastpm_do_drift(fastpm, transition);
+            break;
+            case FASTPM_ACTION_FORCE:
+                fastpm_do_force(fastpm, transition);
+            break;
         }
     }
     fastpm_tevo_destroy_states(states);
@@ -241,27 +175,17 @@ fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
 static void
 fastpm_do_interpolation(FastPMSolver * fastpm,
-        FastPMTransition * xtrans, FastPMTransition * vtrans, double a1, double a2)
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2)
 {
     CLOCK(interpolation);
+
     ENTER(interpolation);
-    /* Used by callbacks */
-    FastPMKickFactor kick;
-    FastPMDriftFactor drift;
-
-    fastpm_info("I with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
-        vtrans->a_f, vtrans->a_i, vtrans->a_r,
-        xtrans->a_f, xtrans->a_i, xtrans->a_r
-    );
-
-    fastpm_kick_init(&kick, fastpm, vtrans->a_i, vtrans->a_r, vtrans->a_f);
-    fastpm_drift_init(&drift, fastpm, xtrans->a_i, xtrans->a_r, xtrans->a_f);
 
     FastPMExtension * ext;
     for(ext = fastpm->exts[FASTPM_EXT_INTERPOLATE];
             ext; ext = ext->next) {
         ((fastpm_ext_interpolate) ext->function)
-            (fastpm, &drift, &kick, a1, a2, ext->userdata);
+            (fastpm, drift, kick, a1, a2, ext->userdata);
     }
     LEAVE(interpolation);
 }
@@ -276,7 +200,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     CLOCK(force);
     CLOCK(afterforce);
 
-    VPM * vpm = vpm_find(fastpm->vpm_list, trans->a_r);
+    VPM * vpm = vpm_find(fastpm->vpm_list, trans->a.f);
     fastpm->pm = &vpm->pm;
     PM * pm = fastpm->pm;
 
@@ -296,7 +220,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
             ext; ext = ext->next) {
         ((fastpm_ext_after_force) ext->function)
-            (fastpm, delta_k, trans->a_r, ext->userdata);
+            (fastpm, delta_k, trans->a.f, ext->userdata);
     }
     LEAVE(afterforce);
 
@@ -307,17 +231,27 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 static void
 fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 {
+
     FastPMStore * p = fastpm->p;
 
     CLOCK(kick);
 
-    /* Used by callbacks */
     FastPMKickFactor kick;
-    fastpm_kick_init(&kick, fastpm, trans->a_i, trans->a_r, trans->a_f);
+    fastpm_kick_init(&kick, fastpm, trans->a.i, trans->a.r, trans->a.f);
+    if(trans->end->v == trans->end->x) {
+        FastPMDriftFactor drift;
+
+        FastPMTransition dual[1];
+        fastpm_tevo_transition_find_dual(trans, dual);
+
+        fastpm_drift_init(&drift, fastpm, dual->a.i, dual->a.r, dual->a.f);
+
+        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
+    }
 
     /* Do kick */
     ENTER(kick);
-    fastpm_kick_store(&kick, p, p, trans->a_f);
+    fastpm_kick_store(&kick, p, p, trans->a.f);
     LEAVE(kick);
 }
 
@@ -328,42 +262,23 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 
     CLOCK(drift);
 
-    /* Used by callbacks */
     FastPMDriftFactor drift;
-    fastpm_drift_init(&drift, fastpm, trans->a_i, trans->a_r, trans->a_f);
+    fastpm_drift_init(&drift, fastpm, trans->a.i, trans->a.r, trans->a.f);
+
+    if(trans->end->v == trans->end->x) {
+        FastPMKickFactor kick;
+
+        FastPMTransition dual[1];
+        fastpm_tevo_transition_find_dual(trans, dual);
+        fastpm_kick_init(&kick, fastpm, dual->a.i, dual->a.r, dual->a.f);
+
+        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
+    }
 
     /* Do drift */
     ENTER(drift);
-    fastpm_drift_store(&drift, p, p, trans->a_f);
+    fastpm_drift_store(&drift, p, p, trans->a.f);
     LEAVE(drift);
-}
-
-static void
-fastpm_do_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans)
-{
-    CLOCK(beforetransit);
-    ENTER(beforetransit);
-    FastPMExtension * ext;
-
-    for(ext = fastpm->exts[FASTPM_EXT_BEFORE_TRANSITION];
-            ext; ext = ext->next) {
-        ((fastpm_ext_transition) ext->function)
-            (fastpm, action, trans, ext->userdata);
-    }
-    LEAVE(beforetransit);
-
-    switch(action) {
-        case FASTPM_ACTION_FORCE:
-            /* Calculate forces */
-            fastpm_do_force(fastpm, trans);
-            break;
-        case FASTPM_ACTION_KICK:
-            fastpm_do_kick(fastpm, trans);
-            break;
-        case FASTPM_ACTION_DRIFT:
-            fastpm_do_drift(fastpm, trans);
-            break;
-    }
 }
 
 void

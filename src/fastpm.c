@@ -324,6 +324,11 @@ produce:
 }
 
 static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr) {
+    fastpm_info("Checking Snapshots with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
+        kick->af, kick->ai, kick->ac,
+        drift->af, drift->ai, drift->ac
+    );
+
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
     FastPMStore * p = fastpm->p;
@@ -428,7 +433,16 @@ static int
 print_transition(FastPMSolver * fastpm, enum FastPMAction action, FastPMTransition * trans, Parameters * prr)
 {
 
-    fastpm_info("==== a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %d ====\n", trans->a_i, trans->a_f, trans->a_r, action);
+    fastpm_info("==== %03d [%03d %03d %03d] -> %03d [%03d %03d %03d] a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %d ====\n",
+            trans->istart, 
+            trans->start->x,
+            trans->start->v,
+            trans->start->force,
+            trans->iend,
+            trans->end->x,
+            trans->end->v,
+            trans->end->force,
+            trans->a.i, trans->a.f, trans->a.r, trans->action);
     return 0;
 }
 

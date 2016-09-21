@@ -3,29 +3,38 @@ FASTPM_BEGIN_DECLS
 // Typedefs
 
 typedef struct {
-    int a, x, v;
-} FastPMTEEntry;
+    int force, x, v;
+} FastPMState;
 
 typedef struct {
-    FastPMTEEntry *table;
+    FastPMState * table;
     int cycle_len;
     int cycles;
-    double *timesteps;
-} FastPMTEStates;
+    double * timesteps;
+} FastPMStates;
 
-typedef struct {
-    int i, f, r;
-    double a_i, a_f, a_r;
-} FastPMTransition;
+struct FastPMTransition {
+    FastPMStates * states;
+    int istart;
+    int iend;
+    FastPMState * start;
+    FastPMState * end;
+    enum FastPMAction action;
+    struct {
+        double i, f, r;
+    } a;
+};
 
 // Protos
 
-FastPMTEStates * fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *template, double *ts);
+FastPMStates * fastpm_tevo_generate_states(FastPMStates *states, int cycles, FastPMState * templ, double * ts);
 
-void fastpm_tevo_destroy_states(FastPMTEStates *states);
+void fastpm_tevo_destroy_states(FastPMStates *states);
 
 void
-fastpm_tevo_transition_init(FastPMTransition * transition, FastPMTEStates * states, int i, int r, int f);
-void fastpm_tevo_print_states(FastPMTEStates *states);
+fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states, int istart, int iend);
+
+void
+fastpm_tevo_transition_find_dual(FastPMTransition * transition, FastPMTransition * dual);
 
 FASTPM_END_DECLS

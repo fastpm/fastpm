@@ -12,45 +12,45 @@
 #include <fastpm/logging.h>
 
 static int
-fastpm_tevo_block_len(FastPMTEEntry *template)
+fastpm_tevo_block_len(FastPMState * template)
 {
     /* Return number of elements in a template */
     int i = 0;
-    while(template[i].a != -1) { i++; }
+    while(template[i].force != -1) { i++; }
     return i++;
 }
 
-    FastPMTEStates *
-fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *template, double *ts)
+FastPMStates *
+fastpm_tevo_generate_states(FastPMStates *states, int cycles, FastPMState *template, double *ts)
 {
     /* Generate state table */
     int i, j, len = fastpm_tevo_block_len(template), N = len * cycles;
 
     double *timesteps = malloc((cycles + 1) * sizeof(double));
-    FastPMTEEntry *table = malloc((N + 3) * sizeof(FastPMTEEntry));
+    FastPMState *table = malloc((N + 3) * sizeof(FastPMState));
 
     table[0].x = 0; // Initial conditions
     table[0].v = 0;
-    table[0].a = -2;
+    table[0].force = -2;
 
     table[1].x = 0; // Force calculation
     table[1].v = 0;
-    table[1].a = 0;
+    table[1].force = 0;
 
     for(i = 0; i < cycles; i++) { // Templates
         for(j = 0; j < len; j++) {
-            table[j + i * len + 2].a = table[i * len + 1].a + template[j].a;
+            table[j + i * len + 2].force = table[i * len + 1].force + template[j].force;
             table[j + i * len + 2].x = table[i * len + 1].x + template[j].x;
             table[j + i * len + 2].v = table[i * len + 1].v + template[j].v;
         }
     }
 
-    table[N+2].a = -1; // End of table
+    table[N+2].force = -1; // End of table
     table[N+2].x = -1;
     table[N+2].v = -1;
 
     states->table = table; // Pack in struct
-    states->cycle_len = template[len-1].a;
+    states->cycle_len = template[len-1].force;
     states->cycles = cycles;
 
     for(i = 0; i <= cycles; i++) { timesteps[i] = ts[i]; }
@@ -60,14 +60,14 @@ fastpm_tevo_generate_states(FastPMTEStates *states, int cycles, FastPMTEEntry *t
 }
 
 void
-fastpm_tevo_destroy_states(FastPMTEStates * states)
+fastpm_tevo_destroy_states(FastPMStates * states)
 {
     free(states->table);
     free(states->timesteps);
 }
 
 static double
-fastpm_tevo_i2t(FastPMTEStates * states, int i)
+i2t(FastPMStates * states, int i)
 {
     int d = i / states->cycle_len;
     double r = (i - states->cycle_len * d) / (1.0 * states->cycle_len);
@@ -88,35 +88,81 @@ fastpm_tevo_i2t(FastPMTEStates * states, int i)
 }
 
 void
-fastpm_tevo_transition_init(FastPMTransition * transition, FastPMTEStates * states, int i, int r, int f)
+fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states, int istart, int iend)
 {
-    transition->i = i;
-    transition->r = r;
-    transition->f = f;
-    transition->a_i = fastpm_tevo_i2t(states, i);
-    transition->a_r = fastpm_tevo_i2t(states, r);
-    transition->a_f = fastpm_tevo_i2t(states, f);
+    FastPMState * start = &states->table[istart];
+    FastPMState * end = &states->table[iend];
+
+    transition->states = states;
+    transition->istart = istart;
+    transition->iend = iend;
+    transition->start = start;
+    transition->end = end;
+
+    if(start->force != end->force) {
+        /* Force */
+        transition->action = FASTPM_ACTION_FORCE;
+        if(start->x != end->x) {
+            fastpm_raise(-1, "A force action must have identical x stamp\n");
+        }
+        transition->a.i = i2t(states, start->force);
+        transition->a.f = i2t(states, end->force);
+        transition->a.r = i2t(states, end->x);
+    }
+    if(start->v != end->v) {
+        /* Kick */
+        transition->action = FASTPM_ACTION_KICK;
+        if(start->force != end->force) {
+            fastpm_raise(-1, "A kick action must have identical a stamp\n");
+        }
+        transition->a.i = i2t(states, start->v);
+        transition->a.f = i2t(states, end->v);
+        transition->a.r = i2t(states, end->force);
+    }
+    if(start->x != end->x) {
+        /* Drift */
+        transition->action = FASTPM_ACTION_DRIFT;
+        if(start->v != end->v) {
+            fastpm_raise(-1, "A drift action must have identical v stamp\n");
+        }
+        transition->a.i = i2t(states, start->x);
+        transition->a.f = i2t(states, end->x);
+        transition->a.r = i2t(states, end->v);
+    }
 }
 
 void
-fastpm_tevo_transition_revert(FastPMTransition * transition, FastPMTransition * reverted)
+fastpm_tevo_transition_find_dual(FastPMTransition * transition, FastPMTransition * dual)
 {
-    reverted->i = transition->f;
-    reverted->f = transition->i;
-    reverted->r = transition->r;
-    reverted->a_i = transition->a_f;
-    reverted->a_f = transition->a_i;
-    reverted->a_r = transition->a_r;
-}
+    /* Find the dual action that updates the dual to the last state, invert it */
+    if(transition->end->x != transition->end->v) {
+            fastpm_raise(-1, "Only transitions towards a synced x and v has a dual.\n");
+    }
+    int i;
+    FastPMStates * states = transition->states;
+    enum FastPMAction dual_action = FASTPM_ACTION_FORCE;
+    switch(transition->action) {
+        case FASTPM_ACTION_DRIFT:
+            dual_action = FASTPM_ACTION_KICK;
+        break;
+        case FASTPM_ACTION_KICK:
+            dual_action = FASTPM_ACTION_DRIFT;
+        break;
+        default:
+            fastpm_raise(-1, "Only Kick and Drift has dual transitions\n");
+    }
+    for(i = transition->istart; i >= 0; i --) {
+        fastpm_tevo_transition_init(dual, states, i - 1, i);
+        if(dual->action == dual_action) break;
+    }
+    if(i == -1) { /* not found */
+        fastpm_raise(-1, "Dual transition not found. The state table is likely run. Look at states->table.\n");
+    }
 
-void
-fastpm_tevo_transition_to_kick(FastPMTransition * transition, FastPMSolver * fastpm, FastPMKickFactor * kick)
-{
-    fastpm_kick_init(kick, fastpm, transition->a_i, transition->a_r, transition->a_f);
-}
+    /* the reference is in the future. Need to revert this change */
+    fastpm_tevo_transition_init(dual, states, i, i - 1);
 
-void
-fastpm_tevo_transition_to_drift(FastPMTransition * transition, FastPMSolver * fastpm, FastPMDriftFactor * drift)
-{
-    fastpm_drift_init(drift, fastpm, transition->a_i, transition->a_r, transition->a_f);
+    if(dual->a.r != transition->a.i) {
+        fastpm_raise(-1, "dual transition reference is not the same as my initial state.\n");
+    }
 }
