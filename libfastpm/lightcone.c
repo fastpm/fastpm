@@ -83,6 +83,8 @@ struct funct_params {
     FastPMStore * p;
     FastPMDriftFactor * drift;
     ptrdiff_t i;
+    double a1;
+    double a2;
 };
 
 static double
@@ -115,8 +117,8 @@ _fastpm_lc_intersect_one(FastPMLightCone * lc,
     double r, x_lo, x_hi, eps;
 
     /* Reorganize to struct later */
-    x_lo = params->drift->ai;
-    x_hi = params->drift->af;
+    x_lo = params->a1;
+    x_hi = params->a2;
     max_iter = 100;
     eps = 1e-7;
 
@@ -180,6 +182,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         .drift = drift,
         .p = p,
         .i = 0,
+        .a1 = drift->ai > drift->af ? drift->af: drift->ai,
+        .a2 = drift->ai > drift->af ? drift->ai: drift->af,
     };
     ptrdiff_t i;
 
@@ -209,47 +213,3 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
     return 0;
 }
 
-#if 0
-
-void fastpm_lc_write(FastPMLightCone * lc, const char * filename)
-{
-
-}
-
-double _unknown(double a, void * params)
-{
-
-    double xo[3];
-    double horizon;
-
-    horizon = fastpm_lc_horizon(lc, a);
-
-    fastpm_drift_one(drift, p, i, xo, a);
-
-    return horizon - xo[2];
-}
-
-int fastpm_lc_intersect(FastPMLightCone * lc, FastPMDrift * drift, FastPMStore * p, int i, double * solution)
-{
-
-    /* XXX: culling */
-
-    gsl_fsolve(solution);
-
-    if( *solution >= drift->a_i
-     && *solution <= drift->a_f)
-    {
-        return 1;
-    }
-    return 0;
-}
-
-int fastpm_lc_scan(FastPMLightCone * lc, FastPMDrift * drift, FastPMStore * p)
-{
-    for(i in p) {
-        status = fastpm_lc_intersect(lc, drift, p, i, solution)
-        if(dint is good)
-            add(i, lc);
-    }
-}
-#endif

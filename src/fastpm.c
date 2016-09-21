@@ -14,6 +14,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
+#include <fastpm/lightcone.h>
 #include <omp.h>
 
 #include "lua-config.h"
@@ -80,6 +81,11 @@ int main(int argc, char ** argv) {
 
     MPI_Comm comm = MPI_COMM_WORLD; 
 
+    int Nwriters = prr->Nwriters;
+    if(Nwriters == 0) {
+        MPI_Comm_size(comm, &Nwriters);
+        prr->Nwriters = Nwriters;
+    }
     libfastpm_init();
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
@@ -129,6 +135,9 @@ static int
 check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr);
 
 static int 
+check_lightcone(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, FastPMLightCone * lc);
+
+static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
 
 static void 
@@ -174,6 +183,17 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
         print_transition,
         prr);
 
+    FastPMLightCone lc[1];
+    if(CONF(prr, write_lightcone)) {
+        double HubbleDistanceFactor = CONF(prr, dh_factor);
+        fastpm_lc_init(lc, HubbleDistanceFactor, fastpm, fastpm->p->np_upper);
+
+        fastpm_add_extension(fastpm,
+            FASTPM_EXT_INTERPOLATE,
+            check_lightcone,
+            lc);
+    }
+
     MPI_Barrier(comm);
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
@@ -191,6 +211,10 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     fastpm_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
     LEAVE(evolve);
 
+    if(CONF(prr, write_lightcone)) {
+        write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters);
+        fastpm_lc_destroy(lc);
+    }
     fastpm_destroy(fastpm);
 
     fastpm_clock_stat(comm);
@@ -371,14 +395,10 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
     if(CONF(prr, write_snapshot)) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
-        int Nwriters = prr->Nwriters;
-        if(Nwriters == 0) {
-            MPI_Comm_size(fastpm->comm, &Nwriters);
-        }
         sprintf(filebase, "%s_%0.04f", CONF(prr, write_snapshot), aout);
 
         fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
-                filebase, z_out, aout, Nwriters);
+                filebase, z_out, aout, prr->Nwriters);
 
         ENTER(meta);
         fastpm_path_ensure_dirname(filebase);
@@ -386,7 +406,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, prr->string, Nwriters);
+        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
@@ -428,6 +448,13 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         pm_free(fastpm->basepm, rho_x);
         free(filename);
     }
+    return 0;
+}
+
+static int 
+check_lightcone(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, FastPMLightCone * lc)
+{
+    fastpm_lc_intersect(lc, drift, kick, fastpm->p);
     return 0;
 }
 
