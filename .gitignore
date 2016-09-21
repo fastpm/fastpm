@@ -4,7 +4,11 @@ depends/src
 depends/install
 depends/single
 depends/double
+depends/download
 tests/*/*
 .deps/*
 .objs/*
 *.[oa]
+.deps
+.objs
+.libs
