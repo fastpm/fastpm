@@ -547,6 +547,9 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
     char * content;
     if(myrank == 0) {
         content = fastpm_file_get_content(filename);
+        if(content == NULL) {
+            fastpm_raise(-1, "Failed to read powerspectrum from file %s\n", filename);
+        }
         int size = strlen(content);
         MPI_Bcast(&size, 1, MPI_INT, 0, comm);
         MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
