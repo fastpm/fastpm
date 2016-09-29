@@ -6,7 +6,6 @@
 #include <gsl/gsl_math.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/cosmology.h>
 #include <fastpm/lightcone.h>
 #include <fastpm/logging.h>
 

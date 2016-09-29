@@ -28,7 +28,6 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-#include <fastpm/cosmology.h>
 
 #include "pmpfft.h"
 #include "vpm.h"

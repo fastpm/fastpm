@@ -6,7 +6,6 @@
 #include <math.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-#include <fastpm/cosmology.h>
 #include <fastpm/lightcone.h>
 
 int

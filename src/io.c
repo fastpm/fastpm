@@ -9,7 +9,6 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
-#include <fastpm/cosmology.h>
 
 /*
 static void 

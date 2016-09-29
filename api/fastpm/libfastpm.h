@@ -21,6 +21,7 @@ typedef struct PM PM;
 typedef struct FastPMStore FastPMStore;
 typedef struct FastPMPainter FastPMPainter;
 typedef struct FastPMTransition FastPMTransition;
+typedef struct FastPMCosmology FastPMCosmology;
 
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32
@@ -50,6 +51,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "pmapi.h"
 #include "store.h"
 
+#include "cosmology.h"
 #include "transfer.h"
 #include "utils.h"
 #include "initialcondition.h"

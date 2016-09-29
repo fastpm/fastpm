@@ -13,7 +13,6 @@
 #include <alloca.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/cosmology.h>
 #include <fastpm/logging.h>
 
 static FastPMCosmology CP(FastPMSolver * fastpm) {

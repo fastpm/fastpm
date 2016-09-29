@@ -3,7 +3,6 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/cosmology.h>
 #include <fastpm/transfer.h>
 
 #include "pmpfft.h"

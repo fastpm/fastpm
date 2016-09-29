@@ -4,7 +4,7 @@
 #include <gsl/gsl_sf_hyperg.h> 
 #include <gsl/gsl_errno.h>
 
-#include <fastpm/cosmology.h>
+#include <fastpm/libfastpm.h>
 
 double HubbleDistance = 2997.92458; /* Mpc/h */
 double HubbleConstant = 100.0; /* Mpc/h / km/s*/
