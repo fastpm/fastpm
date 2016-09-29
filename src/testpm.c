@@ -32,7 +32,7 @@ int main(int argc, char * argv[]) {
         .K_LINEAR = 0.04,
     };
 
-    fastpm_init(solver, 0, 0, comm);
+    fastpm_solver_init(solver, 0, 0, comm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
     FastPMFloat * rho_final_ktruth = pm_alloc(solver->basepm);
@@ -49,9 +49,9 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
-    fastpm_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
-    fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
+    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     FastPMPainter painter[1];
     fastpm_painter_init(painter, solver->basepm, solver->PAINTER_TYPE, solver->painter_support);
@@ -63,7 +63,7 @@ int main(int argc, char * argv[]) {
     pm_free(solver->basepm, rho_final_ktruth);
     pm_free(solver->basepm, rho_init_ktruth);
 
-    fastpm_destroy(solver);
+    fastpm_solver_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;

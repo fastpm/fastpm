@@ -220,15 +220,23 @@ gaussian36(double k, double * knq)
 }
 
 void
-fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
+fastpm_gravity_calculate(FastPMGravity * gravity,
+    PM * pm,
+    FastPMStore * p,
+    FastPMFloat * delta_k)
 {
-    FastPMStore * p = fastpm->p;
-    PM * pm = fastpm->pm;
     FastPMPainter reader[1];
+    FastPMPainter painter[1];
+
     fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);
+    fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
 
     /* watch out: boost the density since mesh is finer than grid */
-    double density_factor = pm->Norm / pow(1.0 * fastpm->nc, 3);
+    long long np = p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, pm_comm(pm));
+
+    double density_factor = pm->Norm / np;
 
     CLOCK(ghosts);
     PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
@@ -241,7 +249,7 @@ fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
      * We thus have to boost the density by density_factor.
      * */
     CLOCK(paint);
-    fastpm_paint_local(fastpm->painter, canvas,
+    fastpm_paint_local(painter, canvas,
                 p, p->np + pgd->nghosts, NULL, 0);
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
     LEAVE(paint);
@@ -252,7 +260,7 @@ fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
 
     /* calculate the forces save them to p->acc */
 
-    switch(fastpm->DEALIASING_TYPE) {
+    switch(gravity->DealiasingType) {
         case FASTPM_DEALIASING_TWO_THIRD:
             {
             double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
@@ -282,7 +290,7 @@ fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
         CLOCK(transfer);
-        switch(fastpm->KERNEL_TYPE) {
+        switch(gravity->KernelType) {
             case FASTPM_KERNEL_EASTWOOD:
                 apply_force_kernel_eastwood(pm, delta_k, canvas, d, 1);
             break;
@@ -324,5 +332,4 @@ fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k)
 
     pm_ghosts_free(pgd);
 }
-
 

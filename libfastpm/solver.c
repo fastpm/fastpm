@@ -24,7 +24,7 @@ fastpm_decompose(FastPMSolver * fastpm);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 
-void fastpm_init(FastPMSolver * fastpm, 
+void fastpm_solver_init(FastPMSolver * fastpm, 
     int NprocY, 
     int UseFFTW, 
     MPI_Comm comm) {
@@ -69,7 +69,7 @@ void fastpm_init(FastPMSolver * fastpm,
 }
 
 void
-fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
+fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 {
 
     PM * basepm = fastpm->basepm;
@@ -111,7 +111,7 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
         FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
 
 void
-fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
+fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
 {
 
     fastpm_do_warmup(fastpm, time_step[0]);
@@ -201,6 +201,13 @@ static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 {
 
+    FastPMGravity gravity = {
+        .PainterType = fastpm->PAINTER_TYPE,
+        .PainterSupport = fastpm->painter_support,
+        .KernelType = fastpm->KERNEL_TYPE,
+        .DealiasingType = fastpm->DEALIASING_TYPE,
+    };
+
     FastPMExtension * ext;
 
     CLOCK(decompose);
@@ -212,7 +219,6 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     PM * pm = fastpm->pm;
 
     fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
-    fastpm_painter_init(fastpm->painter, pm, fastpm->PAINTER_TYPE, fastpm->painter_support);
 
     FastPMFloat * delta_k = pm_alloc(pm);
     ENTER(decompose);
@@ -220,7 +226,8 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     LEAVE(decompose);
 
     ENTER(force);
-    fastpm_calculate_forces(fastpm, delta_k);
+
+    fastpm_gravity_calculate(&gravity, pm, fastpm->p, delta_k);
     LEAVE(force);
 
     ENTER(afterforce);
@@ -289,7 +296,7 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 }
 
 void
-fastpm_destroy(FastPMSolver * fastpm) 
+fastpm_solver_destroy(FastPMSolver * fastpm) 
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
@@ -338,7 +345,7 @@ fastpm_decompose(FastPMSolver * fastpm) {
 }
 
 void 
-fastpm_add_extension(FastPMSolver * fastpm,
+fastpm_solver_add_extension(FastPMSolver * fastpm,
     enum FastPMExtensionPoint where,
     void * function, void * userdata)
 {

@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
     FastPMKickFactor kick;
     FastPMLightCone lc[1];
 
-    fastpm_init(solver, 0, 0, comm);
+    fastpm_solver_init(solver, 0, 0, comm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
 
@@ -55,7 +55,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    fastpm_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_info("dx1  : %g %g %g %g\n", 
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -64,7 +64,7 @@ int main(int argc, char * argv[]) {
             solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
             (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
     double time_step[] = {0.1};
-    fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
+    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     fastpm_lc_init(lc, 0.02, solver, solver->p->np_upper);
 
@@ -82,20 +82,20 @@ int main(int argc, char * argv[]) {
 
     write_snapshot(solver, lc->p, "lightconeresult", "", 1);
 
-    fastpm_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};
-    fastpm_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
+    fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1);
     
-    fastpm_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step3[] = {0.1};
-    fastpm_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
+    fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1);
 
     fastpm_lc_destroy(lc);
 
     pm_free(solver->basepm, rho_init_ktruth);
-    fastpm_destroy(solver);
+    fastpm_solver_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;
