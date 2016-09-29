@@ -38,6 +38,7 @@ typedef struct {
     int USE_NONSTDDA;
     int USE_SHIFT;
     int SAVE_Q;
+    int SAVE_POT;
 
     double nLPT;
     FastPMPainterType PAINTER_TYPE;

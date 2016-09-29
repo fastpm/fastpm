@@ -1,9 +1,5 @@
 FASTPM_BEGIN_DECLS
 
-/* 
- * Allocate memory for FFT/painting in PM. 
- * */
-
 typedef struct {
     /* in units of real numbers, not bytes. */
     ptrdiff_t start[3];
@@ -12,53 +8,9 @@ typedef struct {
     ptrdiff_t total;
 } PMRegion;
 
-
-#define PACK_POS   (1 << 0)
-#define PACK_VEL   (1 << 1)
-#define PACK_DX1   (1 << 2)
-#define PACK_DX2   (1 << 3)
-#define PACK_ACC   (1 << 4)
-#define PACK_ID    (1 << 5)
-#define PACK_Q     (1 << 6)
-#define PACK_AEMIT     (1 << 7)
-
-
-#define PACK_ACC_X (1 << 10)
-#define PACK_ACC_Y (1 << 11)
-#define PACK_ACC_Z (1 << 12)
-#define PACK_DX1_X   (1 << 13)
-#define PACK_DX1_Y   (1 << 14)
-#define PACK_DX1_Z   (1 << 15)
-#define PACK_DX2_X   (1 << 16)
-#define PACK_DX2_Y   (1 << 17)
-#define PACK_DX2_Z   (1 << 18)
-
-struct FastPMStore {
-    fastpm_posfunc get_position;
-
-    size_t (*pack)  (FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
-    void   (*unpack)(FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
-    void   (*reduce)(FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
-    double (*to_double)(FastPMStore * p, ptrdiff_t index, int attribute);
-    void   (*from_double)(FastPMStore * p, ptrdiff_t index, int attribute, double value);
-
-    FastPMMemory * mem;
-
-    int attributes; /* bit flags of allocated attributes */
-
-    double (* x)[3];
-    float (* q)[3];
-    float (* v)[3];
-    float (* acc)[3];
-    float (* dx1)[3];
-    float (* dx2)[3];
-    float (* aemit);
-    uint64_t * id;
-    size_t np;
-    size_t np_upper;
-    double a_x;
-    double a_v;
-};
+/* 
+ * Allocate memory for FFT/painting in PM. 
+ * */
 
 FastPMFloat * pm_alloc(PM * pm);
 void pm_free(PM * pm, FastPMFloat * buf);
