@@ -137,7 +137,7 @@ pm_2lpt_evolve(double aout, FastPMStore * p, double Omega, int zaonly)
 {
     int np = p->np;
 
-    Cosmology c = {
+    FastPMCosmology c = {
             .OmegaM = Omega,
             .OmegaLambda = 1 - Omega,
         };

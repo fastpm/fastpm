@@ -16,8 +16,8 @@
 #include <fastpm/cosmology.h>
 #include <fastpm/logging.h>
 
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
+static FastPMCosmology CP(FastPMSolver * fastpm) {
+    FastPMCosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
     };
@@ -275,7 +275,7 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 }
 
 static void write_mine(const char * filebase, 
-            FastPMStore * p, double aa, Cosmology c, double boxsize, size_t Ntot,
+            FastPMStore * p, double aa, FastPMCosmology c, double boxsize, size_t Ntot,
             size_t * NcumFile, int * NperFile, int Nfile, 
             ptrdiff_t start, ptrdiff_t end) {
     size_t scratch_bytes = 32 * 1024 * 1024;

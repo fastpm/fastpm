@@ -39,8 +39,8 @@ Sq(double ai, double af, double aRef, FastPMSolver * );
 static double 
 Sphi(double ai, double af, double aRef, FastPMSolver * );
 
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
+static FastPMCosmology CP(FastPMSolver * fastpm) {
+    FastPMCosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
     };
@@ -168,23 +168,23 @@ fastpm_kick_store(FastPMKickFactor * kick,
     po->a_v = af;
 }
 
-static double G_p(double a, Cosmology c)
+static double G_p(double a, FastPMCosmology c)
 {
     /* integral of G_p */
     return GrowthFactor(a, c);
 }
-static double g_p(double a, Cosmology c)
+static double g_p(double a, FastPMCosmology c)
 {
     return DGrowthFactorDa(a, c);
 }
 
-static double G_f(double a, Cosmology c)
+static double G_f(double a, FastPMCosmology c)
 {
     /* integral of g_f */
     return a * a * a * HubbleEa(a, c) * g_p(a, c);
 }
 
-static double g_f(double a, Cosmology c)
+static double g_f(double a, FastPMCosmology c)
 {
     double dDda = DGrowthFactorDa(a, c);
     double E = HubbleEa(a, c);
@@ -198,7 +198,7 @@ static double g_f(double a, Cosmology c)
 }
 void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
-    Cosmology c = CP(fastpm);
+    FastPMCosmology c = CP(fastpm);
 
     double OmegaM = fastpm->omega_m;
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
@@ -239,7 +239,7 @@ void
 fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
                 double ai, double ac, double af)
 {
-    Cosmology c = CP(fastpm);
+    FastPMCosmology c = CP(fastpm);
 
     drift->nsamples = 32;
     int i;

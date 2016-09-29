@@ -10,8 +10,8 @@
 #include <fastpm/lightcone.h>
 #include <fastpm/logging.h>
 
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
+static FastPMCosmology CP(FastPMSolver * fastpm) {
+    FastPMCosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
     };
@@ -28,7 +28,7 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, 
     /* Allocation */
 
     int size = 8192;
-    Cosmology c = CP(fastpm);
+    FastPMCosmology c = CP(fastpm);
 
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);

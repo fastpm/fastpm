@@ -18,7 +18,7 @@ static double growth_int(double a, void *param)
 }
 
 
-static double growth(double a, Cosmology c)
+static double growth(double a, FastPMCosmology c)
 {
     /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
 
@@ -42,46 +42,46 @@ static double growth(double a, Cosmology c)
     return HubbleEa(a, c) * result;
 }
 
-double OmegaA(double a, Cosmology c) {
+double OmegaA(double a, FastPMCosmology c) {
     return c.OmegaM/(c.OmegaM + (c.OmegaLambda)*a*a*a);
 }
 
-double GrowthFactor(double a, Cosmology c) { // growth factor for LCDM
+double GrowthFactor(double a, FastPMCosmology c) { // growth factor for LCDM
     return growth(a, c) / growth(1.0, c);
 }
 
-double DLogGrowthFactor(double a, Cosmology c) {
+double DLogGrowthFactor(double a, FastPMCosmology c) {
     /* Or OmegaA^(5/9) */
     return pow(OmegaA(a, c), 5.0 / 9);
 }
 
-double GrowthFactor2(double a, Cosmology c) {
+double GrowthFactor2(double a, FastPMCosmology c) {
     /* Second order growth factor */
     /* 7 / 3. is absorbed into dx2 */
     double d = GrowthFactor(a, c);
     return d * d * pow(OmegaA(a, c) / OmegaA(1.0, c), -1.0/143.);
 }
 
-double DLogGrowthFactor2(double a, Cosmology c) {
+double DLogGrowthFactor2(double a, FastPMCosmology c) {
     return 2 * pow(OmegaA(a, c), 6.0/11.);
 }
 
-double HubbleEa(double a, Cosmology c)
+double HubbleEa(double a, FastPMCosmology c)
 {
     /* H(a) / H0 */
     return sqrt(c.OmegaM/(a*a*a)+c.OmegaLambda);
 }
-double DHubbleEaDa(double a, Cosmology c) {
+double DHubbleEaDa(double a, FastPMCosmology c) {
     /* d E / d a*/
     double E = HubbleEa(a, c);
     return 0.5 / E * (-3 * c.OmegaM / (a * a * a * a));
 }
-double D2HubbleEaDa2(double a, Cosmology c) {
+double D2HubbleEaDa2(double a, FastPMCosmology c) {
     double E = HubbleEa(a, c);
     double dEda = DHubbleEaDa(a, c);
     return - dEda * dEda / E + dEda * (-4 / a);
 }
-double DGrowthFactorDa(double a, Cosmology c) {
+double DGrowthFactorDa(double a, FastPMCosmology c) {
     double E = HubbleEa(a, c);
 
     double EI = growth(1.0, c);
@@ -90,7 +90,7 @@ double DGrowthFactorDa(double a, Cosmology c) {
     double t2 = E * pow(a * E, -3) / EI;
     return t1 + t2;
 }
-double D2GrowthFactorDa2(double a, Cosmology c) {
+double D2GrowthFactorDa2(double a, FastPMCosmology c) {
     double d2Eda2 = D2HubbleEaDa2(a, c);
     double dEda = DHubbleEaDa(a, c);
     double E = HubbleEa(a, c);
@@ -100,14 +100,15 @@ double D2GrowthFactorDa2(double a, Cosmology c) {
     return t1 - t2;
 }
 
-double comoving_distance_int(double a, void * params)
+static double
+comoving_distance_int(double a, void * params)
 {
-    Cosmology * c = (Cosmology * ) params;
+    FastPMCosmology * c = (FastPMCosmology * ) params;
     return 1 / (a * a * HubbleEa(a, *c));
 }
 
 /* In Hubble Distance */
-double ComovingDistance(double a, Cosmology c) {
+double ComovingDistance(double a, FastPMCosmology c) {
 
     /* We tested using ln_a doesn't seem to improve accuracy */
 
@@ -133,7 +134,7 @@ double ComovingDistance(double a, Cosmology c) {
 int main() {
     /* the old COLA growthDtemp is 6 * pow(1 - c.OmegaM, 1.5) times growth */
     double a;
-    Cosmology c = {
+    FastPMCosmology c = {
         .OmegaM = 0.3,
         .OmegaLambda = 0.7
     };

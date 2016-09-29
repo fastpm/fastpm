@@ -27,8 +27,8 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
+static FastPMCosmology CP(FastPMSolver * fastpm) {
+    FastPMCosmology c = {
         .OmegaM = fastpm->omega_m,
         .OmegaLambda = 1 - fastpm->omega_m,
     };
