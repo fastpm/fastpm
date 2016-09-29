@@ -55,7 +55,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "initialcondition.h"
 #include "pngaussian.h"
 #include "powerspectrum.h"
-#include "solver-pm.h"
+#include "solver.h"
 #include "timemachine.h"
 
 /* Following functions are internal API */
