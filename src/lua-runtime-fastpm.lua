@@ -27,8 +27,7 @@ end
 
 schema.declare{name='omega_m',           type='number', required=true, default=0.3 }
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
-schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of PM resolutions, must be the same length of change_pm"}
-schema.declare{name='change_pm',         type='array:number',  required=true, help="A list of scaling factor that the PM resolution changes" }
+schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 
 -- Force calculation --

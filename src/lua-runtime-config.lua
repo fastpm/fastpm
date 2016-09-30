@@ -66,14 +66,18 @@ local function Schema()
     end
 
     local function check_array(name, entry, value)
-        for i, v in pairs(value) do
-            subtype = entry.subtype
+        if type(value) == 'table' then
+            for i, v in pairs(value) do
+                check_array(name, entry, v)
+            end
+        else
+            local subtype = entry.subtype
             if subtype == 'int' then
                 subtype = 'number'
             end
-            if type(v) ~= subtype then
+            if type(value) ~= subtype then
                 error(string.format("entry %d of key `%s` is of type `%s`, but `%s` is expected",
-                    i, name, type(v), subtype))
+                    i, name, type(value), subtype))
             end
         end
     end
@@ -249,6 +253,8 @@ local function visit_array(name, entry, mode)
             @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * size);
             @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc);
             int @PREFIX@_get_n_@name@(LuaConfig * lc);
+            int @PREFIX@_get_ndim_@name@(LuaConfig * lc);
+            int * @PREFIX@_get_shape_@name@(LuaConfig * lc);
         ]])
     else
         return process([[
@@ -314,7 +320,21 @@ local function visit_array(name, entry, mode)
         {
             int ndim, shape[32], strides[32], size;
             @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
-            return size;
+            return shape[0];
+        }
+        int @PREFIX@_get_ndim_@name@(LuaConfig * lc)
+        {
+            int ndim, shape[32], strides[32], size;
+            @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
+            return ndim;
+        }
+        int * @PREFIX@_get_shape_@name@(LuaConfig * lc)
+        {
+            int ndim, strides[32], size;
+            int * shape = malloc(sizeof(int) * 32);
+            @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
+            shape[ndim] = -1;
+            return (int*) lua_config_ref(lc, "@name@_shape", shape);
         }
         ]])
     end

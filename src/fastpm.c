@@ -94,15 +94,23 @@ int main(int argc, char ** argv) {
     read_parameters(ParamFileName, prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
-    VPMInit * vpminit = alloca(sizeof(VPMInit) * (CONF(prr, n_pm_nc_factor) + 1));
-    int i;
-    for(i = 0; i < CONF(prr, n_pm_nc_factor); i ++) {
-        vpminit[i].a_start = CONF(prr, change_pm)[i];
-        vpminit[i].pm_nc_factor = CONF(prr, pm_nc_factor)[i];
+    VPMInit * vpminit;
+    if(CONF(prr, ndim_pm_nc_factor) == 0) {
+        vpminit = (VPMInit[]) {
+            {.a_start = 0, .pm_nc_factor = CONF(prr, pm_nc_factor)[0] },
+            {.a_start = 1, .pm_nc_factor = 0},
+            };
+    } else
+    if(CONF(prr, ndim_pm_nc_factor) == 2) {
+        vpminit = alloca(sizeof(VPMInit) * (CONF(prr, shape_pm_nc_factor)[0] + 1));
+        int i;
+        for(i = 0; i < CONF(prr, n_pm_nc_factor); i ++) {
+            vpminit[i].a_start = CONF(prr, pm_nc_factor)[2 * i];
+            vpminit[i].pm_nc_factor = CONF(prr, pm_nc_factor)[2 * i + 1];
+        }
+        /* mark the end */
+        vpminit[i].pm_nc_factor = 0;
     }
-    /* mark the end */
-    vpminit[i].pm_nc_factor = 0;
-
     fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
 
     FastPMConfig * config = & (FastPMConfig) {
