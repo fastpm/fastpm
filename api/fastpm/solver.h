@@ -10,15 +10,29 @@ typedef struct FastPMDriftFactor FastPMDriftFactor;
 typedef struct FastPMKickFactor FastPMKickFactor;
 typedef struct FastPMExtension FastPMExtension;
 
-typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
-typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
-               FASTPM_KERNEL_GADGET,
-               FASTPM_KERNEL_EASTWOOD,
-               FASTPM_KERNEL_NAIVE,
-            } FastPMKernelType;
-typedef enum { FASTPM_DEALIASING_NONE,
-               FASTPM_DEALIASING_GAUSSIAN, FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN,
-               FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN36 } FastPMDealiasingType;
+typedef struct {
+    size_t nc;
+    double boxsize;
+    double omega_m;
+    double alloc_factor;
+
+    VPMInit * vpminit;
+    int USE_DX1_ONLY;
+    int USE_SHIFT;
+    int SAVE_Q;
+    int SAVE_POT;
+
+    double nLPT;
+    FastPMPainterType PAINTER_TYPE;
+    int painter_support;
+    FastPMForceType FORCE_TYPE;
+    FastPMKernelType KERNEL_TYPE;
+    FastPMDealiasingType DEALIASING_TYPE;
+    int K_LINEAR;
+
+    int NprocY;  /* Use 0 for auto */
+    int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
+} FastPMConfig;
 
 typedef struct {
     PM * pm;
@@ -29,23 +43,13 @@ typedef struct {
     int ThisTask;
 
     /* input parameters */
-    size_t nc;
-    double boxsize;
-    double omega_m;
-    double alloc_factor;
-    VPMInit * vpminit;
-    int USE_DX1_ONLY;
-    int USE_NONSTDDA;
-    int USE_SHIFT;
-    int SAVE_Q;
+    FastPMConfig config[1];
 
-    double nLPT;
-    FastPMPainterType PAINTER_TYPE;
-    int painter_support;
-    FastPMForceType FORCE_TYPE;
-    FastPMKernelType KERNEL_TYPE;
-    FastPMDealiasingType DEALIASING_TYPE;
-    int K_LINEAR;
+    /* gravity solver */
+    FastPMGravity gravity[1];
+
+    /* cosmology */
+    FastPMCosmology cosmology[1];
 
     /* Extensions */
     FastPMExtension * exts[12];
@@ -68,7 +72,6 @@ typedef struct {
     VPM * vpm_list;
 
     PM * basepm;
-    FastPMPainter painter[1];
 } FastPMSolver;
 
 enum FastPMExtensionPoint {
@@ -103,7 +106,7 @@ struct FastPMExtension {
 };
 
 struct FastPMDriftFactor {
-    FastPMSolver * fastpm;
+    FastPMForceType forcemode;
     double ai;
     double ac;
     double af;
@@ -118,7 +121,8 @@ struct FastPMDriftFactor {
 };
 
 struct FastPMKickFactor {
-    FastPMSolver * fastpm;
+    FastPMForceType forcemode;
+
     double ai;
     double ac;
     double af;
@@ -131,24 +135,22 @@ struct FastPMKickFactor {
     double Dv2[32];
 };
 
-void fastpm_init(FastPMSolver * fastpm, 
-    int NprocY,  /* Use 0 for auto */
-    int UseFFTW, /* Use 0 for PFFT 1 for FFTW */
-    MPI_Comm comm);
+void
+fastpm_solver_init(FastPMSolver * fastpm, FastPMConfig * config, MPI_Comm comm);
 
 void 
-fastpm_add_extension(FastPMSolver * fastpm, 
+fastpm_solver_add_extension(FastPMSolver * fastpm, 
     enum FastPMExtensionPoint where,
     void * function, void * userdata);
 
 void 
-fastpm_destroy(FastPMSolver * fastpm);
+fastpm_solver_destroy(FastPMSolver * fastpm);
 
 void 
-fastpm_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
+fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
 
 void
-fastpm_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
+fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
 void fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm, double ai, double ac, double af);
 void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af);
@@ -156,9 +158,7 @@ void fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p,  ptrdiff_t i, flo
 void fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
 double
-fastpm_growth_factor(FastPMSolver * fastpm, double a);
-
-void fastpm_calculate_forces(FastPMSolver * fastpm, FastPMFloat * delta_k);
+fastpm_solver_growth_factor(FastPMSolver * fastpm, double a);
 
 void 
 fastpm_kick_store(FastPMKickFactor * kick,

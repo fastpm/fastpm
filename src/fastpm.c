@@ -69,7 +69,7 @@ read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI
 int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
-int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
 
@@ -105,13 +105,12 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
 
-    FastPMSolver * fastpm = & (FastPMSolver) {
+    FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr, nc),
         .alloc_factor = CONF(prr, np_alloc_factor),
         .vpminit = vpminit,
         .boxsize = CONF(prr, boxsize),
         .omega_m = CONF(prr, omega_m),
-        .USE_NONSTDDA = !CONF(prr, cola_stdda),
         .USE_DX1_ONLY = CONF(prr, za),
         .nLPT = -2.5f,
         .K_LINEAR = CONF(prr, enforce_broadband_kmax),
@@ -121,9 +120,11 @@ int main(int argc, char ** argv) {
         .DEALIASING_TYPE = CONF(prr, dealiasing_type),
         .PAINTER_TYPE = CONF(prr, painter_type),
         .painter_support = CONF(prr, painter_support),
+        .NprocY = prr->NprocY,
+        .UseFFTW = prr->UseFFTW,
     };
 
-    run_fastpm(fastpm, prr, comm);
+    run_fastpm(config, prr, comm);
 
     libfastpm_cleanup();
 
@@ -146,7 +147,9 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 static int 
 print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr);
 
-int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
+int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
+    FastPMSolver fastpm[1];
+
     CLOCK(init);
     CLOCK(ic);
     CLOCK(evolve);
@@ -159,26 +162,24 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(init);
 
-    fastpm_init(fastpm, 
-        prr->NprocY, prr->UseFFTW, 
-        comm);
+    fastpm_solver_init(fastpm, config, comm);
 
     fastpm_info("BaseProcMesh : %d x %d ( %d Threads)\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1], omp_get_max_threads());
 
     LEAVE(init);
 
-    fastpm_add_extension(fastpm,
+    fastpm_solver_add_extension(fastpm,
         FASTPM_EXT_AFTER_FORCE,
         write_powerspectrum,
         prr);
 
-    fastpm_add_extension(fastpm,
+    fastpm_solver_add_extension(fastpm,
         FASTPM_EXT_INTERPOLATE,
         check_snapshots,
         prr);
 
-    fastpm_add_extension(fastpm,
+    fastpm_solver_add_extension(fastpm,
         FASTPM_EXT_BEFORE_TRANSITION,
         print_transition,
         prr);
@@ -188,7 +189,7 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
         double HubbleDistanceFactor = CONF(prr, dh_factor);
         fastpm_lc_init(lc, HubbleDistanceFactor, fastpm, fastpm->p->np_upper);
 
-        fastpm_add_extension(fastpm,
+        fastpm_solver_add_extension(fastpm,
             FASTPM_EXT_INTERPOLATE,
             check_lightcone,
             lc);
@@ -208,7 +209,7 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
     ENTER(evolve);
-    fastpm_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
+    fastpm_solver_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
     LEAVE(evolve);
 
     if(CONF(prr, write_lightcone)) {
@@ -216,7 +217,7 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
         fastpm_info("%td particles are in the lightcone\n", lc->p->np);
         fastpm_lc_destroy(lc);
     }
-    fastpm_destroy(fastpm);
+    fastpm_solver_destroy(fastpm);
 
     fastpm_clock_stat(comm);
     return 0;
@@ -228,7 +229,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     /* we may need a read gadget ic here too */
     if(CONF(prr, read_runpbic)) {
         read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
-        fastpm_setup_ic(fastpm, NULL);
+        fastpm_solver_setup_ic(fastpm, NULL);
         return;
     } 
 
@@ -343,7 +344,7 @@ produce:
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
-    fastpm_setup_ic(fastpm, delta_k);
+    fastpm_solver_setup_ic(fastpm, delta_k);
 
     pm_free(fastpm->basepm, delta_k);
 }
@@ -375,7 +376,7 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, Fas
         fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
-        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_growth_factor(fastpm, aout[iout]), aout[iout]);
+        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
 
         fastpm_set_snapshot(drift, kick, p, snapshot, aout[iout]);
 
@@ -438,7 +439,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         FastPMFloat * rho_x = pm_alloc(fastpm->basepm);
         FastPMFloat * rho_k = pm_alloc(fastpm->basepm);
 
-        fastpm_painter_init(painter, fastpm->basepm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+        fastpm_painter_init(painter, fastpm->basepm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
         fastpm_paint(painter, rho_x, snapshot, NULL, 0);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
@@ -508,14 +509,14 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
     /* calculate the power spectrum */
     fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
 
-    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
+    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->config->K_LINEAR);
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
-    Plin /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
-    Sigma8 /= pow(fastpm_growth_factor(fastpm, a_x), 2.0);
+    Plin /= pow(fastpm_solver_growth_factor(fastpm, a_x), 2.0);
+    Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, a_x), 2.0);
 
-    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Sigma8);
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->config->K_LINEAR * 6.28 / fastpm->config->boxsize, Plin, Sigma8);
 
     LEAVE(compute);
 
@@ -527,7 +528,7 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);
-            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->nc, 3.0));
+            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
         }
     }
     LEAVE(io);
@@ -547,6 +548,9 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
     char * content;
     if(myrank == 0) {
         content = fastpm_file_get_content(filename);
+        if(content == NULL) {
+            fastpm_raise(-1, "Failed to read powerspectrum from file %s\n", filename);
+        }
         int size = strlen(content);
         MPI_Bcast(&size, 1, MPI_INT, 0, comm);
         MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);

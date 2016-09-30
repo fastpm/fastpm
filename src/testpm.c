@@ -17,7 +17,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
-    FastPMSolver * solver = & (FastPMSolver) {
+    FastPMConfig * config = & (FastPMConfig) {
         .nc = 32,
         .boxsize = 32.,
         .alloc_factor = 2.0,
@@ -27,12 +27,12 @@ int main(int argc, char * argv[]) {
             {.a_start = -1, .pm_nc_factor = 0},
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
-        .USE_NONSTDDA = 0,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };
 
-    fastpm_init(solver, 0, 0, comm);
+    FastPMSolver solver[1];
+    fastpm_solver_init(solver, config, comm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
     FastPMFloat * rho_final_ktruth = pm_alloc(solver->basepm);
@@ -49,12 +49,12 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
-    fastpm_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
-    fastpm_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
+    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->basepm, solver->PAINTER_TYPE, solver->painter_support);
+    fastpm_painter_init(painter, solver->basepm, config->PAINTER_TYPE, config->painter_support);
 
     fastpm_paint(painter, rho_final_xtruth, solver->p, NULL, 0);
     //fastpm_utils_dump(solver->basepm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
@@ -63,7 +63,7 @@ int main(int argc, char * argv[]) {
     pm_free(solver->basepm, rho_final_ktruth);
     pm_free(solver->basepm, rho_init_ktruth);
 
-    fastpm_destroy(solver);
+    fastpm_solver_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;

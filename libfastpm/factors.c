@@ -28,29 +28,20 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-#include <fastpm/cosmology.h>
 
 #include "pmpfft.h"
 #include "vpm.h"
 
 static double 
-Sq(double ai, double af, double aRef, FastPMSolver * );
+Sq(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_NONSTDDA);
 
 static double 
-Sphi(double ai, double af, double aRef, FastPMSolver * );
-
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
-        .OmegaM = fastpm->omega_m,
-        .OmegaLambda = 1 - fastpm->omega_m,
-    };
-    return c;
-}
+Sphi(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_NONSTDDA);
 
 double
-fastpm_growth_factor(FastPMSolver * fastpm, double a)
+fastpm_solver_growth_factor(FastPMSolver * fastpm, double a)
 {
-    return GrowthFactor(a, CP(fastpm));
+    return GrowthFactor(a, fastpm->cosmology);
 }
 
 inline void
@@ -78,7 +69,7 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
     int d;
     for(d = 0; d < 3; d ++) {
         double v;
-        switch(drift->fastpm->FORCE_TYPE) {
+        switch(drift->forcemode) {
             case FASTPM_FORCE_2LPT:
                 xo[d] = p->x[i][d] + p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
             break;
@@ -125,11 +116,11 @@ fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[
     int d;
     for(d = 0; d < 3; d++) {
         float ax = p->acc[i][d];
-        if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+        if(kick->forcemode == FASTPM_FORCE_COLA) {
             ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
         }
         vo[d] = p->v[i][d] + ax * dda;
-        if(kick->fastpm->FORCE_TYPE == FASTPM_FORCE_COLA) {
+        if(kick->forcemode == FASTPM_FORCE_COLA) {
             vo[d] += (p->dx1[i][d] * Dv1 + p->dx2[i][d] * Dv2);
         }
     }
@@ -168,23 +159,23 @@ fastpm_kick_store(FastPMKickFactor * kick,
     po->a_v = af;
 }
 
-static double G_p(double a, Cosmology c)
+static double G_p(double a, FastPMCosmology * c)
 {
     /* integral of G_p */
     return GrowthFactor(a, c);
 }
-static double g_p(double a, Cosmology c)
+static double g_p(double a, FastPMCosmology * c)
 {
     return DGrowthFactorDa(a, c);
 }
 
-static double G_f(double a, Cosmology c)
+static double G_f(double a, FastPMCosmology * c)
 {
     /* integral of g_f */
     return a * a * a * HubbleEa(a, c) * g_p(a, c);
 }
 
-static double g_f(double a, Cosmology c)
+static double g_f(double a, FastPMCosmology * c)
 {
     double dDda = DGrowthFactorDa(a, c);
     double E = HubbleEa(a, c);
@@ -198,9 +189,10 @@ static double g_f(double a, Cosmology c)
 }
 void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
-    Cosmology c = CP(fastpm);
+    FastPMCosmology * c = fastpm->cosmology;
+    kick->forcemode = fastpm->config->FORCE_TYPE;
 
-    double OmegaM = fastpm->omega_m;
+    double OmegaM = c->OmegaM;
     double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double growth1 = GrowthFactor(ac, c);
 
@@ -216,18 +208,16 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
         double ae = ai * (1.0 * (kick->nsamples - 1 - i) / (kick->nsamples - 1))
                   + af * (1.0 * i / (kick->nsamples - 1));
 
-        if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
+        if(kick->forcemode == FASTPM_FORCE_FASTPM) {
             kick->dda[i] = -1.5 * OmegaM
                * 1 / (ac * ac * HubbleEa(ac, c))
                * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
         } else {
-            kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm);
+            kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm->config->nLPT, c, kick->forcemode == FASTPM_FORCE_COLA);
         }
         kick->Dv1[i] = GrowthFactor(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor(ae, c) - Dv1i;
         kick->Dv2[i] = GrowthFactor2(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor2(ae, c) - Dv2i;
     }
-
-    kick->fastpm = fastpm;
 
     kick->ai = ai;
     kick->ac = ac;
@@ -239,7 +229,8 @@ void
 fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
                 double ai, double ac, double af)
 {
-    Cosmology c = CP(fastpm);
+    FastPMCosmology * c = fastpm->cosmology;
+    drift->forcemode = fastpm->config->FORCE_TYPE;
 
     drift->nsamples = 32;
     int i;
@@ -248,16 +239,15 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
         double ae = ai * (1.0 * (drift->nsamples - 1 - i) / (drift->nsamples - 1))
                   + af * (1.0 * i / (drift->nsamples - 1));
 
-        if(fastpm->FORCE_TYPE == FASTPM_FORCE_FASTPM) {
+        if(drift->forcemode == FASTPM_FORCE_FASTPM) {
             drift->dyyy[i] = 1 / (ac * ac * ac * HubbleEa(ac, c))
                         * (G_p(ae, c) - G_p(ai, c)) / g_p(ac, c);
         } else {
-            drift->dyyy[i] = Sq(ai, ae, ac, fastpm);
+            drift->dyyy[i] = Sq(ai, ae, ac, fastpm->config->nLPT, c, drift->forcemode == FASTPM_FORCE_COLA);
         }
         drift->da1[i] = GrowthFactor(ae, c) - GrowthFactor(ai, c);    // change in D_1lpt
         drift->da2[i] = GrowthFactor2(ae, c) - GrowthFactor2(ai, c);  // change in D_2lpt
     }
-    drift->fastpm = fastpm;
     drift->af = af;
     drift->ai = ai;
     drift->ac = ac;
@@ -295,33 +285,37 @@ fastpm_drift_store(FastPMDriftFactor * drift,
 //
 // Functions for our modified time-stepping (used when StdDA=0):
 //
+struct iparam {
+    FastPMCosmology * cosmology;
+    double nLPT;
+};
 
 double gpQ(double a, double nLPT) { 
     return pow(a, nLPT);
 }
 
-static double stddriftfunc (double a, FastPMSolver * fastpm) {
-    return 1 / (pow(a, 3) * HubbleEa(a, CP(fastpm)));
+static double stddriftfunc (double a, struct iparam * iparam) {
+    return 1 / (pow(a, 3) * HubbleEa(a, iparam->cosmology));
 }
 
-static double nonstddriftfunc (double a, FastPMSolver * fastpm) {
-    return gpQ(a, fastpm->nLPT)/(pow(a, 3) * HubbleEa(a, CP(fastpm)));
+static double nonstddriftfunc (double a, struct iparam * iparam) {
+    return gpQ(a, iparam->nLPT)/(pow(a, 3) * HubbleEa(a, iparam->cosmology));
 }
 
-static double stdkickfunc (double a, FastPMSolver * fastpm) {
-    return 1/ (pow(a, 2) * HubbleEa(a, CP(fastpm)));
+static double stdkickfunc (double a, struct iparam * iparam) {
+    return 1/ (pow(a, 2) * HubbleEa(a, iparam->cosmology));
 }
 
 static double integrand(double a, void * params) {
     void ** p = (void**) params;
-    double (*func)(double a, FastPMSolver * s) = p[0];
-    FastPMSolver * s = p[1];
+    double (*func)(double a, struct iparam * s) = p[0];
+    struct iparam * s = p[1];
     return func(a, s);
 }
 
 double integrate(double ai, double af,
-        FastPMSolver * fastpm,
-        double (*func)(double , FastPMSolver * )) {
+        struct iparam * iparam,
+        double (*func)(double , struct iparam * )) {
 
     gsl_integration_workspace * w
         = gsl_integration_workspace_alloc (5000);
@@ -330,7 +324,7 @@ double integrate(double ai, double af,
     double error;
     double result;
 
-    F.params = (void*[]){func, fastpm};
+    F.params = (void*[]){func, iparam};
     F.function = integrand;
 
     gsl_integration_qag (&F, ai, af, 0, 1e-8, 5000, 6,
@@ -348,20 +342,23 @@ double integrate(double ai, double af,
        */
 
 static double 
-Sq(double ai, double af, double aRef, FastPMSolver * fastpm)
+Sq(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_NONSTDDA)
 {
     double resultstd, result;
+    struct iparam iparam[1];
+    iparam->cosmology = c;
+    iparam->nLPT = nLPT;
 
-    resultstd = integrate(ai, af, fastpm, stddriftfunc);
+    resultstd = integrate(ai, af, iparam, stddriftfunc);
 
-    result = integrate(ai, af, fastpm, nonstddriftfunc);
-    result /= gpQ(aRef, fastpm->nLPT);
+    result = integrate(ai, af, iparam, nonstddriftfunc);
+    result /= gpQ(aRef, nLPT);
 
     /*
     fastpm_info("ref time = %6.4f, std drift =%g, non std drift = %g \n",
         aRef, resultstd, result); */
 
-    if (fastpm->USE_NONSTDDA)
+    if (USE_NONSTDDA)
         return result;
     else
         return resultstd;
@@ -374,21 +371,25 @@ double DERgpQ(double a, double nLPT) {
 
 
 static double 
-Sphi(double ai, double af, double aRef, FastPMSolver * fastpm) 
+Sphi(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_NONSTDDA)
 {
     double result;
     double resultstd;
 
-    result = (gpQ(af, fastpm->nLPT) - gpQ(ai, fastpm->nLPT)) * aRef 
-        / (pow(aRef, 3) * HubbleEa(aRef, CP(fastpm)) * DERgpQ(aRef, fastpm->nLPT));
+    struct iparam iparam[1];
+    iparam->cosmology = c;
+    iparam->nLPT = nLPT;
 
-    resultstd = integrate(ai, af, fastpm, stdkickfunc);
+    result = (gpQ(af, nLPT) - gpQ(ai, nLPT)) * aRef 
+        / (pow(aRef, 3) * HubbleEa(aRef, c) * DERgpQ(aRef, nLPT));
+
+    resultstd = integrate(ai, af, iparam, stdkickfunc);
 
     /*
     fastpm_info("ref time = %6.4f, std kick = %g, non std kick = %g\n",
             aRef, resultstd, result); */
 
-    if (fastpm->USE_NONSTDDA) {
+    if (USE_NONSTDDA) {
         return result;
     } else {
         return resultstd;

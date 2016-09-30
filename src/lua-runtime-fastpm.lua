@@ -52,19 +52,6 @@ schema.force_mode.choices = {
     pm   = 'FASTPM_FORCE_PM',
 }
 schema.declare{name='enforce_broadband_kmax',  type='int', default=4}
-schema.declare{name='cola_stdda',           type='boolean'}
-
-function schema.force_mode.action (force_mode)
-    if force_mode == "pm" then
-        schema.cola_stdda.default = true
-    elseif force_mode == "cola" then
-        schema.cola_stdda.default = false
-    elseif force_mode == "zola" then
-        schema.cola_stdda.default = true
-    elseif force_mode == "fastpm" then
-        schema.cola_stdda.default = true
-    end
-end
 
 -- Primordial Non-Gaussianity --
 schema.declare{name='f_nl_type', type='enum', default='none'}

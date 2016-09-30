@@ -13,16 +13,7 @@
 #include <alloca.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/cosmology.h>
 #include <fastpm/logging.h>
-
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
-        .OmegaM = fastpm->omega_m,
-        .OmegaLambda = 1 - fastpm->omega_m,
-    };
-    return c;
-}
 
 #define FILENAME  "%s.%02d"
 
@@ -92,7 +83,7 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
             Ntot += header.npart;        
             fclose(fp);
         }
-        if (Ntot != fastpm->nc * fastpm->nc * fastpm->nc) {
+        if (Ntot != fastpm->config->nc * fastpm->config->nc * fastpm->config->nc) {
             fastpm_raise(0030, "Number of p does not match nc\n");
         }
         MPI_Bcast(NperFile, Nfile, MPI_INT, 0, comm);
@@ -203,15 +194,15 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         fastpm_raise(0030, "mismatch %d != %d\n", offset, p->np);
     }
 
-    const double omega = OmegaA(aa, CP(fastpm));
-    const float DplusIC = GrowthFactor(aa, CP(fastpm));
+    const double omega = OmegaA(aa, fastpm->cosmology);
+    const float DplusIC = GrowthFactor(aa, fastpm->cosmology);
     const double f1 = pow(omega, (4./7));
     const double f2 = pow(omega, (6./11));
 
-    int64_t strides[] = {fastpm->nc * fastpm->nc, fastpm->nc, 1};
+    int64_t strides[] = {fastpm->config->nc * fastpm->config->nc, fastpm->config->nc, 1};
 
     /* RUN PB ic global shifting */
-    const double offset0 = 0.5 * 1.0 / fastpm->nc;
+    const double offset0 = 0.5 * 1.0 / fastpm->config->nc;
     double dx1disp[3] = {0};
     double dx2disp[3] = {0};
     int ip;
@@ -220,12 +211,12 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         float * v = p->v[ip];
         float * dx1 = p->dx1[ip];
         float * dx2 = p->dx2[ip];
-        
+
         int64_t id = p->id[ip];
         //int64_t id0 = id;
         int d;
         for(d = 0; d < 3; d ++ ) {
-            double opos = (id / strides[d]) * (1.0 / fastpm->nc) + offset0;
+            double opos = (id / strides[d]) * (1.0 / fastpm->config->nc) + offset0;
             id %= strides[d];
             double disp = x[d] - opos;
             if(disp < -0.5) disp += 1.0;
@@ -233,25 +224,26 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
             dx1[d] = (v[d] - disp * (2 * f2)) / (f1 - 2 * f2) / DplusIC;
             /* no 7/3 here, this ensures  = x0 + dx1 + dx2; we shift the position in pm_2lpt_evolve  */
             dx2[d] = (v[d] - disp * f1) / (2 * f2 - f1) / (DplusIC * DplusIC);
+            double boxsize = fastpm->config->boxsize;
             double tmp = opos; 
-            x[d] = tmp * fastpm->boxsize;
-            while(x[d] < 0.0) x[d] += fastpm->boxsize;
-            while(x[d] >= fastpm->boxsize) x[d] -= fastpm->boxsize;
-            dx1[d] *= fastpm->boxsize;
+            x[d] = tmp * boxsize;
+            while(x[d] < 0.0) x[d] += boxsize;
+            while(x[d] >= boxsize) x[d] -= boxsize;
+            dx1[d] *= boxsize;
 
             /*
             if(dx1[d] > 100) {
                 printf("id = %ld dx1[d] = %g v = %g pos = %g disp = %g opos=%g f1=%g f1=%g DplusIC=%g\n", 
                     id0, dx1[d], v[d], x[d], disp, opos, f1, f2, DplusIC);
             } */
-            dx2[d] *= fastpm->boxsize;
+            dx2[d] *= boxsize;
 
             v[d] = 0.0;
             dx1disp[d] += dx1[d] * dx1[d];
             dx2disp[d] += dx2[d] * dx2[d];
         }
-        
     }
+
     int d;
     MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, comm);
@@ -274,8 +266,8 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
     return 0;
 }
 
-static void write_mine(const char * filebase, 
-            FastPMStore * p, double aa, Cosmology c, double boxsize, size_t Ntot,
+static void write_mine(const char * filebase,
+            FastPMStore * p, double aa, FastPMCosmology * c, double boxsize, size_t Ntot,
             size_t * NcumFile, int * NperFile, int Nfile, 
             ptrdiff_t start, ptrdiff_t end) {
     size_t scratch_bytes = 32 * 1024 * 1024;
@@ -432,7 +424,7 @@ write_runpb_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * fileba
     }
     MPI_Barrier(comm);
 
-    write_mine(filebase, p, aa, CP(fastpm), fastpm->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
+    write_mine(filebase, p, aa, fastpm->cosmology, fastpm->config->boxsize, Ntot, NcumFile, NperFile, Nfile, start, end);
     return 0;
 }
 

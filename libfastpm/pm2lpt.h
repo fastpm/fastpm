@@ -6,4 +6,4 @@ void
 pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3]);
 
 void 
-pm_2lpt_evolve(double aout, FastPMStore * p, double Omega, int zaonly);
+pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly);

@@ -9,7 +9,6 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
-#include <fastpm/cosmology.h>
 
 /*
 static void 
@@ -27,14 +26,6 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
-static Cosmology CP(FastPMSolver * fastpm) {
-    Cosmology c = {
-        .OmegaM = fastpm->omega_m,
-        .OmegaLambda = 1 - fastpm->omega_m,
-    };
-    return c;
-}
-
 int 
 write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
@@ -51,7 +42,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
     double H0 = 100.;
     /* Conversion from peculiar velocity to RSD,
      * http://mwhite.berkeley.edu/Talks/SantaFe12_RSD.pdf */
-    double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, CP(fastpm)));
+    double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, fastpm->cosmology));
 
     fastpm_info("RSD factor %e\n", RSD);
 
@@ -65,9 +56,9 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
             fastpm_raise(-1, "Failed to create the attributes\n");
         }
         double ScalingFactor = p->a_x;
-        double OmegaM = fastpm->omega_m;
-        double BoxSize = fastpm->boxsize;
-        uint64_t NC = fastpm->nc;
+        double OmegaM = fastpm->cosmology->OmegaM;
+        double BoxSize = fastpm->config->boxsize;
+        uint64_t NC = fastpm->config->nc;
         double rho_crit = 27.7455;
         double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
 

@@ -21,6 +21,7 @@ typedef struct PM PM;
 typedef struct FastPMStore FastPMStore;
 typedef struct FastPMPainter FastPMPainter;
 typedef struct FastPMTransition FastPMTransition;
+typedef struct FastPMCosmology FastPMCosmology;
 
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32
@@ -33,6 +34,17 @@ typedef struct FastPMTransition FastPMTransition;
 #else
     #error FASTPM_FFT_PRECISION must be 32 or 64
 #endif
+
+typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
+typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
+               FASTPM_KERNEL_GADGET,
+               FASTPM_KERNEL_EASTWOOD,
+               FASTPM_KERNEL_NAIVE,
+            } FastPMKernelType;
+typedef enum { FASTPM_DEALIASING_NONE,
+               FASTPM_DEALIASING_GAUSSIAN, FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN,
+               FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN36 } FastPMDealiasingType;
+
 
 void libfastpm_init();
 void libfastpm_cleanup();
@@ -50,12 +62,14 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "pmapi.h"
 #include "store.h"
 
+#include "cosmology.h"
 #include "transfer.h"
 #include "utils.h"
 #include "initialcondition.h"
 #include "pngaussian.h"
 #include "powerspectrum.h"
-#include "solver-pm.h"
+#include "gravity.h"
+#include "solver.h"
 #include "timemachine.h"
 
 /* Following functions are internal API */

@@ -1,29 +1,26 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
+FASTPM_BEGIN_DECLS
+
 extern double HubbleConstant;
 extern double HubbleDistance;
 
-typedef struct {
+struct FastPMCosmology {
     double OmegaM;
     double OmegaLambda;
-} Cosmology;
+};
 
-double GrowthFactor(double a, Cosmology c);
-double GrowthFactor2(double a, Cosmology c);
+double GrowthFactor(double a, FastPMCosmology * c);
+double GrowthFactor2(double a, FastPMCosmology * c);
 
-double DLogGrowthFactor(double a, Cosmology c);
-double DLogGrowthFactor2(double a, Cosmology c);
+double DLogGrowthFactor(double a, FastPMCosmology * c);
+double DLogGrowthFactor2(double a, FastPMCosmology * c);
 
-double HubbleEa(double a, Cosmology c);
-double DHubbleEaDa(double a, Cosmology c);
-double D2HubbleEaDa2(double a, Cosmology c);
-double DGrowthFactorDa(double a, Cosmology c);
-double D2GrowthFactorDa2(double a, Cosmology c);
+double HubbleEa(double a, FastPMCosmology * c);
+double DHubbleEaDa(double a, FastPMCosmology * c);
+double D2HubbleEaDa2(double a, FastPMCosmology * c);
+double DGrowthFactorDa(double a, FastPMCosmology * c);
+double D2GrowthFactorDa2(double a, FastPMCosmology * c);
 
-double ComovingDistance(double a, Cosmology c);
-double OmegaA(double a, Cosmology c);
+double ComovingDistance(double a, FastPMCosmology * c);
+double OmegaA(double a, FastPMCosmology * c);
 
-#ifdef __cplusplus
-}
-#endif
+FASTPM_END_DECLS

@@ -3,7 +3,6 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/cosmology.h>
 #include <fastpm/transfer.h>
 
 #include "pmpfft.h"
@@ -132,15 +131,10 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
 }
 
 // Interpolate position and velocity for snapshot at a=aout
-void 
-pm_2lpt_evolve(double aout, FastPMStore * p, double Omega, int zaonly)
+void
+pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
 {
     int np = p->np;
-
-    Cosmology c = {
-            .OmegaM = Omega,
-            .OmegaLambda = 1 - Omega,
-        };
 
     double D1 = GrowthFactor(aout, c);
     double D2 = GrowthFactor2(aout, c);
