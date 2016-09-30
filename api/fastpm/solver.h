@@ -56,10 +56,6 @@ typedef struct {
 
     struct {
         /* For printing only. Do not use them to derive any physics quantities. */
-        int istep;
-        double a_x;
-        double a_x1;
-        double a_v;
         double dx1[3];
         double dx2[3];
         struct {
