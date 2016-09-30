@@ -15,6 +15,7 @@
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
 #include <fastpm/lightcone.h>
+#include <fastpm/constrainedgaussian.h>
 #include <omp.h>
 
 #include "lua-config.h"
@@ -326,13 +327,13 @@ induce:
         fastpm_ic_induce_correlation(fastpm->basepm, delta_k,
             (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
     } else {
-	double kmax_primordial;
-	kmax_primordial = CONF(prr, nc) / 2.0 * 2.0*M_PI/CONF(prr, boxsize) * CONF(prr, kmax_primordial_over_knyquist);
-	fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
+        double kmax_primordial;
+        kmax_primordial = CONF(prr, nc) / 2.0 * 2.0*M_PI/CONF(prr, boxsize) * CONF(prr, kmax_primordial_over_knyquist);
+        fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
         FastPMPNGaussian png = {
             .fNL = CONF(prr, f_nl),
             .type = CONF(prr, f_nl_type),
-	    .kmax_primordial = kmax_primordial,
+            .kmax_primordial = kmax_primordial,
             .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
             .pkdata = &linear_powerspectrum,
             .h = CONF(prr, h),
@@ -344,6 +345,32 @@ induce:
         fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
     }
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
+
+    if(CONF(prr, constraints)) {
+        FastPM2PCF xi;
+
+        fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, CONF(prr, boxsize), CONF(prr, nc));
+
+        FastPMConstrainedGaussian cg = {
+            .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr, n_constraints) + 1)),
+        };
+        double * c = CONF(prr, constraints);
+        int i;
+        for(i = 0; i < CONF(prr, n_constraints); i ++) {
+            cg.constraints[i].x[0] = c[4 * i + 0];
+            cg.constraints[i].x[1] = c[4 * i + 1];
+            cg.constraints[i].x[2] = c[4 * i + 2];
+            cg.constraints[i].c = c[4 * i + 3];
+        }
+        cg.constraints[i].x[0] = -1;
+        cg.constraints[i].x[1] = -1;
+        cg.constraints[i].x[2] = -1;
+        cg.constraints[i].c = -1;
+
+        fastpm_cg_induce_correlation(&cg, fastpm->basepm, &xi, delta_k);
+
+        free(cg.constraints);
+    }
 
     /* our write out and clean up stuff.*/
 produce:

@@ -156,6 +156,8 @@ schema.dealiasing_type.choices = {
     twothird = 'FASTPM_DEALIASING_TWO_THIRD',
 }
 
+schema.declare{name='constraints',      type='array:number',  help="A list of {x, y, z, overdensity}, giving the constraints in MPC/h units. "}
+
 function fastpm.linspace(a, e, N)
 -- Similar to numpy.linspace, but always append the end
 -- point to the result, returning N + 1 elements.
