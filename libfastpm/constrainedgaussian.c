@@ -10,9 +10,15 @@
 
 double fastpm_2pcf_eval(FastPM2PCF* self, double r)
 {
-    if(r < 1.0)
-        return 1.0;
-    return 0.0;
+    double rMax = self->size * self->step_size;
+    if(r > rMax)
+        return 0.0;
+    if(r == rMax)
+        return self->xi[self->size];
+    int i = (int)floor(r / self->step_size);
+    double prev = self->xi[i], next = self->xi[i + 1];
+    double deltaR = r - i * self->step_size;
+    return prev + (next - prev) * deltaR / self->step_size;
 }
 
 /*
@@ -22,8 +28,37 @@ fastpm_generate_covariance_matrix(PM *pm, fastpm_fkfunc pkfunc, void * data, Fas
 }
 */
 void
-fastpm_2pcf_from_powerspectrum(FastPM2PCF *self, fastpm_fkfunc pkfunc, void * data)
+fastpm_2pcf_from_powerspectrum(FastPM2PCF *self, fastpm_fkfunc pkfunc, void * data, double r_max, int steps)
 {
+    self->size = steps;
+    self->step_size = r_max / steps;
+    self->xi = malloc((steps + 1) * sizeof(double));
+
+    double logKMin = -10, logKMax = 5;
+    double logKSteps = 1000000;
+    double logKStepSize = (logKMax - logKMin) / logKSteps;
+    double pi = 3.141593;
+    int i, j;
+    for(i = 0; i <= steps; ++i)
+    {
+        double r = i * self->step_size;
+        double res = 0;
+        double prev = 0;
+        for(j = 1; j <= logKSteps; ++j)
+        {
+            double logK = logKMin + j * logKStepSize;
+            double k = exp(logK);
+            double kr = k * r;
+            double func = 1;
+            if(kr > 0)
+                func = sin(kr) / kr;
+            func *= pkfunc(k, data) * k * k * k;
+            res += (prev + func) / 2;
+            prev = func;
+        }
+        res *= logKStepSize / (2 * pi * pi);
+        self->xi[i] = res;
+    }
 }
 
 static void

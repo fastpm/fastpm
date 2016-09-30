@@ -19,7 +19,7 @@ double
 fastpm_2pcf_eval(FastPM2PCF * self, double r);
 
 void
-fastpm_2pcf_from_powerspectrum(FastPM2PCF * self, fastpm_fkfunc pkfunc, void * data);
+fastpm_2pcf_from_powerspectrum(FastPM2PCF * self, fastpm_fkfunc pkfunc, void * data, double r_max, int steps);
 
 void
 fastpm_cg_induce_correlation(FastPMConstrainedGaussian * cg, PM * pm, FastPM2PCF * xi, FastPMFloat * delta_k);
