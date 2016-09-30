@@ -49,7 +49,7 @@ int main(int argc, char * argv[]) {
 
     FastPM2PCF xi;
 
-    fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_utils_powerspec_eh, &eh);
+    fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_utils_powerspec_eh, &eh, 128., 128);
 
     FastPMConstrainedGaussian cg = {
             .constraints = (FastPMConstraint[]) {
