@@ -31,7 +31,6 @@ int main(int argc, char * argv[]) {
             {.a_start = -1, .pm_nc_factor = 0},
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
-        .USE_NONSTDDA = 0,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };

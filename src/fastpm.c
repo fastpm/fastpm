@@ -111,7 +111,6 @@ int main(int argc, char ** argv) {
         .vpminit = vpminit,
         .boxsize = CONF(prr, boxsize),
         .omega_m = CONF(prr, omega_m),
-        .USE_NONSTDDA = !CONF(prr, cola_stdda),
         .USE_DX1_ONLY = CONF(prr, za),
         .nLPT = -2.5f,
         .K_LINEAR = CONF(prr, enforce_broadband_kmax),

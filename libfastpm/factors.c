@@ -213,7 +213,7 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
                * 1 / (ac * ac * HubbleEa(ac, c))
                * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
         } else {
-            kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm->config->nLPT, c, fastpm->config->USE_NONSTDDA);
+            kick->dda[i] = -1.5 * OmegaM * Sphi(ai, ae, ac, fastpm->config->nLPT, c, kick->forcemode == FASTPM_FORCE_COLA);
         }
         kick->Dv1[i] = GrowthFactor(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor(ae, c) - Dv1i;
         kick->Dv2[i] = GrowthFactor2(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor2(ae, c) - Dv2i;
@@ -243,7 +243,7 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
             drift->dyyy[i] = 1 / (ac * ac * ac * HubbleEa(ac, c))
                         * (G_p(ae, c) - G_p(ai, c)) / g_p(ac, c);
         } else {
-            drift->dyyy[i] = Sq(ai, ae, ac, fastpm->config->nLPT, c, fastpm->config->USE_NONSTDDA);
+            drift->dyyy[i] = Sq(ai, ae, ac, fastpm->config->nLPT, c, drift->forcemode == FASTPM_FORCE_COLA);
         }
         drift->da1[i] = GrowthFactor(ae, c) - GrowthFactor(ai, c);    // change in D_1lpt
         drift->da2[i] = GrowthFactor2(ae, c) - GrowthFactor2(ai, c);  // change in D_2lpt
