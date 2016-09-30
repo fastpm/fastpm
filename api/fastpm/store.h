@@ -66,7 +66,6 @@ fastpm_store_init(FastPMStore * p);
 void
 fastpm_store_destroy(FastPMStore * p);
 
-
 void
 fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm);
 
@@ -80,6 +79,9 @@ typedef int (fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * dat
 
 void
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
+
+size_t
+fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm);
 
 /* Generic IO; unimplemented */
 void fastpm_store_read(FastPMStore * p, char * datasource);

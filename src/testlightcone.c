@@ -21,7 +21,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
-    FastPMSolver * solver = & (FastPMSolver) {
+    FastPMConfig * config = & (FastPMConfig) {
         .nc = 128,
         .boxsize = 128.,
         .alloc_factor = 2.0,
@@ -35,12 +35,12 @@ int main(int argc, char * argv[]) {
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };
-
+    FastPMSolver solver[1];
     FastPMDriftFactor drift;
     FastPMKickFactor kick;
     FastPMLightCone lc[1];
 
-    fastpm_solver_init(solver, 0, 0, comm);
+    fastpm_solver_init(solver, config, comm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
 

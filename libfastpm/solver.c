@@ -24,31 +24,45 @@ fastpm_decompose(FastPMSolver * fastpm);
 static int 
 to_rank(void * pdata, ptrdiff_t i, void * data);
 
-void fastpm_solver_init(FastPMSolver * fastpm, 
-    int NprocY, 
-    int UseFFTW, 
+void fastpm_solver_init(FastPMSolver * fastpm,
+    FastPMConfig * config,
     MPI_Comm comm) {
 
+    fastpm->config[0] = *config;
+
+    fastpm->gravity[0] = (FastPMGravity) {
+        .PainterType = config->PAINTER_TYPE,
+        .PainterSupport = config->painter_support,
+        .KernelType = config->KERNEL_TYPE,
+        .DealiasingType = config->DEALIASING_TYPE,
+    };
+
+    fastpm->cosmology[0] = (FastPMCosmology) {
+        .OmegaM = config->omega_m,
+        .OmegaLambda = 1.0 - config->omega_m,
+    };
+
     PMInit baseinit = {
-            .Nmesh = fastpm->nc,
-            .BoxSize = fastpm->boxsize, 
-            .NprocY = NprocY, /* 0 for auto, 1 for slabs */
+            .Nmesh = config->nc,
+            .BoxSize = config->boxsize,
+            .NprocY = config->NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
-            .use_fftw = UseFFTW,
+            .use_fftw = config->UseFFTW,
         };
 
     fastpm->comm = comm;
+
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
     fastpm->p = malloc(sizeof(FastPMStore));
     fastpm_store_init(fastpm->p);
 
-    fastpm_store_alloc_evenly(fastpm->p, pow(1.0 * fastpm->nc, 3),
-        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC | (fastpm->SAVE_Q?PACK_Q:0),
-        fastpm->alloc_factor, comm);
+    fastpm_store_alloc_evenly(fastpm->p, pow(1.0 * config->nc, 3),
+        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
+        config->alloc_factor, comm);
 
-    fastpm->vpm_list = vpm_create(fastpm->vpminit,
+    fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
 
     int i = 0;
@@ -57,8 +71,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     }
 
     PMInit basepminit = {
-            .Nmesh = fastpm->nc,
-            .BoxSize = fastpm->boxsize,
+            .Nmesh = config->nc,
+            .BoxSize = config->boxsize,
             .NprocY = 0, /* 0 for auto, 1 for slabs */
             .transposed = 1,
             .use_fftw = 0,
@@ -73,18 +87,19 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
 {
 
     PM * basepm = fastpm->basepm;
+    FastPMConfig * config = fastpm->config;
     FastPMStore * p = fastpm->p;
 
     if(delta_k_ic) {
         double shift0;
-        if(fastpm->USE_SHIFT) {
-            shift0 = fastpm->boxsize / fastpm->nc * 0.5;
+        if(config->USE_SHIFT) {
+            shift0 = config->boxsize / config->nc * 0.5;
         } else {
             shift0 = 0;
         }
         double shift[3] = {shift0, shift0, shift0};
 
-        int nc[3] = {fastpm->nc, fastpm->nc, fastpm->nc};
+        int nc[3] = {config->nc, config->nc, config->nc};
 
         fastpm_store_set_lagrangian_position(p, basepm, shift, nc);
 
@@ -92,7 +107,7 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);
     }
 
-    if(fastpm->USE_DX1_ONLY == 1) {
+    if(config->USE_DX1_ONLY == 1) {
         memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
     fastpm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
@@ -182,10 +197,11 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
 static void
 fastpm_do_warmup(FastPMSolver * fastpm, double a0)
 {
+    FastPMConfig * config = fastpm->config;
     CLOCK(warmup);
     ENTER(warmup);
 
-    pm_2lpt_evolve(a0, fastpm->p, fastpm->omega_m, fastpm->USE_DX1_ONLY);
+    pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
 
     LEAVE(warmup);
 
@@ -200,13 +216,7 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
 static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 {
-
-    FastPMGravity gravity = {
-        .PainterType = fastpm->PAINTER_TYPE,
-        .PainterSupport = fastpm->painter_support,
-        .KernelType = fastpm->KERNEL_TYPE,
-        .DealiasingType = fastpm->DEALIASING_TYPE,
-    };
+    FastPMGravity * gravity = fastpm->gravity;
 
     FastPMExtension * ext;
 
@@ -227,7 +237,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     ENTER(force);
 
-    fastpm_gravity_calculate(&gravity, pm, fastpm->p, delta_k);
+    fastpm_gravity_calculate(gravity, pm, fastpm->p, delta_k);
     LEAVE(force);
 
     ENTER(afterforce);
@@ -329,14 +339,19 @@ static void
 fastpm_decompose(FastPMSolver * fastpm) {
     PM * pm = fastpm->pm;
     FastPMStore * p = fastpm->p;
+
+    int NTask;
+    MPI_Comm_size(fastpm->comm, &NTask);
+
     /* apply periodic boundary and move particles to the correct rank */
     fastpm_store_wrap(fastpm->p, pm->BoxSize);
     fastpm_store_decompose(fastpm->p, to_rank, pm, fastpm->comm);
     size_t np_max;
     size_t np_min;
 
-    /* FIXME move NTask to somewhere else. */
-    double np_mean = pow(fastpm->nc, 3) / pm->NTask;
+
+    double np_mean = 1.0 * fastpm_store_get_np_total(p, fastpm->comm) / NTask;
+
     MPI_Allreduce(&p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->comm);
     MPI_Allreduce(&p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->comm);
 

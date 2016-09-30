@@ -10,29 +10,12 @@ typedef struct FastPMDriftFactor FastPMDriftFactor;
 typedef struct FastPMKickFactor FastPMKickFactor;
 typedef struct FastPMExtension FastPMExtension;
 
-typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
-typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
-               FASTPM_KERNEL_GADGET,
-               FASTPM_KERNEL_EASTWOOD,
-               FASTPM_KERNEL_NAIVE,
-            } FastPMKernelType;
-typedef enum { FASTPM_DEALIASING_NONE,
-               FASTPM_DEALIASING_GAUSSIAN, FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN,
-               FASTPM_DEALIASING_TWO_THIRD, FASTPM_DEALIASING_GAUSSIAN36 } FastPMDealiasingType;
-
 typedef struct {
-    PM * pm;
-    FastPMStore * p;
-
-    MPI_Comm comm;
-    int NTask;
-    int ThisTask;
-
-    /* input parameters */
     size_t nc;
     double boxsize;
     double omega_m;
     double alloc_factor;
+
     VPMInit * vpminit;
     int USE_DX1_ONLY;
     int USE_NONSTDDA;
@@ -47,6 +30,27 @@ typedef struct {
     FastPMKernelType KERNEL_TYPE;
     FastPMDealiasingType DEALIASING_TYPE;
     int K_LINEAR;
+
+    int NprocY;  /* Use 0 for auto */
+    int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
+} FastPMConfig;
+
+typedef struct {
+    PM * pm;
+    FastPMStore * p;
+
+    MPI_Comm comm;
+    int NTask;
+    int ThisTask;
+
+    /* input parameters */
+    FastPMConfig config[1];
+
+    /* gravity solver */
+    FastPMGravity gravity[1];
+
+    /* cosmology */
+    FastPMCosmology cosmology[1];
 
     /* Extensions */
     FastPMExtension * exts[12];
@@ -69,7 +73,6 @@ typedef struct {
     VPM * vpm_list;
 
     PM * basepm;
-    FastPMPainter painter[1];
 } FastPMSolver;
 
 enum FastPMExtensionPoint {
@@ -104,7 +107,7 @@ struct FastPMExtension {
 };
 
 struct FastPMDriftFactor {
-    FastPMSolver * fastpm;
+    FastPMForceType forcemode;
     double ai;
     double ac;
     double af;
@@ -119,7 +122,8 @@ struct FastPMDriftFactor {
 };
 
 struct FastPMKickFactor {
-    FastPMSolver * fastpm;
+    FastPMForceType forcemode;
+
     double ai;
     double ac;
     double af;
@@ -132,10 +136,8 @@ struct FastPMKickFactor {
     double Dv2[32];
 };
 
-void fastpm_solver_init(FastPMSolver * fastpm, 
-    int NprocY,  /* Use 0 for auto */
-    int UseFFTW, /* Use 0 for PFFT 1 for FFTW */
-    MPI_Comm comm);
+void
+fastpm_solver_init(FastPMSolver * fastpm, FastPMConfig * config, MPI_Comm comm);
 
 void 
 fastpm_solver_add_extension(FastPMSolver * fastpm, 

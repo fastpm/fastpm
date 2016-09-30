@@ -69,7 +69,7 @@ read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI
 int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
-int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
 
@@ -105,7 +105,7 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
 
-    FastPMSolver * fastpm = & (FastPMSolver) {
+    FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr, nc),
         .alloc_factor = CONF(prr, np_alloc_factor),
         .vpminit = vpminit,
@@ -121,9 +121,11 @@ int main(int argc, char ** argv) {
         .DEALIASING_TYPE = CONF(prr, dealiasing_type),
         .PAINTER_TYPE = CONF(prr, painter_type),
         .painter_support = CONF(prr, painter_support),
+        .NprocY = prr->NprocY,
+        .UseFFTW = prr->UseFFTW,
     };
 
-    run_fastpm(fastpm, prr, comm);
+    run_fastpm(config, prr, comm);
 
     libfastpm_cleanup();
 
@@ -146,7 +148,9 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 static int 
 print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr);
 
-int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
+int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
+    FastPMSolver fastpm[1];
+
     CLOCK(init);
     CLOCK(ic);
     CLOCK(evolve);
@@ -159,9 +163,7 @@ int run_fastpm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) {
     MPI_Barrier(comm);
     ENTER(init);
 
-    fastpm_solver_init(fastpm, 
-        prr->NprocY, prr->UseFFTW, 
-        comm);
+    fastpm_solver_init(fastpm, config, comm);
 
     fastpm_info("BaseProcMesh : %d x %d ( %d Threads)\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1], omp_get_max_threads());
@@ -438,7 +440,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         FastPMFloat * rho_x = pm_alloc(fastpm->basepm);
         FastPMFloat * rho_k = pm_alloc(fastpm->basepm);
 
-        fastpm_painter_init(painter, fastpm->basepm, fastpm->PAINTER_TYPE, fastpm->painter_support);
+        fastpm_painter_init(painter, fastpm->basepm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
         fastpm_paint(painter, rho_x, snapshot, NULL, 0);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
@@ -508,14 +510,14 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
     /* calculate the power spectrum */
     fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
 
-    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->K_LINEAR);
+    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->config->K_LINEAR);
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
     Plin /= pow(fastpm_solver_growth_factor(fastpm, a_x), 2.0);
     Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, a_x), 2.0);
 
-    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->K_LINEAR * 6.28 / fastpm->boxsize, Plin, Sigma8);
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->config->K_LINEAR * 6.28 / fastpm->config->boxsize, Plin, Sigma8);
 
     LEAVE(compute);
 
@@ -527,7 +529,7 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
             char buf[1024];
             sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);
-            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->nc, 3.0));
+            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
         }
     }
     LEAVE(io);

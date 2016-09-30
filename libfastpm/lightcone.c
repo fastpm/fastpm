@@ -9,14 +9,6 @@
 #include <fastpm/lightcone.h>
 #include <fastpm/logging.h>
 
-static FastPMCosmology CP(FastPMSolver * fastpm) {
-    FastPMCosmology c = {
-        .OmegaM = fastpm->omega_m,
-        .OmegaLambda = 1 - fastpm->omega_m,
-    };
-    return c;
-}
-
 void
 fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, size_t np_upper)
 {
@@ -27,15 +19,15 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, 
     /* Allocation */
 
     int size = 8192;
-    FastPMCosmology c = CP(fastpm);
+    FastPMCosmology * c = fastpm->cosmology;
 
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
-    
+
     /* GSL init solver */
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
     lc->gsl = gsl_root_fsolver_alloc(T);
-    
+
     int i;
 
     for(i = 0; i < lc->EventHorizonTable.size; i ++) {

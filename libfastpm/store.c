@@ -265,6 +265,14 @@ fastpm_store_alloc_evenly(FastPMStore * p, size_t np_total, int attributes, doub
     return 0;
 }
 
+size_t
+fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
+{
+    long long np = p->np;
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
+    return np;
+}
+
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
