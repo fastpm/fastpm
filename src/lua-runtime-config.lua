@@ -252,7 +252,42 @@ local function visit_array(name, entry, mode)
         ]])
     else
         return process([[
-        @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * size)
+
+        static int
+        fill_data_@name@(LuaConfig * lc, @CTYPE@ * array, int ndim, int * shape, int * strides);
+
+        static int
+        fill_data_@name@(LuaConfig * lc, @CTYPE@ * array, int ndim, int * shape, int * strides)
+        {
+            if(ndim < 0) {
+                return 1;
+            }
+            if(lua_istable(lc->L, -1)) {
+                int i;
+                int len = luaL_len(lc->L, -1);
+                if(shape[0] != len) return 1;
+                for(i = 0; i < len; i ++) {
+                    lua_pushinteger(lc->L, i + 1);
+                    lua_gettable(lc->L, -2);
+                    if(0 != fill_data_@name@(lc,
+                            array + strides[0] * i,
+                            ndim - 1,
+                            shape + 1,
+                            strides + 1)) {
+                        lua_pop(lc->L, 1);
+                        return 1;
+                    }
+                    lua_pop(lc->L, 1);
+                }
+            } else {
+                @CTYPE@ x = @CONVERTOR@(lc->L, -1);
+                array[0] = x;
+            }
+            return 0;
+        }
+
+
+        @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * ndim, int * shape, int * strides, int * size)
         {
             luaL_eval(lc->L, "@name@");
             if(lua_isnil(lc->L, -1)) {
@@ -260,29 +295,25 @@ local function visit_array(name, entry, mode)
                 *size = 0;
                 return NULL;
             };
-            const int n = luaL_len(lc->L, -1);
-            @CTYPE@ * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * n);
-            int i;
-            for(i = 1; i <= n; ++i) {
-                lua_pushinteger(lc->L, i);
-                lua_gettable(lc->L, -2);
-                @CTYPE@ x = @CONVERTOR@(lc->L, -1);
+            fill_shape_and_strides(lc, ndim, shape, strides, size);
+            @CTYPE@ * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * *size);
+            if(0 != fill_data_@name@(lc, array, *ndim, shape, strides)) {
+                free(array);
                 lua_pop(lc->L,1);
-                array[i-1] = x;
+                return NULL;
             }
-            lua_pop(lc->L, 1);
-            *size = n;
+            lua_pop(lc->L,1);
             return (@CTYPE@ *) lua_config_ref(lc, "@name@", array);
         }
         @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc)
         {
-            int size;
-            return @PREFIX@_get_@name@_full(lc, &size);
+            int ndim, shape[32], strides[32], size;
+            return @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
         }
         int @PREFIX@_get_n_@name@(LuaConfig * lc)
         {
-            int size;
-            @PREFIX@_get_@name@_full(lc, &size);
+            int ndim, shape[32], strides[32], size;
+            @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
             return size;
         }
         ]])
@@ -487,7 +518,34 @@ function config.compile(schema, opt)
         lua_close(L);
         return NULL;
     }
+    static void
+    fill_shape_and_strides(LuaConfig * lc, int * ndim, int * shape, int * strides, int * size)
+    {
+        int k = 0;
+        int istable = 0;
+        while(1) {
+            istable = lua_istable(lc->L, -1);
+            if(istable) {
+                shape[k] = luaL_len(lc->L, -1);
+                k ++;
+                lua_pushinteger(lc->L, 1);
+                lua_gettable(lc->L, -2);
+            } else {
+                break;
+            }
+        }
 
+        *ndim = k;
+        *size = 1;
+        for(k = 0; k < *ndim; k ++) {
+            *size *= shape[k];
+        }
+        strides[*ndim - 1] = 1;
+        for(k = *ndim - 2; k >= 0; k --) {
+            strides[k] = strides[k + 1] * shape[k + 1];
+        }
+        lua_pop(lc->L, *ndim);
+    }
 
     void lua_config_free(LuaConfig * lc)
     {
