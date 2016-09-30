@@ -110,7 +110,10 @@ int main(int argc, char ** argv) {
         }
         /* mark the end */
         vpminit[i].pm_nc_factor = 0;
+    } else {
+        fastpm_raise(-1, "Unknown format of pm_nc_factor, either a scalar or a 2d array. ");
     }
+
     fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
 
     FastPMConfig * config = & (FastPMConfig) {
