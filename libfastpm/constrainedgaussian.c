@@ -35,7 +35,7 @@ fastpm_2pcf_from_powerspectrum(FastPM2PCF *self, fastpm_fkfunc pkfunc, void * da
     self->xi = malloc((steps + 1) * sizeof(double));
 
     double logKMin = -10, logKMax = 5;
-    double logKSteps = 1000000;
+    double logKSteps = 10000;
     double logKStepSize = (logKMax - logKMin) / logKSteps;
     double pi = 3.141593;
     int i, j;
