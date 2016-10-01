@@ -100,9 +100,25 @@ _readout(FastPMConstraint * constraints, int size, PM * pm, FastPMFloat * delta_
     }
     MPI_Allreduce(MPI_IN_PLACE, dfi, size, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
 }
+static double
+_sigma(PM * pm, FastPMFloat * delta_x)
+{
+    double d2 = 0.0;
+    PMXIter xiter;
+    for(pm_xiter_init(pm, &xiter);
+       !pm_xiter_stop(&xiter);
+        pm_xiter_next(&xiter))
+    {
+        double od = delta_x[xiter.ind] - 1;
+        d2 += od * od;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &d2, 1, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+    d2 /= pm_norm(pm);
+    return d2;
+}
 
 void
-fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *xi, FastPMFloat * delta_k)
+fastpm_cg_apply_constraints(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *xi, FastPMFloat * delta_k)
 {
     FastPMConstraint * constraints = cg->constraints;
 
@@ -112,28 +128,30 @@ fastpm_cg_induce_correlation(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF 
 
     int i;
     fastpm_info("Constrained Gaussian with %d constraints\n", size);
-    for(i = 0; i < size; i ++) {
-        fastpm_info("x[] = %g %g %g ; c = %g\n",
-                constraints[i].x[0],
-                constraints[i].x[1],
-                constraints[i].x[2],
-                constraints[i].c);
-    }
-
     double dfi[size];
     double e[size];
     double Cij[size * size];
-
+    double sigma = 0;
     FastPMFloat * delta_x = pm_alloc(pm);
 
     pm_assign(pm, delta_k, delta_x);
     pm_c2r(pm, delta_x);
 
+    sigma = _sigma(pm, delta_x);
+    fastpm_info("Sigma = %g\n", sigma);
+    for(i = 0; i < size; i ++) {
+        fastpm_info("x[] = %g %g %g ; c = %g\n",
+                constraints[i].x[0],
+                constraints[i].x[1],
+                constraints[i].x[2],
+                1.0 + constraints[i].c * sigma);
+    }
+
     _readout(constraints, size, pm, delta_x, dfi);
 
     for(i = 0; i < size; ++i)
     {
-        dfi[i] = constraints[i].c - dfi[i];
+        dfi[i] = (1 + constraints[i].c * sigma) - dfi[i];
 
         int j;
         for(j = i; j < size; ++j)

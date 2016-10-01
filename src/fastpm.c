@@ -344,7 +344,8 @@ induce:
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
         fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
     }
-    fastpm_powerspectrum_destroy(&linear_powerspectrum);
+    ptrdiff_t mode[4] = { 0, 0, 0, 0, };
+    fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
 
     if(CONF(prr, constraints)) {
         FastPM2PCF xi;
@@ -369,23 +370,22 @@ induce:
         cg.constraints[i].x[2] = -1;
         cg.constraints[i].c = -1;
 
-        fastpm_info("Writing fourier space linear field before constrain to %s\n", "unconstrained");
-        ptrdiff_t mode[4] = { 0, 0, 0, 0, };
-        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
-        write_complex(fastpm->basepm, delta_k, "unconstrained", "LinearDensityK", prr->Nwriters);
-
-        fastpm_cg_induce_correlation(&cg, fastpm->basepm, &xi, delta_k);
+        if(CONF(prr, write_lineark)) {
+            fastpm_info("Writing fourier space linear field before constraints to %s\n", CONF(prr, write_lineark));
+            write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "UnconstrainedLinearDensityK", prr->Nwriters);
+        }
+        fastpm_cg_apply_constraints(&cg, fastpm->basepm, &xi, delta_k);
 
         free(cg.constraints);
     }
+
+    fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
     /* our write out and clean up stuff.*/
 produce:
 
     if(CONF(prr, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
-        ptrdiff_t mode[4] = { 0, 0, 0, 0, };
-        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
