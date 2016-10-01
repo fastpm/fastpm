@@ -187,10 +187,12 @@ local function visit_string(name, entry, mode)
         return [[
             const char * @PREFIX@_get_@name@(LuaConfig * lc)
             {
+                char * cached = (char*) lua_config_cache_get(lc, "@name@");
+                if(cached) return cached;
                 luaL_eval(lc->L, "@name@");
                 const char * val = lua_tostring(lc->L, -1);
                 lua_pop(lc->L, 1);
-                if(val) return lua_config_ref(lc, "@name@", _strdup(val));
+                if(val) return lua_config_cache_set(lc, "@name@", _strdup(val));
                 return NULL;
             }
         ]]
@@ -295,6 +297,9 @@ local function visit_array(name, entry, mode)
 
         @CTYPE@ * @PREFIX@_get_@name@_full(LuaConfig * lc, int * ndim, int * shape, int * strides, int * size)
         {
+            @CTYPE@ * cached = (@CTYPE@ *) lua_config_cache_get(lc, "@name@");
+            if(cached) return cached;
+
             luaL_eval(lc->L, "@name@");
             if(lua_isnil(lc->L, -1)) {
                 lua_pop(lc->L, 1);
@@ -302,39 +307,63 @@ local function visit_array(name, entry, mode)
                 return NULL;
             };
             fill_shape_and_strides(lc, ndim, shape, strides, size);
-            @CTYPE@ * array = (@CTYPE@*) malloc(sizeof(@CTYPE@) * *size);
+            @CTYPE@ * array = (@CTYPE@ *) malloc(sizeof(@CTYPE@) * *size);
             if(0 != fill_data_@name@(lc, array, *ndim, shape, strides)) {
                 free(array);
                 lua_pop(lc->L,1);
                 return NULL;
             }
             lua_pop(lc->L,1);
-            return (@CTYPE@ *) lua_config_ref(lc, "@name@", array);
+            lua_config_cache_set(lc, "@name@_ndim", ndim);
+            lua_config_cache_set(lc, "@name@_shape", shape);
+            lua_config_cache_set(lc, "@name@_strides", strides);
+            lua_config_cache_set(lc, "@name@_size", size);
+            return array;
+        }
+        static void @PREFIX@_cache_@name@(LuaConfig * lc)
+        {
+            @CTYPE@ * array = NULL;
+            int * ndim = (int*) malloc(sizeof(int));
+            int * shape = (int*) malloc(sizeof(int) * 32);
+            int * strides = (int*) malloc(sizeof(int) * 32);
+            int * size = (int*) malloc(sizeof(int));
+
+            array = @PREFIX@_get_@name@_full(lc, ndim, shape, strides, size);
+
+            lua_config_cache_set(lc, "@name@", array);
+            lua_config_cache_set(lc, "@name@_ndim", ndim);
+            lua_config_cache_set(lc, "@name@_shape", shape);
+            lua_config_cache_set(lc, "@name@_strides", strides);
+            lua_config_cache_set(lc, "@name@_size", size);
         }
         @CTYPE@ * @PREFIX@_get_@name@(LuaConfig * lc)
         {
-            int ndim, shape[32], strides[32], size;
-            return @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
+            if(!lua_config_cache_get(lc, "@name@")) {
+                @PREFIX@_cache_@name@(lc);
+            }
+            return (@CTYPE@* )lua_config_cache_get(lc, "@name@");
         }
+
         int @PREFIX@_get_n_@name@(LuaConfig * lc)
         {
-            int ndim, shape[32], strides[32], size;
-            @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
-            return shape[0];
+            if(!lua_config_cache_get(lc, "@name@")) {
+                @PREFIX@_cache_@name@(lc);
+            }
+            return *(int*)lua_config_cache_get(lc, "@name@_shape");
         }
         int @PREFIX@_get_ndim_@name@(LuaConfig * lc)
         {
-            int ndim, shape[32], strides[32], size;
-            @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
-            return ndim;
+            if(!lua_config_cache_get(lc, "@name@")) {
+                @PREFIX@_cache_@name@(lc);
+            }
+            return *(int*)lua_config_cache_get(lc, "@name@_ndim");
         }
         int * @PREFIX@_get_shape_@name@(LuaConfig * lc)
         {
-            int ndim, strides[32], size;
-            int * shape = malloc(sizeof(int) * 32);
-            @PREFIX@_get_@name@_full(lc, &ndim, shape, strides, &size);
-            shape[ndim] = -1;
-            return (int*) lua_config_ref(lc, "@name@_shape", shape);
+            if(!lua_config_cache_get(lc, "@name@")) {
+                @PREFIX@_cache_@name@(lc);
+            }
+            return (int*)lua_config_cache_get(lc, "@name@_shape");
         }
         ]])
     end
@@ -587,7 +616,7 @@ function config.compile(schema, opt)
         return lc->error;
     }
     static void *
-    lua_config_ref(LuaConfig * lc, const char * name, void * data)
+    lua_config_cache_set(LuaConfig * lc, const char * name, void * data)
     {
         LuaConfigRef * entry = lc->head.next;
         while(entry) {
@@ -609,6 +638,17 @@ function config.compile(schema, opt)
             lc->head.next = entry;
         }
         return data;
+    }
+    static void *
+    lua_config_cache_get(LuaConfig * lc, const char * name) {
+        LuaConfigRef * entry = lc->head.next;
+        while(entry) {
+            if(0 == strcmp(entry->name, name)) {
+                return entry->data;
+            }
+            entry = entry->next;
+        }
+        return NULL;
     }
 
     ]]
