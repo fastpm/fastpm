@@ -354,18 +354,25 @@ induce:
         FastPMConstrainedGaussian cg = {
             .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr, n_constraints) + 1)),
         };
-        double * c = CONF(prr, constraints);
+        fastpm_info("Applying %d constraints.\n", CONF(prr, n_constraints));
         int i;
         for(i = 0; i < CONF(prr, n_constraints); i ++) {
+            double * c = CONF(prr, constraints);
             cg.constraints[i].x[0] = c[4 * i + 0];
             cg.constraints[i].x[1] = c[4 * i + 1];
             cg.constraints[i].x[2] = c[4 * i + 2];
             cg.constraints[i].c = c[4 * i + 3];
+            fastpm_info("Constraint %d : %g %g %g overdensity = %g\n", i, c[4 * i + 0], c[4 * i + 1], c[4 * i + 2], c[4 * i + 3]);
         }
         cg.constraints[i].x[0] = -1;
         cg.constraints[i].x[1] = -1;
         cg.constraints[i].x[2] = -1;
         cg.constraints[i].c = -1;
+
+        fastpm_info("Writing fourier space linear field before constrain to %s\n", "unconstrained");
+        ptrdiff_t mode[4] = { 0, 0, 0, 0, };
+        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
+        write_complex(fastpm->basepm, delta_k, "unconstrained", "LinearDensityK", prr->Nwriters);
 
         fastpm_cg_induce_correlation(&cg, fastpm->basepm, &xi, delta_k);
 

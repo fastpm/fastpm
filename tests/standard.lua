@@ -2,7 +2,7 @@
 ------ Size of the simulation -------- 
 
 -- For Testing
-nc = 32
+nc = 128
 boxsize = 384.0
 if args[1] == 'za' then
     za = true
@@ -166,4 +166,12 @@ write_lineark = prefix .. "/IC"
 if has('lightcone') then
     write_lightcone = prefix .. "/lightcone"
     dh_factor = 0.05
+end
+
+if has('constrain') then
+    constraints = {
+        {boxsize * 0.5, boxsize * 0.5, boxsize * 0.5, 100.},
+        {boxsize * 0.25, boxsize * 0.25, boxsize * 0.5, 100.},
+        {boxsize * 0.75, boxsize * 0.75, boxsize * 0.5, 100.},
+    }
 end
