@@ -138,14 +138,7 @@ fastpm_cg_apply_constraints(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *
     pm_c2r(pm, delta_x);
 
     sigma = _sigma(pm, delta_x);
-    fastpm_info("Sigma = %g\n", sigma);
-    for(i = 0; i < size; i ++) {
-        fastpm_info("x[] = %g %g %g ; c = %g\n",
-                constraints[i].x[0],
-                constraints[i].x[1],
-                constraints[i].x[2],
-                1.0 + constraints[i].c * sigma);
-    }
+    fastpm_info("Measured sigma on the grid = %g\n", sigma);
 
     _readout(constraints, size, pm, delta_x, dfi);
 
@@ -199,7 +192,7 @@ fastpm_cg_apply_constraints(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *
                 constraints[i].x[0],
                 constraints[i].x[1],
                 constraints[i].x[2],
-                dfi[i]);
+                (dfi[i] - 1.0) / sigma);
     }
     pm_r2c(pm, delta_x, delta_k);
     pm_free(pm, delta_x);

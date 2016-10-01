@@ -59,7 +59,7 @@ int main(int argc, char * argv[]) {
             },
     };
 
-    fastpm_cg_induce_correlation(&cg, solver->basepm, &xi, rho_init_ktruth);
+    fastpm_cg_apply_constraints(&cg, solver->basepm, &xi, rho_init_ktruth);
 
     pm_free(solver->basepm, rho_init_ktruth);
     fastpm_solver_destroy(solver);
