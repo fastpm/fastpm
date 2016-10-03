@@ -17,6 +17,7 @@ LIBSOURCES = libfastpm.c \
     utils.c \
     initialcondition.c \
     pngaussian.c \
+    constrainedgaussian.c \
     lightcone.c \
     timemachine.c \
     cosmology.c \

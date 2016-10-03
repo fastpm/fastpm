@@ -15,6 +15,7 @@
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
 #include <fastpm/lightcone.h>
+#include <fastpm/constrainedgaussian.h>
 #include <omp.h>
 
 #include "lua-config.h"
@@ -326,13 +327,13 @@ induce:
         fastpm_ic_induce_correlation(fastpm->basepm, delta_k,
             (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
     } else {
-	double kmax_primordial;
-	kmax_primordial = CONF(prr, nc) / 2.0 * 2.0*M_PI/CONF(prr, boxsize) * CONF(prr, kmax_primordial_over_knyquist);
-	fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
+        double kmax_primordial;
+        kmax_primordial = CONF(prr, nc) / 2.0 * 2.0*M_PI/CONF(prr, boxsize) * CONF(prr, kmax_primordial_over_knyquist);
+        fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
         FastPMPNGaussian png = {
             .fNL = CONF(prr, f_nl),
             .type = CONF(prr, f_nl_type),
-	    .kmax_primordial = kmax_primordial,
+            .kmax_primordial = kmax_primordial,
             .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
             .pkdata = &linear_powerspectrum,
             .h = CONF(prr, h),
@@ -343,6 +344,41 @@ induce:
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
         fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
     }
+    ptrdiff_t mode[4] = { 0, 0, 0, 0, };
+    fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
+
+    if(CONF(prr, constraints)) {
+        FastPM2PCF xi;
+
+        fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, CONF(prr, boxsize), CONF(prr, nc));
+
+        FastPMConstrainedGaussian cg = {
+            .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr, n_constraints) + 1)),
+        };
+        fastpm_info("Applying %d constraints.\n", CONF(prr, n_constraints));
+        int i;
+        for(i = 0; i < CONF(prr, n_constraints); i ++) {
+            double * c = CONF(prr, constraints);
+            cg.constraints[i].x[0] = c[4 * i + 0];
+            cg.constraints[i].x[1] = c[4 * i + 1];
+            cg.constraints[i].x[2] = c[4 * i + 2];
+            cg.constraints[i].c = c[4 * i + 3];
+            fastpm_info("Constraint %d : %g %g %g overdensity = %g\n", i, c[4 * i + 0], c[4 * i + 1], c[4 * i + 2], c[4 * i + 3]);
+        }
+        cg.constraints[i].x[0] = -1;
+        cg.constraints[i].x[1] = -1;
+        cg.constraints[i].x[2] = -1;
+        cg.constraints[i].c = -1;
+
+        if(CONF(prr, write_lineark)) {
+            fastpm_info("Writing fourier space linear field before constraints to %s\n", CONF(prr, write_lineark));
+            write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "UnconstrainedLinearDensityK", prr->Nwriters);
+        }
+        fastpm_cg_apply_constraints(&cg, fastpm->basepm, &xi, delta_k);
+
+        free(cg.constraints);
+    }
+
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 
     /* our write out and clean up stuff.*/
@@ -350,8 +386,6 @@ produce:
 
     if(CONF(prr, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
-        ptrdiff_t mode[4] = { 0, 0, 0, 0, };
-        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
