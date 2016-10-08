@@ -247,6 +247,11 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
      * it is less than the density (a cell is smaller than the mean seperation between particles. 
      * We thus have to boost the density by density_factor.
+     *
+     * This gives us over density + 1
+     *
+     * because rhobar = N_g ^3 / V
+     * we paint rho V / (B N_g^3) * B = rho / rhobar. The last B is the extra density factor.
      * */
     CLOCK(paint);
     fastpm_paint_local(painter, canvas,

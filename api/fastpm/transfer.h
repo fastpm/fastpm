@@ -27,4 +27,7 @@ fastpm_apply_normalize_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void
 fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value);
 
+void
+fastpm_apply_c2r_weight_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
+
 FASTPM_END_DECLS

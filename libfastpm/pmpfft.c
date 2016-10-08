@@ -8,9 +8,9 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/transfer.h>
 
 #include "pmpfft.h"
-
 static MPI_Datatype MPI_PTRDIFF = (MPI_Datatype) 0;
 
 #if FASTPM_FFT_PRECISION == 64
@@ -371,6 +371,14 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     for(i = 0; i < pm->allocsize; i ++) {
         to[i] *= 1 / pm->Norm;
     }
+}
+
+void pm_c2r_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to) {
+    /* contract the sensitivity matrix of c2r to y */
+    pm_r2c(pm, y, to);
+
+    fastpm_apply_multiply_transfer(pm, to, to, pm->Norm);
+    fastpm_apply_c2r_weight_transfer(pm, to, to);
 }
 
 void pm_c2r(PM * pm, FastPMFloat * inplace) {

@@ -86,6 +86,8 @@ void
 pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void 
 pm_c2r(PM * pm, FastPMFloat * inplace);
+void 
+pm_c2r_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to);
 
 
 FASTPM_END_DECLS

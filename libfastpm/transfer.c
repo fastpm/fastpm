@@ -232,6 +232,36 @@ fastpm_apply_normalize_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
     }
     fastpm_apply_multiply_transfer(pm, from, to, 1 / Norm);
 }
+
+void
+fastpm_apply_c2r_weight_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
+{
+    ptrdiff_t * Nmesh = pm_nmesh(pm);
+
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            /* usually each mode in the complex array moves its dual mode too, */
+            double weight = 2.0;
+            /* but if my dual is myself, then I am used once */
+            if(
+                kiter.iabs[0] == (Nmesh[0] - kiter.iabs[0]) % Nmesh[0] &&
+                kiter.iabs[1] == (Nmesh[1] - kiter.iabs[1]) % Nmesh[1] &&
+                kiter.iabs[2] == (Nmesh[2] - kiter.iabs[2]) % Nmesh[2]
+            ) {
+                weight = 1.0;
+/*                fastpm_ilog(0, "weight == 1 mode found at %td %td %td\n", kiter.iabs[0], kiter.iabs[1], kiter.iabs[2]); */
+            }
+            to[kiter.ind + 0] = weight * from[kiter.ind + 0];
+            to[kiter.ind + 1] = weight * from[kiter.ind + 1];
+        }
+    }
+}
+
 void
 fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value)
 {
