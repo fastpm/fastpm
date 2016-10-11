@@ -16,7 +16,7 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
 
 void fastpm_recorder_record(FastPMSolver * solver, FastPMTransition * transition, FastPMStore * p);
 
-FastPMStore * fastpm_recorder_seek(FastPMSolver * solver, FastPMState * state);
+void fastpm_recorder_seek(FastPMSolver * solver, FastPMState * state, FastPMStore * out);
 
 void fastpm_recorder_destroy(FastPMRecorder * recorder);
 
@@ -45,7 +45,10 @@ int main(int argc, char * argv[]) {
     };
 
     FastPMSolver solver[1];
+    FastPMRecorder recorder[1];
+
     fastpm_solver_init(solver, config, comm);
+    fastpm_recorder_init(recorder, solver, 100);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
     FastPMFloat * rho_final_ktruth = pm_alloc(solver->basepm);
@@ -82,3 +85,28 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 
+void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int maxsteps)
+{
+    /* Allocate FastPMRecorder for up to maxsteps states per x, v, q, acc*/
+}
+
+void fastpm_recorder_record(FastPMSolver * solver, FastPMTransition * transition, FastPMStore * p)
+{
+    /* according to the initial and final state of the transition, add / modify records in recorder.
+     * initialize new FastPMStore objects with PACK_X | PACK_V | PACK_Q | PACK_ACC if necessary.
+     *
+     * Important: We want to sort the particle into a particular order before saving them.
+     * */
+}
+
+void fastpm_recorder_seek(FastPMSolver * solver, FastPMState * state, FastPMStore * out)
+{
+    /* modify x, v, p pointers of out */
+
+}
+
+void fastpm_recorder_destroy(FastPMRecorder * recorder)
+{
+
+
+}
