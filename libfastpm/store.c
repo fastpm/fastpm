@@ -253,6 +253,11 @@ fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes)
         p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->aemit = NULL;
+        
+    if(attributes & PACK_POTENTIAL)
+        p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, FASTPM_MEMORY_HEAP);
+    else
+        p->potential = NULL;
 };
 
 size_t 
@@ -276,6 +281,7 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
+    if(p->potential) fastpm_memory_free(p->mem, p->potential);
     if(p->aemit) fastpm_memory_free(p->mem, p->aemit);
     if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
     if(p->dx1) fastpm_memory_free(p->mem, p->dx1);

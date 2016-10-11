@@ -36,7 +36,7 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, 
     }
 
     fastpm_store_init(lc->p);
-    fastpm_store_alloc(lc->p, np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT);
+    fastpm_store_alloc(lc->p, np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | PACK_POTENTIAL);
 }
 
 void
@@ -201,6 +201,7 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         }
         lc->p->id[next] = p->id[i];
         lc->p->aemit[next] = a_emit;
+        lc->p->potential[next] = 0.0;
         lc->p->np ++;
     }
     return 0;

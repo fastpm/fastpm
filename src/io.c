@@ -82,6 +82,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         {"Velocity", p->v, "f4", 3, "f4"},
         {"ID", p->id, "i8", 1, "i8"},
         {"Aemit", p->aemit, "f4", 1, "f4"},
+        {"Potential", p->potential, "f4", 1, "f4"},
         {NULL, },
     };
 
