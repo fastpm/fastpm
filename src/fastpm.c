@@ -145,19 +145,19 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr);
+check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr);
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, FastPMLightCone * lc);
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc);
 
 static int 
-write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr);
+write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
 
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
 static int 
-print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr);
+print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr);
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     FastPMSolver fastpm[1];
@@ -181,19 +181,22 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     LEAVE(init);
 
-    fastpm_solver_add_extension(fastpm,
-        FASTPM_EXT_AFTER_FORCE,
-        write_powerspectrum,
+    fastpm_solver_add_event_handler(fastpm,
+        FASTPM_EVENT_FORCE,
+        FASTPM_EVENT_STAGE_AFTER,
+        (FastPMEventHandlerFunction) write_powerspectrum,
         prr);
 
-    fastpm_solver_add_extension(fastpm,
-        FASTPM_EXT_INTERPOLATE,
-        check_snapshots,
+    fastpm_solver_add_event_handler(fastpm,
+        FASTPM_EVENT_INTERPOLATION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) check_snapshots,
         prr);
 
-    fastpm_solver_add_extension(fastpm,
-        FASTPM_EXT_BEFORE_TRANSITION,
-        print_transition,
+    fastpm_solver_add_event_handler(fastpm,
+        FASTPM_EVENT_TRANSITION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) print_transition,
         prr);
 
     FastPMLightCone lc[1];
@@ -201,9 +204,10 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         double HubbleDistanceFactor = CONF(prr, dh_factor);
         fastpm_lc_init(lc, HubbleDistanceFactor, fastpm, fastpm->p->np_upper);
 
-        fastpm_solver_add_extension(fastpm,
-            FASTPM_EXT_INTERPOLATE,
-            check_lightcone,
+        fastpm_solver_add_event_handler(fastpm,
+            FASTPM_EVENT_INTERPOLATION,
+            FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEventHandlerFunction) check_lightcone,
             lc);
     }
 
@@ -394,11 +398,11 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
-static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, Parameters * prr) {
+static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr) {
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
-        a1, a2,
-        kick->af, kick->ai, kick->ac,
-        drift->af, drift->ai, drift->ac
+        event->a1, event->a2,
+        event->kick->af, event->kick->ai, event->kick->ac,
+        event->drift->af, event->drift->ai, event->drift->ac
     );
 
     /* interpolate and write snapshots, assuming p 
@@ -408,12 +412,12 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, Fas
     double * aout= CONF(prr, aout);
     int iout;
     for(iout = 0; iout < nout; iout ++) {
-        if(a1 == a2) {
+        if(event->a1 == event->a2) {
             /* initial condition */
-            if(a1 != aout[iout]) continue;
+            if(event->a1 != aout[iout]) continue;
         } else {
-            if(a1 >= aout[iout]) continue;
-            if(a2 < aout[iout]) continue;
+            if(event->a1 >= aout[iout]) continue;
+            if(event->a2 < aout[iout]) continue;
         }
 
         FastPMStore * snapshot = alloca(sizeof(FastPMStore));
@@ -423,7 +427,7 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMDriftFactor * drift, Fas
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
 
-        fastpm_set_snapshot(drift, kick, p, snapshot, aout[iout]);
+        fastpm_set_snapshot(event->drift, event->kick, p, snapshot, aout[iout]);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
@@ -499,15 +503,16 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 }
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, FastPMLightCone * lc)
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc)
 {
-    fastpm_lc_intersect(lc, drift, kick, fastpm->p);
+    fastpm_lc_intersect(lc, event->drift, event->kick, fastpm->p);
     return 0;
 }
 
 static int 
-print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * prr)
+print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr)
 {
+    FastPMTransition * trans = event->transition;
     char * action;
     switch (trans->action) {
         case FASTPM_ACTION_FORCE:
@@ -530,7 +535,7 @@ print_transition(FastPMSolver * fastpm, FastPMTransition * trans, Parameters * p
 }
 
 static int
-write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Parameters * prr) 
+write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
 {
     CLOCK(compute);
     CLOCK(io);
@@ -547,16 +552,16 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
+    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, event->delta_k, event->delta_k);
 
     double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->config->K_LINEAR);
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
-    Plin /= pow(fastpm_solver_growth_factor(fastpm, a_x), 2.0);
-    Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, a_x), 2.0);
+    Plin /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
+    Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
 
-    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", a_x, fastpm->config->K_LINEAR * 6.28 / fastpm->config->boxsize, Plin, Sigma8);
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, fastpm->config->K_LINEAR * 6.28 / fastpm->config->boxsize, Plin, Sigma8);
 
     LEAVE(compute);
 
@@ -567,7 +572,7 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMFloat * delta_k, double a_x, Pa
         if(fastpm->ThisTask == 0) {
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
             char buf[1024];
-            sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), a_x);
+            sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), event->a_f);
             fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
         }
     }

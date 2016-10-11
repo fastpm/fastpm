@@ -70,6 +70,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "powerspectrum.h"
 #include "gravity.h"
 #include "solver.h"
+#include "events.h"
 #include "timemachine.h"
 
 /* Following functions are internal API */
