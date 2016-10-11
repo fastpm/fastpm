@@ -42,6 +42,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .OmegaLambda = 1.0 - config->omega_m,
     };
 
+    fastpm->event_handlers = NULL;
+
     PMInit baseinit = {
             .Nmesh = config->nc,
             .BoxSize = config->boxsize,
@@ -64,11 +66,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
-
-    int i = 0;
-    for (i = 0; i < FASTPM_EXT_MAX; i ++) {
-        fastpm->exts[i] = NULL;
-    }
 
     PMInit basepminit = {
             .Nmesh = config->nc,
@@ -151,15 +148,13 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
     for(i = 1; states->table[i].force != -1; i ++) {
         fastpm_tevo_transition_init(transition, states, i - 1, i);
 
+        FastPMTransitionEvent event[1];
+        event->transition = transition;
+
         CLOCK(beforetransit);
         ENTER(beforetransit);
-        FastPMExtension * ext;
-
-        for(ext = fastpm->exts[FASTPM_EXT_BEFORE_TRANSITION];
-                ext; ext = ext->next) {
-            ((fastpm_ext_transition) ext->function)
-                (fastpm, transition, ext->userdata);
-        }
+        fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
+                FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event);
         LEAVE(beforetransit);
 
         switch(transition->action) {
@@ -173,6 +168,12 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
                 fastpm_do_force(fastpm, transition);
             break;
         }
+
+        CLOCK(aftertransit);
+        ENTER(aftertransit);
+        fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
+                FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
+        LEAVE(aftertransit);
     }
     fastpm_tevo_destroy_states(states);
 }
@@ -185,12 +186,13 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
 
     ENTER(interpolation);
 
-    FastPMExtension * ext;
-    for(ext = fastpm->exts[FASTPM_EXT_INTERPOLATE];
-            ext; ext = ext->next) {
-        ((fastpm_ext_interpolate) ext->function)
-            (fastpm, drift, kick, a1, a2, ext->userdata);
-    }
+    FastPMInterpolationEvent event[1];
+    event->drift = drift;
+    event->kick = kick;
+    event->a1 = a1;
+    event->a2 =a2;
+    fastpm_solver_emit_event(fastpm, FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event);
+
     LEAVE(interpolation);
 }
 
@@ -218,8 +220,6 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 {
     FastPMGravity * gravity = fastpm->gravity;
 
-    FastPMExtension * ext;
-
     CLOCK(decompose);
     CLOCK(force);
     CLOCK(afterforce);
@@ -241,11 +241,12 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     LEAVE(force);
 
     ENTER(afterforce);
-    for(ext = fastpm->exts[FASTPM_EXT_AFTER_FORCE];
-            ext; ext = ext->next) {
-        ((fastpm_ext_after_force) ext->function)
-            (fastpm, delta_k, trans->a.f, ext->userdata);
-    }
+
+    FastPMForceEvent event[1];
+    event->delta_k = delta_k;
+    event->a_f = trans->a.f;
+
+    fastpm_solver_emit_event(fastpm, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
     LEAVE(afterforce);
 
     pm_free(pm, delta_k);
@@ -315,13 +316,10 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
     vpm_free(fastpm->vpm_list);
 
     /* FIXME: free VPM and stuff. */
-    FastPMExtension * ext, * e2;
-    int i;
-    for(i = 0; i < FASTPM_EXT_MAX; i++) {
-        for(ext = fastpm->exts[i]; ext; ext = e2) {
-            e2 = ext->next;
-            free(ext);
-        }
+    FastPMEventHandler * h, * h2;
+    for(h = fastpm->event_handlers; h; h = h2) {
+        h2 = h->next;
+        free(h);
     }
 }
 
@@ -357,18 +355,6 @@ fastpm_decompose(FastPMSolver * fastpm) {
 
     fastpm->info.imbalance.min = np_min / np_mean;
     fastpm->info.imbalance.max = np_max / np_mean;
-}
-
-void 
-fastpm_solver_add_extension(FastPMSolver * fastpm,
-    enum FastPMExtensionPoint where,
-    void * function, void * userdata)
-{
-    FastPMExtension * q = malloc(sizeof(FastPMExtension));
-    q->userdata = userdata;
-    q->function = function;
-    q->next = fastpm->exts[where];
-    fastpm->exts[where] = q;
 }
 
 /* Interpolate position and velocity for snapshot at a=aout */

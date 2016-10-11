@@ -11,6 +11,7 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 LIBSOURCES = libfastpm.c \
     solver.c \
     factors.c \
+    events.c \
     gravity.c \
     transfer.c \
     memory.c \

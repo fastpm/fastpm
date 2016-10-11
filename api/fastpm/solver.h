@@ -8,7 +8,7 @@ typedef struct VPMInit {
 
 typedef struct FastPMDriftFactor FastPMDriftFactor;
 typedef struct FastPMKickFactor FastPMKickFactor;
-typedef struct FastPMExtension FastPMExtension;
+typedef struct FastPMEventHandler FastPMEventHandler;
 
 typedef struct {
     size_t nc;
@@ -52,7 +52,7 @@ typedef struct {
     FastPMCosmology cosmology[1];
 
     /* Extensions */
-    FastPMExtension * exts[12];
+    FastPMEventHandler * event_handlers;
 
     struct {
         /* For printing only. Do not use them to derive any physics quantities. */
@@ -70,35 +70,10 @@ typedef struct {
     PM * basepm;
 } FastPMSolver;
 
-enum FastPMExtensionPoint {
-    FASTPM_EXT_AFTER_FORCE,
-    FASTPM_EXT_INTERPOLATE,
-    FASTPM_EXT_BEFORE_TRANSITION,
-    FASTPM_EXT_MAX,
-};
-
 enum FastPMAction {
     FASTPM_ACTION_FORCE,
     FASTPM_ACTION_KICK,
     FASTPM_ACTION_DRIFT,
-};
-
-typedef int 
-    (* fastpm_ext_after_force) 
-    (FastPMSolver * fastpm, FastPMFloat * deltak, double a_x, void * userdata);
-
-typedef int
-    (* fastpm_ext_interpolate) 
-    (FastPMSolver * fastpm, FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, void * userdata);
-
-typedef int
-    (* fastpm_ext_transition) 
-    (FastPMSolver * fastpm, FastPMTransition * transition, void * userdata);
-
-struct FastPMExtension {
-    void * function; /* The function signature must match the types above */
-    void * userdata;
-    struct FastPMExtension * next;
 };
 
 struct FastPMDriftFactor {
@@ -133,11 +108,6 @@ struct FastPMKickFactor {
 
 void
 fastpm_solver_init(FastPMSolver * fastpm, FastPMConfig * config, MPI_Comm comm);
-
-void 
-fastpm_solver_add_extension(FastPMSolver * fastpm, 
-    enum FastPMExtensionPoint where,
-    void * function, void * userdata);
 
 void 
 fastpm_solver_destroy(FastPMSolver * fastpm);
