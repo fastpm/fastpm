@@ -7,6 +7,19 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
+typedef struct {
+    FastPMSolver * solver;
+    FastPMStore * tape;
+} FastPMRecorder;
+
+void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int maxsteps);
+
+void fastpm_recorder_record(FastPMSolver * solver, FastPMTransition * transition, FastPMStore * p);
+
+FastPMStore * fastpm_recorder_seek(FastPMSolver * solver, FastPMState * state);
+
+void fastpm_recorder_destroy(FastPMRecorder * recorder);
+
 int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
