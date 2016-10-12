@@ -324,6 +324,34 @@ static void fastpm_store_permute(FastPMStore * p, int * ind) {
         permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
 }
 
+static int * __sort_by_id_arg;
+static FastPMStore *  __sort_by_id_p;
+int _sort_by_id_cmpfunc(const void * p1, const void * p2)
+{
+    const int * i1 = (const int*) p1;
+    const int * i2 = (const int*) p2;
+    
+    int v1 = (__sort_by_id_p->id[*i1] < __sort_by_id_p->id[*i2]);
+    int v2 = (__sort_by_id_p->id[*i1] > __sort_by_id_p->id[*i2]);
+
+    return v2 - v1;
+}
+
+void fastpm_store_sort_by_id(FastPMStore * p)
+{
+    int * arg = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+    int i;
+    for(i = 0; i < p->np; i ++) {
+        arg[i] = i;
+    }
+    /* FIXME: copy some version of qsort_r */
+    __sort_by_id_arg = arg;
+    __sort_by_id_p = p;
+    qsort(arg, p->np, sizeof(arg[0]), _sort_by_id_cmpfunc);
+    fastpm_store_permute(p, arg);
+    fastpm_memory_free(p->mem, arg);
+}
+
 void 
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
 {

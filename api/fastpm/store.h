@@ -80,6 +80,8 @@ typedef int (fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * dat
 void
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
 
+void fastpm_store_sort_by_id(FastPMStore * p);
+
 size_t
 fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm);
 

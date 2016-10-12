@@ -124,7 +124,8 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
     fastpm_store_alloc(recorder->bare, solver->p->np_upper, PACK_Q | PACK_ID);
     fastpm_store_copy(solver->p, recorder->bare);
     fastpm_store_decompose(recorder->bare, target_func, solver->basepm, solver->comm);
-    /* FIXME : sort bare locally by ID */
+
+    fastpm_store_sort_by_id(recorder->bare);
 
     size_t np_total = fastpm_store_get_np_total(solver->p, solver->comm);
     int step;
@@ -167,7 +168,9 @@ void fastpm_recorder_record(FastPMRecorder * recorder, FastPMTransition * transi
     /* move particles by their initial position */
     fastpm_store_decompose(tmp, target_func, recorder->solver->basepm, recorder->solver->comm);
 
-    /* FIXME : sort p locally by ID to ensure consistency in position */
+    /* sort p locally by ID to ensure consistency in position */
+    fastpm_store_sort_by_id(tmp);
+
     FastPMStore * dst = &recorder->tape[transition->i.f];
 
     /* fastpm_store_local_sort(p, key_by_id) */
