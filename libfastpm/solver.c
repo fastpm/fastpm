@@ -175,6 +175,19 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
                 FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
         LEAVE(aftertransit);
+
+        if(i == 1) {
+            /* Special treatment on the initial state because the
+             * interpolation ranges are semi closed -- (, ] . we miss the initial step otherwise.
+             * this needs to be after force calculation for potential to be valid. */
+            double a0 = time_step[0];
+            FastPMKickFactor kick;
+            FastPMDriftFactor drift;
+            fastpm_kick_init(&kick, fastpm, a0, a0, a0);
+            fastpm_drift_init(&drift, fastpm, a0, a0, a0);
+            fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
+
+        }
     }
     fastpm_tevo_destroy_states(states);
 }
@@ -207,12 +220,6 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
     pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
 
     LEAVE(warmup);
-
-    FastPMKickFactor kick;
-    FastPMDriftFactor drift;
-    fastpm_kick_init(&kick, fastpm, a0, a0, a0);
-    fastpm_drift_init(&drift, fastpm, a0, a0, a0);
-    fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
 }
 
 
