@@ -23,6 +23,8 @@ void fastpm_recorder_seek(FastPMRecorder * recorder, FastPMState * state, FastPM
 
 void fastpm_recorder_destroy(FastPMRecorder * recorder);
 
+void fastpm_recorder_gradient_dot(FastPMRecorder * recorder, FastPMStore * vector, FastPMStore * gradient);
+
 static void
 record_transition(FastPMSolver * solver, FastPMTransitionEvent * event, FastPMRecorder * recorder)
 {
@@ -214,4 +216,13 @@ void fastpm_recorder_destroy(FastPMRecorder * recorder)
     }
     fastpm_store_destroy(recorder->bare);
     free(recorder->tape);
+}
+
+void fastpm_recorder_gradient(FastPMRecorder * recorder, FastPMStore * vector, FastPMStore * gradient)
+{
+    /* backward differentiation;
+     * vector: the gradient from xi^2 to final particle position.
+     * gradient : the gradieint from xi^2 to initial position.
+     */
+
 }
