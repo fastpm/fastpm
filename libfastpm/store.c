@@ -111,7 +111,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %d\n", flags);
     }
 }
 static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
@@ -126,6 +126,15 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
             flags &= ~f; \
         } \
     }
+    #define DISPATCH(f, field) \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
+            p->field[index] += * ((__typeof__(p->field[index])*) &ptr[s]); \
+            s += sizeof(p->field[index]); \
+            flags &= ~f; \
+        } \
+    }
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
     DISPATCHC(PACK_ACC_Z, acc, 2);
@@ -136,8 +145,9 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
     #undef DISPATCHC
+    #undef DISPATCH
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
     }
 }
 static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
@@ -150,6 +160,15 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
             goto byebye; \
         } \
     }
+    #define DISPATCH(f, field) \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
+            rt = p->field[index]; \
+            flags &= ~f; \
+            goto byebye; \
+        } \
+    }
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
     DISPATCHC(PACK_ACC_Z, acc, 2);
@@ -159,10 +178,11 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    #undef DISPATCH
     #undef DISPATCHC
 byebye:
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
         return 0;
     } else {
         return rt;
@@ -177,6 +197,15 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
             goto byebye; \
         } \
     }
+    #define DISPATCH(f, field) \
+    if(HAS(flags, f)) { \
+        if(p->field) { \
+            p->field[index] = value; \
+            flags &= ~f; \
+            goto byebye; \
+        } \
+    }
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
     DISPATCHC(PACK_ACC_Z, acc, 2);
@@ -186,10 +215,11 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    #undef DISPATCH
     #undef DISPATCHC
 byebye:
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
     }
 }
 
@@ -255,7 +285,7 @@ fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes)
         p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->aemit = NULL;
-        
+
     if(attributes & PACK_POTENTIAL)
         p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
