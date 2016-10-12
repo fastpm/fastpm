@@ -308,9 +308,12 @@ static void permute(void * data, int np, size_t elsize, int * ind) {
 }
 
 static void fastpm_store_permute(FastPMStore * p, int * ind) {
-    permute(p->x, p->np, sizeof(p->x[0]), ind);
-    permute(p->v, p->np, sizeof(p->v[0]), ind);
-    permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->x)
+        permute(p->x, p->np, sizeof(p->x[0]), ind);
+    if(p->v)
+        permute(p->v, p->np, sizeof(p->v[0]), ind);
+    if(p->id)
+        permute(p->id, p->np, sizeof(p->id[0]), ind);
     if(p->q)
         permute(p->q, p->np, sizeof(p->q[0]), ind);
     if(p->acc)

@@ -23,6 +23,9 @@ struct FastPMTransition {
     struct {
         double i, f, r;
     } a;
+    struct {
+        int i, f, r;
+    } i;
 };
 
 // Protos
