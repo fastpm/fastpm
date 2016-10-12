@@ -33,6 +33,7 @@ int main(int argc, char * argv[]) {
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
+        .COMPUTE_POTENTIAL = 1,
     };
     FastPMSolver solver[1];
     FastPMDriftFactor drift;
@@ -64,7 +65,7 @@ int main(int argc, char * argv[]) {
     double time_step[] = {0.1};
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
-    fastpm_lc_init(lc, 0.02, solver, solver->p->np_upper);
+    fastpm_lc_init(lc, 0.02, solver->cosmology, solver->p);
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {

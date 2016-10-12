@@ -20,7 +20,7 @@ typedef struct {
     int USE_DX1_ONLY;
     int USE_SHIFT;
     int SAVE_Q;
-    int SAVE_POT;
+    int COMPUTE_POTENTIAL;
 
     double nLPT;
     FastPMPainterType PAINTER_TYPE;

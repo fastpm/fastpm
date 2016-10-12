@@ -13,6 +13,7 @@ boxsize = 384.0
 time_step = linspace(0.1, 1, 10)
 
 output_redshifts= {9.0, 0.0}  -- redshifts of output
+compute_potential = true
 
 -- Cosmology --
 omega_m = 0.307494

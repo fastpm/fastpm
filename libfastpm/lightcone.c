@@ -10,16 +10,14 @@
 #include <fastpm/logging.h>
 
 void
-fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, size_t np_upper)
+fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMCosmology * c, FastPMStore * p)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
-    lc->fastpm = fastpm;
     lc->p = malloc(sizeof(FastPMStore));
     /* Allocation */
 
     int size = 8192;
-    FastPMCosmology * c = fastpm->cosmology;
 
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
@@ -36,7 +34,7 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMSolver * fastpm, 
     }
 
     fastpm_store_init(lc->p);
-    fastpm_store_alloc(lc->p, np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | PACK_POTENTIAL);
+    fastpm_store_alloc(lc->p, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | (p->potential?PACK_POTENTIAL:0));
 }
 
 void
@@ -201,7 +199,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         }
         lc->p->id[next] = p->id[i];
         lc->p->aemit[next] = a_emit;
-        lc->p->potential[next] = p->potential[i];
+        if(lc->p->potential)
+            lc->p->potential[next] = p->potential[i];
         lc->p->np ++;
     }
     return 0;

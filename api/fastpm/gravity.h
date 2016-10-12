@@ -4,6 +4,7 @@ typedef struct {
     FastPMDealiasingType DealiasingType;
     FastPMPainterType PainterType;
     int PainterSupport;
+    int ComputePotential;
 } FastPMGravity;
 
 void

@@ -198,7 +198,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     int d;
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z, PACK_POTENTIAL};
-    for(d = 0; d < 4; d ++) {
+    for(d = 0; d < (gravity->ComputePotential?4:3); d ++) {
         CLOCK(transfer);
         switch(gravity->KernelType) {
             case FASTPM_KERNEL_EASTWOOD:
