@@ -290,7 +290,6 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
             fastpm_raise(-1, "wrong dealiasing kernel type");
     }
 
-
     int d;
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
     for(d = 0; d < 3; d ++) {
@@ -331,6 +330,12 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         CLOCK(reduce);
         pm_ghosts_reduce(pgd, ACC[d]);
         LEAVE(reduce);
+    }
+    
+    int i;
+    
+    for(i = 0; i < np; i++) {
+        p->potential[i] = 0.0;
     }
 
     pm_free(pm, canvas);

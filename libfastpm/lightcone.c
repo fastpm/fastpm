@@ -201,7 +201,7 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         }
         lc->p->id[next] = p->id[i];
         lc->p->aemit[next] = a_emit;
-        lc->p->potential[next] = 0.0;
+        lc->p->potential[next] = p->potential[i];
         lc->p->np ++;
     }
     return 0;

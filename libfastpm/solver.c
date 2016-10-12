@@ -61,7 +61,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm_store_init(fastpm->p);
 
     fastpm_store_alloc_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
+        PACK_POS | PACK_VEL | PACK_ID | PACK_POTENTIAL | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
         config->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(config->vpminit,
@@ -382,6 +382,7 @@ fastpm_set_snapshot(
             po->v[i][d] *= H0 / aout;
         }
         po->id[i] = p->id[i];
+        po->potential[i] = p->potential[i];
     }
 
     po->np = np;

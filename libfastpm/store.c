@@ -47,6 +47,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
@@ -93,6 +94,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
@@ -314,9 +316,16 @@ static void permute(void * data, int np, size_t elsize, int * ind) {
 }
 
 static void fastpm_store_permute(FastPMStore * p, int * ind) {
-    permute(p->x, p->np, sizeof(p->x[0]), ind);
-    permute(p->v, p->np, sizeof(p->v[0]), ind);
-    permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->x)
+        permute(p->x, p->np, sizeof(p->x[0]), ind);
+    if(p->v)
+        permute(p->v, p->np, sizeof(p->v[0]), ind);
+    if(p->id)
+        permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->potential)
+        permute(p->potential, p->np, sizeof(p->potential[0]), ind);
+    if(p->aemit)
+        permute(p->aemit, p->np, sizeof(p->aemit[0]), ind);
     if(p->q)
         permute(p->q, p->np, sizeof(p->q[0]), ind);
     if(p->acc)
@@ -529,6 +538,8 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
     if(po->dx1) memcpy(po->dx1, p->dx1, sizeof(p->dx1[0][0]) * 3 * p->np);
     if(po->dx2) memcpy(po->dx2, p->dx2, sizeof(p->dx2[0][0]) * 3 * p->np);
     if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
+    if(po->aemit) memcpy(po->aemit, p->aemit, sizeof(p->aemit[0]) * p->np);
+    if(po->potential) memcpy(po->potential, p->potential, sizeof(p->potential[0]) * p->np);
 
     po->np = p->np;
     po->a_x = p->a_x;
@@ -561,6 +572,8 @@ fastpm_store_create_subsample(FastPMStore * po, FastPMStore * p, int mod, int nc
         if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0][0]) * 3);
         if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0][0]) * 3);
         if(po->id) po->id[j] = p->id[i];
+        if(po->aemit) po->aemit[j] = p->aemit[i];
+        if(po->potential) po->potential[j] = p->potential[i];
         j ++;
     }
     po->np = j; 
