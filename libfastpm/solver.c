@@ -370,28 +370,30 @@ void
 fastpm_set_snapshot(
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
+                FastPMCosmology * c,
                 FastPMStore * p, FastPMStore * po,
                 double aout)
 {
     int np= p->np;
-
-    double H0 = 100.0f; // H0= 100 km/s/(h^-1 Mpc)
 
     fastpm_kick_store(kick, p, po, aout);
 
     fastpm_drift_store(drift, p, po, aout);
 
     int i;
+    /* potfactor converts fastpm Phi to dimensionless */
+    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
             /* convert the unit from a**2 H_0 dx/dt in Mpc/h to a dx/dt km/s */
-            po->v[i][d] *= H0 / aout;
+            po->v[i][d] *= HubbleConstant / aout;
         }
         po->id[i] = p->id[i];
+        /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
         if(po->potential)
-            po->potential[i] = p->potential[i];
+            po->potential[i] = p->potential[i] / aout * potfactor;
     }
 
     po->np = np;

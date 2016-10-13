@@ -21,6 +21,7 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMCosmology * c, Fa
 
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
+    lc->cosmology = c;
 
     /* GSL init solver */
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
@@ -176,8 +177,6 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
     };
     ptrdiff_t i;
 
-    const double H0 = 100.f;
-
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
         if(0 == _fastpm_lc_intersect_one(lc, &params, i, &a_emit)) continue;
@@ -195,12 +194,14 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         for(d = 0; d < 3; d ++) {
             lc->p->x[next][d] = xo[d];
             /* convert to peculiar velocity a dx / dt in kms */
-            lc->p->v[next][d] = vo[d] * H0 / a_emit;
+            lc->p->v[next][d] = vo[d] * HubbleConstant / a_emit;
         }
         lc->p->id[next] = p->id[i];
         lc->p->aemit[next] = a_emit;
+        double potfactor = 1.5 * lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
+        /* convert to dimensionless potential */
         if(lc->p->potential)
-            lc->p->potential[next] = p->potential[i];
+            lc->p->potential[next] = p->potential[i] / a_emit * potfactor;
         lc->p->np ++;
     }
     return 0;

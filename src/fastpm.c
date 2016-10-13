@@ -428,7 +428,7 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
 
-        fastpm_set_snapshot(event->drift, event->kick, p, snapshot, aout[iout]);
+        fastpm_set_snapshot(event->drift, event->kick, fastpm->cosmology, p, snapshot, aout[iout]);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 

@@ -12,6 +12,8 @@ typedef struct {
         size_t size;
     } EventHorizonTable;
 
+    FastPMCosmology * cosmology;
+
 } FastPMLightCone;
 
 double
