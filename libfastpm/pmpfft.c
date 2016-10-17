@@ -390,6 +390,12 @@ void pm_c2r(PM * pm, FastPMFloat * inplace) {
     }
 }
 
+void pm_r2c_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to) {
+    /* contract the sensitivity matrix of r2c to y */
+    pm_assign(pm, y, to);
+    pm_c2r(pm, to);
+}
+
 #define unravel(ind, i, d0, d1, d2, strides) \
 i[d0] = ind / strides[d0]; ind %= strides[d0]; \
 i[d1] = ind / strides[d1]; ind %= strides[d1]; \
