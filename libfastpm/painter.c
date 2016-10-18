@@ -303,37 +303,6 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
 }
 
 void
-fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
-    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * out)
-{
-    if(get_position != NULL) {
-        /* This is not supported. We shall audit all uses of paint where get_position is not NULL. */
-        abort();
-    }
-    /* backpropagate the gradient to out.[POS], and out.[attribute]. */
-    FastPMPainter diffpainter[1];
-
-    fastpm_store_copy(p, out);
-    /* gradient over the attribute */
-    fastpm_readout(painter, y, out, get_position, attribute);
-
-    /* gradient over the particle position. */
-    int ACC[3] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
-    int d;
-    for(d = 0; d < 3; d++) {
-        fastpm_painter_init_diff(diffpainter, painter, d);
-        fastpm_readout(diffpainter, y, out, get_position, ACC[d]);
-    }
-    int i;
-    for(i = 0; i < p->np; i ++) {
-        double A = p->to_double(p, i, attribute);
-        for(d = 0; d < 3; d++) {
-            out->x[i][d] = p->acc[i][d] * A;
-        }
-    }
-}
-
-void
 fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
     fastpm_posfunc get_position, int attribute)
@@ -367,37 +336,121 @@ fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);
 }
+typedef struct {
+    /* get_position is from base */
+    /* from_double and to_double uses the pointers */
+    FastPMStore base;
+    FastPMStore * write_to;
+    FastPMStore * read_from;
+} DualStore;
+
+static double
+dual_store_to_double(FastPMStore * store, ptrdiff_t i, int attribute)
+{
+    DualStore * self = (DualStore*) store;
+
+    return self->write_to->to_double(self->write_to, i, attribute);
+}
+
+static void
+dual_store_from_double(FastPMStore * store, ptrdiff_t i, int attribute, double value)
+{
+    DualStore * self = (DualStore*) store;
+
+    self->read_from->from_double(self->read_from, i, attribute, value);
+}
+
+static void
+dual_store_init(DualStore * ds, FastPMStore * base)
+{
+    ds->base = * base;
+    ds->base.to_double = dual_store_to_double;
+    ds->base.from_double = dual_store_from_double;
+}
+
+static void
+dual_store_set_write_to(DualStore * ds, FastPMStore * p)
+{
+    ds->write_to = p;
+}
+
+static void
+dual_store_set_read_from(DualStore * ds, FastPMStore * p)
+{
+    ds->read_from = p;
+}
 
 void
-fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
-    FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
-    FastPMStore * out, FastPMFloat * out1)
+fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
+    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * out)
 {
-    /* gradient over canvas is stored in out1, gradient over position is stored in out.*/
+    DualStore dualstore[1];
 
-    if(get_position != NULL) {
-        /* This is not supported. We shall audit all uses of paint where get_position is not NULL. */
-        abort();
-    }
-    /* backpropagate the gradient to out.[POS], and out1 */
+    dual_store_init(dualstore, p);
+
+    /* backpropagate the gradient to out.[POS], and out.[attribute]. */
     FastPMPainter diffpainter[1];
 
-    fastpm_store_copy(p, out);
+    /* write the readout result to out*/
+    dual_store_set_write_to(dualstore, out);
+    dual_store_set_read_from(dualstore, p);
+
     /* gradient over the attribute */
-    fastpm_readout(painter, y, out, get_position, attribute);
+
+    fastpm_readout(painter, y, (FastPMStore*) dualstore, get_position, attribute);
 
     /* gradient over the particle position. */
-    int ACC[3] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+    int POS[3] = {PACK_POS_X, PACK_POS_Y, PACK_POS_Z};
     int d;
     for(d = 0; d < 3; d++) {
         fastpm_painter_init_diff(diffpainter, painter, d);
-        fastpm_readout(diffpainter, canvas, out, get_position, ACC[d]);
+        fastpm_readout(diffpainter, y, (FastPMStore*) dualstore, get_position, POS[d]);
     }
     int i;
     for(i = 0; i < p->np; i ++) {
         double A = p->to_double(p, i, attribute);
         for(d = 0; d < 3; d++) {
-            out->x[i][d] = p->acc[i][d] * A;
+            out->x[i][d] *= A;
+        }
+    }
+}
+
+void
+fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
+    FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
+    FastPMStore * out, FastPMFloat * out_canvas)
+{
+    /* gradient over canvas is stored in out1, gradient over position is stored in out.*/
+    DualStore dualstore[1];
+
+    dual_store_init(dualstore, p);
+
+    /* write the readout result to out*/
+    /* chain the attribute gradient from y */
+    dual_store_set_read_from(dualstore, y);
+    dual_store_set_write_to(dualstore, out);
+
+    /* backpropagate the gradient to out.[POS], and out_canvas */
+    FastPMPainter diffpainter[1];
+
+    fastpm_store_copy(p, out);
+
+    /* gradient over the canvas */
+    fastpm_paint(painter, out_canvas, (FastPMStore*) dualstore, get_position, attribute);
+
+    /* gradient over the particle position. */
+    int POS[3] = {PACK_POS_X, PACK_POS_Y, PACK_POS_Z};
+
+    int d;
+    for(d = 0; d < 3; d++) {
+        fastpm_painter_init_diff(diffpainter, painter, d);
+        fastpm_readout(diffpainter, canvas, (FastPMStore*) dualstore, get_position, POS[d]);
+    }
+    int i;
+    for(i = 0; i < p->np; i ++) {
+        double v = y->to_double(y, i, attribute);
+        for(d = 0; d < 3; d++) {
+            out->x[i][d] *= v;
         }
     }
 

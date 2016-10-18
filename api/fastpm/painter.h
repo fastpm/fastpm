@@ -41,4 +41,13 @@ void
 fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, fastpm_posfunc get_position, int attribute);
 
+void
+fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
+    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * out);
+
+void
+fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
+    FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
+    FastPMStore * out, FastPMFloat * out_canvas);
+
 FASTPM_END_DECLS
