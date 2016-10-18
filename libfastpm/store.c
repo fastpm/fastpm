@@ -62,6 +62,9 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
 
     #undef DISPATCH
     #undef DISPATCHC
@@ -106,6 +109,9 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
@@ -133,6 +139,9 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCHC
     if(flags != 0) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field.\n");
@@ -157,6 +166,9 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCHC
 byebye:
     if(flags != 0) {
@@ -184,6 +196,9 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCHC
 byebye:
     if(flags != 0) {

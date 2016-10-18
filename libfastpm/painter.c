@@ -302,6 +302,36 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
     pm_ghosts_free(pgd);
 }
 
+void
+fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
+    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * out)
+{
+    if(get_position != NULL) {
+        /* This is not supported. We shall audit all uses of paint where get_position is not NULL. */
+        abort();
+    }
+    /* backpropagate the gradient to out.[POS], and out.[attribute]. */
+    FastPMPainter diffpainter[1];
+
+    fastpm_store_copy(p, out);
+    /* gradient over the attribute */
+    fastpm_readout(painter, y, out, get_position, attribute);
+
+    /* gradient over the particle position. */
+    int ACC[3] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+    int d;
+    for(d = 0; d < 3; d++) {
+        fastpm_painter_init_diff(diffpainter, painter, d);
+        fastpm_readout(diffpainter, y, out, get_position, ACC[d]);
+    }
+    int i;
+    for(i = 0; i < p->np; i ++) {
+        double A = p->to_double(p, i, attribute);
+        for(d = 0; d < 3; d++) {
+            out->x[i][d] = p->acc[i][d] * A;
+        }
+    }
+}
 
 void
 fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
@@ -336,4 +366,39 @@ fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
 
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);
+}
+
+void
+fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
+    FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
+    FastPMStore * out, FastPMFloat * out1)
+{
+    /* gradient over canvas is stored in out1, gradient over position is stored in out.*/
+
+    if(get_position != NULL) {
+        /* This is not supported. We shall audit all uses of paint where get_position is not NULL. */
+        abort();
+    }
+    /* backpropagate the gradient to out.[POS], and out1 */
+    FastPMPainter diffpainter[1];
+
+    fastpm_store_copy(p, out);
+    /* gradient over the attribute */
+    fastpm_readout(painter, y, out, get_position, attribute);
+
+    /* gradient over the particle position. */
+    int ACC[3] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+    int d;
+    for(d = 0; d < 3; d++) {
+        fastpm_painter_init_diff(diffpainter, painter, d);
+        fastpm_readout(diffpainter, canvas, out, get_position, ACC[d]);
+    }
+    int i;
+    for(i = 0; i < p->np; i ++) {
+        double A = p->to_double(p, i, attribute);
+        for(d = 0; d < 3; d++) {
+            out->x[i][d] = p->acc[i][d] * A;
+        }
+    }
+
 }

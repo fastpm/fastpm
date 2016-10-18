@@ -25,6 +25,9 @@ FASTPM_BEGIN_DECLS
 #define PACK_DX2_X   (1 << 16)
 #define PACK_DX2_Y   (1 << 17)
 #define PACK_DX2_Z   (1 << 18)
+#define PACK_POS_X (1 << 19)
+#define PACK_POS_Y (1 << 20)
+#define PACK_POS_Z (1 << 21)
 
 struct FastPMStore {
     fastpm_posfunc get_position;
