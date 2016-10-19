@@ -30,4 +30,7 @@ fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to,
 void
 fastpm_apply_c2r_weight_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 
+double
+fastpm_apply_get_mode_transfer(PM * pm, FastPMFloat * from, ptrdiff_t * mode);
+
 FASTPM_END_DECLS

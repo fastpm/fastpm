@@ -296,3 +296,29 @@ fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to,
         }
     }
 }
+
+double
+fastpm_apply_get_mode_transfer(PM * pm, FastPMFloat * from, ptrdiff_t * mode)
+{
+    double result = 0.0;
+
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        for(;
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+
+            if((
+                kiter.iabs[0] == mode[0] &&
+                kiter.iabs[1] == mode[1] &&
+                kiter.iabs[2] == mode[2]
+            )) {
+                result = from[kiter.ind + mode[3]];
+            }
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &result, 1, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+    return result;
+}
