@@ -91,6 +91,8 @@ int main(int argc, char ** argv) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
+    fastpm_info("This is FastPM, with libfastpm version %s.\n", LIBFASTPM_VERSION);
+
     libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024, 0);
     read_parameters(ParamFileName, prr, argc, argv, comm);
 
