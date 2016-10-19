@@ -50,6 +50,8 @@ void libfastpm_init();
 void libfastpm_cleanup();
 void libfastpm_set_memory_bound(size_t size, int allow_unordered);
 
+extern const char * LIBFASTPM_VERSION;
+
 FASTPM_END_DECLS
 
 typedef double (*fastpm_fkfunc)(double k, void * data);

@@ -8,6 +8,9 @@ DIR_PATH = $(GSL_DIR) ../depends/install
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
+FILES = $(shell git ls-files)
+FILES += $(shell git ls-files ../api)
+
 LIBSOURCES = libfastpm.c \
     solver.c \
     factors.c \
@@ -33,7 +36,8 @@ LIBSOURCES = libfastpm.c \
     store.c \
     pm2lpt.c \
     pmapi.c \
-    string.c
+    string.c \
+    version.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
 PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a
@@ -48,6 +52,10 @@ all: libfastpm.a
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rc $@ $^
 	../ar-join $@ $(PFFTLIBS) $(MPSORTLIBS)
+
+version.c : $(FILES)
+	GIT=`git describe --always --dirty --abbrev=10`; \
+	echo 'const char * LIBFASTPM_VERSION = "1.0.'$${GIT}'";' > $@
 
 #libfastpm.so : libfastpm.a $(PFFTLIBS)
 #	$(CC) -shared -fvisibility=hidden -o $@ $^ 
