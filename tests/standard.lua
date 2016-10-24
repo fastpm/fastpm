@@ -67,9 +67,10 @@ else
 end
 
 if has('fixed_mode') then
+    set_mode_method = "add"
     set_mode = {
-            {0, 1, 0, 0, 1},
-            {0, 1, 0, 1, -1},
+            {0, 1, 0, 0, 0.1},
+            {0, 1, 0, 1, 0.0},
             }
 end
 

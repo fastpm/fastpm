@@ -152,6 +152,7 @@ function schema.constraints.action (constraints)
         end
     end
 end
+schema.declare{name='set_mode_method',  type='string', default="override", help="override or relative"}
 schema.declare{name='set_mode',         type='array:number', help="A list of {kix, kiy, kiz, ri, value}, set the IC mode at integer k (ri for real and imag) to value"}
 
 function schema.set_mode.action (set_mode)

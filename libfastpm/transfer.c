@@ -265,6 +265,13 @@ fastpm_apply_c2r_weight_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
 void
 fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value)
 {
+    fastpm_apply_set_mode_transfer(pm, from, to, mode, value, 0);
+}
+
+/* method == 0 for override, method == 1 for add */
+void
+fastpm_apply_set_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value, int method)
+{
     ptrdiff_t * Nmesh = pm_nmesh(pm);
 
 #pragma omp parallel
@@ -282,7 +289,10 @@ fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to,
                 kiter.iabs[1] == mode[1] &&
                 kiter.iabs[2] == mode[2]
             )) {
-                to[kiter.ind + mode[3]] = value;
+                if(method == 0)
+                    to[kiter.ind + mode[3]] = value;
+                else
+                    to[kiter.ind + mode[3]] += value;
             }
             if((
                 kiter.iabs[0] == (Nmesh[0] - mode[0]) % Nmesh[0] &&
@@ -290,8 +300,10 @@ fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to,
                 kiter.iabs[2] == (Nmesh[2] - mode[2]) % Nmesh[2]
             )) {
                 /* conjugate plane */
-                to[kiter.ind + mode[3]] = value;
-                to[kiter.ind + mode[3]] *= ((mode[3] == 0)?1:-1);
+                if(method == 0)
+                    to[kiter.ind + mode[3]] = value * ((mode[3] == 0)?1:-1);
+                else
+                    to[kiter.ind + mode[3]] += value * ((mode[3] == 0)?1:-1);
             }
         }
     }
