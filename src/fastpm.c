@@ -311,11 +311,11 @@ induce:
     if(CONF(prr, set_mode)) {
         int method = 0;
         /* FIXME: use enums */
-        if(strcmp(CONF(prr, set_mode_method), "add")) {
+        if(0 == strcmp(CONF(prr, set_mode_method), "add")) {
             method = 1;
-            fastpm_info("SetMode is relative\n");
+            fastpm_info("SetMode is add\n");
         } else {
-            fastpm_info("SetMode is absolute\n");
+            fastpm_info("SetMode is override\n");
         }
         int i;
         double * c = CONF(prr, set_mode);
@@ -328,7 +328,8 @@ induce:
             };
             double value = c[i * 5 + 4];
             fastpm_apply_set_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, value, method);
-            fastpm_info("SetMode %d : %td %td %td %td value = %g\n", i, mode[0], mode[1], mode[2], mode[3], value);
+            double result = fastpm_apply_get_mode_transfer(fastpm->basepm, delta_k, mode);
+            fastpm_info("SetMode %d : %td %td %td %td value = %g, to = %g\n", i, mode[0], mode[1], mode[2], mode[3], value, result);
         }
     }
 
