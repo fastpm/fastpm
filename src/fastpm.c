@@ -308,14 +308,29 @@ induce:
         fastpm_ic_remove_variance(fastpm->basepm, delta_k);
     }
 
-    if(CONF(prr, fix_ic_mode)) {
-        ptrdiff_t mode[4] = {
-            CONF(prr, fix_ic_mode)[0],
-            CONF(prr, fix_ic_mode)[1],
-            CONF(prr, fix_ic_mode)[2],
-            CONF(prr, fix_ic_mode)[3],
-        };
-        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, CONF(prr, fix_ic_value));
+    if(CONF(prr, set_mode)) {
+        int method = 0;
+        /* FIXME: use enums */
+        if(0 == strcmp(CONF(prr, set_mode_method), "add")) {
+            method = 1;
+            fastpm_info("SetMode is add\n");
+        } else {
+            fastpm_info("SetMode is override\n");
+        }
+        int i;
+        double * c = CONF(prr, set_mode);
+        for(i = 0; i < CONF(prr, n_set_mode); i ++) {
+            ptrdiff_t mode[4] = {
+                c[i * 5 + 0],
+                c[i * 5 + 1],
+                c[i * 5 + 2],
+                c[i * 5 + 3],
+            };
+            double value = c[i * 5 + 4];
+            fastpm_apply_set_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, value, method);
+            double result = fastpm_apply_get_mode_transfer(fastpm->basepm, delta_k, mode);
+            fastpm_info("SetMode %d : %td %td %td %td value = %g, to = %g\n", i, mode[0], mode[1], mode[2], mode[3], value, result);
+        }
     }
 
     if(CONF(prr, inverted_ic)) {
