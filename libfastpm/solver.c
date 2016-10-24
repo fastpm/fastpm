@@ -35,6 +35,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .PainterSupport = config->painter_support,
         .KernelType = config->KERNEL_TYPE,
         .DealiasingType = config->DEALIASING_TYPE,
+        .ComputePotential = config->COMPUTE_POTENTIAL,
     };
 
     fastpm->cosmology[0] = (FastPMCosmology) {
@@ -61,7 +62,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm_store_init(fastpm->p);
 
     fastpm_store_alloc_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-        PACK_POS | PACK_VEL | PACK_ID | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
+        PACK_POS | PACK_VEL | PACK_ID | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0) | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
         config->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(config->vpminit,
@@ -174,6 +175,19 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
                 FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
         LEAVE(aftertransit);
+
+        if(i == 1) {
+            /* Special treatment on the initial state because the
+             * interpolation ranges are semi closed -- (, ] . we miss the initial step otherwise.
+             * this needs to be after force calculation for potential to be valid. */
+            double a0 = time_step[0];
+            FastPMKickFactor kick;
+            FastPMDriftFactor drift;
+            fastpm_kick_init(&kick, fastpm, a0, a0, a0);
+            fastpm_drift_init(&drift, fastpm, a0, a0, a0);
+            fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
+
+        }
     }
     fastpm_tevo_destroy_states(states);
 }
@@ -206,12 +220,6 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
     pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
 
     LEAVE(warmup);
-
-    FastPMKickFactor kick;
-    FastPMDriftFactor drift;
-    fastpm_kick_init(&kick, fastpm, a0, a0, a0);
-    fastpm_drift_init(&drift, fastpm, a0, a0, a0);
-    fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
 }
 
 
@@ -362,26 +370,30 @@ void
 fastpm_set_snapshot(
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
+                FastPMCosmology * c,
                 FastPMStore * p, FastPMStore * po,
                 double aout)
 {
     int np= p->np;
-
-    double H0 = 100.0f; // H0= 100 km/s/(h^-1 Mpc)
 
     fastpm_kick_store(kick, p, po, aout);
 
     fastpm_drift_store(drift, p, po, aout);
 
     int i;
+    /* potfactor converts fastpm Phi to dimensionless */
+    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
             /* convert the unit from a**2 H_0 dx/dt in Mpc/h to a dx/dt km/s */
-            po->v[i][d] *= H0 / aout;
+            po->v[i][d] *= HubbleConstant / aout;
         }
         po->id[i] = p->id[i];
+        /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
+        if(po->potential)
+            po->potential[i] = p->potential[i] / aout * potfactor;
     }
 
     po->np = np;

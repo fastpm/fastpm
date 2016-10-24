@@ -12,7 +12,8 @@ boxsize = 384.0
 -- time_step = linspace(0.01, 1.0, 10)
 time_step = linspace(0.1, 1, 10)
 
-output_redshifts= {0.0}  -- redshifts of output
+output_redshifts= {9.0, 0.0}  -- redshifts of output
+compute_potential = true
 
 -- Cosmology --
 omega_m = 0.307494
@@ -28,8 +29,7 @@ random_seed= 100
 force_mode = "fastpm"
 -- force_mode = "cola"
 
-pm_nc_factor = {2,   2,   2, }            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
-change_pm =    {0, 0.2, 0.5, }            -- time(scaling factor) when the pm_nc_factor is changed, range from 0 to 1
+pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 
@@ -37,7 +37,7 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 
 -- Dark matter particle outputs (all particles)
 -- write_runpb_snapshot= "nbodykit/tpm"
--- write_snapshot= "nbodykit/fastpm" 
+write_snapshot= "lightcone/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
 -- write_powerspectrum = "pm/powerspec"
 write_lightcone = "lightcone/lightcone"

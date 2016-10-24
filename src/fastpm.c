@@ -136,6 +136,7 @@ int main(int argc, char ** argv) {
         .painter_support = CONF(prr, painter_support),
         .NprocY = prr->NprocY,
         .UseFFTW = prr->UseFFTW,
+        .COMPUTE_POTENTIAL = CONF(prr, compute_potential),
     };
 
     run_fastpm(config, prr, comm);
@@ -204,7 +205,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     FastPMLightCone lc[1];
     if(CONF(prr, write_lightcone)) {
         double HubbleDistanceFactor = CONF(prr, dh_factor);
-        fastpm_lc_init(lc, HubbleDistanceFactor, fastpm, fastpm->p->np_upper);
+        fastpm_lc_init(lc, HubbleDistanceFactor, fastpm->cosmology, fastpm->p);
 
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,
@@ -424,12 +425,12 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
 
         FastPMStore * snapshot = alloca(sizeof(FastPMStore));
         fastpm_store_init(snapshot);
-        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL);
+        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | (CONF(prr, compute_potential)?PACK_POTENTIAL:0));
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
 
-        fastpm_set_snapshot(event->drift, event->kick, p, snapshot, aout[iout]);
+        fastpm_set_snapshot(event->drift, event->kick, fastpm->cosmology, p, snapshot, aout[iout]);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
