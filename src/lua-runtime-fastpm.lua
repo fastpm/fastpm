@@ -79,22 +79,6 @@ schema.declare{name='read_lineark',        type='string'}
 schema.declare{name='read_runpbic',       type='string'}
 schema.declare{name='read_whitenoisek',         type='string'}
 
-schema.declare{name='fix_ic_mode', type='array:int'}
-schema.declare{name='fix_ic_value', type='number'}
-
-function schema.fix_ic_mode.action (fix_ic_mode)
-    if fix_ic_mode ~= nil then
-        schema.fix_ic_value.required = true
-        if #fix_ic_mode ~= 4 then
-            error("fix_ic_mode must be four integers (x, y, z, real_or_imag)")
-        end
-        if fix_ic_mode[4] ~= 0 and
-           fix_ic_mode[4] ~= 1 then
-            error("the fourth component of the mode must be 0 (real) or 1 (imaginary)")
-        end
-    end
-end
-
 schema.declare{name='read_powerspectrum', type='file'}
 schema.declare{name='sigma8',             type='number', default=0}
 schema.declare{name='random_seed',         type='int'}
@@ -158,6 +142,32 @@ schema.dealiasing_type.choices = {
 }
 
 schema.declare{name='constraints',      type='array:number',  help="A list of {x, y, z, overdensity}, giving the constraints in MPC/h units. "}
+function schema.constraints.action (constraints)
+    if constraints == nil then
+        return
+    end
+    for i,v in pairs(constraints) do
+        if #v ~= 4 then
+            error("contraints must be a list of 4-vectors (x, y, z, real_or_imag, value)")
+        end
+    end
+end
+schema.declare{name='set_mode',         type='array:number', help="A list of {kix, kiy, kiz, ri, value}, set the IC mode at integer k (ri for real and imag) to value"}
+
+function schema.set_mode.action (set_mode)
+    if set_mode == nil then
+        return
+    end
+    for i,v in pairs(set_mode) do
+        if #v ~= 5 then
+            error("set_mode must be a list of 5-vectors (x, y, z, real_or_imag, value)")
+        end
+        if v[4] ~= 1 and v[4] ~=0 then
+            error("the fourth component specifies real or imag part of the mode. must be 0 or 1")
+        end
+    end
+end
+
 
 function fastpm.linspace(a, e, N)
 -- Similar to numpy.linspace, but always append the end

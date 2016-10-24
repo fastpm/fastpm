@@ -67,8 +67,10 @@ else
 end
 
 if has('fixed_mode') then
-    fix_ic_mode = {0, 1, 0, 0}
-    fix_ic_value = 10
+    set_mode = {
+            {0, 1, 0, 0, 1},
+            {0, 1, 0, 1, -1},
+            }
 end
 
 if has('remove_variance') then

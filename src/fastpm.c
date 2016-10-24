@@ -308,14 +308,20 @@ induce:
         fastpm_ic_remove_variance(fastpm->basepm, delta_k);
     }
 
-    if(CONF(prr, fix_ic_mode)) {
-        ptrdiff_t mode[4] = {
-            CONF(prr, fix_ic_mode)[0],
-            CONF(prr, fix_ic_mode)[1],
-            CONF(prr, fix_ic_mode)[2],
-            CONF(prr, fix_ic_mode)[3],
-        };
-        fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, CONF(prr, fix_ic_value));
+    if(CONF(prr, set_mode)) {
+        int i;
+        double * c = CONF(prr, set_mode);
+        for(i = 0; i < CONF(prr, n_set_mode); i ++) {
+            ptrdiff_t mode[4] = {
+                c[i * 5 + 0],
+                c[i * 5 + 1],
+                c[i * 5 + 2],
+                c[i * 5 + 3],
+            };
+            double value = c[i * 5 + 4];
+            fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, value);
+            fastpm_info("SetMode %d : %td %td %td %td value = %g\n", i, mode[0], mode[1], mode[2], mode[3], value);
+        }
     }
 
     if(CONF(prr, inverted_ic)) {
