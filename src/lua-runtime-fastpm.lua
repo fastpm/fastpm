@@ -30,6 +30,7 @@ schema.declare{name='h',                 type='number', required=true, default=0
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential',   type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
+schema.declare{name='lightcone_exclude_vdot',   type='boolean', required=false, default=false, help="Exclude vdot while interpolating."}
 
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}

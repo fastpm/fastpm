@@ -187,10 +187,21 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
             fastpm_raise(-1, "Too many particles in the light cone");
         }
         double xo[3];
+        double a_emit_v;
         float vo[3];
+        
         fastpm_drift_one(drift, p, i, xo, a_emit);
-        fastpm_kick_one(kick, p, i, vo, a_emit);
+        
+        if(lc->exclude_vdot) {
+			a_emit_v = drift->ai > drift->af ? drift->af: drift->ai;
+        } else {
+			a_emit_v = a_emit;
+		}
+		
+		fastpm_kick_one(kick, p, i, vo, a_emit_v);
+        
         int d;
+        
         for(d = 0; d < 3; d ++) {
             lc->p->x[next][d] = xo[d];
             /* convert to peculiar velocity a dx / dt in kms */

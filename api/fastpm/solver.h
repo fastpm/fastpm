@@ -21,6 +21,7 @@ typedef struct {
     int USE_SHIFT;
     int SAVE_Q;
     int COMPUTE_POTENTIAL;
+    int LIGHTCONE_EXCLUDE_VDOT;
 
     double nLPT;
     FastPMPainterType PAINTER_TYPE;

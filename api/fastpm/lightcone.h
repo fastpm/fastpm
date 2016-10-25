@@ -11,6 +11,8 @@ typedef struct {
         double * Dc;
         size_t size;
     } EventHorizonTable;
+    
+    int exclude_vdot;
 
     FastPMCosmology * cosmology;
 

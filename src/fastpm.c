@@ -137,6 +137,7 @@ int main(int argc, char ** argv) {
         .NprocY = prr->NprocY,
         .UseFFTW = prr->UseFFTW,
         .COMPUTE_POTENTIAL = CONF(prr, compute_potential),
+        .LIGHTCONE_EXCLUDE_VDOT = CONF(prr, lightcone_exclude_vdot),
     };
 
     run_fastpm(config, prr, comm);
@@ -203,6 +204,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         prr);
 
     FastPMLightCone lc[1];
+    
+    if(CONF(prr, lightcone_exclude_vdot)) { lc->exclude_vdot=1; } else { lc->exclude_vdot=0; }
+    
     if(CONF(prr, write_lightcone)) {
         double HubbleDistanceFactor = CONF(prr, dh_factor);
         fastpm_lc_init(lc, HubbleDistanceFactor, fastpm->cosmology, fastpm->p);
