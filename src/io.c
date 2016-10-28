@@ -26,6 +26,47 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
+void _radix_unpack_id(const void * ptr, void * radix, void * arg)
+{
+    FastPMStore * p = (FastPMStore *) arg;
+
+    /* HACK: this taints p->id[0], so we back it up */
+    uint64_t id0 = p->id[0];
+    p->unpack(p, 0, (void*) ptr, p->attributes);
+
+    *((uint64_t*) radix) = p->id[0];
+    p->id[0] = id0;
+}
+
+static void
+sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
+{
+    int64_t size = p->np;
+    int NTask;
+    int ThisTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
+    MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
+
+    size_t elsize = p->pack(p, 0, NULL, p->attributes);
+    size_t localsize = size * (ThisTask + 1) / NTask - size * ThisTask / NTask;
+
+    void * send_buffer = malloc(elsize * p->np);
+    void * recv_buffer = malloc(elsize * localsize);
+    ptrdiff_t i;
+
+    for(i = 0; i < p->np; i ++) {
+        p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
+    }
+    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, _radix_unpack_id, 8, p, comm);
+    for(i = 0; i < localsize; i ++) {
+        p->unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
+    }
+    free(recv_buffer);
+    free(send_buffer);
+}
+
 int 
 write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * parameters, int Nwriters) 
 {
@@ -47,6 +88,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
     fastpm_info("RSD factor %e\n", RSD);
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
+
+    sort_snapshot_by_id(p, comm);
 
     BigFile bf;
     big_file_mpi_create(&bf, filebase, comm);

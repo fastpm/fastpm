@@ -121,28 +121,33 @@ Set up the compilers and location of files in Makefile.local. An example
 is provided in Makefile.local.example which shall work on a recent version of
 Fedora .
 
-gsl : Most super-computing facility have these already installed. Locate the
-path.  Point GSL_DIR to the installation dir. (parent directory of lib and include)
+- gsl : Most super-computing facility have these already installed. Locate the
+  path.  Point GSL_DIR to the installation dir. (parent directory of lib and include)
 
-pfft : bundled and built statically via 
+- pfft : bundled and built statically in depends directory  `Makefile.pfft`.
+  Some minor tweaks to Makefile.pfft on the configure scripts may be needed.
+  Especially the `--enable-avx` and `--enable-sse` / `--enable-sse2` flags 
+  if compliation fails with strange errors about invalid instructions.
 
-.. code::
+The automatical dependency requires a working version of gcc, so its the best
+to compile with the gnu compilers.
 
-    make -f Makefile.pfft
-
-Some minor tweaks to Makefile.pfft on the configure scripts may be needed.
-Especially the --enable-avx and --enable-sse / --enable-sse2 flags 
-if compliation fails with strange errors.
-
-The automatical dependency requires a working version of gcc.
-
-For example, on Edison
+The make process requires a `Makefile.local` file, which sets the variables
+like compiler (`MPICC`). A few examples are provided, but you shall customize
+it based on the example for your site.
 
 .. code::
 
+    # the following example works at NERSC
     # this will set GSL_DIR automatically
+
     module load gsl
+
+    # copy the edison example file to Makefile.local
+
     cp Makefile.edison Makefile.local
+
+    # the rest is just make. It may take a while.
     make
 
 Examples
