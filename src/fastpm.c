@@ -587,10 +587,11 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 
     ENTER(io);
     if(CONF(prr, write_powerspectrum)) {
+        char buf[1024];
+        sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), event->a_f);
+        fastpm_info("writing power spectrum to %s\n", buf);
         if(fastpm->ThisTask == 0) {
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
-            char buf[1024];
-            sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), event->a_f);
             fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
         }
     }
