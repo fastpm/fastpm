@@ -66,7 +66,7 @@ class DumpFile(object):
                 size = numpy.maximum(size, last)
         return size
 
-def power(f1, f2=None, boxsize=1.0, return_modes=False):
+def power(f1, f2=None, boxsize=1.0, average=True):
     """ stupid power spectrum calculator.
 
         f1 f2 must be density fields in configuration or fourier space.
@@ -74,7 +74,7 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
         For convenience if f1 is strictly overdensity in fourier space,
         (zero mode is zero) the code still works.
 
-        Returns k, p or k, p, N if return_modes is True
+        Returns k, p or k, p * n, N if average is False
 
     """
     def tocomplex(f1):
@@ -82,6 +82,7 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
             return f1
         else:
             return numpy.fft.rfftn(f1)
+
     f1 = tocomplex(f1)
     if f1[0, 0, 0] != 0.0:
         f1 /= abs(f1[0, 0, 0])
@@ -94,34 +95,54 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
         if f2[0, 0, 0] != 0.0:
             f2 /= abs(f2[0, 0, 0])
 
-    def fftk(shape, boxsize, symmetric=True):
+    def fftk(shape, boxsize):
         k = []
         for d in range(len(shape)):
-            kd = numpy.fft.fftfreq(shape[d])
-            kd *= 2 * numpy.pi / boxsize * shape[d]
+            kd = numpy.arange(shape[d])
+
+            if d != len(shape) - 1:
+	        kd[kd > shape[d] // 2] -= shape[d] 
+            else:
+                kd = kd[:shape[d]]
+
             kdshape = numpy.ones(len(shape), dtype='int')
-            if symmetric and d == len(shape) -1:
-                kd = kd[:shape[d]//2 + 1]
             kdshape[d] = len(kd)
             kd = kd.reshape(kdshape)
+
             k.append(kd)
-        kk = sum([i ** 2 for i in k])
-        return kk ** 0.5
 
-    x = (f1 * f2.conjugate()).real
+        kk = sum([i * i for i in k])
+        return kk
 
-    k = fftk(f1.shape, boxsize, symmetric=False)
-    w = numpy.ones(k.shape, dtype='f4') * 2
-    w[:, :, 0] = 1
+    kk = fftk(f1.shape, boxsize)
+
+    solution = numpy.int64(numpy.sqrt(kk) - 2).clip(0)
+    solution[solution < 0] = 0
+    mask = (solution + 1) ** 2 < kk
+    while(mask.any()):
+        solution[mask] += 1
+        mask = (solution + 1) ** 2 <= kk
+
+        w = numpy.ones(solution.shape, dtype='f4') * 2
+        w[:, :, 0] = 1
+
+    x = abs(f1 * f2.conjugate())
     x *= w
-    edges = numpy.arange(f1.shape[-1]) * 2 * numpy.pi / boxsize
-    H, edges = numpy.histogram(k.flat, weights=x.flat, bins=edges)
-    N, edges = numpy.histogram(k.flat, weights=w.flat, bins=edges)
-    center = 0.5 * (edges[1:] + edges[:-1])
-    if return_modes:
-        return center, H / N *boxsize ** 3, N
+
+    d = solution
+
+    k = kk ** 0.5 * 2 * numpy.pi / boxsize * w
+
+    ksum = numpy.bincount(d.flat, weights=k.flat)[:f1.shape[0] // 2]
+    wsum = numpy.bincount(d.flat, weights=w.flat)[:f1.shape[0] // 2]
+    xsum = numpy.bincount(d.flat, weights=x.flat)[:f1.shape[0] // 2]
+
+    center = ksum / wsum
+
+    if sum:
+        return center, xsum * boxsize**3, wsum
     else:
-        return center, H / N *boxsize ** 3
+        return center, xsum / wsum * boxsize **3
 
 def fftdown(field, size):
     """ Down samples a fourier space field. Size can be scalar or vector.
