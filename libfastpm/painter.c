@@ -418,7 +418,7 @@ fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
 void
 fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
     FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
-    FastPMStore * out, FastPMFloat * out_canvas)
+    FastPMFloat * out_canvas, FastPMStore * out)
 {
     /* gradient over canvas is stored in out1, gradient over position is stored in out.*/
     DualStore dualstore[1];

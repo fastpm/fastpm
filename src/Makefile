@@ -19,7 +19,8 @@ TEST_SOURCES = testpm.c \
                testlightcone.c \
                testrecorder.c \
                testgradient.c \
-               testgradient-paint.c
+               testgradient-paint.c \
+               testgradient-readout.c \
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
@@ -36,7 +37,8 @@ all: fastpm-lua \
      testlightcone \
      testrecorder \
      testgradient \
-     testgradient-paint
+     testgradient-paint \
+     testgradient-readout \
 
 fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) \
      ../lua/liblua.a ../libfastpm/libfastpm.a
@@ -72,6 +74,9 @@ testgradient-paint: .objs/testgradient-paint.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
+testgradient-readout: .objs/testgradient-readout.o ../libfastpm/libfastpm.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 
@@ -84,5 +89,5 @@ lua-config.c lua-config.h : $(LUASOURCES) make-lua-config.lua
 clean:
 	rm -rf .objs
 	rm -rf .deps
-	rm -rf fastpm fastpm-lua testpm test2lpt testconstrained testlightcone testrecorder testgradient testgradient-paint
+	rm -rf fastpm fastpm-lua testpm test2lpt testconstrained testlightcone testrecorder testgradient testgradient-paint testgradient-readout
 
