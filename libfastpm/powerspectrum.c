@@ -68,15 +68,23 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
-            double kk = 0.;
+            ptrdiff_t kk = 0.;
             for(d = 0; d < 3; d++) {
-                kk += kiter.kk[d][kiter.iabs[d]];
+                double ik = kiter.iabs[d];
+                if(ik > pm->Nmesh[d] / 2) ik -= pm->Nmesh[d];
+                kk += ik * ik;
             }
 
             ptrdiff_t ind = kiter.ind;
 
-            double k = sqrt(kk);
-            ptrdiff_t bin = floor(k / k0);
+            ptrdiff_t bin = ((ptrdiff_t)floor(sqrt(kk))) - 2;
+            if(bin < 0) bin = 0;
+            while((bin + 1) * (bin + 1) <= kk) {
+                bin ++;
+            }
+
+            double k = sqrt(kk) * k0;
+
             if(bin >= 0 && bin < ps->size) {
                 double real1 = delta1_k[ind + 0];
                 double imag1 = delta1_k[ind + 1];
