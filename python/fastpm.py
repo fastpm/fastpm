@@ -2,9 +2,17 @@ import numpy
 import os
 
 class DumpFile(object):
-    def __init__(self, path):
+    def __init__(self, path, dtype):
         self.path = path
         self.filenames = []
+        dtype = numpy.dtype(dtype)
+        if dtype == numpy.dtype('f8'):
+            self.rdtype = numpy.dtype('f8')
+            self.cdtype = numpy.dtype('complex128')
+        else:
+            self.rdtype = numpy.dtype('f4')
+            self.cdtype = numpy.dtype('complex64')
+
         i = 0
         while True:
             fn = '%s.%03d' % (path, i)
@@ -20,13 +28,13 @@ class DumpFile(object):
 
     def as_real(self):
         shape = self._guess_size('real')
-        data = numpy.zeros(shape, dtype='f4')
+        data = numpy.zeros(shape, dtype=self.rdtype)
         for fn in self.filenames:
             geo = fn + '.geometry'
             strides, offset, shape = self._parse_geo(geo, 'real')
-            d = numpy.fromfile(fn, dtype='f4')
+            d = numpy.fromfile(fn, dtype=self.rdtype)
             ind = tuple([slice(x, x+o) for x, o in zip(offset, shape)])
-            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * 4)
+            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * self.rdtype.itemsize)
             data[ind] = d
         return data
 
@@ -36,9 +44,9 @@ class DumpFile(object):
         for fn in self.filenames:
             geo = fn + '.geometry'
             strides, offset, shape = self._parse_geo(geo, 'complex')
-            d = numpy.fromfile(fn, dtype='complex64')
+            d = numpy.fromfile(fn, dtype=self.cdtype)
             ind = tuple([slice(x, x+o) for x, o in zip(offset, shape)])
-            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * 8)
+            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * self.cdtype.itemsize)
             data[ind] = d
         return data
 
