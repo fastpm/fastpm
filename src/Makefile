@@ -20,7 +20,8 @@ TEST_SOURCES = testpm.c \
                testrecorder.c \
                testgradient-c2r.c \
                testgradient-paint.c \
-               testgradient-readout.c
+               testgradient-readout.c \
+               testgradient-r2c.c \
 
 TESTS = $(TEST_SOURCES:%.c=%)
 
@@ -63,6 +64,10 @@ testrecorder: .objs/testrecorder.o ../libfastpm/libfastpm.a
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 testgradient-c2r: .objs/testgradient-c2r.o ../libfastpm/libfastpm.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
+
+testgradient-r2c: .objs/testgradient-r2c.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
