@@ -128,6 +128,11 @@ gaussian36(double k, double * knq)
 static void
 apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
 {
+    //apply_pot_transfer(pm, delta_k, canvas, 0);
+    apply_grad_transfer(pm, delta_k, canvas, d, 1);
+    //fastpm_apply_set_mode_transfer(pm, delta_k, canvas, (ptrdiff_t[]){0, 0, 0, 0}, 1.0, 0);
+
+    return;
     switch(gravity->KernelType) {
         case FASTPM_KERNEL_EASTWOOD:
             apply_pot_transfer(pm, delta_k, canvas, 0);
@@ -171,6 +176,8 @@ apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, F
 static void
 apply_dealiasing_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * from, FastPMFloat * to)
 {
+    //fastpm_apply_multiply_transfer(pm, from, to, 1.0);
+    //return;
     switch(gravity->DealiasingType) {
         case FASTPM_DEALIASING_TWO_THIRD:
             {
@@ -269,14 +276,24 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     pm_ghosts_free(pgd);
 }
 
-#if 0
 void
 fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
     PM * pm,
-    FastPMStore * y,
+    FastPMStore * grad_acc,
     FastPMStore * p,
-    FastPMFloat * delta_k /* save painting again.. */)
+    FastPMStore * grad_pos
+)
 {
+    FastPMFloat * grad_delta_k = pm_alloc(pm);
+    FastPMFloat * grad_canvas = pm_alloc(pm);
+    FastPMFloat * canvas = pm_alloc(pm);
+    FastPMFloat * delta_k = pm_alloc(pm);
+
+    FastPMStore grad_pos_1[1];
+    fastpm_store_init(grad_pos_1);
+    fastpm_store_alloc(grad_pos_1, grad_pos->np_upper, grad_pos->attributes);
+    grad_pos_1->np = grad_pos->np;
+
     FastPMPainter reader[1];
     FastPMPainter painter[1];
 
@@ -290,13 +307,31 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
 
     double density_factor = pm->Norm / np;
 
+    CLOCK(paint);
+    fastpm_paint(painter, canvas, p, NULL, 0);
+    fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
+    LEAVE(paint);
+
+    CLOCK(r2c);
+    pm_r2c(pm, canvas, delta_k);
+    LEAVE(r2c);
+
+    /* calculate the forces save them to p->acc */
+    apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
+
     int d;
-    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z, PACK_POTENTIAL};
+    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+
+    memset(grad_delta_k, 0, sizeof(grad_delta_k[0]) * pm_allocsize(pm));
+    memset(&grad_pos->x[0][0], 0, sizeof(grad_pos->x[0]) * grad_pos->np_upper);
 
     for(d = 0; d < 3; d ++) {
+        FastPMFloat * grad_delta_k_1 = pm_alloc(pm);
+        FastPMFloat * grad_canvas_1 = pm_alloc(pm);
+
         /* gradient of read out */
         CLOCK(transfer);
-        apply_kernel_transfer(gravity, delta_k, canvas, d);
+        apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
         LEAVE(transfer);
 
         CLOCK(c2r);
@@ -304,10 +339,54 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
         LEAVE(c2r);
 
         CLOCK(readout);
-        fastpm_readout_gradient(reader, y, canvas, p, NULL, ACC[d], out_canvas, out);
+        fastpm_readout_gradient(reader, grad_acc,
+            canvas, p, NULL, ACC[d], grad_canvas_1, grad_pos_1);
         LEAVE(readout);
-        /* FIXME: add to out_canvas, out */
+
+        pm_c2r_gradient(pm, grad_canvas_1, grad_delta_k_1);
+        apply_kernel_transfer(gravity, pm, grad_delta_k_1, grad_delta_k_1, d);
+
+        ptrdiff_t i;
+        for(i = 0; i < pm_allocsize(pm); i ++) {
+            grad_delta_k[i] += grad_delta_k_1[i];
+        }
+
+        for(i = 0; i < grad_pos->np; i ++) {
+            int d;
+            for(d = 0; d < 3; d ++) {
+                grad_pos->x[i][d] -= grad_pos_1->x[i][d];
+            }
+        }
+        fastpm_info("%d %g %g %g\n", d,
+            grad_pos_1->x[0][0],
+            grad_pos_1->x[0][1],
+            grad_pos_1->x[0][2]);
+
+        pm_free(pm, grad_canvas_1);
+        pm_free(pm, grad_delta_k_1);
     }
 
+    apply_dealiasing_transfer(gravity, pm, grad_delta_k, grad_delta_k);
+
+    pm_r2c_gradient(pm, grad_delta_k, grad_canvas);
+
+    fastpm_paint_gradient(painter, grad_canvas, p, NULL, 0, grad_pos_1, NULL);
+
+    ptrdiff_t i;
+    for(i = 0; i < grad_pos->np; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            grad_pos->x[i][d] += density_factor * grad_pos_1->x[i][d];
+        }
+    }
+    fastpm_info("%d %g %g %g\n", 4,
+        grad_pos_1->x[0][0],
+        grad_pos_1->x[0][1],
+        grad_pos_1->x[0][2]);
+
+    fastpm_store_destroy(grad_pos_1);
+    pm_free(pm, delta_k);
+    pm_free(pm, canvas);
+    pm_free(pm, grad_canvas);
+    pm_free(pm, grad_delta_k);
 }
-#endif

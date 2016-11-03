@@ -70,8 +70,8 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 32,
-        .boxsize = 32.,
+        .nc = 8,
+        .boxsize = 8.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
@@ -109,23 +109,32 @@ int main(int argc, char * argv[]) {
 
 
     double obj1 = objective(solver, rho_init_ktruth, solver->p);
-    solver->p->x[0][0] += 1e-5;
-    double obj2 = objective(solver, rho_init_ktruth, solver->p);
-    solver->p->x[0][0] -= 1e-5;
-    rho_init_ktruth[0] += 1e-5;
-    double obj3 = objective(solver, rho_init_ktruth, solver->p);
+    int d;
+    ptrdiff_t i;
+    for(i = 0; i < 4; i ++) {
+        for(d = 0; d < 3; d ++) {
+            solver->p->x[0][d] += 1e-2;
+            double obj2 = objective(solver, rho_init_ktruth, solver->p);
+            solver->p->x[0][d] -= 1e-2;
 
-    fastpm_info("objective1 = %.18e\n", obj1);
-    fastpm_info("objective2 = %.18e\n", obj2);
-    fastpm_info("objective3 = %.18e\n", obj3);
+            fastpm_info("objective1 = %.18e\n", obj1);
+            fastpm_info("objective2 = %.18e\n", obj2);
 
-    objective_gradient(solver, rho_init_ktruth, solver->p, gradient1, gradient2);
-    fastpm_info("gradient2 ad  = %g\n", gradient2->x[0][0]);
-    fastpm_info("gradient2 num = %g\n", (obj2 - obj1) / 1e-5);
+            objective_gradient(solver, rho_init_ktruth, solver->p, gradient1, gradient2);
+            fastpm_info("gradient2 ad  = %g\n", gradient2->x[0][d]);
+            fastpm_info("gradient2 num = %g\n", (obj2 - obj1) / 1e-2);
 
-    fastpm_info("gradient1 ad  = %g\n", gradient1[0]);
-    fastpm_info("gradient1 num = %g\n", (obj3 - obj1) / 1e-5);
-
+        }
+    }
+    for(i = 0; i < 8; i ++) {
+        double old = rho_init_ktruth[i];
+        rho_init_ktruth[i] += 1e-2 * old;
+        double obj3 = objective(solver, rho_init_ktruth, solver->p);
+        rho_init_ktruth[i] = old;
+        fastpm_info("objective3 = %.18e\n", obj3);
+        fastpm_info("gradient1 ad  = %g\n", gradient1[i]);
+        fastpm_info("gradient1 num = %g\n", (obj3 - obj1) / (1e-2 * old));
+    }
     fastpm_store_destroy(gradient2);
     pm_free(solver->basepm, gradient1);
     pm_free(solver->basepm, rho_init_ktruth);

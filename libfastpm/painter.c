@@ -392,12 +392,13 @@ fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
     FastPMPainter diffpainter[1];
 
     /* write the readout result to out*/
-    dual_store_set_write_to(dualstore, grad_attr);
     dual_store_set_read_from(dualstore, p);
 
     /* gradient over the attribute */
-    if(attribute > 0)
+    if(attribute > 0) {
+        dual_store_set_write_to(dualstore, grad_attr);
         fastpm_readout(painter, y, (FastPMStore*) dualstore, get_position, attribute);
+    }
 
     dual_store_set_write_to(dualstore, grad_pos);
     /* gradient over the particle position. */
