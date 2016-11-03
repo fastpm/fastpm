@@ -22,9 +22,9 @@ chi2(PM * pm, FastPMFloat * rho_x)
 }
 
 static void
-chi2_gradient(PM * pm, FastPMFloat * rho_x, FastPMFloat * out)
+chi2_gradient(PM * pm, FastPMFloat * rho_x, FastPMFloat * grad)
 {
-    pm_assign(pm, rho_x, out);
+    pm_assign(pm, rho_x, grad);
 }
 
 static double
@@ -45,7 +45,7 @@ objective(FastPMSolver * solver,  FastPMStore * p)
 }
 
 static void
-objective_gradient(FastPMSolver * solver, FastPMStore * p, FastPMStore * out)
+objective_gradient(FastPMSolver * solver, FastPMStore * p, FastPMStore * grad)
 {
     FastPMFloat * tmp = pm_alloc(solver->basepm);
     FastPMFloat * rho_x = pm_alloc(solver->basepm);
@@ -59,7 +59,7 @@ objective_gradient(FastPMSolver * solver, FastPMStore * p, FastPMStore * out)
     fastpm_paint(painter, rho_x, p, NULL, 0);
 
     chi2_gradient(solver->basepm, rho_x, tmp);
-    fastpm_paint_gradient(painter, tmp, p, NULL, 0, out);
+    fastpm_paint_gradient(painter, tmp, p, NULL, 0, grad, grad);
 
     pm_free(solver->basepm, rho_x);
     pm_free(solver->basepm, tmp);

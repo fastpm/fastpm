@@ -382,23 +382,24 @@ dual_store_set_read_from(DualStore * ds, FastPMStore * p)
 
 void
 fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
-    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * out)
+    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * grad_pos, FastPMStore * grad_attr)
 {
     DualStore dualstore[1];
 
     dual_store_init(dualstore, p);
 
-    /* backpropagate the gradient to out.[POS], and out.[attribute]. */
+    /* backpropagate the gradient to grad_pos_attr.[POS], and out.[attribute]. */
     FastPMPainter diffpainter[1];
 
     /* write the readout result to out*/
-    dual_store_set_write_to(dualstore, out);
+    dual_store_set_write_to(dualstore, grad_attr);
     dual_store_set_read_from(dualstore, p);
 
     /* gradient over the attribute */
     if(attribute > 0)
         fastpm_readout(painter, y, (FastPMStore*) dualstore, get_position, attribute);
 
+    dual_store_set_write_to(dualstore, grad_pos);
     /* gradient over the particle position. */
     int POS[3] = {PACK_POS_X, PACK_POS_Y, PACK_POS_Z};
     int d;
@@ -410,7 +411,7 @@ fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
     for(i = 0; i < p->np; i ++) {
         double A = attribute?p->to_double(p, i, attribute):1.0;
         for(d = 0; d < 3; d++) {
-            out->x[i][d] *= A;
+            grad_pos->x[i][d] *= A;
         }
     }
 }
@@ -418,7 +419,7 @@ fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
 void
 fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
     FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
-    FastPMFloat * out_canvas, FastPMStore * out)
+    FastPMFloat * grad_canvas, FastPMStore * grad_pos)
 {
     /* gradient over canvas is stored in out1, gradient over position is stored in out.*/
     DualStore dualstore[1];
@@ -428,15 +429,15 @@ fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
     /* write the readout result to out*/
     /* chain the attribute gradient from y */
     dual_store_set_read_from(dualstore, y);
-    dual_store_set_write_to(dualstore, out);
+    dual_store_set_write_to(dualstore, grad_pos);
 
     /* backpropagate the gradient to out.[POS], and out_canvas */
     FastPMPainter diffpainter[1];
 
-    fastpm_store_copy(p, out);
+    fastpm_store_copy(p, grad_pos);
 
     /* gradient over the canvas */
-    fastpm_paint(painter, out_canvas, (FastPMStore*) dualstore, get_position, attribute);
+    fastpm_paint(painter, grad_canvas, (FastPMStore*) dualstore, get_position, attribute);
 
     /* gradient over the particle position. */
     int POS[3] = {PACK_POS_X, PACK_POS_Y, PACK_POS_Z};
@@ -450,7 +451,7 @@ fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
     for(i = 0; i < p->np; i ++) {
         double v = attribute?y->to_double(y, i, attribute):1.0;
         for(d = 0; d < 3; d++) {
-            out->x[i][d] *= v;
+            grad_pos->x[i][d] *= v;
         }
     }
 

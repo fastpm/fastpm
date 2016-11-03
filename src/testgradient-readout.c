@@ -21,9 +21,9 @@ chi2(PM * pm, FastPMStore * p)
 }
 
 static void
-chi2_gradient(PM * pm, FastPMStore * p, FastPMStore * out)
+chi2_gradient(PM * pm, FastPMStore * p, FastPMStore * grad)
 {
-    fastpm_store_copy(p, out);
+    fastpm_store_copy(p, grad);
 }
 
 static double
@@ -40,7 +40,7 @@ objective(FastPMSolver * solver,  FastPMFloat * field, FastPMStore * p)
 }
 
 static void
-objective_gradient(FastPMSolver * solver, FastPMFloat * field, FastPMStore * p, FastPMFloat * out1, FastPMStore * out2)
+objective_gradient(FastPMSolver * solver, FastPMFloat * field, FastPMStore * p, FastPMFloat * grad_field, FastPMStore * grad_pos)
 {
     FastPMStore tmp[1];
     fastpm_store_init(tmp);
@@ -54,7 +54,7 @@ objective_gradient(FastPMSolver * solver, FastPMFloat * field, FastPMStore * p, 
 
     chi2_gradient(solver->basepm, p, tmp);
 
-    fastpm_readout_gradient(painter, tmp, field, p, NULL, PACK_ACC_X, out1, out2);
+    fastpm_readout_gradient(painter, tmp, field, p, NULL, PACK_ACC_X, grad_field, grad_pos);
 
     fastpm_store_destroy(tmp);
 }
