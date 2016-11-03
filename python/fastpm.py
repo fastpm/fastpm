@@ -101,7 +101,7 @@ def power(f1, f2=None, boxsize=1.0, average=True):
             kd = numpy.arange(shape[d])
 
             if d != len(shape) - 1:
-	        kd[kd > shape[d] // 2] -= shape[d] 
+                kd[kd > shape[d] // 2] -= shape[d] 
             else:
                 kd = kd[:shape[d]]
 
@@ -110,36 +110,47 @@ def power(f1, f2=None, boxsize=1.0, average=True):
             kd = kd.reshape(kdshape)
 
             k.append(kd)
+        return k
 
-        kk = sum([i * i for i in k])
-        return kk
+    k = fftk(f1.shape, boxsize)
 
-    kk = fftk(f1.shape, boxsize)
+    def find_root(kk):
+        solution = numpy.int64(numpy.sqrt(kk) - 2).clip(0)
+        solution[solution < 0] = 0
+        mask = (solution + 1) ** 2 < kk
+        while(mask.any()):
+            solution[mask] += 1
+            mask = (solution + 1) ** 2 <= kk
 
-    solution = numpy.int64(numpy.sqrt(kk) - 2).clip(0)
-    solution[solution < 0] = 0
-    mask = (solution + 1) ** 2 < kk
-    while(mask.any()):
-        solution[mask] += 1
-        mask = (solution + 1) ** 2 <= kk
+        return solution
 
-        w = numpy.ones(solution.shape, dtype='f4') * 2
-        w[:, :, 0] = 1
+    ksum = numpy.zeros(f1.shape[0] //2, 'f8')
+    wsum = numpy.zeros(f1.shape[0] //2, 'f8')
+    xsum = numpy.zeros(f1.shape[0] //2, 'f8')
 
-    x = abs(f1 * f2.conjugate())
-    x *= w
+    for i in range(f1.shape[0]):
+        kk = k[0][i] ** 2 + k[1] ** 2 + k[2] ** 2
 
-    d = solution
+        # remove unused dimension
+        kk = kk[0]
 
-    k = kk ** 0.5 * 2 * numpy.pi / boxsize * w
+        d = find_root(kk)
 
-    ksum = numpy.bincount(d.flat, weights=k.flat)[:f1.shape[0] // 2]
-    wsum = numpy.bincount(d.flat, weights=w.flat)[:f1.shape[0] // 2]
-    xsum = numpy.bincount(d.flat, weights=x.flat)[:f1.shape[0] // 2]
+        w = numpy.ones(d.shape, dtype='f4') * 2
+        w[..., 0] = 1
+        w[..., -1] = 1
+
+        xw = abs(f1[i] * f2[i].conjugate()) * w
+
+        kw = kk ** 0.5 * 2 * numpy.pi / boxsize * w
+
+        ksum += numpy.bincount(d.flat, weights=kw.flat, minlength=f1.shape[0])[:f1.shape[0] // 2]
+        wsum += numpy.bincount(d.flat, weights=w.flat, minlength=f1.shape[0])[:f1.shape[0] // 2]
+        xsum += numpy.bincount(d.flat, weights=xw.flat, minlength=f1.shape[0])[:f1.shape[0] // 2]
 
     center = ksum / wsum
 
-    if sum:
+    if not average:
         return center, xsum * boxsize**3, wsum
     else:
         return center, xsum / wsum * boxsize **3
