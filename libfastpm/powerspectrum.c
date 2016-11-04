@@ -68,15 +68,23 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
-            double kk = 0.;
+            ptrdiff_t kk = 0.;
             for(d = 0; d < 3; d++) {
-                kk += kiter.kk[d][kiter.iabs[d]];
+                double ik = kiter.iabs[d];
+                if(ik > pm->Nmesh[d] / 2) ik -= pm->Nmesh[d];
+                kk += ik * ik;
             }
 
             ptrdiff_t ind = kiter.ind;
 
-            double k = sqrt(kk);
-            ptrdiff_t bin = floor(k / k0);
+            ptrdiff_t bin = ((ptrdiff_t)floor(sqrt(kk))) - 2;
+            if(bin < 0) bin = 0;
+            while((bin + 1) * (bin + 1) <= kk) {
+                bin ++;
+            }
+
+            double k = sqrt(kk) * k0;
+
             if(bin >= 0 && bin < ps->size) {
                 double real1 = delta1_k[ind + 0];
                 double imag1 = delta1_k[ind + 1];
@@ -84,8 +92,8 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
                 double imag2 = delta2_k[ind + 1];
                 double value = real1 * real2 + imag1 * imag2;
                 int w = 2;
-                /* fixme: older version of code has this bug. */
-                if(kiter.i[2] == 0) w = 1;
+
+                if(kiter.i[2] == 0 || kiter.i[2] == pm->Nmesh[2] / 2) w = 1;
 
                 if(kiter.iabs[0] == 0 &&
                    kiter.iabs[1] == 0 &&

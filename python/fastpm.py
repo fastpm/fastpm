@@ -2,9 +2,17 @@ import numpy
 import os
 
 class DumpFile(object):
-    def __init__(self, path):
+    def __init__(self, path, dtype):
         self.path = path
         self.filenames = []
+        dtype = numpy.dtype(dtype)
+        if dtype == numpy.dtype('f8'):
+            self.rdtype = numpy.dtype('f8')
+            self.cdtype = numpy.dtype('complex128')
+        else:
+            self.rdtype = numpy.dtype('f4')
+            self.cdtype = numpy.dtype('complex64')
+
         i = 0
         while True:
             fn = '%s.%03d' % (path, i)
@@ -20,13 +28,13 @@ class DumpFile(object):
 
     def as_real(self):
         shape = self._guess_size('real')
-        data = numpy.zeros(shape, dtype='f4')
+        data = numpy.zeros(shape, dtype=self.rdtype)
         for fn in self.filenames:
             geo = fn + '.geometry'
             strides, offset, shape = self._parse_geo(geo, 'real')
-            d = numpy.fromfile(fn, dtype='f4')
+            d = numpy.fromfile(fn, dtype=self.rdtype)
             ind = tuple([slice(x, x+o) for x, o in zip(offset, shape)])
-            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * 4)
+            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * self.rdtype.itemsize)
             data[ind] = d
         return data
 
@@ -36,9 +44,9 @@ class DumpFile(object):
         for fn in self.filenames:
             geo = fn + '.geometry'
             strides, offset, shape = self._parse_geo(geo, 'complex')
-            d = numpy.fromfile(fn, dtype='complex64')
+            d = numpy.fromfile(fn, dtype=self.cdtype)
             ind = tuple([slice(x, x+o) for x, o in zip(offset, shape)])
-            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * 8)
+            d = numpy.lib.stride_tricks.as_strided(d, shape=shape, strides=strides * self.cdtype.itemsize)
             data[ind] = d
         return data
 
@@ -66,7 +74,7 @@ class DumpFile(object):
                 size = numpy.maximum(size, last)
         return size
 
-def power(f1, f2=None, boxsize=1.0, return_modes=False):
+def power(f1, f2=None, boxsize=1.0, average=True):
     """ stupid power spectrum calculator.
 
         f1 f2 must be density fields in configuration or fourier space.
@@ -74,7 +82,7 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
         For convenience if f1 is strictly overdensity in fourier space,
         (zero mode is zero) the code still works.
 
-        Returns k, p or k, p, N if return_modes is True
+        Returns k, p or k, p * n, N if average is False
 
     """
     def tocomplex(f1):
@@ -82,6 +90,7 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
             return f1
         else:
             return numpy.fft.rfftn(f1)
+
     f1 = tocomplex(f1)
     if f1[0, 0, 0] != 0.0:
         f1 /= abs(f1[0, 0, 0])
@@ -94,34 +103,65 @@ def power(f1, f2=None, boxsize=1.0, return_modes=False):
         if f2[0, 0, 0] != 0.0:
             f2 /= abs(f2[0, 0, 0])
 
-    def fftk(shape, boxsize, symmetric=True):
+    def fftk(shape, boxsize):
         k = []
         for d in range(len(shape)):
-            kd = numpy.fft.fftfreq(shape[d])
-            kd *= 2 * numpy.pi / boxsize * shape[d]
+            kd = numpy.arange(shape[d])
+
+            if d != len(shape) - 1:
+                kd[kd > shape[d] // 2] -= shape[d] 
+            else:
+                kd = kd[:shape[d]]
+
             kdshape = numpy.ones(len(shape), dtype='int')
-            if symmetric and d == len(shape) -1:
-                kd = kd[:shape[d]//2 + 1]
             kdshape[d] = len(kd)
             kd = kd.reshape(kdshape)
+
             k.append(kd)
-        kk = sum([i ** 2 for i in k])
-        return kk ** 0.5
+        return k
 
-    x = (f1 * f2.conjugate()).real
+    k = fftk(f1.shape, boxsize)
 
-    k = fftk(f1.shape, boxsize, symmetric=False)
-    w = numpy.ones(k.shape, dtype='f4') * 2
-    w[:, :, 0] = 1
-    x *= w
-    edges = numpy.arange(f1.shape[-1]) * 2 * numpy.pi / boxsize
-    H, edges = numpy.histogram(k.flat, weights=x.flat, bins=edges)
-    N, edges = numpy.histogram(k.flat, weights=w.flat, bins=edges)
-    center = 0.5 * (edges[1:] + edges[:-1])
-    if return_modes:
-        return center, H / N *boxsize ** 3, N
+    def find_root(kk):
+        solution = numpy.int64(numpy.sqrt(kk) - 2).clip(0)
+        solution[solution < 0] = 0
+        mask = (solution + 1) ** 2 < kk
+        while(mask.any()):
+            solution[mask] += 1
+            mask = (solution + 1) ** 2 <= kk
+
+        return solution
+
+    ksum = numpy.zeros(f1.shape[0] //2, 'f8')
+    wsum = numpy.zeros(f1.shape[0] //2, 'f8')
+    xsum = numpy.zeros(f1.shape[0] //2, 'f8')
+
+    for i in range(f1.shape[0]):
+        kk = k[0][i] ** 2 + k[1] ** 2 + k[2] ** 2
+
+        # remove unused dimension
+        kk = kk[0]
+
+        d = find_root(kk)
+
+        w = numpy.ones(d.shape, dtype='f4') * 2
+        w[..., 0] = 1
+        w[..., -1] = 1
+
+        xw = abs(f1[i] * f2[i].conjugate()) * w
+
+        kw = kk ** 0.5 * 2 * numpy.pi / boxsize * w
+
+        ksum += numpy.bincount(d.flat, weights=kw.flat, minlength=f1.shape[0])[:f1.shape[0] // 2]
+        wsum += numpy.bincount(d.flat, weights=w.flat, minlength=f1.shape[0])[:f1.shape[0] // 2]
+        xsum += numpy.bincount(d.flat, weights=xw.flat, minlength=f1.shape[0])[:f1.shape[0] // 2]
+
+    center = ksum / wsum
+
+    if not average:
+        return center, xsum * boxsize**3, wsum
     else:
-        return center, H / N *boxsize ** 3
+        return center, xsum / wsum * boxsize **3
 
 def fftdown(field, size):
     """ Down samples a fourier space field. Size can be scalar or vector.
