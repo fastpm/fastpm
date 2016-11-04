@@ -92,8 +92,8 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
                 double imag2 = delta2_k[ind + 1];
                 double value = real1 * real2 + imag1 * imag2;
                 int w = 2;
-                /* fixme: older version of code has this bug. */
-                if(kiter.i[2] == 0) w = 1;
+
+                if(kiter.i[2] == 0 || kiter.i[2] == pm->Nmesh[2] / 2) w = 1;
 
                 if(kiter.iabs[0] == 0 &&
                    kiter.iabs[1] == 0 &&
