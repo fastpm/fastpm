@@ -54,6 +54,8 @@ objective_gradient(FastPMSolver * solver, FastPMFloat * rho_init_k, FastPMFloat 
     chi2_gradient(solver->basepm, rho_init_x, tmp);
 
     pm_c2r_gradient(solver->basepm, tmp, out);
+
+    pm_compress_gradient(solver->basepm, out, out);
     pm_free(solver->basepm, rho_init_x);
     pm_free(solver->basepm, tmp);
 }
