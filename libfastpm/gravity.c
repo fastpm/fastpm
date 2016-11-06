@@ -128,11 +128,6 @@ gaussian36(double k, double * knq)
 static void
 apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
 {
-    //apply_pot_transfer(pm, delta_k, canvas, 0);
-    apply_grad_transfer(pm, delta_k, canvas, d, 1);
-    //fastpm_apply_set_mode_transfer(pm, delta_k, canvas, (ptrdiff_t[]){0, 0, 0, 0}, 1.0, 0);
-
-    return;
     switch(gravity->KernelType) {
         case FASTPM_KERNEL_EASTWOOD:
             apply_pot_transfer(pm, delta_k, canvas, 0);
@@ -176,8 +171,6 @@ apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, F
 static void
 apply_dealiasing_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * from, FastPMFloat * to)
 {
-    //fastpm_apply_multiply_transfer(pm, from, to, 1.0);
-    //return;
     switch(gravity->DealiasingType) {
         case FASTPM_DEALIASING_TWO_THIRD:
             {
@@ -213,7 +206,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     FastPMPainter reader[1];
     FastPMPainter painter[1];
 
-    fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);
+    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
     fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
 
     /* watch out: boost the density since mesh is finer than grid */
@@ -297,7 +290,7 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
     FastPMPainter reader[1];
     FastPMPainter painter[1];
 
-    fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);
+    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
     fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
 
     /* watch out: boost the density since mesh is finer than grid */
@@ -323,6 +316,7 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
 
     memset(grad_delta_k, 0, sizeof(grad_delta_k[0]) * pm_allocsize(pm));
+    memset(grad_canvas, 0, sizeof(grad_canvas[0]) * pm_allocsize(pm));
     memset(&grad_pos->x[0][0], 0, sizeof(grad_pos->x[0]) * grad_pos->np_upper);
 
     for(d = 0; d < 3; d ++) {
@@ -332,6 +326,7 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
         /* gradient of read out */
         CLOCK(transfer);
         apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
+        pm_assign(pm, delta_k, canvas);
         LEAVE(transfer);
 
         CLOCK(c2r);
@@ -354,21 +349,17 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
         for(i = 0; i < grad_pos->np; i ++) {
             int d;
             for(d = 0; d < 3; d ++) {
-                grad_pos->x[i][d] -= grad_pos_1->x[i][d];
+                grad_pos->x[i][d] += grad_pos_1->x[i][d];
             }
         }
-        fastpm_info("%d %g %g %g\n", d,
-            grad_pos_1->x[0][0],
-            grad_pos_1->x[0][1],
-            grad_pos_1->x[0][2]);
 
         pm_free(pm, grad_canvas_1);
         pm_free(pm, grad_delta_k_1);
     }
 
-    apply_dealiasing_transfer(gravity, pm, grad_delta_k, grad_delta_k);
-
     pm_r2c_gradient(pm, grad_delta_k, grad_canvas);
+
+    apply_dealiasing_transfer(gravity, pm, grad_delta_k, grad_delta_k);
 
     fastpm_paint_gradient(painter, grad_canvas, p, NULL, 0, grad_pos_1, NULL);
 
@@ -379,10 +370,6 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
             grad_pos->x[i][d] += density_factor * grad_pos_1->x[i][d];
         }
     }
-    fastpm_info("%d %g %g %g\n", 4,
-        grad_pos_1->x[0][0],
-        grad_pos_1->x[0][1],
-        grad_pos_1->x[0][2]);
 
     fastpm_store_destroy(grad_pos_1);
     pm_free(pm, delta_k);

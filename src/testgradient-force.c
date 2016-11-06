@@ -71,8 +71,8 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 4,
-        .boxsize = 4.,
+        .nc = 32,
+        .boxsize = 32.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
@@ -80,7 +80,7 @@ int main(int argc, char * argv[]) {
             {.a_start = -1, .pm_nc_factor = 0},
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
-        .PAINTER_TYPE = FASTPM_PAINTER_CIC,
+        .PAINTER_TYPE = FASTPM_PAINTER_QUAD,
         .nLPT = 2.5,
         .K_LINEAR = 0.04,
     };
@@ -103,34 +103,43 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
-    //fastpm_solver_evolve(solver, (double[]){1e-6, }, 1);
-
+    fastpm_solver_evolve(solver, (double[]){0.1, }, 1);
+    {
+        //solver->p->x[0][0] = 1.4;
+        //solver->p->x[0][1] = 0;
+        //solver->p->x[0][2] = 0;
+    }
     fastpm_store_init(gradient);
     fastpm_store_alloc(gradient, solver->p->np, solver->p->attributes);
     fastpm_store_copy(solver->p, gradient);
+
+
+    objective_gradient(solver, solver->p, gradient);
 
     double obj1 = objective(solver, solver->p);
 
     int i, d;
     for(i = 0; i < 1; i ++) {
-        for(d = 2; d >= 0; d--) {
+        fastpm_info("x[%d] = {%g %g %g }\n", i, 
+            solver->p->x[i][0],
+            solver->p->x[i][1],
+            solver->p->x[i][2]);
+
+        for(d = 0; d <= 2; d++) {
             double old = solver->p->x[i][d];
 
-            solver->p->x[i][d] += 1e-2;
-
-            objective_gradient(solver, solver->p, gradient);
+            solver->p->x[i][d] += 1e-5;
 
             double obj2 = objective(solver, solver->p);
 
-            fastpm_info("x[%d][%d] = %g\n", i, d, solver->p->x[i][d]);
             solver->p->x[i][d] = old;
 
             fastpm_info("objective1 = %.18e\n", obj1);
             fastpm_info("objective2 = %.18e\n", obj2);
 
             fastpm_info("gradient ad  = %g\n", gradient->x[i][d]);
-            fastpm_info("gradient num = %g\n", (obj2 - obj1) / 1e-2);
-            fastpm_info("gradient ratio  = %g\n", gradient->x[i][d] / ((obj2 - obj1) / 1e-2));
+            fastpm_info("gradient num = %g\n", (obj2 - obj1) / 1e-5);
+            fastpm_info("gradient ratio  = %g\n", gradient->x[i][d] / ((obj2 - obj1) / 1e-5));
         }
 
     }
