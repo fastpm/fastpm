@@ -15,28 +15,15 @@ apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 #pragma omp parallel
     {
         PMKIter kiter;
-
-        for(pm_kiter_init(pm, &kiter);
+        pm_kiter_init(pm, &kiter);
+        float ** kklist [3] = {kiter.kk, kiter.kk_finite, kiter.kk_finite2};
+        for(;
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
             double kk_finite = 0;
-            float * kklist;
             for(d = 0; d < 3; d++) {
-                switch(order) {
-                    case 0:
-                        kklist = kiter.kk[d];
-                    break;
-                    case 1:
-                        kklist = kiter.kk_finite[d];
-                    break;
-                    case 2:
-                        kklist = kiter.kk_finite2[d];
-                    break;
-                    default:
-                        fastpm_raise(-1, "Bad potential kernel order\n");
-                }
-                kk_finite += kklist[kiter.iabs[d]];
+                kk_finite += kklist[order][d][kiter.iabs[d]];
             }
             ptrdiff_t ind = kiter.ind;
             /* - 1 / k2 */
@@ -58,22 +45,13 @@ apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int 
     {
         PMKIter kiter;
 
-        for(pm_kiter_init(pm, &kiter);
+        pm_kiter_init(pm, &kiter);
+        float ** klist[2] = {kiter.k, kiter.k_finite};
+        for(;
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             double k_finite;
-            float * klist;
-            switch(order) {
-                case 0:
-                    klist = kiter.k[dir];
-                break;
-                case 1:
-                    klist = kiter.k_finite[dir];
-                break;
-                default:
-                    fastpm_raise(-1, "Bad grad kernel order\n");
-            }
-            k_finite = klist[kiter.iabs[dir]];
+            k_finite = klist[order][dir][kiter.iabs[dir]];
             ptrdiff_t ind = kiter.ind;
             /* i k[d] */
             /* Watch out the data dependency */

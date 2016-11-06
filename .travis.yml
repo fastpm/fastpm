@@ -18,8 +18,8 @@ addons:
             - libopenmpi-dev
             - openmpi-bin
             - libgsl0-dev
-            - python-numpy
-            - python-matplotlib
+#            - python-numpy
+#            - python-matplotlib
 
 install:
     - cp Makefile.travis Makefile.local
@@ -28,7 +28,7 @@ install:
 script:
     - pushd tests
     - bash runtests.sh
-    - python plottests.py
+#    - python plottests.py
     - popd
 
 # after_success: ./update-ghpages.sh
