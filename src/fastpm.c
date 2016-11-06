@@ -97,7 +97,7 @@ int main(int argc, char ** argv) {
     read_parameters(ParamFileName, prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
-    VPMInit * vpminit;
+    VPMInit * vpminit = NULL;
     if(CONF(prr, ndim_pm_nc_factor) == 0) {
         vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = CONF(prr, pm_nc_factor)[0] },
@@ -541,6 +541,9 @@ print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameter
         break;
         case FASTPM_ACTION_DRIFT:
             action = "DRIFT";
+        break;
+        default:
+            action = "Unknown";
         break;
     }
     fastpm_info("==== -> %03d [%03d %03d %03d] a_i = %6.4f a_f = %6.4f a_r = %6.4f Action = %s(%d) ====\n",
