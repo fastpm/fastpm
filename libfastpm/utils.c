@@ -115,7 +115,9 @@ fastpm_utils_dump(PM * pm , const char * filename, FastPMFloat *data)
 
     FILE * fp;
     fp = fopen(fn2, "w");
-    fwrite(data, sizeof(FastPMFloat), pm->allocsize, fp);
+    if(pm->allocsize != fwrite(data, sizeof(FastPMFloat), pm->allocsize, fp)) {
+        fastpm_raise(-1, "IO failed.\n");
+    }
     fclose(fp);
     fp = fopen(fn1, "w");
     fprintf(fp, "# real\n");
@@ -163,7 +165,9 @@ fastpm_utils_load(PM * pm , const char * filename, FastPMFloat *data)
     }
     FILE * fp;
     fp = fopen(fn2, "r");
-    fread(data, sizeof(FastPMFloat), pm->allocsize, fp);
+    if(pm->allocsize != fread(data, sizeof(FastPMFloat), pm->allocsize, fp)) {
+        fastpm_raise(-1, "File was bad\n");
+    };
     fclose(fp);
 }
 
