@@ -93,5 +93,8 @@ pm_c2r_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to);
 void 
 pm_r2c_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to);
 
+void 
+pm_compress_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to);
+
 
 FASTPM_END_DECLS
