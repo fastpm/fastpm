@@ -71,12 +71,18 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
             FILE * fp = fopen(buf, "r");
             FileHeader header;
             int eflag, hsize;
-            fread(&eflag, sizeof(int), 1, fp);
-            fread(&hsize, sizeof(int), 1, fp);
+            if(1 != fread(&eflag, sizeof(int), 1, fp)) {
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
+            }
+            if(1 != fread(&hsize, sizeof(int), 1, fp)) {
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
+            }
             if(hsize != sizeof(header)) {
                 fastpm_raise(0030, "Unable to read from %s\n", buf);
             }
-            fread(&header, sizeof(FileHeader), 1, fp);
+            if(1 != fread(&header, sizeof(FileHeader), 1, fp)) {
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
+            }
             aa = header.aa;
             fastpm_ilog(INFO, "reading from file %s npart=%d aa=%g \n", buf, header.npart, header.aa);
             NperFile[i] = header.npart;
@@ -138,16 +144,25 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 
         FILE * fp = fopen(buf, "r");
         /* skip these */
-        fread(&eflag, sizeof(int), 1, fp);
-        fread(&hsize, sizeof(int), 1, fp);
-        fread(&header, sizeof(FileHeader), 1, fp);
+        if(1 != fread(&eflag, sizeof(int), 1, fp)) {
+            fastpm_raise(0030, "Unable to read from %s\n", buf);
+        }
+        if(1 != fread(&hsize, sizeof(int), 1, fp)) {
+            fastpm_raise(0030, "Unable to read from %s\n", buf);
+        }
+
+        if(1 != fread(&header, sizeof(FileHeader), 1, fp)) {
+            fastpm_raise(0030, "Unable to read from %s\n", buf);
+        }
         /* pos */
         fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
         nread = 0;
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            fread(scratch, sizeof(float) * 3, nbatch, fp);
+            if (nbatch != fread(scratch, sizeof(float) * 3, nbatch, fp)) {
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
+            }
             int ip, q;
             for(ip = 0, q = 0; ip < nbatch; ip ++) {
                 int d;
@@ -163,7 +178,9 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            fread(scratch, sizeof(float) * 3, nbatch, fp);
+            if (nbatch != fread(scratch, sizeof(float) * 3, nbatch, fp)) {
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
+            }
             int ip, q;
             for(ip = 0, q = 0; ip < nbatch; ip ++) {
                 int d;
@@ -179,7 +196,9 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         while(nread != myend - mystart) {
             size_t nbatch = chunknpart;
             if (nbatch + nread > myend - mystart) nbatch = myend - mystart - nread;
-            fread(scratch, sizeof(int64_t), nbatch, fp);
+            if (nbatch != fread(scratch, sizeof(int64_t), nbatch, fp)) {
+                fastpm_raise(0030, "Unable to read from %s\n", buf);
+            }
             int ip, q;
             for(ip = 0, q = 0; ip < nbatch; ip ++) {
                 p->id[offset + nread + ip] = lscratch[q++];
