@@ -2,7 +2,10 @@
 
 static int l_getcwd(lua_State *L) {
     char r[1024];
-    getcwd(r, 1024);
+    if(NULL == getcwd(r, 1024)) {
+        r[0] = '.';
+        r[1] = 0;
+    }
     lua_pushstring(L, r);
     return 1;
 }
