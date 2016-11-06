@@ -1,9 +1,9 @@
 -include ../Makefile.local
 -include ../Makefile.rules
 
-CPPFLAGS += -I ../api -I ../mpsort/
+CPPFLAGS += -I ../api -I ../depends/install/include
 
-DIR_PATH = $(GSL_DIR) ../depends/install
+DIR_PATH = $(GSL_DIR)
 
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
@@ -51,7 +51,6 @@ all: libfastpm.a
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rc $@ $^
-	../ar-join $@ $(PFFTLIBS) $(MPSORTLIBS)
 
 version.c : $(FILES)
 	GIT=`git describe --always --dirty --abbrev=10`; \

@@ -10,6 +10,8 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 
+#include <fastpm/io.h>
+
 /*
 static void 
 cumsum(int64_t offsets[], int N) 
@@ -26,7 +28,8 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
-void _radix_unpack_id(const void * ptr, void * radix, void * arg)
+static void
+_radix_unpack_id(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
@@ -163,13 +166,16 @@ struct BufType {
     float value[2];
 };
 
-void _radix(const void * ptr, void * radix, void * arg)
+static void
+_radix(const void * ptr, void * radix, void * arg)
 {
     const struct BufType * buf = ptr;
     uint64_t * key = radix;
     *key = buf->ind;
 }
-void _radix2(const void * ptr, void * radix, void * arg)
+
+static void
+_radix2(const void * ptr, void * radix, void * arg)
 {
     const struct BufType * buf = ptr;
     uint64_t * key = radix;
