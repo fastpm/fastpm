@@ -28,6 +28,39 @@ _linear_diff(double x, double invh) {
     }
 }
 
+static double
+_quad_kernel(double x, double invh) {
+    /*
+     * Take from https://arxiv.org/abs/0804.0070
+     * */
+    x = fabs(x) * invh;
+    if(x <= 0.5) {
+        return 0.75 - x * x;
+    } else {
+        x = 1.5 - x;
+        return (x * x) * 0.5;
+    }
+}
+
+static double
+_quad_diff(double x, double invh) {
+    double factor;
+    x *= invh;
+    if ( x < 0) {
+        x = -x;
+        factor = -1 * invh;
+    } else {
+        factor = +1 * invh;
+    }
+
+    if(x < 0.5) {
+        return factor * (- 2 * x);
+    } else {
+        return factor * (- (1.5 - x));
+    }
+}
+
+
 static inline double __cached__(int *status, double * table, double x, double (*func)(double)){
     const double dx = 1e-3;
     const double tablemax = dx * 16384;
@@ -98,11 +131,6 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
     painter->pm = pm;
     painter->paint = _generic_paint;
     painter->readout = _generic_readout;
-    painter->support = support;
-    painter->hsupport = 0.5 * support;
-    painter->invh= 1 / (0.5 * support);
-    painter->left = (support  - 1) / 2;
-    painter->diffdir = -1;
 
     switch(type) {
         case FASTPM_PAINTER_CIC:
@@ -113,18 +141,36 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
         case FASTPM_PAINTER_LINEAR:
             painter->kernel = _linear_kernel;
             painter->diff = _linear_diff;
+            support = 2;
+        break;
+        case FASTPM_PAINTER_QUAD:
+            painter->kernel = _quad_kernel;
+            painter->diff = _quad_diff;
+            support = 3;
         break;
         case FASTPM_PAINTER_LANCZOS:
             painter->kernel = _lanczos_kernel;
             painter->diff = _lanczos_diff;
         break;
     }
+
+    painter->support = support;
+    painter->hsupport = 0.5 * support;
+    painter->invh= 1 / (0.5 * support);
+    painter->left = (support  - 1) / 2;
+    painter->diffdir = -1;
     int nmax = 1;
     int d;
     for(d = 0; d < 3; d++) {
         nmax *= (support);
     }
     painter->Npoints = nmax;
+
+    if (painter->support % 2 == 0){
+        painter->shift = 0;
+    } else {
+        painter->shift = 0.5;
+    }
 }
 
 void
@@ -142,7 +188,7 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64], in
     int d;
     for(d = 0; d < 3; d++) {
         gpos[d] = pos[d] * pm->InvCellSize[d];
-        ipos[d] = floor(gpos[d]) - painter->left;
+        ipos[d] = floor(gpos[d] + painter->shift) - painter->left;
         double dx = gpos[d] - ipos[d];
         int i;
         double sum = 0;
@@ -160,7 +206,7 @@ _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64], in
         }
         /* normalize the kernel to conserve mass */
         for(i = 0; i < painter->support; i ++) {
-            k[d][i] /= sum;
+                k[d][i] /= sum;
         }
         ipos[d] -= pm->IRegion.start[d];
     }
@@ -192,9 +238,11 @@ _generic_paint(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], dou
             while(targetpos < 0) {
                 targetpos += pm->Nmesh[d];
             }
-            ind += pm->IRegion.strides[d] * targetpos;
             if(UNLIKELY(targetpos >= pm->IRegion.size[d]))
                 goto outside;
+            if(UNLIKELY(targetpos < 0))
+                goto outside;
+            ind += pm->IRegion.strides[d] * targetpos;
         }
 #pragma omp atomic
         canvas[ind] += weight * kernel;
@@ -247,6 +295,8 @@ _generic_readout(FastPMPainter * painter, FastPMFloat * canvas, double pos[3], i
             if(UNLIKELY(targetpos >= pm->IRegion.size[d])) {
                 goto outside;
             }
+            if(UNLIKELY(targetpos < 0))
+                goto outside;
             ind += pm->IRegion.strides[d] * targetpos;
         }
         value += kernel * canvas[ind];

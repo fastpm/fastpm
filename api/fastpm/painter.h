@@ -1,6 +1,6 @@
 FASTPM_BEGIN_DECLS
 
-typedef enum { FASTPM_PAINTER_CIC, FASTPM_PAINTER_LINEAR, FASTPM_PAINTER_LANCZOS} FastPMPainterType;
+typedef enum { FASTPM_PAINTER_CIC, FASTPM_PAINTER_LINEAR, FASTPM_PAINTER_QUAD, FASTPM_PAINTER_LANCZOS} FastPMPainterType;
 
 struct FastPMPainter {
     PM * pm;
@@ -16,6 +16,7 @@ struct FastPMPainter {
     double invh;
     int left; /* offset to start the kernel, (support - 1) / 2*/
     int Npoints; /* (support) ** 3 */
+    double shift;
 };
 
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,
