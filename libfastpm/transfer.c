@@ -334,3 +334,4 @@ fastpm_apply_get_mode_transfer(PM * pm, FastPMFloat * from, ptrdiff_t * mode)
     MPI_Allreduce(MPI_IN_PLACE, &result, 1, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
     return result;
 }
+

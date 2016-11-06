@@ -63,6 +63,9 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
 
     #undef DISPATCH
     #undef DISPATCHC
@@ -108,6 +111,9 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
@@ -144,6 +150,9 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCHC
     #undef DISPATCH
     if(flags != 0) {
@@ -178,6 +187,9 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCH
     #undef DISPATCHC
 byebye:
@@ -215,6 +227,9 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
     DISPATCHC(PACK_DX2_X, dx2, 0)
     DISPATCHC(PACK_DX2_Y, dx2, 1)
     DISPATCHC(PACK_DX2_Z, dx2, 2)
+    DISPATCHC(PACK_POS_X, x, 0)
+    DISPATCHC(PACK_POS_Y, x, 1)
+    DISPATCHC(PACK_POS_Z, x, 2)
     #undef DISPATCH
     #undef DISPATCHC
 byebye:
@@ -364,6 +379,34 @@ static void fastpm_store_permute(FastPMStore * p, int * ind) {
         permute(p->dx1, p->np, sizeof(p->dx1[0]), ind);
     if(p->dx2)
         permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
+}
+
+static int * __sort_by_id_arg;
+static FastPMStore *  __sort_by_id_p;
+int _sort_by_id_cmpfunc(const void * p1, const void * p2)
+{
+    const int * i1 = (const int*) p1;
+    const int * i2 = (const int*) p2;
+    
+    int v1 = (__sort_by_id_p->id[*i1] < __sort_by_id_p->id[*i2]);
+    int v2 = (__sort_by_id_p->id[*i1] > __sort_by_id_p->id[*i2]);
+
+    return v2 - v1;
+}
+
+void fastpm_store_sort_by_id(FastPMStore * p)
+{
+    int * arg = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+    int i;
+    for(i = 0; i < p->np; i ++) {
+        arg[i] = i;
+    }
+    /* FIXME: copy some version of qsort_r */
+    __sort_by_id_arg = arg;
+    __sort_by_id_p = p;
+    qsort(arg, p->np, sizeof(arg[0]), _sort_by_id_cmpfunc);
+    fastpm_store_permute(p, arg);
+    fastpm_memory_free(p->mem, arg);
 }
 
 void 

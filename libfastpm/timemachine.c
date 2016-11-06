@@ -107,6 +107,9 @@ fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states
         transition->a.i = i2t(states, start->force);
         transition->a.f = i2t(states, end->force);
         transition->a.r = i2t(states, end->x);
+        transition->i.i = start->force;
+        transition->i.f = end->force;
+        transition->i.r = end->x;
     }
     if(start->v != end->v) {
         /* Kick */
@@ -117,6 +120,9 @@ fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states
         transition->a.i = i2t(states, start->v);
         transition->a.f = i2t(states, end->v);
         transition->a.r = i2t(states, end->force);
+        transition->i.i = start->v;
+        transition->i.f = end->v;
+        transition->i.r = end->force;
     }
     if(start->x != end->x) {
         /* Drift */
@@ -127,6 +133,9 @@ fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states
         transition->a.i = i2t(states, start->x);
         transition->a.f = i2t(states, end->x);
         transition->a.r = i2t(states, end->v);
+        transition->i.i = start->x;
+        transition->i.f = end->x;
+        transition->i.r = end->v;
     }
 }
 

@@ -125,6 +125,78 @@ gaussian36(double k, double * knq)
     return exp(- 36 * pow(x, 36));
 }
 
+static void
+apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
+{
+    switch(gravity->KernelType) {
+        case FASTPM_KERNEL_EASTWOOD:
+            apply_pot_transfer(pm, delta_k, canvas, 0);
+            if(d != 3)
+                apply_grad_transfer(pm, canvas, canvas, d, 0);
+            /* now sharpen for mass assignment */
+            /* L1 */
+            fastpm_apply_decic_transfer(pm, canvas, canvas);
+            /* L2 */
+            fastpm_apply_decic_transfer(pm, canvas, canvas);
+        break;
+        case FASTPM_KERNEL_NAIVE:
+            apply_pot_transfer(pm, delta_k, canvas, 0);
+            if(d != 3)
+                apply_grad_transfer(pm, canvas, canvas, d, 0);
+        break;
+        case FASTPM_KERNEL_GADGET:
+            apply_pot_transfer(pm, delta_k, canvas, 0);
+            if(d != 3)
+                apply_grad_transfer(pm, canvas, canvas, d, 1);
+        break;
+        case FASTPM_KERNEL_3_4:
+            apply_pot_transfer(pm, delta_k, canvas, 1);
+            if(d != 3)
+                apply_grad_transfer(pm, canvas, canvas, d, 1);
+        break;
+        case FASTPM_KERNEL_5_4:
+            apply_pot_transfer(pm, delta_k, canvas, 2);
+            if(d != 3)
+                apply_grad_transfer(pm, canvas, canvas, d, 1);
+        break;
+        case FASTPM_KERNEL_3_2:
+            apply_pot_transfer(pm, delta_k, canvas, 1);
+            if(d != 3)
+                apply_grad_transfer(pm, canvas, canvas, d, 0);
+        break;
+        default:
+            fastpm_raise(-1, "Wrong kernel type\n");
+    }
+}
+static void
+apply_dealiasing_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * from, FastPMFloat * to)
+{
+    switch(gravity->DealiasingType) {
+        case FASTPM_DEALIASING_TWO_THIRD:
+            {
+            double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
+            fastpm_apply_lowpass_transfer(pm, from, to, 2.0 / 3 * k_nq);
+            }
+        break;
+        case FASTPM_DEALIASING_GAUSSIAN:
+            apply_gaussian_dealiasing(pm, from, to, 1.0);
+        break;
+        case FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN:
+            apply_gaussian_dealiasing(pm, from, to, 4.0);
+        break;
+        case FASTPM_DEALIASING_GAUSSIAN36:
+            {
+            double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
+            fastpm_apply_any_transfer(pm, from, to, (fastpm_fkfunc) gaussian36, &k_nq);
+            }
+        break;
+        case FASTPM_DEALIASING_NONE:
+        break;
+        default:
+            fastpm_raise(-1, "wrong dealiasing kernel type");
+    }
+}
+
 void
 fastpm_gravity_calculate(FastPMGravity * gravity,
     PM * pm,
@@ -134,7 +206,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     FastPMPainter reader[1];
     FastPMPainter painter[1];
 
-    fastpm_painter_init(reader, pm, FASTPM_PAINTER_CIC, 1);
+    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
     fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
 
     /* watch out: boost the density since mesh is finer than grid */
@@ -170,76 +242,13 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     LEAVE(r2c);
 
     /* calculate the forces save them to p->acc */
-
-    switch(gravity->DealiasingType) {
-        case FASTPM_DEALIASING_TWO_THIRD:
-            {
-            double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
-            fastpm_apply_lowpass_transfer(pm, delta_k, delta_k, 2.0 / 3 * k_nq);
-            }
-        break;
-        case FASTPM_DEALIASING_GAUSSIAN:
-            apply_gaussian_dealiasing(pm, delta_k, delta_k, 1.0);
-        break;
-        case FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN:
-            apply_gaussian_dealiasing(pm, delta_k, delta_k, 4.0);
-        break;
-        case FASTPM_DEALIASING_GAUSSIAN36:
-            {
-            double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
-            fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) gaussian36, &k_nq);
-            }
-        break;
-        case FASTPM_DEALIASING_NONE:
-        break;
-        default:
-            fastpm_raise(-1, "wrong dealiasing kernel type");
-    }
+    apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
 
     int d;
     int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z, PACK_POTENTIAL};
     for(d = 0; d < (gravity->ComputePotential?4:3); d ++) {
         CLOCK(transfer);
-        switch(gravity->KernelType) {
-            case FASTPM_KERNEL_EASTWOOD:
-                apply_pot_transfer(pm, delta_k, canvas, 0);
-                if(d != 3)
-                    apply_grad_transfer(pm, canvas, canvas, d, 0);
-                /* now sharpen for mass assignment */
-                /* L1 */
-                fastpm_apply_decic_transfer(pm, canvas, canvas);
-                /* L2 */
-                fastpm_apply_decic_transfer(pm, canvas, canvas);
-            break;
-            case FASTPM_KERNEL_NAIVE:
-                apply_pot_transfer(pm, delta_k, canvas, 0);
-                if(d != 3)
-                    apply_grad_transfer(pm, canvas, canvas, d, 0);
-            break;
-            case FASTPM_KERNEL_GADGET:
-                apply_pot_transfer(pm, delta_k, canvas, 0);
-                if(d != 3)
-                    apply_grad_transfer(pm, canvas, canvas, d, 1);
-            break;
-            case FASTPM_KERNEL_3_4:
-                apply_pot_transfer(pm, delta_k, canvas, 1);
-                if(d != 3)
-                    apply_grad_transfer(pm, canvas, canvas, d, 1);
-            break;
-            case FASTPM_KERNEL_5_4:
-                apply_pot_transfer(pm, delta_k, canvas, 2);
-                if(d != 3)
-                    apply_grad_transfer(pm, canvas, canvas, d, 1);
-            break;
-            case FASTPM_KERNEL_3_2:
-                apply_pot_transfer(pm, delta_k, canvas, 1);
-                if(d != 3)
-                    apply_grad_transfer(pm, canvas, canvas, d, 0);
-            break;
-            default:
-                fastpm_raise(-1, "Wrong kernel type\n");
-        }
-
+        apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
         LEAVE(transfer);
 
         CLOCK(c2r);
@@ -260,3 +269,111 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     pm_ghosts_free(pgd);
 }
 
+void
+fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
+    PM * pm,
+    FastPMStore * grad_acc,
+    FastPMStore * p,
+    FastPMStore * grad_pos
+)
+{
+    FastPMFloat * grad_delta_k = pm_alloc(pm);
+    FastPMFloat * grad_canvas = pm_alloc(pm);
+    FastPMFloat * canvas = pm_alloc(pm);
+    FastPMFloat * delta_k = pm_alloc(pm);
+
+    FastPMStore grad_pos_1[1];
+    fastpm_store_init(grad_pos_1);
+    fastpm_store_alloc(grad_pos_1, grad_pos->np_upper, grad_pos->attributes);
+    grad_pos_1->np = grad_pos->np;
+
+    FastPMPainter reader[1];
+    FastPMPainter painter[1];
+
+    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
+    fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
+
+    /* watch out: boost the density since mesh is finer than grid */
+    long long np = p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, pm_comm(pm));
+
+    double density_factor = pm->Norm / np;
+
+    CLOCK(paint);
+    fastpm_paint(painter, canvas, p, NULL, 0);
+    fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
+    LEAVE(paint);
+
+    CLOCK(r2c);
+    pm_r2c(pm, canvas, delta_k);
+    LEAVE(r2c);
+
+    /* calculate the forces save them to p->acc */
+    apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
+
+    int d;
+    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z};
+
+    memset(grad_delta_k, 0, sizeof(grad_delta_k[0]) * pm_allocsize(pm));
+    memset(grad_canvas, 0, sizeof(grad_canvas[0]) * pm_allocsize(pm));
+    memset(&grad_pos->x[0][0], 0, sizeof(grad_pos->x[0]) * grad_pos->np_upper);
+
+    for(d = 0; d < 3; d ++) {
+        FastPMFloat * grad_delta_k_1 = pm_alloc(pm);
+        FastPMFloat * grad_canvas_1 = pm_alloc(pm);
+
+        /* gradient of read out */
+        CLOCK(transfer);
+        apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
+        pm_assign(pm, delta_k, canvas);
+        LEAVE(transfer);
+
+        CLOCK(c2r);
+        pm_c2r(pm, canvas);
+        LEAVE(c2r);
+
+        CLOCK(readout);
+        fastpm_readout_gradient(reader, grad_acc,
+            canvas, p, NULL, ACC[d], grad_canvas_1, grad_pos_1);
+        LEAVE(readout);
+
+        pm_c2r_gradient(pm, grad_canvas_1, grad_delta_k_1);
+        apply_kernel_transfer(gravity, pm, grad_delta_k_1, grad_delta_k_1, d);
+
+        ptrdiff_t i;
+        for(i = 0; i < pm_allocsize(pm); i ++) {
+            grad_delta_k[i] += grad_delta_k_1[i];
+        }
+
+        for(i = 0; i < grad_pos->np; i ++) {
+            int d;
+            for(d = 0; d < 3; d ++) {
+                grad_pos->x[i][d] += grad_pos_1->x[i][d];
+            }
+        }
+
+        pm_free(pm, grad_canvas_1);
+        pm_free(pm, grad_delta_k_1);
+    }
+
+    pm_r2c_gradient(pm, grad_delta_k, grad_canvas);
+
+    apply_dealiasing_transfer(gravity, pm, grad_delta_k, grad_delta_k);
+
+    fastpm_paint_gradient(painter, grad_canvas, p, NULL, 0, grad_pos_1, NULL);
+
+    ptrdiff_t i;
+    for(i = 0; i < grad_pos->np; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            grad_pos->x[i][d] += density_factor * grad_pos_1->x[i][d];
+        }
+    }
+
+    fastpm_store_destroy(grad_pos_1);
+    pm_free(pm, delta_k);
+    pm_free(pm, canvas);
+    pm_free(pm, grad_canvas);
+    pm_free(pm, grad_delta_k);
+}

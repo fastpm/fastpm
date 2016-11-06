@@ -26,6 +26,9 @@ FASTPM_BEGIN_DECLS
 #define PACK_DX2_X   (1 << 16)
 #define PACK_DX2_Y   (1 << 17)
 #define PACK_DX2_Z   (1 << 18)
+#define PACK_POS_X (1 << 19)
+#define PACK_POS_Y (1 << 20)
+#define PACK_POS_Z (1 << 21)
 
 struct FastPMStore {
     fastpm_posfunc get_position;
@@ -81,6 +84,8 @@ typedef int (fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * dat
 
 void
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
+
+void fastpm_store_sort_by_id(FastPMStore * p);
 
 size_t
 fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm);

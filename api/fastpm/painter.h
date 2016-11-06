@@ -1,6 +1,6 @@
 FASTPM_BEGIN_DECLS
 
-typedef enum { FASTPM_PAINTER_CIC, FASTPM_PAINTER_LINEAR, FASTPM_PAINTER_LANCZOS} FastPMPainterType;
+typedef enum { FASTPM_PAINTER_CIC, FASTPM_PAINTER_LINEAR, FASTPM_PAINTER_QUAD, FASTPM_PAINTER_LANCZOS} FastPMPainterType;
 
 struct FastPMPainter {
     PM * pm;
@@ -16,6 +16,7 @@ struct FastPMPainter {
     double invh;
     int left; /* offset to start the kernel, (support - 1) / 2*/
     int Npoints; /* (support) ** 3 */
+    double shift;
 };
 
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,
@@ -40,5 +41,14 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
 void
 fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, fastpm_posfunc get_position, int attribute);
+
+void
+fastpm_paint_gradient(FastPMPainter * painter, FastPMFloat * y,
+    FastPMStore * p, fastpm_posfunc get_position, int attribute, FastPMStore * grad_pos, FastPMStore * grad_attr);
+
+void
+fastpm_readout_gradient(FastPMPainter * painter, FastPMStore * y,
+    FastPMFloat * canvas, FastPMStore * p, fastpm_posfunc get_position, int attribute,
+    FastPMFloat * grad_canvas, FastPMStore * grad_pos);
 
 FASTPM_END_DECLS

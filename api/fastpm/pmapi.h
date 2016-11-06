@@ -27,6 +27,8 @@ double pm_volume(PM * pm);
 PMRegion * pm_i_region(PM * pm);
 PMRegion * pm_o_region(PM * pm);
 
+int pm_pos_to_rank(PM * pm, double pos[3]);
+
 void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 void pm_unravel_i_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]);
 
@@ -88,6 +90,8 @@ void
 pm_c2r(PM * pm, FastPMFloat * inplace);
 void 
 pm_c2r_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to);
+void 
+pm_r2c_gradient(PM * pm, FastPMFloat * y, FastPMFloat * to);
 
 
 FASTPM_END_DECLS
