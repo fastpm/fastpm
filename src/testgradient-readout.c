@@ -97,7 +97,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
-    fastpm_solver_evolve(solver, (double[]){1.0, }, 1);
+    //fastpm_solver_evolve(solver, (double[]){1.0, }, 1);
 
     FastPMFloat * gradient1 = pm_alloc(solver->basepm);
 
@@ -106,11 +106,19 @@ int main(int argc, char * argv[]) {
     fastpm_store_alloc(gradient2, solver->p->np, solver->p->attributes);
 
     pm_c2r(solver->basepm, rho_init_ktruth);
+    ptrdiff_t i;
+    for(i = 0; i < solver->p->np; i ++) {
+        solver->p->x[i][0] += 0.5;
+        solver->p->x[i][1] += 0.5;
+        solver->p->x[i][2] += 0.5;
+    }
 
+    for(i = 0; i < pm_allocsize(solver->basepm); i ++) {
+        //rho_init_ktruth[i] = 1.0;
+    }
 
     double obj1 = objective(solver, rho_init_ktruth, solver->p);
     int d;
-    ptrdiff_t i;
     for(i = 0; i < 4; i ++) {
         for(d = 0; d < 3; d ++) {
             solver->p->x[0][d] += 1e-2;

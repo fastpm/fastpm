@@ -32,7 +32,7 @@ objective(FastPMSolver * solver,  FastPMStore * p)
 {
     FastPMFloat * rho_x = pm_alloc(solver->basepm);
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->basepm, FASTPM_PAINTER_CIC, 2);
+    fastpm_painter_init(painter, solver->basepm, FASTPM_PAINTER_QUAD, 2);
 
     memset(rho_x, 0, sizeof(rho_x[0]) * pm_allocsize(solver->basepm));
 
@@ -52,7 +52,7 @@ objective_gradient(FastPMSolver * solver, FastPMStore * p, FastPMStore * grad)
 
     /* redo rho_init_x, since we do not record rho_init_x on a tape */
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->basepm, FASTPM_PAINTER_CIC, 2);
+    fastpm_painter_init(painter, solver->basepm, FASTPM_PAINTER_QUAD, 2);
 
     memset(rho_x, 0, sizeof(rho_x[0]) * pm_allocsize(solver->basepm));
 
@@ -103,24 +103,38 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
-    fastpm_solver_evolve(solver, (double[]){1.0, }, 1);
-
+    fastpm_solver_evolve(solver, (double[]){0.1, }, 1);
+    ptrdiff_t i;
+    for(i = 0; i < solver->p->np; i ++) {
+        //solver->p->x[i][0] += 0.05;
+        //solver->p->x[i][1] += 0.05;
+        //solver->p->x[i][2] += 0.05;
+    }
     FastPMStore gradient[1];
 
     fastpm_store_init(gradient);
     fastpm_store_alloc(gradient, solver->p->np, solver->p->attributes);
 
-    double obj1 = objective(solver, solver->p);
-
-    solver->p->x[0][0] += 1e-5;
-    double obj2 = objective(solver, solver->p);
-
-    fastpm_info("objective1 = %.18e\n", obj1);
-    fastpm_info("objective2 = %.18e\n", obj2);
-
     objective_gradient(solver, solver->p, gradient);
-    fastpm_info("gradient ad  = %g\n", gradient->x[0][0]);
-    fastpm_info("gradient num = %g\n", (obj2 - obj1) / 1e-5);
+
+    double obj1 = objective(solver, solver->p);
+    for(i = 0; i < 1; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            solver->p->x[i][d] += 1e-5;
+            double obj2 = objective(solver, solver->p);
+            solver->p->x[i][d] -= 1e-5;
+
+            fastpm_info("x = [%g %g %g]\n", solver->p->x[i][0], solver->p->x[i][1], solver->p->x[i][2]);
+            fastpm_info("objective1 = %.18e\n", obj1);
+            fastpm_info("objective2 = %.18e\n", obj2);
+            double num = (obj2 - obj1) / 1e-5;
+            fastpm_info("gradient ad  = %g\n", gradient->x[i][d]);
+            fastpm_info("gradient num = %g\n", num);
+
+            fastpm_info("gradient rat  = %g\n", gradient->x[i][d] / num);
+        }
+    }
     fastpm_store_destroy(gradient);
     pm_free(solver->basepm, rho_init_ktruth);
     fastpm_solver_destroy(solver);

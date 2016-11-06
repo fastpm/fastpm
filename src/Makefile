@@ -23,6 +23,7 @@ TEST_SOURCES = testpm.c \
                testgradient-readout.c \
                testgradient-r2c.c \
                testgradient-force.c \
+               testgradient-force-simple.c \
 
 TESTS = $(TEST_SOURCES:%.c=%)
 
@@ -81,6 +82,10 @@ testgradient-readout: .objs/testgradient-readout.o ../libfastpm/libfastpm.a
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 testgradient-force: .objs/testgradient-force.o ../libfastpm/libfastpm.a
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
+
+testgradient-force-simple: .objs/testgradient-force-simple.o ../libfastpm/libfastpm.a
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
