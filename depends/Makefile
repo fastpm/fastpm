@@ -22,12 +22,20 @@ libfastpm-dep.a: $(BIGFILE_LIBS:%.a=install/lib/%.a) \
 	  $(PFFT_LIBS:%.a=install/lib/%.a)
 	../ar-join $@ $^
 
-$(BIGFILE_LIBS:%.a=install/lib/%.a):
+.INTERMEDIATE: .bigfile .mpsort .pfft
+
+$(BIGFILE_LIBS:%.a=install/lib/%.a): .bigfile
+
+.bigfile:
 	(cd bigfile; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "MPICC=$(CC)")
 
-$(MPSORT_LIBS:%.a=install/lib/%.a):
+$(MPSORT_LIBS:%.a=install/lib/%.a): .mpsort
+
+.mpsort:
 	(cd mpsort; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "MPICC=$(CC)")
 
-$(PFFT_LIBS:%.a=install/lib/%.a):
+$(PFFT_LIBS:%.a=install/lib/%.a): .pfft
+
+.pfft:
 	($(MAKE) "CC=$(CC)" -f Makefile.pfft)
 
