@@ -21,7 +21,11 @@ fastpm_file_get_content(const char * filename)
 
     char * buf = malloc(file_length + 1);
     fseek(fp, 0, SEEK_SET);
-    fread(buf, 1, file_length, fp);
+    if(file_length != fread(buf, 1, file_length, fp)) {
+        fclose(fp);
+        free(buf);
+        return NULL;
+    }
     fclose(fp);
     buf[file_length] = 0;
     return buf;
