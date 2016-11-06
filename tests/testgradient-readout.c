@@ -43,8 +43,7 @@ static void
 objective_gradient(FastPMSolver * solver, FastPMFloat * field, FastPMStore * p, FastPMFloat * grad_field, FastPMStore * grad_pos)
 {
     FastPMStore tmp[1];
-    fastpm_store_init(tmp);
-    fastpm_store_alloc(tmp, p->np, p->attributes);
+    fastpm_store_init(tmp, p->np, p->attributes);
 
     /* redo rho_init_x, since we do not record rho_init_x on a tape */
     FastPMPainter painter[1];
@@ -102,8 +101,7 @@ int main(int argc, char * argv[]) {
     FastPMFloat * gradient1 = pm_alloc(solver->basepm);
 
     FastPMStore gradient2[1];
-    fastpm_store_init(gradient2);
-    fastpm_store_alloc(gradient2, solver->p->np, solver->p->attributes);
+    fastpm_store_init(gradient2, solver->p->np, solver->p->attributes);
 
     pm_c2r(solver->basepm, rho_init_ktruth);
     ptrdiff_t i;

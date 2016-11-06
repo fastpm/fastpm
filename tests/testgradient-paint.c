@@ -112,8 +112,7 @@ int main(int argc, char * argv[]) {
     }
     FastPMStore gradient[1];
 
-    fastpm_store_init(gradient);
-    fastpm_store_alloc(gradient, solver->p->np, solver->p->attributes);
+    fastpm_store_init(gradient, solver->p->np, solver->p->attributes);
 
     objective_gradient(solver, solver->p, gradient);
 

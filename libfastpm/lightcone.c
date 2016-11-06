@@ -34,8 +34,7 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMCosmology * c, Fa
         lc->EventHorizonTable.Dc[i] = speedfactor * HubbleDistance * ComovingDistance(a, c);
     }
 
-    fastpm_store_init(lc->p);
-    fastpm_store_alloc(lc->p, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | (p->potential?PACK_POTENTIAL:0));
+    fastpm_store_init(lc->p, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | (p->potential?PACK_POTENTIAL:0));
 }
 
 void

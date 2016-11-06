@@ -59,12 +59,10 @@ objective_gradient(FastPMSolver * solver, FastPMStore * p, FastPMStore * grad_po
     }
 
     FastPMStore grad_acc[1];
-    fastpm_store_init(grad_acc);
-    fastpm_store_alloc(grad_acc, p->np, p->attributes);
+    fastpm_store_init(grad_acc, p->np, p->attributes);
 
     FastPMStore grad_pos1[1];
-    fastpm_store_init(grad_pos1);
-    fastpm_store_alloc(grad_pos1, p->np, p->attributes);
+    fastpm_store_init(grad_pos1, p->np, p->attributes);
 
     FastPMFloat * rho_x = pm_alloc(solver->basepm);
     FastPMFloat * grad_field= pm_alloc(solver->basepm);
@@ -165,8 +163,7 @@ int main(int argc, char * argv[]) {
         //solver->p->x[0][1] = 3.2;
         //solver->p->x[0][2] = 3.2;
     }
-    fastpm_store_init(gradient);
-    fastpm_store_alloc(gradient, solver->p->np, solver->p->attributes);
+    fastpm_store_init(gradient, solver->p->np, solver->p->attributes);
     fastpm_store_copy(solver->p, gradient);
 
     pm_c2r(solver->basepm, rho_init_ktruth);

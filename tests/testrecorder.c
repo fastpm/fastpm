@@ -122,8 +122,7 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
     recorder->maxsteps = maxsteps;
     recorder->solver = solver;
     recorder->tape = calloc(maxsteps, sizeof(FastPMStore));
-    fastpm_store_init(recorder->bare);
-    fastpm_store_alloc(recorder->bare, solver->p->np_upper, PACK_Q | PACK_ID);
+    fastpm_store_init(recorder->bare, solver->p->np_upper, PACK_Q | PACK_ID);
     fastpm_store_copy(solver->p, recorder->bare);
     fastpm_store_decompose(recorder->bare, target_func, solver->basepm, solver->comm);
 
@@ -133,8 +132,7 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
     int step;
     for(step = 0; step < maxsteps; step ++) {
         FastPMStore * p = &recorder->tape[step];
-        fastpm_store_init(p);
-        fastpm_store_alloc_evenly(p, np_total,
+        fastpm_store_init_evenly(p, np_total,
             PACK_POS | PACK_VEL | PACK_ACC, 1.1, solver->comm);
         p->np = recorder->bare->np;
         /* steal a reference from bare. Need to nullify the pointer before destroy the stores */
@@ -152,17 +150,16 @@ void fastpm_recorder_record(FastPMRecorder * recorder, FastPMTransition * transi
      * */
 
     FastPMStore tmp[1];
-    fastpm_store_init(tmp);
 
     switch(transition->action) {
         case FASTPM_ACTION_DRIFT:
-            fastpm_store_alloc(tmp, p->np_upper, PACK_POS | PACK_ID | PACK_Q);
+            fastpm_store_init(tmp, p->np_upper, PACK_POS | PACK_ID | PACK_Q);
         break;
         case FASTPM_ACTION_KICK:
-            fastpm_store_alloc(tmp, p->np_upper, PACK_VEL | PACK_ID | PACK_Q);
+            fastpm_store_init(tmp, p->np_upper, PACK_VEL | PACK_ID | PACK_Q);
         break;
         case FASTPM_ACTION_FORCE:
-            fastpm_store_alloc(tmp, p->np_upper, PACK_ACC | PACK_ID | PACK_Q);
+            fastpm_store_init(tmp, p->np_upper, PACK_ACC | PACK_ID | PACK_Q);
         break;
     }
     fastpm_store_copy(p, tmp);

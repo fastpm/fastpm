@@ -59,9 +59,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     MPI_Comm_size(comm, &fastpm->NTask);
 
     fastpm->p = malloc(sizeof(FastPMStore));
-    fastpm_store_init(fastpm->p);
 
-    fastpm_store_alloc_evenly(fastpm->p, pow(1.0 * config->nc, 3),
+    fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
         PACK_POS | PACK_VEL | PACK_ID | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0) | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
         config->alloc_factor, comm);
 

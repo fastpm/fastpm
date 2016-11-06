@@ -261,8 +261,9 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
     FastPMFloat * delta_k = pm_alloc(pm);
 
     FastPMStore grad_pos_1[1];
-    fastpm_store_init(grad_pos_1);
-    fastpm_store_alloc(grad_pos_1, grad_pos->np_upper, grad_pos->attributes);
+
+    fastpm_store_init(grad_pos_1, grad_pos->np_upper, grad_pos->attributes);
+
     grad_pos_1->np = grad_pos->np;
 
     FastPMPainter reader[1];

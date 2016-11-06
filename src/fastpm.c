@@ -438,9 +438,10 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
             if(event->a2 < aout[iout]) continue;
         }
 
-        FastPMStore * snapshot = alloca(sizeof(FastPMStore));
-        fastpm_store_init(snapshot);
-        fastpm_store_alloc(snapshot, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | (CONF(prr, compute_potential)?PACK_POTENTIAL:0));
+        FastPMStore snapshot[1];
+
+        fastpm_store_init(snapshot, p->np_upper,
+                PACK_ID | PACK_POS | PACK_VEL | (CONF(prr, compute_potential)?PACK_POTENTIAL:0));
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);

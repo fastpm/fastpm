@@ -58,15 +58,12 @@ struct FastPMStore {
     double a_v;
 };
 
+void
+fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes);
+
 size_t
-fastpm_store_alloc_evenly(FastPMStore * p, size_t np_total, int attributes,
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, int attributes,
     double alloc_factor, MPI_Comm comm);
-
-void
-fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes);
-
-void
-fastpm_store_init(FastPMStore * p);
 
 void
 fastpm_store_destroy(FastPMStore * p);

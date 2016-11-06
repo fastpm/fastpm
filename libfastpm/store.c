@@ -239,7 +239,7 @@ byebye:
 }
 
 void
-fastpm_store_init(FastPMStore * p)
+fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes) 
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -249,12 +249,6 @@ fastpm_store_init(FastPMStore * p)
     p->get_position = fastpm_store_get_position;
     p->to_double = to_double;
     p->from_double = from_double;
-}
-
-void 
-fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes) 
-{
-    fastpm_store_init(p);
 
     p->np = 0; 
     p->np_upper = np_upper;
@@ -308,12 +302,12 @@ fastpm_store_alloc(FastPMStore * p, size_t np_upper, int attributes)
 };
 
 size_t 
-fastpm_store_alloc_evenly(FastPMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    fastpm_store_alloc(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
+    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
     return 0;
 }
 

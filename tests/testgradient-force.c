@@ -45,8 +45,7 @@ static void
 objective_gradient(FastPMSolver * solver, FastPMStore * p, FastPMStore * grad_pos)
 {
     FastPMStore tmp[1];
-    fastpm_store_init(tmp);
-    fastpm_store_alloc(tmp, p->np, p->attributes);
+    fastpm_store_init(tmp, p->np, p->attributes);
 
     FastPMFloat * delta_k = pm_alloc(solver->basepm);
 
@@ -109,8 +108,7 @@ int main(int argc, char * argv[]) {
         //solver->p->x[0][1] = 0;
         //solver->p->x[0][2] = 0;
     }
-    fastpm_store_init(gradient);
-    fastpm_store_alloc(gradient, solver->p->np, solver->p->attributes);
+    fastpm_store_init(gradient, solver->p->np, solver->p->attributes);
     fastpm_store_copy(solver->p, gradient);
 
 
