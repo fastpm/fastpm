@@ -11,6 +11,7 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 
 TEST_SOURCES = testpm.c \
+               testcolumn.c \
                testconstrained.c \
                testlightcone.c \
                testrecorder.c \
@@ -31,6 +32,10 @@ SOURCES = $(TEST_SOURCES)
 all: $(TESTS)
 
 testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
+
+testcolumn : .objs/testcolumn.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
