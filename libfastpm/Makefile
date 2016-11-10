@@ -12,6 +12,7 @@ FILES = $(shell git ls-files)
 FILES += $(shell git ls-files ../api)
 
 LIBSOURCES = libfastpm.c \
+    column.c \
     solver.c \
     factors.c \
     events.c \
