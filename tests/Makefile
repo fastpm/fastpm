@@ -8,7 +8,7 @@ DIR_PATH = $(GSL_DIR)
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
 
-CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install -I../mpsort
+CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 
 TEST_SOURCES = testpm.c \
                testconstrained.c \

@@ -7,14 +7,12 @@ DIR_PATH = $(GSL_DIR) ../depends/install
 
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
-CPPFLAGS += -I../api/ -I../bigfile -I../depends/install -I../mpsort
+CPPFLAGS += -I../api/ -I../depends/install
 
 FILES = $(shell git ls-files)
 FILES += $(shell git ls-files ../api)
 
 LIBSOURCES = io.c \
-
-MPSORTLIBS = ../mpsort/libradixsort.a ../mpsort/libmpsort-mpi.a
 
 all: libfastpm-io.a 
 
