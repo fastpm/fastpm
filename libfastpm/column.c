@@ -47,54 +47,50 @@ _fastpm_column_get_dataptr(FastPMColumn * self, size_t i)
 }
 
 static void
-_fastpm_column_get_double_float64(FastPMColumn * self, size_t i, double * dest)
+_fastpm_column_to_double_float64(FastPMColumn * self, void * ptr, double * dest)
 {
     int d;
-    void * ptr = _fastpm_column_get_dataptr(self, i);
     for(d = 0; d < self->nmemb; d ++) {
         dest[d] = ((double*)ptr)[d];
     }
 }
 
 static void
-_fastpm_column_get_double_float32(FastPMColumn * self, size_t i, double * dest)
+_fastpm_column_to_double_float32(FastPMColumn * self, void * ptr, double * dest)
 {
     int d;
-    void * ptr = _fastpm_column_get_dataptr(self, i);
     for(d = 0; d < self->nmemb; d ++) {
         dest[d] = ((float*)ptr)[d];
     }
 }
 
 static void
-_fastpm_column_get(FastPMColumn * self, size_t i, void * dest)
+_fastpm_column_get(FastPMColumn * self, ptrdiff_t i, void * dest)
 {
     void * ptr = _fastpm_column_get_dataptr(self, i);
     memcpy(dest, ptr, self->elsize * self->nmemb);
 }
 
 static void
-_fastpm_column_set_double_float64(FastPMColumn * self, size_t i, double * src)
+_fastpm_column_from_double_float64(FastPMColumn * self, void * ptr, double * src)
 {
     int d;
-    void * ptr = _fastpm_column_get_dataptr(self, i);
     for(d = 0; d < self->nmemb; d ++) {
         ((double*)ptr)[d] = src[d];
     }
 }
 
 static void
-_fastpm_column_set_double_float32(FastPMColumn * self, size_t i, double * src)
+_fastpm_column_from_double_float32(FastPMColumn * self, void * ptr, double * src)
 {
     int d;
-    void * ptr = _fastpm_column_get_dataptr(self, i);
     for(d = 0; d < self->nmemb; d ++) {
         ((float*)ptr)[d] = src[d];
     }
 }
 
 static void
-_fastpm_column_set(FastPMColumn * self, size_t i, void * src)
+_fastpm_column_set(FastPMColumn * self, ptrdiff_t i, void * src)
 {
     void * ptr = _fastpm_column_get_dataptr(self, i);
     memcpy(ptr, src, self->elsize * self->nmemb);
@@ -104,8 +100,8 @@ void
 fastpm_column_init_double3(FastPMColumn * self, size_t maxsize)
 {
     fastpm_column_init(self, 3, sizeof(double), maxsize);
-    self->get_double = _fastpm_column_get_double_float64;
-    self->set_double = _fastpm_column_set_double_float64;
+    self->to_double = _fastpm_column_to_double_float64;
+    self->from_double = _fastpm_column_from_double_float64;
     self->get = _fastpm_column_get;
     self->set = _fastpm_column_set;
     self->destroy = _fastpm_column_destroy;
@@ -117,8 +113,8 @@ void
 fastpm_column_init_float3(FastPMColumn * self, size_t maxsize)
 {
     fastpm_column_init(self, 3, sizeof(float), maxsize);
-    self->get_double = _fastpm_column_get_double_float32;
-    self->set_double = _fastpm_column_set_double_float32;
+    self->to_double = _fastpm_column_to_double_float32;
+    self->from_double = _fastpm_column_from_double_float32;
     self->get = _fastpm_column_get;
     self->set = _fastpm_column_set;
     self->destroy = _fastpm_column_destroy;
@@ -129,8 +125,8 @@ void
 fastpm_column_init_uint64(FastPMColumn * self, size_t maxsize)
 {
     fastpm_column_init(self, 1, sizeof(uint64_t), maxsize);
-    self->get_double = NULL;
-    self->set_double = NULL;
+    self->to_double = NULL;
+    self->from_double = NULL;
     self->get = _fastpm_column_get;
     self->set = _fastpm_column_set;
     self->destroy = _fastpm_column_destroy;
@@ -144,25 +140,41 @@ fastpm_column_destroy(FastPMColumn * self)
 }
 
 void
-fastpm_column_get_double(FastPMColumn * self, size_t i, double * dest)
+fastpm_column_to_double(FastPMColumn * self, void * ptr, double * dest)
 {
-    self->get_double(self, i, dest);
+    self->to_double(self, ptr, dest);
 }
 
 void
-fastpm_column_set_double(FastPMColumn * self, size_t i, double * src)
+fastpm_column_from_double(FastPMColumn * self, void * ptr, double * src)
 {
-    self->set_double(self, i, src);
+    self->from_double(self, ptr, src);
 }
 
 void
-fastpm_column_get(FastPMColumn * self, size_t i, double * dest)
+fastpm_column_get_double(FastPMColumn * self, ptrdiff_t i, double * dest)
+{
+    char ptr[self->elsize * self->nmemb];
+    fastpm_column_get(self, i, ptr);
+    self->to_double(self, ptr, dest);
+}
+
+void
+fastpm_column_set_double(FastPMColumn * self, ptrdiff_t i, double * src)
+{
+    char ptr[self->elsize * self->nmemb];
+    self->from_double(self, ptr, src);
+    fastpm_column_set(self, i, ptr);
+}
+
+void
+fastpm_column_get(FastPMColumn * self, ptrdiff_t i, void * dest)
 {
     self->get(self, i, dest);
 }
 
 void
-fastpm_column_set(FastPMColumn * self, size_t i, double * src)
+fastpm_column_set(FastPMColumn * self, ptrdiff_t i, void * src)
 {
     self->set(self, i, src);
 }

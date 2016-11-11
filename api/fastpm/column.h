@@ -17,14 +17,14 @@ struct FastPMColumn {
     void * buffer;
 
     void
-    (*get_double)(FastPMColumn * self, size_t i, double * dest);
+    (*to_double)(FastPMColumn * self, void * ptr, double * dest);
     void
-    (*set_double)(FastPMColumn * self, size_t i, double * src);
+    (*from_double)(FastPMColumn * self, void * ptr, double * src);
 
     void
-    (* get)(FastPMColumn * self, size_t i, void * dest);
+    (* get)(FastPMColumn * self, ptrdiff_t i, void * dest);
     void
-    (* set)(FastPMColumn * self, size_t i, void * src);
+    (* set)(FastPMColumn * self, ptrdiff_t i, void * src);
 
     void
     (* destroy)(FastPMColumn * self);
@@ -56,16 +56,22 @@ void
 fastpm_column_destroy(FastPMColumn * self);
 
 void
-fastpm_column_get_double(FastPMColumn * self, size_t i, double * dest);
+fastpm_column_get_double(FastPMColumn * self, ptrdiff_t i, double * dest);
 
 void
-fastpm_column_set_double(FastPMColumn * self, size_t i, double * src);
+fastpm_column_set_double(FastPMColumn * self, ptrdiff_t i, double * src);
 
 void
-fastpm_column_get(FastPMColumn * self, size_t i, double * dest);
+fastpm_column_to_double(FastPMColumn * self, void * ptr, double * dest);
 
 void
-fastpm_column_set(FastPMColumn * self, size_t i, double * src);
+fastpm_column_from_double(FastPMColumn * self, void *ptr, double * src);
+
+void
+fastpm_column_get(FastPMColumn * self, ptrdiff_t i, void * dest);
+
+void
+fastpm_column_set(FastPMColumn * self, ptrdiff_t i, void * src);
 
 void
 fastpm_column_parallel_permute(FastPMColumn * self, int64_t index[], size_t newsize, MPI_Comm comm);
