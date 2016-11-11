@@ -12,6 +12,7 @@ CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 
 TEST_SOURCES = testpm.c \
                testcolumn.c \
+               testdomain.c \
                testconstrained.c \
                testlightcone.c \
                testrecorder.c \
@@ -36,6 +37,10 @@ testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
 testcolumn : .objs/testcolumn.o $(LIBFASTPM_LIBS)
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) -lgsl -lgslcblas -lm
+
+testdomain : .objs/testdomain.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) -lgsl -lgslcblas -lm
 
