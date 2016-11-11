@@ -38,7 +38,8 @@ target_func(void * pdata, ptrdiff_t i, void * data)
     PM * pm = (PM*) data;
     double pos[3];
     fastpm_store_get_lagrangian_position(p, i, pos);
-    return pm_pos_to_rank(pm, pos);
+    int ipos[3];
+    return pm_pos_to_rank(pm, pos, ipos);
 }
 
 

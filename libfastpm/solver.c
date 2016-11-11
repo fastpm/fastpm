@@ -337,7 +337,8 @@ to_rank(void * pdata, ptrdiff_t i, void * data)
     PM * pm = (PM*) data;
     double pos[3];
     p->get_position(p, i, pos);
-    return pm_pos_to_rank(pm, pos);
+    int ipos[3];
+    return pm_pos_to_rank(pm, pos, ipos);
 }
 
 static void

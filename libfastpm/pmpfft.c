@@ -335,14 +335,14 @@ pm_destroy(PM * pm)
 }   
 
 
-int pm_pos_to_rank(PM * pm, double pos[3]) {
+int pm_pos_to_rank(PM * pm, double pos[3], int ipos[3]) {
     int d;
-    int ipos[3];
-    for(d = 0; d < 2; d ++) {
+    for(d = 0; d < 3; d ++) {
         ipos[d] = floor(pos[d] * pm->InvCellSize[d]);
     }
     return pm_ipos_to_rank(pm, ipos);
 }
+
 
 int pm_ipos_to_rank(PM * pm, int i[3]) {
     int d;

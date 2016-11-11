@@ -79,9 +79,6 @@ pm_init_simple(PM * pm, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
 
-int pm_pos_to_rank(PM * pm, double pos[3]);
-int pm_ipos_to_rank(PM * pm, int i[3]);
-
 /* reset 'x' and 'q' of every particle to the lagrangian position. This function shall
  * not belong here.*/
 
