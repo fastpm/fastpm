@@ -186,3 +186,29 @@ def fftdown(field, size):
     t = t[sl]
 
     return numpy.fft.ifftshift(t, axes=fullaxes.nonzero()[0])
+
+def complex_to_fastpm(fn, ds, complex, BoxSize):
+    """
+        >>> c = numpy.fft.rfftn(numpy.random.normal(size=(128, 128, 128)))
+
+        >>> complex_to_fastpm("IC", "Copy", c, 128.)
+
+        >>> a = bigfile.BigFile("IC")['Copy'][:]
+        >>> print(a[1], c.ravel()[1])
+        >>> print(a[300], c.ravel()[300])
+    """
+    import bigfile
+    import numpy
+
+    bf = bigfile.BigFile(fn, create=True)
+    bb = bf.create(ds, complex.dtype, complex.size, Nfile=1)
+    Nmesh = complex.shape[0]
+
+    bb.attrs['Nmesh'] = Nmesh
+    bb.attrs['BoxSize'] = BoxSize
+    # This ensures we write the array as C-Contiguous
+    bb.write(0, complex)
+    # Thus we set the strides and shape accordingly for FastPM to pick up.
+    bb.attrs['ndarray.ndim'] = 3
+    bb.attrs['ndarray.shape'] = (Nmesh, Nmesh, Nmesh)
+    bb.attrs['ndarray.strides'] = (Nmesh * (Nmesh // 2 + 1), Nmesh // 2 + 1, 1)
