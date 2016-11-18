@@ -44,7 +44,7 @@ apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int 
 #pragma omp parallel 
     {
         PMKIter kiter;
-
+        ptrdiff_t * Nmesh = pm_nmesh(pm);
         pm_kiter_init(pm, &kiter);
         float ** klist[2] = {kiter.k, kiter.k_finite};
         for(;
@@ -55,9 +55,20 @@ apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int 
             ptrdiff_t ind = kiter.ind;
             /* i k[d] */
             /* Watch out the data dependency */
-            FastPMFloat tmp = from[ind + 0] * (k_finite);
-            to[ind + 0] = - from[ind + 1] * (k_finite);
-            to[ind + 1] = tmp;
+            if(
+                kiter.iabs[0] == (Nmesh[0] - kiter.iabs[0]) % Nmesh[0] &&
+                kiter.iabs[1] == (Nmesh[1] - kiter.iabs[1]) % Nmesh[1] &&
+                kiter.iabs[2] == (Nmesh[2] - kiter.iabs[2]) % Nmesh[2]
+            ) {
+                /* We are at the nyquist and the diff operator shall be zero;
+                 * otherwise the force is not real! */
+                to[kiter.ind + 0] = 0;
+                to[kiter.ind + 1] = 0;
+            } else {
+                FastPMFloat tmp = from[ind + 0] * (k_finite);
+                to[ind + 0] = - from[ind + 1] * (k_finite);
+                to[ind + 1] = tmp;
+            }
         }
     }
 }

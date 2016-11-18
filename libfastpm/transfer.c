@@ -30,7 +30,6 @@ fastpm_apply_smoothing_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, d
             for(dir = 0; dir < 3; dir++)
                 smth *= kernel[dir][kiter.iabs[dir]];
 
-            /* - i k[d] */
             to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
             to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
         }
@@ -59,7 +58,6 @@ fastpm_apply_lowpass_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, dou
             }
             if(kk < kth2) smth = 1;
             else smth = 0;
-            /* - i k[d] */
             to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
             to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
         }
@@ -117,7 +115,7 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
 void
 fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 {
-
+    ptrdiff_t * Nmesh = pm_nmesh(pm);
 #pragma omp parallel
     {
         PMKIter kiter;
@@ -126,11 +124,22 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
             pm_kiter_next(&kiter)) {
             double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
             /* i k[d] */
-            FastPMFloat tmp[2];
-            tmp[0] = - from[kiter.ind + 1] * (k_finite);
-            tmp[1] =   from[kiter.ind + 0] * (k_finite);
-            to[kiter.ind + 0] = tmp[0];
-            to[kiter.ind + 1] = tmp[1];
+            if(
+                kiter.iabs[0] == (Nmesh[0] - kiter.iabs[0]) % Nmesh[0] &&
+                kiter.iabs[1] == (Nmesh[1] - kiter.iabs[1]) % Nmesh[1] &&
+                kiter.iabs[2] == (Nmesh[2] - kiter.iabs[2]) % Nmesh[2]
+            ) {
+                /* We are at the nyquist and the diff operator shall be zero;
+                 * otherwise the force is not real! */
+                to[kiter.ind + 0] = 0;
+                to[kiter.ind + 1] = 0;
+            } {
+                FastPMFloat tmp[2];
+                tmp[0] = - from[kiter.ind + 1] * (k_finite);
+                tmp[1] =   from[kiter.ind + 0] * (k_finite);
+                to[kiter.ind + 0] = tmp[0];
+                to[kiter.ind + 1] = tmp[1];
+            }
         }
     }
 }
@@ -188,7 +197,6 @@ fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_
             }
             double k = sqrt(kk);
             smth = func(k, data);
-            /* - i k[d] */
             to[kiter.ind + 0] = from[kiter.ind + 0] * smth;
             to[kiter.ind + 1] = from[kiter.ind + 1] * smth;
         }
@@ -268,12 +276,25 @@ fastpm_apply_modify_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to,
     fastpm_apply_set_mode_transfer(pm, from, to, mode, value, 0);
 }
 
-/* method == 0 for override, method == 1 for add */
+/* method == 0 for override, method == 1 for add;
+ * always use get_mode_transfer to check the result -- this doesn't guarentee setting the mode
+ * to the value (because not all modes are free.
+ * */
 void
 fastpm_apply_set_mode_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, ptrdiff_t * mode, double value, int method)
 {
     ptrdiff_t * Nmesh = pm_nmesh(pm);
-
+    if(
+        mode[0] == (Nmesh[0] - mode[0]) % Nmesh[0] &&
+        mode[1] == (Nmesh[1] - mode[1]) % Nmesh[1] &&
+        mode[2] == (Nmesh[2] - mode[2]) % Nmesh[2]
+    ) {
+        if(mode[3] == 1) {
+            /* These modes are purely real, thus we can not set the imag part to non-zero */
+            method = 0;
+            value = 0;
+        }
+    }
 #pragma omp parallel
     {
         PMKIter kiter;
