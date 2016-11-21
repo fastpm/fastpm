@@ -210,5 +210,5 @@ def complex_to_fastpm(fn, ds, complex, BoxSize):
     bb.write(0, complex)
     # Thus we set the strides and shape accordingly for FastPM to pick up.
     bb.attrs['ndarray.ndim'] = 3
-    bb.attrs['ndarray.shape'] = (Nmesh, Nmesh, Nmesh)
+    bb.attrs['ndarray.shape'] = (Nmesh, Nmesh, Nmesh // 2 + 1)
     bb.attrs['ndarray.strides'] = (Nmesh * (Nmesh // 2 + 1), Nmesh // 2 + 1, 1)
