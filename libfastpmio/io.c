@@ -33,12 +33,9 @@ _radix_unpack_id(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
-    /* HACK: this taints p->id[0], so we back it up */
-    uint64_t id0 = p->id[0];
     p->unpack(p, 0, (void*) ptr, p->attributes);
 
     *((uint64_t*) radix) = p->id[0];
-    p->id[0] = id0;
 }
 
 static void
@@ -59,13 +56,19 @@ sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
     void * recv_buffer = malloc(elsize * localsize);
     ptrdiff_t i;
 
+    FastPMStore ptmp[1];
+    fastpm_store_init(ptmp, 1, p->attributes);
+
     for(i = 0; i < p->np; i ++) {
         p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
     }
-    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, _radix_unpack_id, 8, p, comm);
+    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, _radix_unpack_id, 8, ptmp, comm);
+
     for(i = 0; i < localsize; i ++) {
         p->unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
     }
+    p->np = localsize;
+    fastpm_store_destroy(ptmp);
     free(recv_buffer);
     free(send_buffer);
 }
