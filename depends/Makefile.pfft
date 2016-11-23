@@ -39,5 +39,5 @@ $(PFFTFLIB): $(PFFT_CONFIGURE)
 
 $(PFFTSRC): 
 	mkdir -p download
-	curl -o $@ https://github.com/rainwoodman/pfft/releases/download/$(PFFT_VERSION)/pfft-$(PFFT_VERSION).tar.gz ; \
+	curl -L -o $@ https://github.com/rainwoodman/pfft/releases/download/$(PFFT_VERSION)/pfft-$(PFFT_VERSION).tar.gz ; \
 
