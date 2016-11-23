@@ -159,6 +159,18 @@ binary from anaconda.
 Due to https://github.com/conda/conda/issues/2277, one need to set up a symlink
 from your anaconda installation to /opt/anaconda1anaconda2anaconda3 before this works.
 
+.. code::
+
+    conda install openmpi gsl
+
+    export LD_LIBRARY_PATH=`conda info --root`/lib
+    export C_INCLUDE_PATH=`conda info --root`/include
+
+Also make sure that in Makefile.local, `OPENMP` is set empty, because
+currently the compiler on these Macintosh Personal Computers do not support openmp.
+The compiler is also gives extra warnings, and remove `-Werror` from the Makefile.local
+is recommended.
+
 Examples
 --------
 
