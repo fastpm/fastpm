@@ -1,6 +1,7 @@
 #ifndef _BIGFILE_H_
 #define _BIGFILE_H_
 #include <stddef.h>
+#include <stdio.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

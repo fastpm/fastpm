@@ -8,6 +8,9 @@ PIC ?= -fPIC
 all: libbigfile.a libbigfile-mpi.a
 
 install: libbigfile.a libbigfile-mpi.a
+	install -d $(PREFIX)
+	install -d $(PREFIX)/lib
+	install -d $(PREFIX)/include
 	install libbigfile.a $(PREFIX)/lib/libbigfile.a
 	install libbigfile-mpi.a $(PREFIX)/lib/libbigfile-mpi.a
 	install bigfile-mpi.h $(PREFIX)/include/bigfile-mpi.h
