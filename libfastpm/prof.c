@@ -10,9 +10,9 @@ struct FastPMClock {
     double tcum;
     double twait;
     double t0;
-    const char * file;
-    const char * func;
-    const char * name;
+    char file[128];
+    char func[128];
+    char name[128];
     struct FastPMClock * next;
 };
 
@@ -25,9 +25,9 @@ fastpm_clock_create(const char * file, const char * func, const char * name)
     p->t0 = 0;
     p->tcum = 0;
     p->twait = 0;
-    p->file = file;
-    p->func = func;
-    p->name = name;
+    strncpy(p->file, file, 120);
+    strncpy(p->func, func, 120);
+    strncpy(p->name, name, 120);
     p->next = NULL;
     return p;
 }
@@ -187,12 +187,12 @@ void fastpm_clock_stat(MPI_Comm comm)
             lastfunc = p->func;
             fastpm_clock_stat_one(p, comm);
         }
-        foo.file = NULL;
+        foo.file[0] = 0;
         MPI_Bcast(&foo, sizeof(foo), MPI_BYTE, 0, comm); 
     } else {
         while(1) {
             MPI_Bcast(&foo, sizeof(foo), MPI_BYTE, 0, comm); 
-            if(foo.file == NULL) {
+            if(foo.file[0] == 0) {
                 break;
             }
             p = fastpm_clock_find(foo.file, foo.func, foo.name);
