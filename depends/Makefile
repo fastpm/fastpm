@@ -4,6 +4,7 @@
 .PHONY: all clean
 BIGFILE_LIBS = libbigfile.a libbigfile-mpi.a
 MPSORT_LIBS = libradixsort.a libmpsort-mpi.a
+ifdef OPENMP
 PFFT_LIBS = libfftw3.a \
 			libfftw3_mpi.a \
 			libfftw3_omp.a \
@@ -12,6 +13,16 @@ PFFT_LIBS = libfftw3.a \
 			libfftw3f_omp.a \
 			libpfft_omp.a \
 			libpfftf_omp.a \
+
+else
+PFFT_LIBS = libfftw3.a \
+			libfftw3_mpi.a \
+			libfftw3f.a \
+			libfftw3f_mpi.a \
+			libpfft.a \
+			libpfftf.a \
+
+endif
 
 .PHONY: all
 

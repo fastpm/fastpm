@@ -1,7 +1,8 @@
 #include <string.h>
 #include <mpi.h>
+#ifdef _OPENMP
 #include <omp.h>
-
+#endif
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 
@@ -83,9 +84,13 @@ pm_kiter_init(PM * pm, PMKIter * iter)
      * much slower than pm_inc_o_index and would eliminate threading advantage.
      *
      * */
+#ifdef _OPENMP
     int nth = omp_get_num_threads();
     int ith = omp_get_thread_num();
-
+#else
+    int nth = 1;
+    int ith = 0;
+#endif
     iter->start = ith * pm->ORegion.total / nth * 2;
     iter->end = (ith + 1) * pm->ORegion.total / nth * 2;
 
@@ -141,9 +146,13 @@ void pm_kiter_next(PMKIter * iter)
 void 
 pm_xiter_init(PM * pm, PMXIter * iter) 
 {
+#ifdef _OPENMP
     int nth = omp_get_num_threads();
     int ith = omp_get_thread_num();
-
+#else
+    int nth = 1;
+    int ith = 0;
+#endif
     iter->start = ith * pm->IRegion.total / nth;
     iter->end = (ith + 1) * pm->IRegion.total / nth;
 

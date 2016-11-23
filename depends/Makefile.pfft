@@ -1,15 +1,21 @@
 # This make file helps to build the bundled PFFT
 #
-PFFTLIB = install/lib/libpfft_omp.a
-PFFTFLIB = install/lib/libpfftf_omp.a
 PFFT_VERSION=1.0.8-alpha2-fftw3
 PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx
 PFFTSRC = download/pfft-$(PFFT_VERSION).tar.gz 
-
-all: $(PFFTLIB) $(PFFTFLIB)
+ifdef OPENMP
+PFFT_CONFIGURE_FLAGS += --enable-openmp
+PFFTLIB = install/lib/libpfft_omp.a
+PFFTFLIB = install/lib/libpfftf_omp.a
+else
+PFFTLIB = install/lib/libpfft.a
+PFFTFLIB = install/lib/libpfftf.a
+endif
 
 PFFT_CONFIGURE = $(abspath src/pfft-$(PFFT_VERSION)/configure)
 PFFT_CONFIGURE_FLAGS_SINGLE = $(subst --enable-sse2, --enable-sse, $(PFFT_CONFIGURE_FLAGS))
+
+all: $(PFFTLIB) $(PFFTFLIB)
 
 $(PFFT_CONFIGURE): $(PFFTSRC)
 	mkdir -p src ;
@@ -20,7 +26,7 @@ $(PFFTLIB): $(PFFT_CONFIGURE)
 	mkdir -p double;
 	(cd double; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath install) --disable-shared --enable-static  \
-	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) --enable-openmp "MPICC=$(CC)" \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) "MPICC=$(CC)" \
 	2>&1 ; \
 	make -j 4 2>&1 ; \
 	make install 2>&1; \
@@ -30,7 +36,7 @@ $(PFFTFLIB): $(PFFT_CONFIGURE)
 	mkdir -p single;
 	(cd single; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath install) --enable-single --disable-shared --enable-static  \
-	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) --enable-openmp "MPICC=$(CC)" \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) "MPICC=$(CC)" \
 	2>&1 ; \
        	make -j 4 2>&1 ; \
 	make install 2>&1; \

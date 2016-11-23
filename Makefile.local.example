@@ -8,6 +8,11 @@
 #
 # OPENMP = -fopenmp
 #
+# Disable openmp
+# OPENMP = 
+# 
+# remember to remove depends/install to ensure a rebuild of the dependencies
+# flipping between openmp and not.
 
 #
 # For double precision FFT, use 

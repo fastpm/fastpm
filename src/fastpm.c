@@ -16,8 +16,9 @@
 #include <fastpm/string.h>
 #include <fastpm/lightcone.h>
 #include <fastpm/constrainedgaussian.h>
+#ifdef _OPENMP
 #include <omp.h>
-
+#endif
 #include "lua-config.h"
 
 typedef struct {
@@ -179,8 +180,11 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     fastpm_solver_init(fastpm, config, comm);
 
-    fastpm_info("BaseProcMesh : %d x %d ( %d Threads)\n",
-            pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1], omp_get_max_threads());
+    fastpm_info("BaseProcMesh : %d x %d\n",
+            pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
+#ifdef _OPENMP
+    fastpm_info("%d Threads\n", omp_get_max_threads());
+#endif
 
     LEAVE(init);
 

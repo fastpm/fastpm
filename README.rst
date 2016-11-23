@@ -150,6 +150,15 @@ it based on the example for your site.
     # the rest is just make. It may take a while.
     make
 
+Macintosh Personal Computers
+----------------------------
+
+These computers are very popular. We find it easier to use the prepackaged
+binary from anaconda.
+
+Due to https://github.com/conda/conda/issues/2277, one need to set up a symlink
+from your anaconda installation to /opt/anaconda1anaconda2anaconda3 before this works.
+
 Examples
 --------
 

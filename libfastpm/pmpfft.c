@@ -1,6 +1,5 @@
 #include <string.h>
 #include <mpi.h>
-#include <omp.h>
 
 #include <fftw3.h>
 #include <fftw3-mpi.h>
