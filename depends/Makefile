@@ -48,5 +48,5 @@ $(MPSORT_LIBS:%.a=install/lib/%.a): .mpsort
 $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
 .pfft:
-	($(MAKE) "CC=$(CC)" -f Makefile.pfft)
+	($(MAKE) "OPENMP=$(OPENMP)" "CC=$(CC)" -f Makefile.pfft)
 
