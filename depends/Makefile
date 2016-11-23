@@ -22,7 +22,7 @@ libfastpm-dep.a: $(BIGFILE_LIBS:%.a=install/lib/%.a) \
 	  $(PFFT_LIBS:%.a=install/lib/%.a)
 	../ar-join $@ $^
 
-.INTERMEDIATE: .bigfile .mpsort .pfft
+.INTERMEDIATE: .pfft .bigfile .mpsort
 
 $(BIGFILE_LIBS:%.a=install/lib/%.a): .bigfile
 
