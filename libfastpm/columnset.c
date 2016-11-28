@@ -4,16 +4,19 @@
 #include <fastpm/logging.h>
 
 static void
-_fastpm_column_set_destroy(FastPMColumn * base);
+_fastpm_columnset_resize(FastPMColumn * base, size_t newsize);
 
 static void
-_fastpm_column_set_set(FastPMColumn * base, ptrdiff_t i, void * src);
+_fastpm_columnset_destroy(FastPMColumn * base);
 
 static void
-_fastpm_column_set_get(FastPMColumn * base, ptrdiff_t i, void * dest);
+_fastpm_columnset_set(FastPMColumn * base, ptrdiff_t i, void * src);
+
+static void
+_fastpm_columnset_get(FastPMColumn * base, ptrdiff_t i, void * dest);
 
 void
-fastpm_column_set_init(FastPMColumnSet * self,
+fastpm_columnset_init(FastPMColumnSet * self,
         FastPMColumn ** columns, int ncolumns
         )
 {
@@ -39,13 +42,26 @@ fastpm_column_set_init(FastPMColumnSet * self,
     }
     base->to_double = NULL;
     base->from_double = NULL;
-    base->get = _fastpm_column_set_get;
-    base->set = _fastpm_column_set_set;
-    base->destroy = _fastpm_column_set_destroy;
+    base->get = _fastpm_columnset_get;
+    base->set = _fastpm_columnset_set;
+    base->destroy = _fastpm_columnset_destroy;
+    base->resize = _fastpm_columnset_resize;
 }
 
 static void
-_fastpm_column_set_get(FastPMColumn * base, ptrdiff_t i, void * dest)
+_fastpm_columnset_resize(FastPMColumn * base, size_t newsize)
+{
+    int c;
+    base->size = newsize;
+    FastPMColumnSet * self = (FastPMColumnSet *) base;
+    for(c = 0; c < self->ncolumns; c++) {
+        fastpm_column_resize(self->columns[c], newsize);
+    }
+
+}
+
+static void
+_fastpm_columnset_get(FastPMColumn * base, ptrdiff_t i, void * dest)
 {
     int c;
     FastPMColumnSet * self = (FastPMColumnSet*) base;
@@ -57,7 +73,7 @@ _fastpm_column_set_get(FastPMColumn * base, ptrdiff_t i, void * dest)
 }
 
 static void
-_fastpm_column_set_set(FastPMColumn * base, ptrdiff_t i, void * src)
+_fastpm_columnset_set(FastPMColumn * base, ptrdiff_t i, void * src)
 {
     int c; 
     FastPMColumnSet * self = (FastPMColumnSet*) base;
@@ -69,7 +85,7 @@ _fastpm_column_set_set(FastPMColumn * base, ptrdiff_t i, void * src)
 }
 
 static void
-_fastpm_column_set_destroy(FastPMColumn * base)
+_fastpm_columnset_destroy(FastPMColumn * base)
 {
     return;
 }

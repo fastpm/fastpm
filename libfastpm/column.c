@@ -26,7 +26,7 @@ fastpm_column_resize(FastPMColumn * self, size_t size)
     if(size >= self->maxsize) {
         fastpm_raise(-1, "requested size exceed the max (%td > %td)\n", size, self->maxsize);
     }
-    self->size = size;
+    self->resize(self, size);
 }
 
 static void
@@ -97,6 +97,12 @@ _fastpm_column_set(FastPMColumn * self, ptrdiff_t i, void * src)
     memcpy(ptr, src, self->elsize * self->nmemb);
 }
 
+static void
+_fastpm_column_resize(FastPMColumn * self, size_t newsize)
+{
+    self->size = newsize;
+}
+
 void
 fastpm_column_init_double3(FastPMColumn * self, size_t maxsize)
 {
@@ -106,6 +112,7 @@ fastpm_column_init_double3(FastPMColumn * self, size_t maxsize)
     self->get = _fastpm_column_get;
     self->set = _fastpm_column_set;
     self->destroy = _fastpm_column_destroy;
+    self->resize = _fastpm_column_resize;
 
     fastpm_column_alloc(self);
 }
@@ -119,6 +126,8 @@ fastpm_column_init_float3(FastPMColumn * self, size_t maxsize)
     self->get = _fastpm_column_get;
     self->set = _fastpm_column_set;
     self->destroy = _fastpm_column_destroy;
+    self->resize = _fastpm_column_resize;
+
     fastpm_column_alloc(self);
 }
 
@@ -131,6 +140,8 @@ fastpm_column_init_uint64(FastPMColumn * self, size_t maxsize)
     self->get = _fastpm_column_get;
     self->set = _fastpm_column_set;
     self->destroy = _fastpm_column_destroy;
+    self->resize = _fastpm_column_resize;
+
     fastpm_column_alloc(self);
 }
 

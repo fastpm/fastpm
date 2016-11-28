@@ -29,6 +29,9 @@ struct FastPMColumn {
     void
     (* destroy)(FastPMColumn * self);
 
+    void
+    (* resize)(FastPMColumn * self, size_t newsize);
+
     void * priv;
 
     double timestamp; /* a */

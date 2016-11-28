@@ -13,7 +13,7 @@ typedef struct {
 } FastPMColumnSet;
 
 void
-fastpm_column_set_init(FastPMColumnSet * self,
+fastpm_columnset_init(FastPMColumnSet * self,
         FastPMColumn ** columns, int ncolumns
         );
 
