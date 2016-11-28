@@ -19,6 +19,7 @@ fastpm_column_init(FastPMColumn * self,
     self->maxsize = maxsize;
 }
 
+
 void
 fastpm_column_resize(FastPMColumn * self, size_t size)
 {
