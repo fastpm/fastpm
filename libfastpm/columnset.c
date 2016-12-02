@@ -28,7 +28,7 @@ fastpm_columnset_init(FastPMColumnSet * self, FastPMColumn ** columns)
 
     int c;
     FastPMColumn * column;
-    for(c = 0; NULL != (column = self->columns[c]); c++) {
+    for(c = 0; NULL != (column = columns[c]); c++) {
         base->elsize += column->elsize * column->nmemb;
         if(column->maxsize != base->maxsize) {
             fastpm_raise(-1, "mismatched maxsize (%td != %td)\n", column->maxsize, base->maxsize);

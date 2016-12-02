@@ -58,7 +58,7 @@ void
 fastpm_mesh_copy(FastPMMesh * self, FastPMFloat * from, FastPMFloat * to);
 
 int
-fastpm_mesh_ipos_to_rank(FastPMMesh * self, int ipos, int dim);
+fastpm_mesh_ipos_to_rank(FastPMMesh * self, int ipos[]);
 
 int
 fastpm_mesh_pos_to_ipos(FastPMMesh * self, double pos, int dim);

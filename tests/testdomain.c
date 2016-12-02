@@ -8,7 +8,7 @@
 
 typedef struct FastPMDomain {
     FastPMMemory * mem;
-    PM * pm;
+    FastPMMesh * mesh;
     ptrdiff_t * masterindex;
     MPI_Comm comm;
     size_t oldsize;
@@ -17,10 +17,10 @@ typedef struct FastPMDomain {
 } FastPMDomain;
 
 void 
-fastpm_domain_init(FastPMDomain * self, PM * pm, FastPMColumn * pos, MPI_Comm comm)
+fastpm_domain_init(FastPMDomain * self, FastPMMesh * mesh, FastPMColumn * pos, MPI_Comm comm)
 {
     self->mem = pos->mem;
-    self->pm = pm;
+    self->mesh = mesh;
     self->comm = comm;
     self->masterindex = fastpm_memory_alloc(self->mem, pos->size * sizeof(self->masterindex[0]), FASTPM_MEMORY_HEAP);
 
@@ -49,9 +49,12 @@ fastpm_domain_init(FastPMDomain * self, PM * pm, FastPMColumn * pos, MPI_Comm co
     for(i = 0; i < pos->size; i ++) {
         fastpm_column_get_double(pos, i, x);
         int ipos[3];
-        int masterrank = pm_pos_to_rank(self->pm, x, ipos);
+        int d;
+        for(d = 0; d < self->mesh->ndim; d ++) {
+            ipos[d] = fastpm_mesh_pos_to_ipos(self->mesh, x[d], d);
+        }
+        int masterrank = fastpm_mesh_ipos_to_rank(self->mesh, ipos);
         self->masterindex[i] = masterrank * offset[NTask] + i + offset[ThisTask];
-
         counts[masterrank] ++;
     }
     MPI_Allreduce(MPI_IN_PLACE, counts, NTask, MPI_LONG_LONG, MPI_SUM, self->comm);
@@ -94,7 +97,7 @@ _ghost_data_sort_by_rank(const void * p1, const void * p2)
 
 typedef struct FastPMGhosts {
     FastPMMemory * mem;
-    PM * pm;
+    FastPMMesh * mesh;
     double margin;
     struct FastPMGhostPair * ghostindex;
     MPI_Comm comm;
@@ -111,11 +114,11 @@ static int
  _fastpm_ghosts_probe(FastPMGhosts * self, double x[3], int masterrank, int * ranks);
 
 void
-fastpm_ghosts_init(FastPMGhosts * self, double margin, PM * pm, FastPMColumn * pos, MPI_Comm comm)
+fastpm_ghosts_init(FastPMGhosts * self, double margin, FastPMMesh * mesh, FastPMColumn * pos, MPI_Comm comm)
 {
     self->mem = pos->mem;
     self->comm = comm;
-    self->pm = pm;
+    self->mesh = mesh;
     self->margin = margin;
     int ThisTask;
     int NTask;
@@ -208,19 +211,17 @@ fastpm_ghosts_destroy(FastPMGhosts * self)
 static int
  _fastpm_ghosts_probe(FastPMGhosts * self, double x[3], int masterrank, int * ranks)
 {
-    PM * pm = self->pm;
+    FastPMMesh * mesh = self->mesh;
 
     int d;
-    double low[3];
-    double high[3];
     int ilow[3];
     int ihigh[3];
     for(d = 0; d < 3; d ++) {
-        low[d] = x[d] - self->margin;
-        high[d] = x[d] + self->margin;
+        double low = x[d] - self->margin;
+        double high = x[d] + self->margin;
+        ilow[d] = fastpm_mesh_pos_to_ipos(mesh, low, d);
+        ihigh[d] = fastpm_mesh_pos_to_ipos(mesh, high, d);
     }
-    pm_pos_to_rank(pm, low, ilow);
-    pm_pos_to_rank(pm, high, ihigh);
 
     /* probe neighbours */
     int used = 0;
@@ -229,7 +230,7 @@ static int
     for(j[2] = ilow[2]; j[2] <= ihigh[2]; j[2] ++)
     for(j[0] = ilow[0]; j[0] <= ihigh[0]; j[0] ++)
     for(j[1] = ilow[1]; j[1] <= ihigh[1]; j[1] ++) {
-        int rank = pm_ipos_to_rank(pm, j);
+        int rank = fastpm_mesh_ipos_to_rank(mesh, j);
         if(rank == masterrank)  continue;
         int ptr;
         for(ptr = 0; ptr < used; ptr++) {
@@ -342,33 +343,42 @@ int main(int argc, char * argv[])
     MPI_Comm_rank(comm, &ThisTask);
 
     FastPMColumn x[1];
-    fastpm_column_init_float3(x, 256);
+    fastpm_column_init_float3(x, 128);
 
-    size_t oldsize = (1 + ThisTask) * 10;
+    FastPMMesh mesh[1];
+
+    FastPMDomain domain[1];
+    fastpm_mesh_init(mesh, 3, 4., 4, NULL, comm);
+
+    size_t oldsize = 4;
     fastpm_column_resize(x, oldsize);
     int i;
 
     for(i = 0; i < oldsize; i ++) {
-        double pos[3] = {ThisTask * 10 + i, ThisTask * 10 + i, i};
+        double pos[3] = {i % 4, i % 4, i % 4};
         fastpm_column_set_double(x, i, pos);
     }
 
     for(i = 0; i < ThisTask; i ++) {
         MPI_Barrier(comm);
     }
-    printf("oldsize = %td\n", oldsize);
-    for(i = 0; i < oldsize; i ++) {
+
+    for(i = 0; i < x->size; i ++) {
         double pos[3];
+        int ipos[3];
         fastpm_column_get_double(x, i, pos);
-        printf("oldpos[%d] =%g %g %g\n", i, pos[0], pos[1], pos[2]);
+        int master;
+        int d;
+        for(d = 0; d < 3; d ++)
+            ipos[d] = fastpm_mesh_pos_to_ipos(mesh, pos[d], d);
+        master = fastpm_mesh_ipos_to_rank(mesh, ipos);
+        printf("ThisTask = %d pos[%d] =%d %d %d master = %d\n", ThisTask, i, ipos[0], ipos[1], ipos[2], master);
     }
     for(i = ThisTask; i < NTask; i ++) {
         MPI_Barrier(comm);
     }
-    //PM pm[1];
-    FastPMDomain domain[1];
-    //pm_init_simple(pm, 32, 32., comm);
-    //fastpm_domain_init(domain, pm, x, comm)
+
+    fastpm_domain_init(domain, mesh, x, comm);
 
     fastpm_domain_decompose(domain, (FastPMColumn * []) {x, NULL});
 
@@ -377,13 +387,22 @@ int main(int argc, char * argv[])
     }
     for(i = 0; i < x->size; i ++) {
         double pos[3];
+        int ipos[3];
         fastpm_column_get_double(x, i, pos);
-        printf("newpos[%d] =%g %g %g\n", i, pos[0], pos[1], pos[2]);
+        int master;
+        int d;
+        for(d = 0; d < 3; d ++)
+            ipos[d] = fastpm_mesh_pos_to_ipos(mesh, pos[d], d);
+        master = fastpm_mesh_ipos_to_rank(mesh, ipos);
+        printf("ThisTask = %d pos[%d] =%d %d %d master = %d\n", ThisTask, i, ipos[0], ipos[1], ipos[2], master);
+        if(master != ThisTask) abort();
     }
     for(i = ThisTask; i < NTask; i ++) {
         MPI_Barrier(comm);
     }
 
+    fastpm_domain_destroy(domain);
+    fastpm_mesh_destroy(mesh);
     fastpm_column_destroy(x);
     libfastpm_cleanup();
     MPI_Finalize();

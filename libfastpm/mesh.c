@@ -42,6 +42,7 @@ struct FastPMMeshPrivate {
     _pfft_plan plan_r2c_inplace;
     _pfft_plan plan_c2r;
     _pfft_plan plan_c2r_inplace;
+    int proc_strides[3];
 };
 
 void
@@ -105,7 +106,11 @@ fastpm_mesh_init(FastPMMesh * self,
     for(d = 0; d < ndim - 1; d ++) {
         self->NTask *= self->Nproc[d];
     }
-
+    priv->proc_strides[ndim - 2] = 1;
+    for(d = ndim - 3; d >=0; d--) {
+        priv->proc_strides[d] = priv->proc_strides[d + 1] * self->Nproc[d + 1];
+    }
+    fastpm_info("proc_strides = %d %d\n", priv->proc_strides[0], priv->proc_strides[1]);
     if(NTask != self->NTask) {
         fastpm_raise(-1, "NTask and Nproc mismatch\n");
     }
@@ -144,8 +149,8 @@ fastpm_mesh_init(FastPMMesh * self,
             remain_dims[j] = 0;
         }
         remain_dims[d] = 1; 
-        priv->Mesh2Rank[d] = malloc(sizeof(ptrdiff_t) * self->Nmesh[d]);
-        int * edges_int = (int*) malloc(sizeof(edges_int[0]) * (self->Nproc[d] + 1));
+        priv->Mesh2Rank[d] = malloc(sizeof(priv->Mesh2Rank[0]) * self->Nmesh[d]);
+        ptrdiff_t * edges_int = malloc(sizeof(edges_int[0]) * (self->Nproc[d] + 1));
 
         MPI_Cart_sub(priv->cart, remain_dims, &projected);
         MPI_Allgather(&self->ral.start[d], 1, priv->ptrtype, 
@@ -155,7 +160,7 @@ fastpm_mesh_init(FastPMMesh * self,
 
         MPI_Comm_free(&projected);
         /* Last edge is at the edge of the box */
-        edges_int[j] = self->Nmesh[d];
+        edges_int[ntask] = self->Nmesh[d];
         /* fill in the look up table */
         for(j = 0; j < self->Nproc[d]; j ++) {
             int i;
@@ -272,12 +277,17 @@ fastpm_mesh_copy(FastPMMesh * self, FastPMFloat * from, FastPMFloat * to)
 }
 
 int
-fastpm_mesh_ipos_to_rank(FastPMMesh * self, int ipos, int dim)
+fastpm_mesh_ipos_to_rank(FastPMMesh * self, int ipos[])
 {
-    while(ipos >= self->Nmesh[dim]) ipos -= self->Nmesh[dim];
-    while(ipos < 0) ipos += self->Nmesh[dim];
-
-    return self->priv->Mesh2Rank[dim][ipos];
+    int rank = 0;
+    int d;
+    for(d = 0; d < self->ndim - 1; d ++) {
+        int i = ipos[d];
+        while(i >= self->Nmesh[d]) i -= self->Nmesh[d];
+        while(i < 0) i += self->Nmesh[d];
+        rank += self->priv->Mesh2Rank[d][i] * self->priv->proc_strides[d];
+    }
+    return rank;
 }
 
 int
