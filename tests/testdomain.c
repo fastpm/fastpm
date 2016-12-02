@@ -66,10 +66,12 @@ fastpm_domain_init(FastPMDomain * self, PM * pm, FastPMColumn * pos, MPI_Comm co
 void
 fastpm_domain_decompose(FastPMDomain * self, FastPMColumn * columns[])
 {
-    FastPMColumn ** column;
-    for(column = columns; column; column ++) {
-        fastpm_column_parallel_permute(*column, self->masterindex, self->newsize, self->comm);
-    }
+    FastPMColumnSet columnset[1];
+    fastpm_columnset_init(columnset, columns);
+
+    fastpm_column_parallel_permute((FastPMColumn*)columnset, self->masterindex, self->newsize, self->comm);
+
+    fastpm_column_destroy((FastPMColumn*) columnset);
 }
 
 void
@@ -340,18 +342,15 @@ int main(int argc, char * argv[])
     MPI_Comm_rank(comm, &ThisTask);
 
     FastPMColumn x[1];
-    int64_t index[128];
     fastpm_column_init_float3(x, 256);
 
     size_t oldsize = (1 + ThisTask) * 10;
-    size_t newsize = (NTask - ThisTask) * 10;
     fastpm_column_resize(x, oldsize);
     int i;
 
     for(i = 0; i < oldsize; i ++) {
         double pos[3] = {ThisTask * 10 + i, ThisTask * 10 + i, i};
         fastpm_column_set_double(x, i, pos);
-        index[i] = i;
     }
 
     for(i = 0; i < ThisTask; i ++) {
@@ -366,14 +365,17 @@ int main(int argc, char * argv[])
     for(i = ThisTask; i < NTask; i ++) {
         MPI_Barrier(comm);
     }
+    //PM pm[1];
+    FastPMDomain domain[1];
+    //pm_init_simple(pm, 32, 32., comm);
+    //fastpm_domain_init(domain, pm, x, comm)
 
-    fastpm_column_parallel_permute(x, index, newsize, comm);
+    fastpm_domain_decompose(domain, (FastPMColumn * []) {x, NULL});
 
     for(i = 0; i < ThisTask; i ++) {
         MPI_Barrier(comm);
     }
-    printf("newsize = %td\n", newsize);
-    for(i = 0; i < newsize; i ++) {
+    for(i = 0; i < x->size; i ++) {
         double pos[3];
         fastpm_column_get_double(x, i, pos);
         printf("newpos[%d] =%g %g %g\n", i, pos[0], pos[1], pos[2]);

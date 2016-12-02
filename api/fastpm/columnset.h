@@ -8,14 +8,14 @@
 FASTPM_BEGIN_DECLS
 typedef struct {
     FastPMColumn base;
-    FastPMColumn * columns[20];
-    int ncolumns;
+    FastPMColumn * columns[80];
 } FastPMColumnSet;
 
+/* create a columnset from NULL terminated list of columns;
+ * at most 80 is supported*/
+
 void
-fastpm_columnset_init(FastPMColumnSet * self,
-        FastPMColumn ** columns, int ncolumns
-        );
+fastpm_columnset_init(FastPMColumnSet * self, FastPMColumn ** columns);
 
 FASTPM_END_DECLS
 

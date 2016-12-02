@@ -31,7 +31,7 @@ int main(int argc, char * argv[])
     fastpm_column_resize(v, oldsize);
 
     FastPMColumnSet p[1];
-    fastpm_columnset_init(p, (FastPMColumn *[]){x, v}, 2);
+    fastpm_columnset_init(p, (FastPMColumn *[]){x, v, NULL});
 
     int i;
 
