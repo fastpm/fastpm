@@ -64,6 +64,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "pmapi.h"
 #include "store.h"
 
+#include "mesh.h"
 #include "column.h"
 #include "columnset.h"
 #include "cosmology.h"

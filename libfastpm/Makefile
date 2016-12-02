@@ -14,6 +14,7 @@ FILES += $(shell git ls-files ../api)
 LIBSOURCES = libfastpm.c \
     column.c \
     columnset.c \
+    mesh.c \
     solver.c \
     factors.c \
     events.c \
