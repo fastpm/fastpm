@@ -46,9 +46,9 @@ struct FastPMMeshPrivate {
 
 void
 fastpm_mesh_init(FastPMMesh * self,
+        int ndim,
         double BoxSize,
         ptrdiff_t Nmesh,
-        int ndim,
         ptrdiff_t Nproc[],
         MPI_Comm comm)
 {
@@ -75,20 +75,42 @@ fastpm_mesh_init(FastPMMesh * self,
         self->Volume *= BoxSize;
         self->Norm *= Nmesh;
     }
-    self->NTask = 1;
-    for(d = 0; d < ndim - 1; d ++) {
-        self->Nproc[d] = Nproc[d];
-        self->NTask *= Nproc[d];
-    }
     self->comm = comm;
     int NTask;
     MPI_Comm_size(comm, &NTask);
+
+    if(Nproc == NULL) {
+        if(self->ndim == 3) {
+            /* 2d decomposition */
+            int x = 1;
+            for(x = 1; x * x < NTask; x ++) continue;
+            while(x >= 1 && (NTask % x != 0)) {
+                x --;
+            }
+            self->Nproc[1] = x;
+            self->Nproc[0] = NTask / x;
+        } else if (self->ndim == 2) {
+            self->Nproc[0] = NTask;
+        } else if (self->ndim == 1) {
+            self->Nproc[0] = 0;
+        } else {
+            fastpm_raise(-1, "Only support at most 3 dimensions\n");
+        }
+    } else {
+        for(d = 0; d < ndim - 1; d ++) {
+            self->Nproc[d] = Nproc[d];
+        }
+    }
+    self->NTask = 1;
+    for(d = 0; d < ndim - 1; d ++) {
+        self->NTask *= self->Nproc[d];
+    }
 
     if(NTask != self->NTask) {
         fastpm_raise(-1, "NTask and Nproc mismatch\n");
     }
 
-    _pfft_create_procmesh(2, comm, self->Nproc, &priv->cart);
+    _pfft_create_procmesh(self->ndim - 1, comm, self->Nproc, &priv->cart);
 
     priv->allocsize = 2 * _pfft_local_size_dft_r2c(
             self->ndim, self->Nmesh, priv->cart, 
@@ -96,9 +118,7 @@ fastpm_mesh_init(FastPMMesh * self,
             self->ral.shape, self->ral.start,
             self->cal.shape, self->cal.start);
 
-    if(self->ndim != 3) {
-        fastpm_raise(-1, "only three dimensions are supported for now\n");
-    } else {
+    if(self->ndim == 3) {
         self->ral.strides[2] = 1;
         self->ral.strides[1] = self->ral.shape[2];
         self->ral.strides[0] = self->ral.shape[1] * self->ral.strides[1];
@@ -112,6 +132,8 @@ fastpm_mesh_init(FastPMMesh * self,
         self->cal.strides[2] = self->cal.shape[0];
         self->cal.strides[1] = self->cal.shape[2] * self->cal.strides[2];
         self->cal.size = self->cal.shape[1] * self->cal.strides[1];
+    } else {
+        fastpm_raise(-1, "only three dimensions are supported for now\n");
     }
 
     for(d = 0; d < self->ndim - 1; d ++) {

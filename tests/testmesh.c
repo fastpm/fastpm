@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
     FastPMMesh mesh[1];
-    fastpm_mesh_init(mesh, 1.0, 4, 3, (ptrdiff_t []) {1, 1}, comm);
+    fastpm_mesh_init(mesh, 3, 1.0, 4, NULL, comm);
 
     FastPMMeshIter * iter;
     iter = fastpm_mesh_iter(mesh, FASTPM_MESH_ITER_K);

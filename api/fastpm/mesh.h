@@ -34,9 +34,9 @@ typedef struct {
 
 void
 fastpm_mesh_init(FastPMMesh * self,
+        int ndim,
         double BoxSize,
         ptrdiff_t Nmesh,
-        int ndim,
         ptrdiff_t Nproc[],
         MPI_Comm comm);
 
