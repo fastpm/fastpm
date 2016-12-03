@@ -355,6 +355,7 @@ int main(int argc, char * argv[])
 
     size_t oldsize = 4;
     fastpm_column_resize(x, oldsize);
+    fastpm_column_resize(h, oldsize);
     int i;
 
     for(i = 0; i < oldsize; i ++) {
@@ -383,7 +384,7 @@ int main(int argc, char * argv[])
 
     fastpm_domain_init(domain, mesh, x, comm);
 
-    fastpm_domain_decompose(domain, (FastPMColumn * []) {x, NULL});
+    fastpm_domain_decompose(domain, (FastPMColumn * []) {x, h, NULL});
 
     for(i = 0; i < ThisTask; i ++) {
         MPI_Barrier(comm);

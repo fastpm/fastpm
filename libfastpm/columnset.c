@@ -30,8 +30,8 @@ fastpm_columnset_init(FastPMColumnSet * self, FastPMColumn ** columns)
     FastPMColumn * column;
     for(c = 0; NULL != (column = columns[c]); c++) {
         base->elsize += column->rowsize;
-        if(column->maxsize != base->maxsize) {
-            fastpm_raise(-1, "mismatched maxsize (%td != %td)\n", column->maxsize, base->maxsize);
+        if(column->maxsize < base->maxsize) {
+            base->maxsize = column->maxsize;
         }
         if(column->size != base->size) {
             fastpm_raise(-1, "mismatched size (%td != %td)\n", column->size, base->size);
@@ -40,6 +40,9 @@ fastpm_columnset_init(FastPMColumnSet * self, FastPMColumn ** columns)
             fastpm_raise(-1, "fix the code to support more than 80 columns.\n");
         }
         self->columns[c] = column;
+    }
+    if(base->maxsize < base->size) {
+        fastpm_raise(-1, "mismatched maxsize (%td < %td)\n", base->maxsize, base->size);
     }
     base->rowsize = base->elsize;
 
