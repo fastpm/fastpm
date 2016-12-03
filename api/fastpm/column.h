@@ -62,6 +62,13 @@ fastpm_column_init_uint64(FastPMColumn * self, size_t nmemb, size_t maxsize);
 void
 fastpm_column_destroy(FastPMColumn * self);
 
+/* a column that views the unused bytes of self */
+FastPMColumn *
+fastpm_column_get_unused(FastPMColumn * self);
+
+void
+fastpm_column_free(FastPMColumn * self);
+
 void
 fastpm_column_get_double(FastPMColumn * self, ptrdiff_t i, double * dest);
 

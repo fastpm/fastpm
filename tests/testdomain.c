@@ -128,7 +128,7 @@ fastpm_ghosts_init(FastPMGhosts * self, FastPMMesh * mesh, FastPMColumn * pos, F
     self->senddispls = malloc(sizeof(int) * NTask);
     self->recvdispls = malloc(sizeof(int) * NTask);
 
-    int * ranks = (int*) malloc(sizeof(int) * NTask);
+    int * ranks = (int*) malloc(sizeof(int) * NTask * 2);
 
     size_t maxghosts = pos->size;
     while(1) {
@@ -168,16 +168,20 @@ fastpm_ghosts_init(FastPMGhosts * self, FastPMMesh * mesh, FastPMColumn * pos, F
 
     ptrdiff_t i;
 
+    for(i = 0; i < NTask; i ++) {
+        sendcounts[i] = 0;
+    }
     for(i = 0; i < self->nsend; i ++) {
         sendcounts[self->ghostindex[i].ghostrank] ++;
     }
+
     MPI_Alltoall(sendcounts, 1, MPI_LONG_LONG, recvcounts, 1, MPI_LONG_LONG, self->comm);
 
     recvdispls[0] = 0;
     senddispls[0] = 0;
     for(i = 1; i < NTask; i ++) {
-        senddispls[i] = senddispls[i - 1] + sendcounts[i];
-        recvdispls[i] = recvdispls[i - 1] + recvcounts[i];
+        senddispls[i] = senddispls[i - 1] + sendcounts[i - 1];
+        recvdispls[i] = recvdispls[i - 1] + recvcounts[i - 1];
     }
 
     for(i = 0; i < NTask; i ++) {
@@ -243,13 +247,17 @@ static int
     return used;
 }
 
-void
-fastpm_ghosts_fetch(FastPMGhosts * self, FastPMColumn * column, FastPMColumn * recv)
+FastPMColumn *
+fastpm_ghosts_fetch(FastPMGhosts * self, FastPMColumn * column)
 {
-    size_t elsize = column->elsize * column->nmemb;
-
-    char * sendbuffer = fastpm_memory_alloc(self->mem, elsize * self->nsend, FASTPM_MEMORY_HEAP);
-    char * recvbuffer = fastpm_memory_alloc(self->mem, elsize * self->nrecv, FASTPM_MEMORY_HEAP);
+    FastPMColumn * recv = fastpm_column_get_unused(column);
+    if(column->rowsize == 0) {
+        /* this is a constant column, no communication is needed */
+        fastpm_column_resize(recv, self->nrecv);
+        return recv;
+    }
+    char * sendbuffer = fastpm_memory_alloc(self->mem, column->rowsize * self->nsend, FASTPM_MEMORY_HEAP);
+    char * recvbuffer = fastpm_memory_alloc(self->mem, column->rowsize * self->nrecv, FASTPM_MEMORY_HEAP);
     char * p1 = sendbuffer;
     char * p2 = recvbuffer;
 
@@ -258,11 +266,11 @@ fastpm_ghosts_fetch(FastPMGhosts * self, FastPMColumn * column, FastPMColumn * r
 
     for(i = 0; i < self->nsend; i ++) {
         fastpm_column_get(column, self->ghostindex[i].i, p1);
-        p1 += elsize;
+        p1 += column->rowsize;
     }
 
     MPI_Datatype dtype;
-    MPI_Type_contiguous(elsize, MPI_BYTE, &dtype);
+    MPI_Type_contiguous(column->rowsize, MPI_BYTE, &dtype);
     MPI_Type_commit(&dtype);
     MPI_Alltoallv(sendbuffer, self->sendcounts, self->senddispls, dtype,
                          recvbuffer, self->recvcounts, self->recvdispls, dtype,
@@ -275,18 +283,22 @@ fastpm_ghosts_fetch(FastPMGhosts * self, FastPMColumn * column, FastPMColumn * r
 
     for(i = 0; i < self->nrecv; i ++) {
         fastpm_column_set(recv, i, p2);
-        p2 += elsize;
+        p2 += column->rowsize;
     }
 
     fastpm_memory_free(self->mem, recvbuffer);
     fastpm_memory_free(self->mem, sendbuffer);
+
+    return recv;
 }
 
 void
 fastpm_ghosts_reduce(FastPMGhosts * self, FastPMColumn * column, FastPMColumn * local)
 {
-    size_t elsize = column->elsize * column->nmemb;
-
+    size_t elsize = column->rowsize;
+    if(elsize == 0) {
+        fastpm_raise(-1, "cannot reduce a constant column\n");
+    }
     char * sendbuffer = fastpm_memory_alloc(self->mem, elsize * self->nsend, FASTPM_MEMORY_HEAP);
     char * recvbuffer = fastpm_memory_alloc(self->mem, elsize * self->nrecv, FASTPM_MEMORY_HEAP);
     char * p1 = sendbuffer;
@@ -382,6 +394,7 @@ int main(int argc, char * argv[])
         MPI_Barrier(comm);
     }
 
+    fastpm_info("testing domain\n");
     fastpm_domain_init(domain, mesh, x, comm);
 
     fastpm_domain_decompose(domain, (FastPMColumn * []) {x, h, NULL});
@@ -398,13 +411,50 @@ int main(int argc, char * argv[])
         for(d = 0; d < 3; d ++)
             ipos[d] = fastpm_mesh_pos_to_ipos(mesh, pos[d], d);
         master = fastpm_mesh_ipos_to_rank(mesh, ipos);
-        printf("ThisTask = %d pos[%d] =%d %d %d master = %d\n", ThisTask, i, ipos[0], ipos[1], ipos[2], master);
+        printf("ThisTask = %d pos[%d] =%g %g %g master = %d\n", ThisTask, i, pos[0], pos[1], pos[2], master);
         if(master != ThisTask) abort();
     }
     for(i = ThisTask; i < NTask; i ++) {
         MPI_Barrier(comm);
     }
+    fastpm_info("testing ghosts\n");
+    FastPMGhosts ghosts[1];
 
+    fastpm_ghosts_init(ghosts, mesh, x, h, comm);
+
+
+    FastPMColumn * ghost_x = fastpm_ghosts_fetch(ghosts, x);
+    //FastPMColumn * ghost_h = fastpm_ghosts_fetch(ghosts, h);
+
+    for(i = 0; i < ThisTask; i ++) {
+        MPI_Barrier(comm);
+    }
+    for(i = 0; i < NTask; i ++) {
+        printf("sendcount[%d] = %d\n", i, ghosts->sendcounts[i]);
+        printf("recvcount[%d] = %d\n", i, ghosts->recvcounts[i]);
+    }
+    for(i = 0; i < ghost_x->size; i ++) {
+        double pos[3] = {0, 0, 0};
+        int ipos[3];
+        double margin[3] = {0, 0, 0};
+        fastpm_column_get_double(ghost_x, i, pos);
+        //fastpm_column_get_double(ghost_h, i, margin);
+        int master;
+        int d;
+        for(d = 0; d < 3; d ++)
+            ipos[d] = fastpm_mesh_pos_to_ipos(mesh, pos[d], d);
+        master = fastpm_mesh_ipos_to_rank(mesh, ipos);
+        printf("ThisTask = %d pos[%d] =%g %g %g  margin = %g master = %d\n", ThisTask, i, pos[0], pos[1], pos[2], margin[0], master);
+        if(master == ThisTask) abort();
+    }
+    for(i = ThisTask; i < NTask; i ++) {
+        MPI_Barrier(comm);
+    }
+
+//    fastpm_column_free(ghost_h);
+    fastpm_column_free(ghost_x);
+
+    fastpm_ghosts_destroy(ghosts);
     fastpm_domain_destroy(domain);
     fastpm_mesh_destroy(mesh);
     fastpm_column_destroy(h);

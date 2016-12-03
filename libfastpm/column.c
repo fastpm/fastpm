@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
@@ -105,6 +106,18 @@ _fastpm_column_resize(FastPMColumn * self, size_t newsize)
     self->size = newsize;
 }
 
+FastPMColumn *
+fastpm_column_get_unused(FastPMColumn * self)
+{
+    FastPMColumn * split = malloc(sizeof(FastPMColumn));
+    split[0] = *self;
+    split->buffer = ((char*) self->buffer) + self->rowsize * self->size;
+    split->maxsize = self->maxsize - self->size;
+    /* doesn't own the buffer */
+    split->destroy = NULL;
+    return split;
+}
+
 void
 fastpm_column_init_double(FastPMColumn * self, size_t nmemb, size_t maxsize)
 {
@@ -173,7 +186,15 @@ fastpm_column_init_double_const(FastPMColumn * self, size_t nmemb, double value[
 void
 fastpm_column_destroy(FastPMColumn * self)
 {
-    self->destroy(self);
+    if(self->destroy)
+        self->destroy(self);
+}
+
+void
+fastpm_column_free(FastPMColumn * self)
+{
+    fastpm_column_destroy(self);
+    free(self);
 }
 
 void
