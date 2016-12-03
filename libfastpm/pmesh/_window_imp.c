@@ -20,17 +20,11 @@ _fill_k(PMeshPainter * painter, double pos[], int ipos[], double k[][64])
         ipos[d] = floor(gpos[d] + painter->shift) - painter->left;
         double dx = gpos[d] - ipos[d]; /* relative to the left most nonzero.*/
         int i;
-        double sum = 0;
         for(i = 0; i < painter->support; i ++) {
             double x = (dx - i) * painter->vfactor;
-            k[d][i] = painter->kernel(x) * painter->vfactor;
-            sum += k[d][i];
-
-            /*
-             * norm is still from the true kernel,
-             * but we replace the value with the derivative
-             * */
-            if(d == painter->diffdir) {
+            if(painter->order[d] == 0) {
+                k[d][i] = painter->kernel(x) * painter->vfactor;
+            } else {
                 k[d][i] = painter->diff(x) * painter->scale[d] * painter->vfactor * painter->vfactor;
             }
         }

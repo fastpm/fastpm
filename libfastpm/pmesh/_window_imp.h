@@ -21,7 +21,7 @@ typedef double (*pmesh_kernelfunc)(double x);
 
 struct PMeshPainter {
     PMeshPainterType type;
-    int diffdir; /* -1 to not taking differences*/
+    int order[32]; /* diff order per axis */
     int support;
     int ndim;
     double scale[32]; /* scale from position to grid units */
