@@ -12,6 +12,7 @@ struct FastPMColumn {
     FastPMMemory * mem;
     size_t nmemb;
     size_t elsize;
+    size_t rowsize;
     size_t size;
     size_t maxsize;
     void * buffer;

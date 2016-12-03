@@ -98,7 +98,6 @@ _ghost_data_sort_by_rank(const void * p1, const void * p2)
 typedef struct FastPMGhosts {
     FastPMMemory * mem;
     FastPMMesh * mesh;
-    double margin;
     struct FastPMGhostPair * ghostindex;
     MPI_Comm comm;
 
@@ -111,15 +110,14 @@ typedef struct FastPMGhosts {
 } FastPMGhosts;
 
 static int
- _fastpm_ghosts_probe(FastPMGhosts * self, double x[3], int masterrank, int * ranks);
+ _fastpm_ghosts_probe(FastPMGhosts * self, double x[3], double h[3], int masterrank, int * ranks);
 
 void
-fastpm_ghosts_init(FastPMGhosts * self, double margin, FastPMMesh * mesh, FastPMColumn * pos, MPI_Comm comm)
+fastpm_ghosts_init(FastPMGhosts * self, FastPMMesh * mesh, FastPMColumn * pos, FastPMColumn * margin, MPI_Comm comm)
 {
     self->mem = pos->mem;
     self->comm = comm;
     self->mesh = mesh;
-    self->margin = margin;
     int ThisTask;
     int NTask;
     MPI_Comm_rank(self->comm, &ThisTask);
@@ -137,11 +135,13 @@ fastpm_ghosts_init(FastPMGhosts * self, double margin, FastPMMesh * mesh, FastPM
         self->ghostindex = fastpm_memory_alloc(self->mem, sizeof(self->ghostindex[0]) * maxghosts, FASTPM_MEMORY_HEAP);
         ptrdiff_t i;
         double x[3];
+        double h[3];
         ptrdiff_t gi = 0;
 
         for(i = 0; i < pos->size; i ++) {
             fastpm_column_get_double(pos, i, x);
-            int nranks = _fastpm_ghosts_probe(self, x, ThisTask, ranks);
+            fastpm_column_get_double(margin, i, h);
+            int nranks = _fastpm_ghosts_probe(self, x, h, ThisTask, ranks);
             int j;
             for(j = 0; j < nranks; j ++) {
                 self->ghostindex[gi].ghostrank = ranks[j];
@@ -209,7 +209,7 @@ fastpm_ghosts_destroy(FastPMGhosts * self)
 }
 
 static int
- _fastpm_ghosts_probe(FastPMGhosts * self, double x[3], int masterrank, int * ranks)
+ _fastpm_ghosts_probe(FastPMGhosts * self, double x[3], double h[3], int masterrank, int * ranks)
 {
     FastPMMesh * mesh = self->mesh;
 
@@ -217,8 +217,8 @@ static int
     int ilow[3];
     int ihigh[3];
     for(d = 0; d < 3; d ++) {
-        double low = x[d] - self->margin;
-        double high = x[d] + self->margin;
+        double low = x[d] - h[d];
+        double high = x[d] + h[d];
         ilow[d] = fastpm_mesh_pos_to_ipos(mesh, low, d);
         ihigh[d] = fastpm_mesh_pos_to_ipos(mesh, high, d);
     }
@@ -345,6 +345,9 @@ int main(int argc, char * argv[])
     FastPMColumn x[1];
     fastpm_column_init_float(x, 3, 128);
 
+    FastPMColumn h[1];
+    fastpm_column_init_double_const(h, 3, (double[]){1.0, 1.0, 1.0});
+
     FastPMMesh mesh[1];
 
     FastPMDomain domain[1];
@@ -403,6 +406,7 @@ int main(int argc, char * argv[])
 
     fastpm_domain_destroy(domain);
     fastpm_mesh_destroy(mesh);
+    fastpm_column_destroy(h);
     fastpm_column_destroy(x);
     libfastpm_cleanup();
     MPI_Finalize();

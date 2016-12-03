@@ -29,7 +29,7 @@ fastpm_columnset_init(FastPMColumnSet * self, FastPMColumn ** columns)
     int c;
     FastPMColumn * column;
     for(c = 0; NULL != (column = columns[c]); c++) {
-        base->elsize += column->elsize * column->nmemb;
+        base->elsize += column->rowsize;
         if(column->maxsize != base->maxsize) {
             fastpm_raise(-1, "mismatched maxsize (%td != %td)\n", column->maxsize, base->maxsize);
         }
@@ -41,6 +41,8 @@ fastpm_columnset_init(FastPMColumnSet * self, FastPMColumn ** columns)
         }
         self->columns[c] = column;
     }
+    base->rowsize = base->elsize;
+
     /* terminate the list with NULL */
     self->columns[c] = NULL;
 
@@ -73,8 +75,10 @@ _fastpm_columnset_get(FastPMColumn * base, ptrdiff_t i, void * dest)
     int c;
     FastPMColumn * column;
     for(c = 0; NULL != (column = self->columns[c]); c++) {
-        fastpm_column_get(column, i, buf);
-        buf += column->elsize * column->nmemb;
+        /* if the column doesn't use any storage (const), skip it */
+        if(column->rowsize > 0)
+            fastpm_column_get(column, i, buf);
+        buf += column->rowsize;
     }
 }
 
@@ -86,8 +90,10 @@ _fastpm_columnset_set(FastPMColumn * base, ptrdiff_t i, void * src)
     int c;
     FastPMColumn * column;
     for(c = 0; NULL != (column = self->columns[c]); c++) {
-        fastpm_column_set(column, i, buf);
-        buf += column->elsize * column->nmemb;
+        /* if the column doesn't use any storage (const), skip it */
+        if(column->rowsize > 0)
+            fastpm_column_set(column, i, buf);
+        buf += column->rowsize;
     }
 }
 
