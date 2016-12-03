@@ -15,6 +15,8 @@ LIBSOURCES = libfastpm.c \
     column.c \
     columnset.c \
     mesh.c \
+    mesh-iter.c \
+    mesh-painter.c \
     domain.c \
     solver.c \
     factors.c \

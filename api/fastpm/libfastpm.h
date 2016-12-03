@@ -65,6 +65,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "store.h"
 
 #include "mesh.h"
+#include "mesh-iter.h"
 #include "column.h"
 #include "columnset.h"
 #include "domain.h"
