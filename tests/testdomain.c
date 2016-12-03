@@ -358,7 +358,10 @@ int main(int argc, char * argv[])
     fastpm_column_init_float(x, 3, 128);
 
     FastPMColumn h[1];
-    fastpm_column_init_double_const(h, 3, (double[]){1.0, 1.0, 1.0});
+    fastpm_column_init_double_const(h, 3, (double[]){0.5, 0.5, 0.5});
+
+    FastPMColumn f[1];
+    fastpm_column_init_float(f, 3, 128);
 
     FastPMMesh mesh[1];
 
@@ -368,11 +371,13 @@ int main(int argc, char * argv[])
     size_t oldsize = 4;
     fastpm_column_resize(x, oldsize);
     fastpm_column_resize(h, oldsize);
+    fastpm_column_resize(f, oldsize);
     int i;
 
     for(i = 0; i < oldsize; i ++) {
         double pos[3] = {i % 4, i % 4, i % 4};
         fastpm_column_set_double(x, i, pos);
+        fastpm_column_set_double(f, i, pos);
     }
 
     for(i = 0; i < ThisTask; i ++) {
@@ -422,9 +427,9 @@ int main(int argc, char * argv[])
 
     fastpm_ghosts_init(ghosts, mesh, x, h, comm);
 
-
     FastPMColumn * ghost_x = fastpm_ghosts_fetch(ghosts, x);
     FastPMColumn * ghost_h = fastpm_ghosts_fetch(ghosts, h);
+    FastPMColumn * ghost_f = fastpm_ghosts_fetch(ghosts, f);
 
     for(i = 0; i < ThisTask; i ++) {
         MPI_Barrier(comm);
@@ -450,13 +455,42 @@ int main(int argc, char * argv[])
     for(i = ThisTask; i < NTask; i ++) {
         MPI_Barrier(comm);
     }
+    fastpm_info("testing ghost reduction\n");
 
+    for(i = 0; i < x->size; i ++) {
+        fastpm_column_set_double(f, i, (double[]) {1.0, 1.0, 1.0});
+    }
+
+    for(i = 0; i < ghost_x->size; i ++) {
+        fastpm_column_set_double(ghost_f, i, (double[]) {1.0, 1.0, 1.0});
+    }
+    fastpm_ghosts_reduce(ghosts, f, ghost_f);
+
+    for(i = 0; i < ThisTask; i ++) {
+        MPI_Barrier(comm);
+    }
+    printf("x->size = %td\n", x->size);
+    for(i = 0; i < x->size; i ++) {
+        double pos[3] = {0, 0, 0};
+        double force[3] = {0, 0, 0};
+        double margin[3] = {0, 0, 0};
+        fastpm_column_get_double(x, i, pos);
+        fastpm_column_get_double(h, i, margin);
+        fastpm_column_get_double(f, i, force);
+        printf("ThisTask = %d pos[%d] =%g %g %g  f = %g \n", ThisTask, i, pos[0], pos[1], pos[2], force[0]);
+    }
+    for(i = ThisTask; i < NTask; i ++) {
+        MPI_Barrier(comm);
+    }
+
+    fastpm_column_free(ghost_f);
     fastpm_column_free(ghost_h);
     fastpm_column_free(ghost_x);
 
     fastpm_ghosts_destroy(ghosts);
     fastpm_domain_destroy(domain);
     fastpm_mesh_destroy(mesh);
+    fastpm_column_destroy(f);
     fastpm_column_destroy(h);
     fastpm_column_destroy(x);
     libfastpm_cleanup();
