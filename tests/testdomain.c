@@ -424,7 +424,7 @@ int main(int argc, char * argv[])
 
 
     FastPMColumn * ghost_x = fastpm_ghosts_fetch(ghosts, x);
-    //FastPMColumn * ghost_h = fastpm_ghosts_fetch(ghosts, h);
+    FastPMColumn * ghost_h = fastpm_ghosts_fetch(ghosts, h);
 
     for(i = 0; i < ThisTask; i ++) {
         MPI_Barrier(comm);
@@ -438,7 +438,7 @@ int main(int argc, char * argv[])
         int ipos[3];
         double margin[3] = {0, 0, 0};
         fastpm_column_get_double(ghost_x, i, pos);
-        //fastpm_column_get_double(ghost_h, i, margin);
+        fastpm_column_get_double(ghost_h, i, margin);
         int master;
         int d;
         for(d = 0; d < 3; d ++)
@@ -451,7 +451,7 @@ int main(int argc, char * argv[])
         MPI_Barrier(comm);
     }
 
-//    fastpm_column_free(ghost_h);
+    fastpm_column_free(ghost_h);
     fastpm_column_free(ghost_x);
 
     fastpm_ghosts_destroy(ghosts);
