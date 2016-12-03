@@ -22,8 +22,8 @@ int main(int argc, char * argv[])
     FastPMColumn x[1];
     FastPMColumn v[1];
     int64_t index[128];
-    fastpm_column_init_float3(x, 256);
-    fastpm_column_init_float3(v, 256);
+    fastpm_column_init_float(x, 3, 256);
+    fastpm_column_init_float(v, 3, 256);
 
     size_t oldsize = (1 + ThisTask) * 10;
     size_t newsize = (NTask - ThisTask) * 10;

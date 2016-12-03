@@ -47,13 +47,16 @@ void
 fastpm_column_resize(FastPMColumn * self, size_t size);
 
 void
-fastpm_column_init_double3(FastPMColumn * self, size_t maxsize);
+fastpm_column_init_double(FastPMColumn * self, size_t nmemb, size_t maxsize);
 
 void
-fastpm_column_init_float3(FastPMColumn * self, size_t maxsize);
+fastpm_column_init_double_const(FastPMColumn * self, size_t nmemb, double value[]);
 
 void
-fastpm_column_init_uint64(FastPMColumn * self, size_t maxsize);
+fastpm_column_init_float(FastPMColumn * self, size_t nmemb, size_t maxsize);
+
+void
+fastpm_column_init_uint64(FastPMColumn * self, size_t nmemb, size_t maxsize);
 
 void
 fastpm_column_destroy(FastPMColumn * self);

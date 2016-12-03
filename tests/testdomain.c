@@ -343,7 +343,7 @@ int main(int argc, char * argv[])
     MPI_Comm_rank(comm, &ThisTask);
 
     FastPMColumn x[1];
-    fastpm_column_init_float3(x, 128);
+    fastpm_column_init_float(x, 3, 128);
 
     FastPMMesh mesh[1];
 
