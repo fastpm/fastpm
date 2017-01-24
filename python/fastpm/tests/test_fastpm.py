@@ -10,6 +10,21 @@ from pmesh.pm import ParticleMesh
 
 import fastpm.operators as operators
 
+def _addampl(white):
+    """ returns dlin_k and amplitude """
+    ampl = white.copy()
+
+    def kernel(k, v):
+        kk = sum(ki ** 2 for ki in k)
+        ka = kk ** 0.5
+        p = (ka / 0.1) ** -2 * .4e4 * (1.0 / v.BoxSize).prod()
+        p[ka == 0] = 0
+        return p ** 0.5 + p ** 0.5 * 1j
+
+    ampl.apply(kernel, out=Ellipsis)
+    white[...] *= ampl.real
+
+    return white, ampl
 @MPITest([1, 4])
 def test_lpt(comm):
 
@@ -23,19 +38,9 @@ def test_lpt(comm):
     code.Displace(D1=1.0, v1=0, D2=0.0, v2=0.0)
     code.Chi2(variable='s')
 
-    power = dlink.copy()
+    dlink, ampl = _addampl(dlink)
 
-    def kernel(k, v):
-        kk = sum(ki ** 2 for ki in k)
-        ka = kk ** 0.5
-        p = (ka / 0.1) ** -2 * .4e4 * (1.0 / pm.BoxSize).prod()
-        p[ka == 0] = 0
-        return p ** 0.5 + p ** 0.5 * 1j
-
-    power.apply(kernel, out=Ellipsis)
-    dlink[...] *= power.real
-
-    _test_model(code, dlink, power)
+    _test_model(code, dlink, ampl)
 
 @MPITest([1, 4])
 def test_gravity(comm):
@@ -48,18 +53,6 @@ def test_gravity(comm):
 
     dlink = pm.generate_whitenoise(12345, mode='complex')
 
-    power = dlink.copy()
-
-    def kernel(k, v):
-        kk = sum(ki ** 2 for ki in k)
-        ka = kk ** 0.5
-        p = (ka / 0.1) ** -2 * .4e4 * (1.0 / pm.BoxSize).prod()
-        p[ka == 0] = 0
-        return p ** 0.5 + p ** 0.5 * 1j
-
-    power.apply(kernel, out=Ellipsis)
-    dlink[...] *= power.real
-
     code = vm.code()
     code.Displace(D1=1.0, v1=0, D2=0.0, v2=0.0)
     code.Force(factor=0.1)
@@ -71,7 +64,9 @@ def test_gravity(comm):
     # any of the left or right value shifts beyond the support of
     # the window.
     #
-    _test_model(code, dlink, power)
+
+    dlink, ampl = _addampl(dlink)
+    _test_model(code, dlink, ampl)
 
 def _test_model(code, dlin_k, ampl):
 
@@ -118,17 +113,8 @@ def test_kdk(comm):
     pm = ParticleMesh(BoxSize=128.0, Nmesh=(4,4,4), comm=comm, dtype='f8')
     vm = fastpm.KickDriftKick(pm, shift=0.5)
     dlink = pm.generate_whitenoise(12345, mode='complex', unitary=True)
-    power = dlink.copy()
 
-    def kernel(k, v):
-        kk = sum(ki ** 2 for ki in k)
-        ka = kk ** 0.5
-        p = (ka / 0.1) ** -2 * .4e4 * (1.0 / pm.BoxSize).prod()
-        p[ka == 0] = 0
-        return p ** 0.5 + p ** 0.5 * 1j
-
-    power.apply(kernel, out=Ellipsis)
-    dlink[...] *= power.real
+    dlink, ampl = _addampl(dlink)
 
     data = dlink.c2r()
     data[...] = 0
@@ -140,4 +126,4 @@ def test_kdk(comm):
     code.Diff(data_x=data, sigma_x=sigma)
     code.Chi2(variable='mesh')
 
-    _test_model(code, dlink, power)
+    _test_model(code, dlink, ampl)
