@@ -1,4 +1,4 @@
-from .fastpm import *
+from .evolution import *
 from .perturbation import *
 
 from numpy.testing import Tester
