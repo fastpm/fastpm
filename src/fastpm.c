@@ -415,6 +415,21 @@ produce:
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
     }
 
+    if(CONF(prr, write_powerspectrum)) {
+        FastPMPowerSpectrum ps;
+        /* calculate the power spectrum */
+        fastpm_powerspectrum_init_from_delta(&ps, fastpm->basepm, delta_k, delta_k);
+
+        char buf[1024];
+        sprintf(buf, "%s_linear.txt", CONF(prr, write_powerspectrum));
+        fastpm_info("writing linear power spectrum to %s\n", buf);
+        if(fastpm->ThisTask == 0) {
+            fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
+            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
+        }
+        fastpm_powerspectrum_destroy(&ps);
+    }
+
     fastpm_solver_setup_ic(fastpm, delta_k);
 
     pm_free(fastpm->basepm, delta_k);
