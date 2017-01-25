@@ -30,7 +30,7 @@ class Evolution(VM):
     @Prior.grad
     def _(self, dlin_k, powerspectrum, _prior):
         w = dlin_k.cdot_gradient(_prior, 
-                    metric=lambda k: 1 / (powerspecrum(k) / dlin_k.BoxSize.prod()) ** 0.5,
+                    metric=lambda k: 1 / (powerspectrum(k) / dlin_k.BoxSize.prod()) ** 0.5,
                     independent=False)
         w[...] *= 2 # because this is self cdot.
         return w
