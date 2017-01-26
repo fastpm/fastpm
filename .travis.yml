@@ -28,9 +28,9 @@ before_install:
     - ./miniconda.sh -b -p $HOME/miniconda
     - export PATH=$HOME/miniconda/bin:$PATH
     - conda update --yes conda
-    - conda install --yes numpy=$NUMPY_VERSION nose cython mpi4py astropy scipy
     - conda create --yes -n test python=$PYTHON_VERSION
     - source activate test
+    - conda install --yes numpy=$NUMPY_VERSION nose cython mpi4py astropy scipy
     - pip install --pre abopt pmesh bigfile mpi4py_test
 
 install:
