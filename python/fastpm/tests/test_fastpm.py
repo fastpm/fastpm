@@ -4,7 +4,6 @@ from numpy.testing import assert_allclose
 import numpy
 
 import fastpm
-from fastpm import PerturbationGrowth
 from astropy.cosmology import FlatLambdaCDM
 from pmesh.pm import ParticleMesh
 
@@ -108,7 +107,7 @@ def _test_model(code, dlin_k, ampl):
 
 @MPITest([1, 4])
 def test_kdk(comm):
-    pt = PerturbationGrowth(FlatLambdaCDM(Om0=0.3, H0=70, Tcmb0=0))
+    cosmo = FlatLambdaCDM(Om0=0.3, H0=70, Tcmb0=0)
 
     pm = ParticleMesh(BoxSize=128.0, Nmesh=(4,4,4), comm=comm, dtype='f8')
     vm = fastpm.KickDriftKick(pm, shift=0.5)
@@ -121,7 +120,7 @@ def test_kdk(comm):
     sigma = data.copy()
     sigma[...] = 1.0
 
-    code = vm.simulation(pt, 0.1, 1.0, 5)
+    code = vm.simulation(cosmo, 0.1, 1.0, 5)
     code.Paint()
     code.Diff(data_x=data, sigma_x=sigma)
     code.Chi2(variable='mesh')

@@ -6,6 +6,8 @@ from abopt.vmad import VM
 
 from pmesh.pm import ParticleMesh, RealField
 
+from fastpm.perturbation import PerturbationGrowth
+
 import fastpm.operators as operators
 
 class Evolution(VM):
@@ -25,12 +27,12 @@ class Evolution(VM):
     @VM.microcode(ain=['dlin_k'], aout=['prior'])
     def Prior(self, dlin_k, powerspectrum):
         return dlin_k.cdot(dlin_k,
-                    metric=lambda k: 1 / (powerspectrum(k) / dlin_k.BoxSize.prod()) ** 0.5,
+                    metric=lambda k: 1 / (powerspectrum(k) / dlin_k.BoxSize.prod()),
                     independent=False)
     @Prior.grad
     def _(self, dlin_k, powerspectrum, _prior):
         w = dlin_k.cdot_gradient(_prior, 
-                    metric=lambda k: 1 / (powerspectrum(k) / dlin_k.BoxSize.prod()) ** 0.5,
+                    metric=lambda k: 1 / (powerspectrum(k) / dlin_k.BoxSize.prod()),
                     independent=False)
         w[...] *= 2 # because this is self cdot.
         return w
@@ -91,13 +93,13 @@ class Evolution(VM):
 
     @VM.microcode(aout=['f'], ain=['s'])
     def Force(self, s, factor):
-        density_factor = self.fpm.Nmesh.prod() / self.fpm.Nmesh.prod()
+        density_factor = 1.0 * self.fpm.Nmesh.prod() / self.pm.Nmesh.prod()
         x = s + self.q
         return operators.gravity(x, self.fpm, factor=density_factor * factor, f=None)
 
     @Force.grad
     def _(self, s, _f, factor):
-        density_factor = self.fpm.Nmesh.prod() / self.pm.Nmesh.prod()
+        density_factor = 1.0 * self.fpm.Nmesh.prod() / self.pm.Nmesh.prod()
 
         if _f is VM.Zero:
             return VM.Zero
@@ -112,7 +114,7 @@ class Evolution(VM):
         layout = self.pm.decompose(x)
         mesh.paint(x, layout=layout, hold=False)
         # to have 1 + \delta on the mesh
-        mesh[...] *= mesh.pm.Nmesh.prod() / self.pm.Nmesh.prod()
+        mesh[...] *= 1.0 * mesh.pm.Nmesh.prod() / self.pm.Nmesh.prod()
         return mesh
 
     @Paint.grad
@@ -127,13 +129,26 @@ class Evolution(VM):
             return _s
 
     @VM.microcode(aout=['mesh'], ain=['mesh'])
-    def Diff(self, mesh, data_x, sigma_x):
+    def Transfer(self, mesh, transfer):
+        return mesh.r2c(out=Ellipsis)\
+                   .apply(lambda k, v: transfer(sum(ki ** 2 for ki in k) ** 0.5) * v, out=Ellipsis)\
+                   .c2r(out=Ellipsis)
+
+    @Transfer.grad
+    def _(self, _mesh, transfer):
+        return _mesh.c2r_gradient(out=Ellipsis)\
+                   .apply(lambda k, v: transfer(sum(ki ** 2 for ki in k) ** 0.5) * v, out=Ellipsis)\
+                    .r2c_gradient(out=Ellipsis)
+
+    @VM.microcode(aout=['difference'], ain=['mesh'])
+    def Subtract(self, mesh, data_x, sigma_x):
         diff = mesh + -1 * data_x
         diff[...] /= sigma_x[...]
         return diff
 
-    @Diff.grad
-    def _(self, _mesh, sigma_x):
+    @Subtract.grad
+    def _(self, _difference, sigma_x):
+        _mesh = _difference.copy()
         _mesh[...] /= sigma_x
         return _mesh
 
@@ -175,33 +190,38 @@ class LPT(Evolution):
     def __init__(self, pm, shift=0):
         Evolution.__init__(self, pm, B=1, shift=shift)
 
-    def simulation(self, pt, aend, order):
+    def simulation(self, cosmo, aend, order, mesh='mesh', dlin_k='dlin_k'):
+        pt = PerturbationGrowth(cosmo)
         code = Evolution.code(self)
         if order == 1:
             code.Displace(D1=pt.D1(aend), 
                           v1=pt.f1(aend) * pt.D1(aend) * aend ** 2 * pt.E(aend),
                           D2=0,
                           v2=0,
+                          dlin_k=dlin_k,
                          )
         if order == 2:
             code.Displace(D1=pt.D1(aend), 
                           v1=pt.f1(aend) * pt.D1(aend) * aend ** 2 * pt.E(aend),
                           D2=pt.D2(aend),
                           v2=pt.f2(aend) * pt.D2(aend) * aend ** 2 * pt.E(aend),
+                          dlin_k=dlin_k
                          )
+        code.Paint(mesh=mesh)
         return code
 
 class KickDriftKick(Evolution):
     def __init__(self, pm, B=1, shift=0):
         Evolution.__init__(self, pm, B=B, shift=shift)
 
-    def simulation(self, pt, astart, aend, Nsteps):
+    def simulation(self, cosmo, astart, aend, Nsteps, mesh='mesh', dlin_k='dlin_k'):
+        pt = PerturbationGrowth(cosmo)
         code = Evolution.code(self)
         code.Displace(D1=pt.D1(astart), 
                       v1=pt.f1(astart) * pt.D1(astart) * astart ** 2 * pt.E(astart),
                       D2=pt.D2(astart),
                       v2=pt.f2(astart) * pt.D2(astart) * astart ** 2 * pt.E(astart),
-                     )
+                      dlin_k=dlin_k)
         code.Force(factor=1.5 * pt.Om0)
 
         a = numpy.linspace(astart, aend, Nsteps + 1, endpoint=True)
@@ -219,6 +239,7 @@ class KickDriftKick(Evolution):
             code.Force(factor=1.5 * pt.Om0)
             code.Kick(dda=K(ac, af, af))
 
+        code.Paint(mesh=mesh)
         return code
 
 
