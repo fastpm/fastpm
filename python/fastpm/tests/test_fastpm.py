@@ -24,6 +24,7 @@ def _addampl(white):
     white[...] *= ampl.real
 
     return white, ampl
+
 @MPITest([1, 4])
 def test_lpt(comm):
 
@@ -37,6 +38,22 @@ def test_lpt(comm):
     code.Displace(D1=1.0, v1=0, D2=0.0, v2=0.0)
     code.Chi2(variable='s')
 
+    dlink, ampl = _addampl(dlink)
+
+    _test_model(code, dlink, ampl)
+
+@MPITest([1, 4])
+def test_prior(comm):
+
+    from pmesh.pm import ParticleMesh
+
+    pm = ParticleMesh(BoxSize=128.0, Nmesh=(4, 4), comm=comm)
+    vm = fastpm.Evolution(pm, shift=0.5)
+
+    dlink = pm.generate_whitenoise(1234, mode='complex')
+    code = vm.code()
+    code.Prior(powerspectrum=lambda k : 1.0)
+    code.CopyVariable(a='prior', b='chi2')
     dlink, ampl = _addampl(dlink)
 
     _test_model(code, dlink, ampl)
@@ -122,7 +139,7 @@ def test_kdk(comm):
 
     code = vm.simulation(cosmo, 0.1, 1.0, 5)
     code.Paint()
-    code.Diff(data_x=data, sigma_x=sigma)
+    code.Subtract(data_x=data, sigma_x=sigma)
     code.Chi2(variable='mesh')
 
     _test_model(code, dlink, ampl)

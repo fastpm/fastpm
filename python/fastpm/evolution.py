@@ -18,11 +18,15 @@ class Evolution(VM):
         VM.__init__(self)
 
     @VM.microcode(aout=['b'], ain=['a'])
-    def copy(self, a):
+    def CopyVariable(self, a):
         if hasattr(a, 'copy'):
             return a.copy()
         else:
             return 1.0 * a
+
+    @CopyVariable.grad
+    def _(self, _b):
+        return _b
 
     @VM.microcode(ain=['dlin_k'], aout=['prior'])
     def Prior(self, dlin_k, powerspectrum):
