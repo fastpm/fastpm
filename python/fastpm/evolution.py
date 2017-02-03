@@ -156,6 +156,33 @@ class Evolution(VM):
         _mesh[...] /= sigma_x
         return _mesh
 
+    @VM.microcode(ain=['dlin_k'], aout=['mesh'])
+    def C2R(self, dlin_k):
+        return dlin_k.c2r()
+
+    @C2R.grad
+    def _(self, _mesh):
+        return _mesh.c2r_gradient().decompress_gradient()
+
+    @VM.microcode(aout=['mesh'], ain=['mesh'])
+    def Resample(self, mesh, pm):
+        out = pm.create(mode='real')
+        out[...] = 0
+        mesh.resample(out)
+        out[...] *= 1.0 * self.pm.Nmesh.prod() / pm.Nmesh.prod()
+        return out
+
+    @Resample.grad
+    def _(self, _mesh, pm):
+        # _mesh is downsampled
+        out = self.pm.create(mode='real')
+        out[...] = 0
+        _mesh.resample(out)
+        #print(_mesh.r2c()[...].round(2))
+        #print(out.r2c()[...].round(2))
+        #out[...] *= 1.0 * self.pm.Nmesh.prod() / pm.Nmesh.prod()
+        return out
+
     @VM.microcode(aout=['chi2'], ain=['variable'])
     def Chi2(self, variable):
         variable = variable * variable

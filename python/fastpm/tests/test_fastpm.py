@@ -120,7 +120,7 @@ def _test_model(code, dlin_k, ampl):
         num.append(yr - yl)
     print('------')
 
-    assert_allclose(num, ana, rtol=1e-3)
+    assert_allclose(num, ana, rtol=1e-3, atol=1e-10)
 
 @MPITest([1, 4])
 def test_kdk(comm):
@@ -140,6 +140,28 @@ def test_kdk(comm):
     code = vm.simulation(cosmo, 0.1, 1.0, 5)
     code.Paint()
     code.Subtract(data_x=data, sigma_x=sigma)
+    code.Chi2(variable='mesh')
+
+    _test_model(code, dlink, ampl)
+
+@MPITest([1, 4])
+def test_resample(comm):
+    if comm.size == 4:
+        print(comm.rank, 'started')
+        comm.barrier()
+    from pmesh.pm import ParticleMesh
+
+    pm = ParticleMesh(BoxSize=128.0, Nmesh=(8, 8), comm=comm)
+    pm1 = ParticleMesh(BoxSize=128.0, Nmesh=(4, 4), comm=comm)
+    vm = fastpm.Evolution(pm, shift=0.5)
+
+    dlink = pm.generate_whitenoise(1234, mode='complex')
+
+    dlink, ampl = _addampl(dlink)
+
+    code = vm.code()
+    code.C2R()
+    code.Resample(pm=pm1)
     code.Chi2(variable='mesh')
 
     _test_model(code, dlink, ampl)
