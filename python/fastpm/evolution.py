@@ -13,7 +13,7 @@ import fastpm.operators as operators
 class Evolution(VM):
     def __init__(self, pm, B=1, shift=0, dtype='f8'):
         self.pm = pm
-        self.fpm = ParticleMesh(Nmesh=pm.Nmesh * B, BoxSize=pm.BoxSize, dtype=dtype)
+        self.fpm = ParticleMesh(Nmesh=pm.Nmesh * B, BoxSize=pm.BoxSize, dtype=dtype, comm=pm.comm)
         self.q = operators.create_grid(self.pm, shift=shift, dtype=dtype)
         VM.__init__(self)
 
