@@ -147,10 +147,10 @@ def test_kdk(comm):
 @MPITest([1, 4])
 def test_resample(comm):
     if comm.size == 4:
-        print(comm.rank, 'started')
         comm.barrier()
     from pmesh.pm import ParticleMesh
 
+    # testing the gradient of down sampling, which we use the most.
     pm = ParticleMesh(BoxSize=128.0, Nmesh=(8, 8), comm=comm)
     pm1 = ParticleMesh(BoxSize=128.0, Nmesh=(4, 4), comm=comm)
     vm = fastpm.Evolution(pm, shift=0.5)
@@ -158,7 +158,10 @@ def test_resample(comm):
     dlink = pm.generate_whitenoise(1234, mode='complex')
 
     dlink, ampl = _addampl(dlink)
-
+    print(dlink.value.round(2))
+    dlink1 = pm1.create(mode='complex')
+    dlink.resample(dlink1)
+    print(dlink1.value.round(2))
     code = vm.code()
     code.C2R()
     code.Resample(pm=pm1)

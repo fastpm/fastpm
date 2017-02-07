@@ -169,7 +169,11 @@ class Evolution(VM):
         out = pm.create(mode='real')
         out[...] = 0
         mesh.resample(out)
-        out[...] *= 1.0 * self.pm.Nmesh.prod() / pm.Nmesh.prod()
+        # the noramlization is still 1 + \delta, though the resolution has
+        # changed.
+        # but then we would like to duplicate, effectivelyare each sample
+        # this many times, to preserve sigma
+        out[...] *= (self.pm.Nmesh.prod() / pm.Nmesh.prod())
         return out
 
     @Resample.grad
@@ -178,9 +182,12 @@ class Evolution(VM):
         out = self.pm.create(mode='real')
         out[...] = 0
         _mesh.resample(out)
-        #print(_mesh.r2c()[...].round(2))
-        #print(out.r2c()[...].round(2))
-        #out[...] *= 1.0 * self.pm.Nmesh.prod() / pm.Nmesh.prod()
+        # preserving the 1 + \delta convention;
+        # FIXME: why is this correct?
+        # I know the factor is due to the difference of N**3 in 
+        # FFTs; but the details are fuzzy.
+        out[...] /= 1.0 * self.pm.Nmesh.prod() / pm.Nmesh.prod()
+        out[...] *= (self.pm.Nmesh.prod() / pm.Nmesh.prod())
         return out
 
     @VM.microcode(aout=['chi2'], ain=['variable'])
