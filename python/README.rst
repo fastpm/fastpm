@@ -10,19 +10,35 @@ The best result is obtained by using anaconda.
 
 Python 3 is the current development environment.
 
-First the requirements:
+First set up the basic requirements,
 
 .. code::
 
     conda install cython numpy scipy mpi4py nose
 
-    pip install pmesh bigfile kdcount
+    env LD_LIBRARY_PATH=$CONDA_PREFIX/lib pip install pmesh bigfile
+
     conda install dask h5py
 
+FastPM is build as a forward model with `abopt`, so we need a recent version
+of that:
+
+.. code::
+
     pip install https://github.com/bccp/abopt/archive/master.zip
+
+
+For running the nonlinear reconstruction code,
+we need a recent version of nbodykit and matplotlib
+
+.. code::
+
     pip install https://github.com/bccp/nbodykit/archive/master.zip
 
-Then install fastpm, either from PYPI (the latest release)
+    conda install matplotlib
+
+
+Finally, we can install fastpm, either from PYPI (the latest release, we have none yet)
 
 .. code::
 
@@ -35,16 +51,12 @@ or from the git clone :
     python setup.py install
 
 
-MAC special notes
------------------
+`LD_LIBRARY_PATH` hack
+----------------------
 
 When installing pmesh, prefix `LD_LIBRARY_PATH` helps
 the compilation of a package named `pfft-python`, the parallel
 FFT software we use.
-
-.. code::
-
-    env LD_LIBRARY_PATH=$CONDA_PREFIX/lib pip install pmesh bigfile kdcount
 
 
 Development
