@@ -30,8 +30,9 @@ before_install:
     - conda update --yes conda
     - conda create --yes -n test python=$PYTHON_VERSION
     - source activate test
-    - conda install --yes numpy=$NUMPY_VERSION nose cython mpi4py astropy scipy
-    - pip install --pre abopt pmesh bigfile mpi4py_test
+    - conda install --yes numpy=$NUMPY_VERSION nose cython mpi4py scipy
+    - env LD_LIBRARY_PATH=$CONDA_PREFIX/lib pip install pmesh bigfile
+    - pip install https://github.com/bccp/abopt/archive/master.zip
 
 install:
     - cp Makefile.travis Makefile.local
@@ -45,5 +46,5 @@ script:
     - popd
     - pushd python
     - python runtest.py --mpirun
-
+    - pops
 # after_success: ./update-ghpages.sh
