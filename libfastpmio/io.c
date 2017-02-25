@@ -101,7 +101,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
     big_file_mpi_create(&bf, filebase, comm);
     {
         BigBlock bb;
-        if(0 != big_file_mpi_create_block(&bf, &bb, ".", "i8", 0, 1, 0, comm)) {
+        if(0 != big_file_mpi_create_block(&bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
             fastpm_raise(-1, "Failed to create the attributes\n");
         }
         double ScalingFactor = p->a_x;
@@ -127,11 +127,11 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         int nmemb;
         char * dtype_out;
     } * bdesc, BLOCKS[] = {
-        {"Position", p->x, "f8", 3, "f4"},
-        {"Velocity", p->v, "f4", 3, "f4"},
-        {"ID", p->id, "i8", 1, "i8"},
-        {"Aemit", p->aemit, "f4", 1, "f4"},
-        {"Potential", p->potential, "f4", 1, "f4"},
+        {"1/Position", p->x, "f8", 3, "f4"},
+        {"1/Velocity", p->v, "f4", 3, "f4"},
+        {"1/ID", p->id, "i8", 1, "i8"},
+        {"1/Aemit", p->aemit, "f4", 1, "f4"},
+        {"1/Potential", p->potential, "f4", 1, "f4"},
         {NULL, },
     };
 
