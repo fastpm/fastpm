@@ -16,6 +16,7 @@ all:
 clean:
 	@(cd libfastpm; $(MAKE) clean)
 	@(cd libfastpmio; $(MAKE) clean)
+	@(cd depends; $(MAKE) clean)
 	@(cd src; $(MAKE) clean)
 	@(cd tests; $(MAKE) clean)
 

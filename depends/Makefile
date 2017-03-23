@@ -50,3 +50,5 @@ $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 .pfft:
 	($(MAKE) "OPENMP=$(OPENMP)" "CC=$(CC)" -f Makefile.pfft)
 
+clean:
+	rm -f libfastpm-dep.a
