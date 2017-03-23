@@ -145,10 +145,16 @@ it based on the example for your site.
 
     # copy the edison example file to Makefile.local
 
-    cp Makefile.edison Makefile.local
+    cp Makefile.local.example Makefile.local
 
     # the rest is just make. It may take a while.
     make
+
+Anaconda
+++++++++
+
+openmp does not seem to work with Anaconda. The reason is not clear.
+
 
 Macintosh Personal Computers
 ----------------------------
