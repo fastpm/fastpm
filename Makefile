@@ -22,5 +22,5 @@ clean:
 deep-clean: clean
 	(cd lua; make clean)
 	(cd depends; rm -rf double single install src)
-	(cd bigfile; make clean)
-	(cd mpsort; make clean)
+	(cd depends/bigfile; make clean)
+	(cd depends/mpsort; make clean)
