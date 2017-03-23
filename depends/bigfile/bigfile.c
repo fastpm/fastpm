@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -63,6 +64,21 @@ attrset_get_attr(BigAttrSet * attrset, const char * attrname, void * data, const
 /* Internal dtype API */
 static int
 dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const char * srcdtype, size_t nmemb);
+
+/*Check dtype is valid*/
+int dtype_isvalid(const char * dtype);
+
+/* postfix detection, 1 if postfix is a postfix of str */
+static int
+endswith(const char * str, const char * postfix)
+{
+    const char * p = str + strlen(str) - 1;
+    const char * q = postfix + strlen(postfix) - 1;
+    for(; p >= str && q >= postfix; p --, q--) {
+        if(*p != *q) return 0;
+    }
+    return 1;
+}
 
 /* global settings */
 int
@@ -162,7 +178,7 @@ ex_stat:
 int big_file_create(BigFile * bf, const char * basename) {
     memset(bf, 0, sizeof(bf[0]));
     bf->basename = strdup(basename);
-    RAISEIF(0 != _big_file_mksubdir_r("", basename),
+    RAISEIF(0 != _big_file_mksubdir_r(basename, ""),
         ex_subdir,
         NULL);
     return 0;
@@ -282,51 +298,9 @@ int
 big_block_open(BigBlock * bb, const char * basename)
 {
     memset(bb, 0, sizeof(bb[0]));
-    if(basename == NULL) basename = "";
+    if(basename == NULL) basename = "/.";
     bb->basename = strdup(basename);
     bb->dirty = 0;
-    FILE * fheader = _big_file_open_a_file(bb->basename, FILEID_HEADER, "r");
-    RAISEIF (!fheader,
-            ex_open,
-            NULL);
-
-    RAISEIF(
-           (1 != fscanf(fheader, " DTYPE: %s", bb->dtype)) ||
-           (1 != fscanf(fheader, " NMEMB: %d", &(bb->nmemb))) ||
-           (1 != fscanf(fheader, " NFILE: %d", &(bb->Nfile))),
-           ex_fscanf,
-           "Failed to read header of block `%s' (%s)", bb->basename, strerror(errno));
-
-    bb->fsize = calloc(bb->Nfile, sizeof(size_t));
-    RAISEIF(!bb->fsize,
-            ex_fsize,
-            "Failed to alloc memory of block `%s'", bb->basename);
-    bb->foffset = calloc(bb->Nfile + 1, sizeof(size_t));
-    RAISEIF(!bb->foffset,
-            ex_foffset,
-            "Failed to alloc memory of block `%s'", bb->basename);
-    bb->fchecksum = calloc(bb->Nfile, sizeof(int));
-    RAISEIF(!bb->fchecksum,
-            ex_fchecksum,
-            "Failed to alloc memory `%s'", bb->basename);
-    int i;
-    for(i = 0; i < bb->Nfile; i ++) {
-        int fid; 
-        size_t size;
-        unsigned int cksum;
-        unsigned int sysv;
-        RAISEIF(4 != fscanf(fheader, " " EXT_DATA ": %td : %u : %u", &fid, &size, &cksum, &sysv),
-                ex_fscanf1,
-                "Failed to readin physical file layout `%s' %d (%s)", bb->basename, fid,
-                strerror(errno));
-        bb->fsize[fid] = size;
-        bb->fchecksum[fid] = cksum;
-    }
-    bb->foffset[0] = 0;
-    for(i = 0; i < bb->Nfile; i ++) {
-        bb->foffset[i + 1] = bb->foffset[i] + bb->fsize[i];
-    }
-    bb->size = bb->foffset[bb->Nfile];
 
     bb->attrset = attrset_create();
 
@@ -339,75 +313,153 @@ big_block_open(BigBlock * bb, const char * basename)
             ex_readattr,
             NULL);
 
-    fclose(fheader);
-    return 0;
+    if (!endswith(bb->basename, "/.") && 0 != strcmp(bb->basename, ".")) {
+        FILE * fheader = _big_file_open_a_file(bb->basename, FILEID_HEADER, "r");
+        RAISEIF (!fheader,
+                ex_open,
+                NULL);
 
-ex_readattr:
+        RAISEIF(
+               (1 != fscanf(fheader, " DTYPE: %s", bb->dtype)) ||
+               (1 != fscanf(fheader, " NMEMB: %d", &(bb->nmemb))) ||
+               (1 != fscanf(fheader, " NFILE: %d", &(bb->Nfile))),
+               ex_fscanf,
+               "Failed to read header of block `%s' (%s)", bb->basename, strerror(errno));
+
+        RAISEIF(bb->Nfile < 0 || bb->Nfile >= INT_MAX-1, ex_fscanf, 
+                "Unreasonable value for Nfile in header of block `%s' (%d)",bb->basename,bb->Nfile);
+        RAISEIF(bb->nmemb < 0, ex_fscanf, 
+                "Unreasonable value for nmemb in header of block `%s' (%d)",bb->basename,bb->nmemb);
+        RAISEIF(!dtype_isvalid(bb->dtype), ex_fscanf, 
+                "Unreasonable value for dtype in header of block `%s' (%s)",bb->basename,bb->dtype);
+        bb->fsize = calloc(bb->Nfile, sizeof(size_t));
+        RAISEIF(!bb->fsize,
+                ex_fsize,
+                "Failed to alloc memory of block `%s'", bb->basename);
+        bb->foffset = calloc(bb->Nfile + 1, sizeof(size_t));
+        RAISEIF(!bb->foffset,
+                ex_foffset,
+                "Failed to alloc memory of block `%s'", bb->basename);
+        bb->fchecksum = calloc(bb->Nfile, sizeof(int));
+        RAISEIF(!bb->fchecksum,
+                ex_fchecksum,
+                "Failed to alloc memory `%s'", bb->basename);
+        int i;
+        for(i = 0; i < bb->Nfile; i ++) {
+            int fid; 
+            size_t size;
+            unsigned int cksum;
+            unsigned int sysv;
+            RAISEIF(4 != fscanf(fheader, " " EXT_DATA ": %td : %u : %u", &fid, &size, &cksum, &sysv),
+                    ex_fscanf1,
+                    "Failed to readin physical file layout `%s' %d (%s)", bb->basename, fid,
+                    strerror(errno));
+            RAISEIF(fid < 0 || fid >= bb->Nfile, ex_fscanf1,
+                    "Non-existent file referenced: `%s' (%d)", bb->basename, fid);
+            bb->fsize[fid] = size;
+            bb->fchecksum[fid] = cksum;
+        }
+        bb->foffset[0] = 0;
+        for(i = 0; i < bb->Nfile; i ++) {
+            bb->foffset[i + 1] = bb->foffset[i] + bb->fsize[i];
+        }
+        bb->size = bb->foffset[bb->Nfile];
+
+        fclose(fheader);
+
+        return 0;
+
 ex_fscanf1:
-    free(bb->fchecksum);
+        free(bb->fchecksum);
 ex_fchecksum:
-    free(bb->foffset);
+        free(bb->foffset);
 ex_foffset:
-    free(bb->fsize);
+        free(bb->fsize);
 ex_fsize:
 ex_fscanf:
-    fclose(fheader);
+        fclose(fheader);
 ex_open:
-    return -1;
+        return -1;
+    } else {
+        /* The meta block of a big file, has on extra files. */
+        bb->Nfile = 0;
+        strcpy(bb->dtype, "####");
+        return 0;
+    }
+
+ex_readattr:
+        return -1;
 }
 
 int
 _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[])
 {
     memset(bb, 0, sizeof(bb[0]));
-    if(basename == NULL) basename = "";
+    if(basename == NULL) basename = "/.";
     bb->basename = strdup(basename);
-
-    if(dtype == NULL) {
-        dtype = "i8";
-        Nfile = 0;
-        fsize = NULL;
-    }
-    /* always use normalized dtype in files. */
-    dtype_normalize(bb->dtype, dtype);
-
-    bb->Nfile = Nfile;
-    bb->nmemb = nmemb;
-    bb->fsize = calloc(bb->Nfile, sizeof(size_t));
-    RAISEIF(!bb->fsize, ex_fsize, "No memory"); 
-    bb->fchecksum = calloc(bb->Nfile, sizeof(int));
-    RAISEIF(!bb->fchecksum, ex_fchecksum, "No memory"); 
-    bb->foffset = calloc(bb->Nfile + 1, sizeof(size_t));
-    RAISEIF(!bb->foffset, ex_foffset, "No memory"); 
-    int i;
-    bb->foffset[0] = 0;
-    for(i = 0; i < bb->Nfile; i ++) {
-        bb->fsize[i] = fsize[i];
-        bb->foffset[i + 1] = bb->foffset[i] + bb->fsize[i];
-        bb->fchecksum[i] = 0;
-    }
-
-    bb->size = bb->foffset[bb->Nfile];
 
     bb->attrset = attrset_create();
     bb->attrset->dirty = 1;
-    bb->dirty = 1;
-    RAISEIF(0 != big_block_flush(bb), 
-            ex_flush, NULL);
 
-    bb->dirty = 0;
+    if (!endswith(bb->basename, "/.") && 0 != strcmp(bb->basename, ".")) {
+        if(dtype == NULL) {
+            dtype = "i8";
+            Nfile = 0;
+            fsize = NULL;
+        }
+        /* always use normalized dtype in files. */
+        dtype_normalize(bb->dtype, dtype);
 
-    return 0;
+        bb->Nfile = Nfile;
+        bb->nmemb = nmemb;
+        bb->fsize = calloc(bb->Nfile, sizeof(size_t));
+        RAISEIF(!bb->fsize, ex_fsize, "No memory"); 
+        bb->fchecksum = calloc(bb->Nfile, sizeof(int));
+        RAISEIF(!bb->fchecksum, ex_fchecksum, "No memory"); 
+        bb->foffset = calloc(bb->Nfile + 1, sizeof(size_t));
+        RAISEIF(!bb->foffset, ex_foffset, "No memory"); 
+        int i;
+        bb->foffset[0] = 0;
+        for(i = 0; i < bb->Nfile; i ++) {
+            bb->fsize[i] = fsize[i];
+            bb->foffset[i + 1] = bb->foffset[i] + bb->fsize[i];
+            bb->fchecksum[i] = 0;
+        }
 
+        bb->size = bb->foffset[bb->Nfile];
+        bb->dirty = 1;
+
+        RAISEIF(0 != big_block_flush(bb), 
+                ex_flush, NULL);
+
+        bb->dirty = 0;
+        return 0;
 ex_flush:
+        attrset_free(bb->attrset);
 ex_fileio:
-    free(bb->foffset);
+        free(bb->foffset);
 ex_foffset:
-    free(bb->fchecksum);
+        free(bb->fchecksum);
 ex_fchecksum:
-    free(bb->fsize);
+        free(bb->fsize);
 ex_fsize:
-    return -1;
+        return -1;
+    } else {
+        /* special meta block of a file */
+        bb->Nfile = 0;
+        /* never flush the header */
+        bb->dirty = 0;
+
+        RAISEIF(0 != big_block_flush(bb), 
+                ex_flush2, NULL);
+
+        bb->dirty = 0;
+        return 0;
+
+ex_flush2:
+        attrset_free(bb->attrset);
+        return -1;
+    }
 }
 
 static void
@@ -723,9 +775,11 @@ big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
                 "Failed to read in block `%s' at (%d:%td) (%s)",
                 bb->basename, ptr->fileid, ptr->roffset * felsize, strerror(errno));
         fclose(fp);
+        fp = NULL;
 
         /* now translate the data from chunkbuf to mptr */
-        _dtype_convert(&array_iter, &chunk_iter, chunk_size * bb->nmemb);
+        RAISEIF(0 != _dtype_convert(&array_iter, &chunk_iter, chunk_size * bb->nmemb),
+            ex_convert, NULL);
 
         toread -= chunk_size;
         RAISEIF(0 != big_block_seek_rel(bb, ptr, chunk_size),
@@ -735,10 +789,11 @@ big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
 
     free(chunkbuf);
     return 0;
-ex_insuf:
 ex_read:
 ex_seek:
     fclose(fp);
+ex_insuf:
+ex_convert:
 ex_blockseek:
 ex_open:
 ex_eof:
@@ -796,7 +851,8 @@ big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
         big_array_iter_init(&chunk_iter, &chunk_array);
 
         /* now translate the data to format in the file*/
-        _dtype_convert(&chunk_iter, &array_iter, chunk_size * bb->nmemb);
+        RAISEIF(0 != _dtype_convert(&chunk_iter, &array_iter, chunk_size * bb->nmemb),
+            ex_convert, NULL);
 
         sysvsum(&bb->fchecksum[ptr->fileid], chunkbuf, chunk_size * felsize);
 
@@ -823,6 +879,7 @@ big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
 ex_write:
 ex_seek:
     fclose(fp);
+ex_convert:
 ex_open:
 ex_blockseek:
 ex_eof:
@@ -870,6 +927,39 @@ dtype_normalize(char * dst, const char * src)
         dst[0] = MACHINE_ENDIANNESS;
     }
     return 0;
+}
+
+/*Check that the passed dtype is valid.
+ * Returns 1 if valid, 0 if invalid*/
+int
+dtype_isvalid(const char * dtype)
+{
+    if(!dtype)
+        return 0;
+    switch(dtype[0]) {
+        case '<':
+        case '>':
+        case '|':
+        case '=':
+            break;
+        default:
+            return 0;
+    }
+    switch(dtype[1]) {
+        case 'S':
+        case 'b':
+        case 'i':
+        case 'f':
+        case 'u':
+        case 'c':
+            break;
+        default:
+            return 0;
+    }
+    int width = atoi(&dtype[2]);
+    if(width > 16 || width <= 0)
+        return 0;
+    return 1;
 }
 
 int
@@ -965,6 +1055,7 @@ typedef struct {double r; double i;} cplx128_t;
 typedef struct {float r; float i;} cplx64_t;
 typedef union {
     char *S1;
+    char *b1;
     int64_t *i8;
     uint64_t *u8;
     double *f8;
@@ -1005,6 +1096,7 @@ dtype_format(char * buffer, const char * dtype, const void * data, const char * 
     } else
 
     FORMAT1(S1, "%c")
+    FORMAT1(b1, "%d")
     FORMAT1(i8, "%ld")
     FORMAT1(i4, "%d")
     FORMAT1(u8, "%lu")
@@ -1013,7 +1105,9 @@ dtype_format(char * buffer, const char * dtype, const void * data, const char * 
     FORMAT1(f4, "%g")
     FORMAT2(c8, "%g+%gI")
     FORMAT2(c16, "%g+%gI")
-    abort();
+    {
+        sprintf(buffer, "<%s>", ndtype);
+    }
 }
 
 /* parse data in dtype to a string in buffer */
@@ -1052,7 +1146,7 @@ dtype_parse(const char * buffer, const char * dtype, void * data, const char * f
     PARSE2(c8, "%f + %f I")
     PARSE2(c16, "%lf + %lf I")
     abort();
-
+    /* FIXME: shall not abort */
     dtype_convert_simple(data, dtype, converted, ndtype, 1);
 
 }
@@ -1069,7 +1163,7 @@ dtype_convert_simple(void * dst, const char * dstdtype, const void * src, const 
     return _dtype_convert(&dst_iter, &src_iter, nmemb);
 }
 
-static void cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
+static int cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
 static void byte_swap(BigArrayIter * array, size_t nmemb);
 int
 _dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
@@ -1083,7 +1177,11 @@ _dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
 
     BigArrayIter iter1 = *dst;
     BigArrayIter iter2 = *src;
-    cast(&iter1, &iter2, nmemb);
+
+    if(0 != cast(&iter1, &iter2, nmemb)) {
+        /* cast is not supported */
+        return -1;
+    }
 
     /* match dst to machine endianness */
     if(dst->array->dtype[0] != MACHINE_ENDIANNESS) {
@@ -1125,7 +1223,7 @@ if((0 == strcmp(d1, dst->array->dtype + 1)) && (0 == strcmp(d2, src->array->dtyp
         * p1 = * p2; \
         big_array_iter_advance(dst); big_array_iter_advance(src); \
     } \
-    return; \
+    return 0; \
 }
 #define CAST2(d1, t1, d2, t2) \
 if((0 == strcmp(d1, dst->array->dtype + 1)) && (0 == strcmp(d2, src->array->dtype + 1))) { \
@@ -1134,86 +1232,93 @@ if((0 == strcmp(d1, dst->array->dtype + 1)) && (0 == strcmp(d2, src->array->dtyp
         p1->r = p2->r; p1->i = p2->i; \
         big_array_iter_advance(dst); big_array_iter_advance(src); \
     } \
-    return; \
+    return 0; \
 }
-static void
+static int
 cast(BigArrayIter * dst, BigArrayIter * src, size_t nmemb)
 {
     /* doing cast assuming native byte order */
     /* convert buf2 to buf1, both are native;
      * dtype has no endian-ness prefix
      *   */
-    ptrdiff_t i; \
-    if((dst->contiguous && src->contiguous)
-    && (0 == strcmp(dst->array->dtype + 1, src->array->dtype + 1))) {
-        /* directly copy. This is no casting */
-        memcpy(dst->dataptr, src->dataptr, nmemb * dst->array->strides[dst->array->ndim-1]);
-        dst->dataptr = (char*) dst->dataptr + nmemb * dst->array->strides[dst->array->ndim - 1];
-        src->dataptr = (char*) src->dataptr + nmemb * src->array->strides[src->array->ndim - 1];
-        return;
+    ptrdiff_t i;
+    /* same type, no need for casting. */
+    if (0 == strcmp(dst->array->dtype + 1, src->array->dtype + 1)) {
+        if(dst->contiguous && src->contiguous) {
+            /* directly copy of memory chunks; FIXME: use memmove? */
+            memcpy(dst->dataptr, src->dataptr, nmemb * dst->array->strides[dst->array->ndim-1]);
+            dst->dataptr = (char*) dst->dataptr + nmemb * dst->array->strides[dst->array->ndim - 1];
+            src->dataptr = (char*) src->dataptr + nmemb * src->array->strides[src->array->ndim - 1];
+            return 0;
+        } else {
+            /* copy one by one, discontinuous */
+            size_t elsize = dtype_itemsize(dst->array->dtype);
+            for(i = 0; i < nmemb; i ++) {
+                void * p1 = dst->dataptr;
+                void * p2 = src->dataptr;
+                memcpy(p1, p2, elsize);
+                big_array_iter_advance(dst); big_array_iter_advance(src);
+            }
+            return 0;
+        }
     }
     if(0 == strcmp(dst->array->dtype + 1, "i8")) {
-        CAST("i8", int64_t, "i8", int64_t);
         CAST("i8", int64_t, "i4", int32_t);
         CAST("i8", int64_t, "u4", uint32_t);
         CAST("i8", int64_t, "u8", uint64_t);
         CAST("i8", int64_t, "f8", double);
         CAST("i8", int64_t, "f4", float);
+        CAST("i8", int64_t, "b1", char);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "u8")) {
-        CAST("u8", uint64_t, "u8", uint64_t);
         CAST("u8", uint64_t, "u4", uint32_t);
         CAST("u8", uint64_t, "i4", int32_t);
         CAST("u8", uint64_t, "i8", int64_t);
         CAST("u8", uint64_t, "f8", double);
         CAST("u8", uint64_t, "f4", float);
+        CAST("u8", uint64_t, "b1", char);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "f8")) {
-        CAST("f8", double, "f8", double);
         CAST("f8", double, "f4", float);
         CAST("f8", double, "i4", int32_t);
         CAST("f8", double, "i8", int64_t);
         CAST("f8", double, "u4", uint32_t);
         CAST("f8", double, "u8", uint64_t);
+        CAST("f8", double, "b1", char);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "i4")) {
-        CAST("i4", int32_t, "i4", int32_t);
         CAST("i4", int32_t, "i8", int64_t);
         CAST("i4", int32_t, "u4", uint32_t);
         CAST("i4", int32_t, "u8", uint64_t);
         CAST("i4", int32_t, "f8", double);
         CAST("i4", int32_t, "f4", float);
+        CAST("i4", int32_t, "b1", char);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "u4")) {
-        CAST("u4", uint32_t, "u4", uint32_t);
         CAST("u4", uint32_t, "u8", uint64_t);
         CAST("u4", uint32_t, "i4", int32_t);
         CAST("u4", uint32_t, "i8", int64_t);
         CAST("u4", uint32_t, "f8", double);
         CAST("u4", uint32_t, "f4", float);
+        CAST("u4", uint32_t, "b1", char);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "f4")) {
-        CAST("f4", float, "f4", float);
         CAST("f4", float, "f8", double);
         CAST("f4", float, "i4", int32_t);
         CAST("f4", float, "i8", int64_t);
         CAST("f4", float, "u4", uint32_t);
         CAST("f4", float, "u8", uint64_t);
+        CAST("f4", float, "b1", char);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "c8")) {
-        CAST2("c8", cplx64_t, "c8", cplx64_t);
         CAST2("c8", cplx64_t, "c16", cplx128_t);
     } else
     if(0 == strcmp(dst->array->dtype + 1, "c16")) {
         CAST2("c16", cplx128_t, "c8", cplx64_t);
-        CAST2("c16", cplx128_t, "c16", cplx128_t);
-    } else
-    if(0 == strcmp(dst->array->dtype + 1, "S1")) {
-        CAST("S1", char, "S1", char);
     }
-    /* */
-    fprintf(stderr, "Unsupported conversion from %s to %s\n", src->array->dtype, dst->array->dtype);
-    abort();
+    RAISE(ex, "Unsupported conversion from %s to %s. ", src->array->dtype, dst->array->dtype);
+ex:
+    return -1;
 }
 
 static void
@@ -1242,14 +1347,15 @@ attrset_read_attr_set_v1(BigAttrSet * attrset, const char * basename)
     }
     int nmemb;
     int lname;
-    char dtype[8];
+    char dtype[9]={0};
     char * data;
     char * name;
     while(!feof(fattr)) {
         if(1 != fread(&nmemb, sizeof(int), 1, fattr)) break;
         RAISEIF(
             (1 != fread(&lname, sizeof(int), 1, fattr)) ||
-            (1 != fread(&dtype, 8, 1, fattr)),
+            (1 != fread(&dtype, 8, 1, fattr)) ||
+            (!dtype_isvalid(dtype)),
             ex_fread,
             "Failed to read from file"
                 )
@@ -1266,7 +1372,7 @@ attrset_read_attr_set_v1(BigAttrSet * attrset, const char * basename)
         RAISEIF(0 != attrset_set_attr(attrset, name, data, dtype, nmemb),
             ex_set_attr,
             NULL);
-    } 
+    }
     attrset->dirty = 0;
     fclose(fattr);
     return 0;
@@ -1293,13 +1399,16 @@ attrset_read_attr_set_v2(BigAttrSet * attrset, const char * basename)
     }
     fseek(fattr, 0, SEEK_END);
     long size = ftell(fattr);
+    /*ftell may fail*/
+    RAISEIF(size < 0, ex_init, "ftell error: %s",strerror(errno));
     char * buffer = (char*) malloc(size + 1);
+    RAISEIF(!buffer, ex_init, "Could not allocate memory for buffer: %ld bytes",size+1);
     unsigned char * data = (unsigned char * ) malloc(size + 1);
+    RAISEIF(!data, ex_data, "Could not allocate memory for data: %ld bytes",size+1);
     fseek(fattr, 0, SEEK_SET);
     RAISEIF(size != fread(buffer, 1, size, fattr),
             ex_read_file,
             "Failed to read attribute file\n");
-    fclose(fattr);
     buffer[size] = 0;
 
     /* now parse the v2 attr file.*/
@@ -1337,6 +1446,7 @@ attrset_read_attr_set_v2(BigAttrSet * attrset, const char * basename)
             ex_set_attr,
             NULL);
     } 
+    fclose(fattr);
     free(data);
     free(buffer);
     attrset->dirty = 0;
@@ -1346,8 +1456,11 @@ ex_read_file:
 ex_parse_attr:
 ex_set_attr:
     attrset->dirty = 0;
-    free(buffer);
     free(data);
+ex_data:
+    free(buffer);
+ex_init:
+    fclose(fattr);
     return -1;
 }
 static int
@@ -1510,8 +1623,7 @@ attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data,
     RAISEIF(attr->nmemb != nmemb,
             ex_mismatch,
             "attr nmemb mismatch");
-    dtype_convert_simple(attr->data, attr->dtype, data, dtype, attr->nmemb);
-    return 0;
+    return dtype_convert_simple(attr->data, attr->dtype, data, dtype, attr->nmemb);
 
 ex_mismatch:
 ex_add:
@@ -1524,8 +1636,7 @@ attrset_get_attr(BigAttrSet * attrset, const char * attrname, void * data, const
     BigAttr * found = attrset_lookup_attr(attrset, attrname);
     RAISEIF(!found, ex_notfound, "attr not found");
     RAISEIF(found->nmemb != nmemb, ex_mismatch, "attr nmemb mismatch");
-    dtype_convert_simple(data, dtype, found->data, found->dtype, found->nmemb);
-    return 0;
+    return dtype_convert_simple(data, dtype, found->data, found->dtype, found->nmemb);
 
 ex_mismatch:
 ex_notfound:
@@ -1639,20 +1750,27 @@ _big_file_mksubdir_r(const char * pathname, const char * subdir)
 {
     char * subdirname = strdup(subdir);
     char * p;
+    int mkdirret;
 
     char * mydirname;
     for(p = subdirname; *p; p ++) {
         if(*p != '/') continue;
         *p = 0;
         mydirname = _path_join(pathname, subdirname);
-        mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdirret = mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        RAISEIF(mkdirret !=0 && errno != EEXIST,
+            ex_mkdir,
+            "Failed to create directory structure at `%s' (%s)",
+            mydirname,
+            strerror(errno)
+        );
         free(mydirname);
         *p = '/';
     }
     mydirname = _path_join(pathname, subdirname);
-    mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    mkdirret = mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     struct stat buf;
-    RAISEIF(0 != stat(mydirname, &buf),
+    RAISEIF((mkdirret !=0 && errno != EEXIST) || stat(mydirname, &buf),
             ex_mkdir,
             "Failed to create directory structure at `%s' (%s)", 
             mydirname,
@@ -1662,6 +1780,7 @@ _big_file_mksubdir_r(const char * pathname, const char * subdir)
     free(mydirname);
     return 0;
 ex_mkdir:
+    free(subdirname);
     free(mydirname);
     return -1;
 }
