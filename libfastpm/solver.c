@@ -366,14 +366,16 @@ fastpm_decompose(FastPMSolver * fastpm) {
 
 /* Interpolate position and velocity for snapshot at a=aout */
 void
-fastpm_set_snapshot(
+fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
-                FastPMCosmology * c,
-                FastPMStore * p, FastPMStore * po,
+                FastPMStore * po,
                 double aout)
 {
-    int np= p->np;
+    FastPMStore * p = fastpm->p;
+    FastPMCosmology * c = fastpm->cosmology;
+    PM * pm = fastpm->basepm;
+    int np = p->np;
 
     fastpm_kick_store(kick, p, po, aout);
 
@@ -397,5 +399,8 @@ fastpm_set_snapshot(
 
     po->np = np;
     po->a_x = po->a_v = aout;
+
+    fastpm_store_wrap(po, pm->BoxSize);
+    fastpm_store_decompose(po, to_rank, pm, fastpm->comm);
 }
 

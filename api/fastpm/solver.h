@@ -136,9 +136,9 @@ fastpm_drift_store(FastPMDriftFactor * drift,
                double af);
 
 void 
-fastpm_set_snapshot(FastPMDriftFactor * drift, FastPMKickFactor * kick,
-                FastPMCosmology * c,
-                FastPMStore * p, FastPMStore * po,
+fastpm_set_snapshot(FastPMSolver * fastpm,
+                FastPMDriftFactor * drift, FastPMKickFactor * kick,
+                FastPMStore * po,
                 double aout);
 
 FASTPM_END_DECLS
