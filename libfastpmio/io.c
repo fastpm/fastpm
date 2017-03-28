@@ -102,7 +102,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
     {
         BigBlock bb;
         if(0 != big_file_mpi_create_block(&bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
-            fastpm_raise(-1, "Failed to create the attributes\n");
+            fastpm_raise(-1, "Failed to create the header block: %s\n", big_file_get_error_message());
         }
         double ScalingFactor = p->a_x;
         double OmegaM = fastpm->cosmology->OmegaM;
@@ -144,7 +144,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         BigBlockPtr ptr;
         if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
                     Nfile, size, comm)) {
-            fastpm_raise(-1, "Failed to create the block\n");
+            fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
         }
 
         big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
@@ -234,7 +234,9 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        big_file_mpi_create_block(&bf, &bb, blockname, "c8", 1, Nfile, size, comm);
+        if(0 != big_file_mpi_create_block(&bf, &bb, blockname, "c8", 1, Nfile, size, comm)) {
+            fastpm_raise(-1, "Failed to create the block : %s\n", big_file_get_error_message());
+        }
         big_array_init(&array, &buf[0].value[0], "c8", 1, (size_t[]) {localsize, 1},
                 (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0])});
         big_block_seek(&bb, &ptr, 0);
@@ -300,7 +302,9 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        big_file_mpi_open_block(&bf, &bb, blockname, comm);
+        if (0 != big_file_mpi_open_block(&bf, &bb, blockname, comm)) {
+            fastpm_raise(-1, "Failed to open the block: %s\n", big_file_get_error_message());
+        }
 
         big_block_get_attr(&bb, "ndarray.strides", istrides, "i8", 3);
         big_block_get_attr(&bb, "ndarray.shape", ishape, "i8", 3);
