@@ -28,4 +28,4 @@ libbigfile-mpi.a: bigfile-mpi.o
 	ar r $@ bigfile-mpi.o
 	ranlib $@
 clean:
-	rm *.a *.o
+	rm -f *.a *.o

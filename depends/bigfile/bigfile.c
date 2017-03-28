@@ -101,7 +101,7 @@ void big_file_clear_error_message() {
 
 static char * _path_join(const char * part1, const char * part2)
 {
-    size_t l1 = strlen(part1);
+    size_t l1 = part1?strlen(part1):0;
     size_t l2 = strlen(part2);
     char * result = malloc(l1 + l2 + 10);
     if(l1 == 0) {
@@ -178,7 +178,7 @@ ex_stat:
 int big_file_create(BigFile * bf, const char * basename) {
     memset(bf, 0, sizeof(bf[0]));
     bf->basename = strdup(basename);
-    RAISEIF(0 != _big_file_mksubdir_r(basename, ""),
+    RAISEIF(0 != _big_file_mksubdir_r(NULL, basename),
         ex_subdir,
         NULL);
     return 0;
@@ -1757,13 +1757,15 @@ _big_file_mksubdir_r(const char * pathname, const char * subdir)
         if(*p != '/') continue;
         *p = 0;
         mydirname = _path_join(pathname, subdirname);
-        mkdirret = mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        RAISEIF(mkdirret !=0 && errno != EEXIST,
-            ex_mkdir,
-            "Failed to create directory structure at `%s' (%s)",
-            mydirname,
-            strerror(errno)
-        );
+        if(strlen(mydirname) != 0) {
+            mkdirret = mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            RAISEIF(mkdirret !=0 && errno != EEXIST,
+                ex_mkdir,
+                "Failed to create directory structure at `%s' (%s)",
+                mydirname,
+                strerror(errno)
+            );
+        }
         free(mydirname);
         *p = '/';
     }
