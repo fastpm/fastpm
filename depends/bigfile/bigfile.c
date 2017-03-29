@@ -1744,13 +1744,35 @@ ex_fopen:
     free(filename);
     return fp;
 }
+static
+int _big_file_mkdir(const char * dirname)
+{
+    struct stat buf;
+    int mkdirret;
+    /* already exists */
+    if(0 == stat(dirname, &buf)) return 0;
+
+    mkdirret = mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    /* stat is to make sure the dir doesn't exist; it could be owned by others and stopped
+     * by a permission error, but we are still OK. */
+
+    RAISEIF((mkdirret !=0 && errno != EEXIST),
+        ex_mkdir,
+        "Failed to create directory structure at `%s' (%s)",
+        dirname,
+        strerror(errno)
+    );
+    return 0;
+ex_mkdir:
+    return -1;
+}
+
 /* make subdir rel to pathname, recursively making parents */
 int
 _big_file_mksubdir_r(const char * pathname, const char * subdir)
 {
     char * subdirname = strdup(subdir);
     char * p;
-    int mkdirret;
 
     char * mydirname;
     for(p = subdirname; *p; p ++) {
@@ -1758,26 +1780,16 @@ _big_file_mksubdir_r(const char * pathname, const char * subdir)
         *p = 0;
         mydirname = _path_join(pathname, subdirname);
         if(strlen(mydirname) != 0) {
-            mkdirret = mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-            RAISEIF(mkdirret !=0 && errno != EEXIST,
-                ex_mkdir,
-                "Failed to create directory structure at `%s' (%s)",
-                mydirname,
-                strerror(errno)
-            );
+            RAISEIF(0 != _big_file_mkdir(mydirname),
+                ex_mkdir, NULL);
         }
         free(mydirname);
         *p = '/';
     }
     mydirname = _path_join(pathname, subdirname);
-    mkdirret = mkdir(mydirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    struct stat buf;
-    RAISEIF((mkdirret !=0 && errno != EEXIST) || stat(mydirname, &buf),
-            ex_mkdir,
-            "Failed to create directory structure at `%s' (%s)", 
-            mydirname,
-            strerror(errno)
-    );
+    RAISEIF(0 != _big_file_mkdir(mydirname),
+        ex_mkdir, NULL);
+
     free(subdirname);
     free(mydirname);
     return 0;
