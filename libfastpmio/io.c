@@ -98,7 +98,9 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
     sort_snapshot_by_id(p, comm);
 
     BigFile bf;
-    big_file_mpi_create(&bf, filebase, comm);
+    if(0 != big_file_mpi_create(&bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
+    }
     {
         BigBlock bb;
         if(0 != big_file_mpi_create_block(&bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
@@ -229,7 +231,9 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
     int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;
 
-    big_file_mpi_create(&bf, filename, comm);
+    if(0 != big_file_mpi_create(&bf, filename, comm)) {
+        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
+    }
     {
         BigBlock bb;
         BigArray array;
