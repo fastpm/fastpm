@@ -23,7 +23,7 @@ TEST_SOURCES = testpm.c \
 
 TESTS = $(TEST_SOURCES:%.c=%)
 
-LIBFASTPM_LIBS = ../libfastpm/libfastpm.a ../libfastpmio/libfastpm-io.a ../depends/libfastpm-dep.a
+LIBFASTPM_LIBS = ../libfastpmio/libfastpm-io.a ../libfastpm/libfastpm.a ../depends/libfastpm-dep.a
 
 SOURCES = $(TEST_SOURCES)
 .PHONY: all

@@ -112,8 +112,10 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         double HubbleParam = fastpm->config->hubble_param;
         double BoxSize = fastpm->config->boxsize;
         uint64_t NC = fastpm->config->nc;
-        double rho_crit = 27.7455;
+        double rho_crit = 27.7455; /* 1e10 Msun /h*/
         double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+        double MassTable[6] = {0, M0, 0, 0, 0, 0};
+        uint64_t TotNumPart[6] = {0, NC * NC * NC, 0, 0, 0, 0};
 
         big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
         big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
@@ -123,7 +125,21 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
         big_block_set_attr(&bb, "NC", &NC, "i8", 1);
         big_block_set_attr(&bb, "M0", &M0, "f8", 1);
+        big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
         big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
+
+        /* Compatibility with MP-Gadget */
+        double UnitVelocity_in_cm_per_s = 1e5; /* 1 km/sec */
+        double UnitLength_in_cm = 3.085678e21 * 1e3; /* 1.0 Mpc /h */
+        double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
+
+        big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
+        big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 1);
+        big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
+        big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);
+        big_block_set_attr(&bb, "UnitLength_in_cm", &UnitLength_in_cm, "f8", 1);
+        big_block_set_attr(&bb, "UnitMass_in_g", &UnitMass_in_g, "f8", 1);
+        big_block_set_attr(&bb, "UnitVelocity_in_cm_per_s", &UnitVelocity_in_cm_per_s, "f8", 1);
         big_block_mpi_close(&bb, comm);
     }
     struct {
