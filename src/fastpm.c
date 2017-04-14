@@ -126,6 +126,7 @@ int main(int argc, char ** argv) {
         .vpminit = vpminit,
         .boxsize = CONF(prr, boxsize),
         .omega_m = CONF(prr, omega_m),
+        .hubble_param = CONF(prr, h),
         .USE_DX1_ONLY = CONF(prr, za),
         .nLPT = -2.5f,
         .K_LINEAR = CONF(prr, enforce_broadband_kmax),

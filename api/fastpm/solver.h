@@ -14,6 +14,7 @@ typedef struct {
     size_t nc;
     double boxsize;
     double omega_m;
+    double hubble_param;
     double alloc_factor;
 
     VPMInit * vpminit;

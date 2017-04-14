@@ -108,6 +108,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         }
         double ScalingFactor = p->a_x;
         double OmegaM = fastpm->cosmology->OmegaM;
+        double OmegaLambda = fastpm->cosmology->OmegaLambda;
+        double HubbleParam = fastpm->config->hubble_param;
         double BoxSize = fastpm->config->boxsize;
         uint64_t NC = fastpm->config->nc;
         double rho_crit = 27.7455;
@@ -117,6 +119,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
         big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
         big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
+        big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
+        big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
         big_block_set_attr(&bb, "NC", &NC, "i8", 1);
         big_block_set_attr(&bb, "M0", &M0, "f8", 1);
         big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
