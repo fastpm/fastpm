@@ -134,7 +134,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
 
         big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
-        big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 1);
+        big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 6);
         big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
         big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);
         big_block_set_attr(&bb, "UnitLength_in_cm", &UnitLength_in_cm, "f8", 1);
