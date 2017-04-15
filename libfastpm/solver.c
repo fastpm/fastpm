@@ -221,6 +221,12 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
     LEAVE(warmup);
 }
 
+PM *
+fastpm_find_pm(FastPMSolver * fastpm, double a)
+{
+    VPM * vpm = vpm_find(fastpm->vpm_list, a);
+    return &vpm->pm;
+}
 
 static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
@@ -231,8 +237,8 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     CLOCK(force);
     CLOCK(afterforce);
 
-    VPM * vpm = vpm_find(fastpm->vpm_list, trans->a.f);
-    fastpm->pm = &vpm->pm;
+    fastpm->pm = fastpm_find_pm(fastpm, trans->a.f);
+
     PM * pm = fastpm->pm;
 
     fastpm->info.Nmesh = fastpm->pm->init.Nmesh;

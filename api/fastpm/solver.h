@@ -116,6 +116,9 @@ fastpm_solver_destroy(FastPMSolver * fastpm);
 void 
 fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic);
 
+PM *
+fastpm_find_pm(FastPMSolver * fastpm, double a);
+
 void
 fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep);
 
