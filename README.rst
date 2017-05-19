@@ -177,6 +177,27 @@ currently the compiler on these Macintosh Personal Computers do not support open
 The compiler is also gives extra warnings, and remove `-Werror` from the Makefile.local
 is recommended.
 
+Docker
+------
+
+There is a basic docker configuration file to set up a container
+for FastPM. 
+
+To build it, run:
+
+.. code::
+
+    docker build -t fastpm .
+
+To start the docker container in interactive mode,
+with port 8888 exposed and with
+``/my/file/directory`` linked, run
+
+.. code::
+
+    docker run -it -v /my/file/directory:/workspace -p 8888:8888 fastpm
+
+
 Examples
 --------
 
