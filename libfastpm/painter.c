@@ -180,6 +180,12 @@ fastpm_painter_init_diff(FastPMPainter * painter, FastPMPainter * base, int diff
     painter->diffdir = diffdir;
 }
 
+void
+fastpm_painter_destroy(FastPMPainter * painter)
+{
+    /* nothing to do. */
+    return;
+}
 static void
 _fill_k(FastPMPainter * painter, double pos[3], int ipos[3], double k[3][64], int diffdir)
 {

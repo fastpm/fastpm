@@ -256,6 +256,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     pm_free(pm, canvas);
 
     pm_ghosts_free(pgd);
+    fastpm_painter_destroy(painter);
 }
 
 void
@@ -366,4 +367,6 @@ fastpm_gravity_calculate_gradient(FastPMGravity * gravity,
     pm_free(pm, canvas);
     pm_free(pm, grad_canvas);
     pm_free(pm, grad_delta_k);
+
+    fastpm_painter_destroy(painter);
 }

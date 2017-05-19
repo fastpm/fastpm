@@ -22,6 +22,8 @@ struct FastPMPainter {
 void fastpm_painter_init(FastPMPainter * painter, PM * pm,
         FastPMPainterType type, int support);
 
+void fastpm_painter_destroy(FastPMPainter * painter);
+
 void fastpm_painter_init_diff(FastPMPainter * painter, FastPMPainter * base, int diffdir);
 
 void

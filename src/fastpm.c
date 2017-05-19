@@ -500,6 +500,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         pm_free(fastpm->basepm, rho_k);
         pm_free(fastpm->basepm, rho_x);
         free(filename);
+        fastpm_painter_destroy(painter);
     }
 
     if(CONF(prr, write_snapshot)) {

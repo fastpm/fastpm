@@ -128,6 +128,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
 
     pm_ghosts_free(pgd);
 
+    fastpm_painter_destroy(painter);
 }
 
 // Interpolate position and velocity for snapshot at a=aout
