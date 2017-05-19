@@ -107,8 +107,9 @@ static size_t fftw_local_size_dft_r2c(int nrnk, ptrdiff_t * n, MPI_Comm comm,
 
 void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
 
-    pm->init = *init;
     pm->mem = _libfastpm_get_gmem();
+    pm->use_fftw = init->use_fftw;
+    pm->transposed = init->transposed;
 
     /* initialize the domain */
     MPI_Comm_rank(comm, &pm->ThisTask);
@@ -162,13 +163,13 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
     if(init->use_fftw) {
         pm->allocsize = 2 * fftw_local_size_dft_r2c(
                 3, pm->Nmesh, pm->Comm2D, 
-                (pm->init.transposed?FFTW_MPI_TRANSPOSED_OUT:0),
+                (init->transposed?FFTW_MPI_TRANSPOSED_OUT:0),
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
     } else {
         pm->allocsize = 2 * pfft_local_size_dft_r2c(
                 3, pm->Nmesh, pm->Comm2D, 
-                (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
+                (init->transposed?PFFT_TRANSPOSED_OUT:0)
                 | PFFT_PADDED_R2C, 
                 pm->IRegion.size, pm->IRegion.start,
                 pm->ORegion.size, pm->ORegion.start);
@@ -186,8 +187,8 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
     /* remove padding from the view */
     pm->IRegion.size[2] = pm->Nmesh[2];
 
-    if(pm->init.transposed) {
-        if(pm->init.use_fftw) {
+    if(init->transposed) {
+        if(init->use_fftw) {
             /* FFTW transposed, y, x, z */
             pm->ORegion.strides[2] = 1;
             pm->ORegion.strides[0] = pm->ORegion.size[2];
@@ -247,18 +248,18 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
     FastPMFloat * canvas = pm_alloc(pm);
     FastPMFloat * workspace = pm_alloc(pm);
 
-    if(pm->init.use_fftw) {
+    if(init->use_fftw) {
         pm->r2c = plan_dft_r2c_fftw(
                 3, pm->Nmesh, (void*) workspace, (void*) canvas, 
                 pm->Comm2D, 
-                (pm->init.transposed?FFTW_MPI_TRANSPOSED_OUT:0)
+                (init->transposed?FFTW_MPI_TRANSPOSED_OUT:0)
                 | FFTW_ESTIMATE 
                 | FFTW_DESTROY_INPUT
                 );
         pm->c2r = plan_dft_c2r_fftw(
                 3, pm->Nmesh, (void*) canvas, (void*) canvas, 
                 pm->Comm2D, 
-                (pm->init.transposed?FFTW_MPI_TRANSPOSED_IN:0)
+                (init->transposed?FFTW_MPI_TRANSPOSED_IN:0)
                 | FFTW_ESTIMATE 
                 | FFTW_DESTROY_INPUT
                 );
@@ -267,7 +268,7 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
                 3, pm->Nmesh, (void*) workspace, (void*) canvas, 
                 pm->Comm2D,
                 PFFT_FORWARD, 
-                (pm->init.transposed?PFFT_TRANSPOSED_OUT:0)
+                (init->transposed?PFFT_TRANSPOSED_OUT:0)
                 | PFFT_PADDED_R2C 
                 | PFFT_ESTIMATE 
                 | PFFT_TUNE
@@ -278,7 +279,7 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
                 3, pm->Nmesh, (void*) workspace, (void*) workspace, 
                 pm->Comm2D,
                 PFFT_BACKWARD, 
-                (pm->init.transposed?PFFT_TRANSPOSED_IN:0)
+                (init->transposed?PFFT_TRANSPOSED_IN:0)
                 | PFFT_PADDED_C2R 
                 | PFFT_ESTIMATE 
                 //| PFFT_MEASURE
@@ -322,7 +323,7 @@ void
 pm_destroy(PM * pm) 
 {
     int d;
-    if(pm->init.use_fftw) {
+    if(pm->use_fftw) {
         destroy_plan_fftw(pm->r2c);
         destroy_plan_fftw(pm->c2r);
     } else {
@@ -360,7 +361,7 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     /* A gaussian of variance 1 becomes a complex gausian of variance 1/2 * (1 / Norm) in real and imag */
 
     /* workspace to canvas*/
-    if(pm->init.use_fftw) {
+    if(pm->use_fftw) {
         execute_dft_r2c_fftw(pm->r2c, from, (void*)to);
     } else {
         execute_dft_r2c(pm->r2c, from, (void*)to);
@@ -374,7 +375,7 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
 
 void pm_c2r(PM * pm, FastPMFloat * inplace) {
     /* r2c and c2r round trip is unitary */
-    if(pm->init.use_fftw) {
+    if(pm->use_fftw) {
         execute_dft_c2r_fftw(pm->c2r, (void*) inplace, inplace);
     } else {
         execute_dft_c2r(pm->c2r, (void*) inplace, inplace);
@@ -392,8 +393,8 @@ void pm_unravel_o_index(PM * pm, ptrdiff_t ind, ptrdiff_t i[3]) {
      * during dev to test pm_inc_o_index.
      * */
     ptrdiff_t tmp = ind;
-    if(pm->init.transposed) {
-        if(pm->init.use_fftw) {
+    if(pm->transposed) {
+        if(pm->use_fftw) {
             /* y, x, z*/
             unravel(tmp, i, 1, 0, 2, pm->ORegion.strides);
         } else {
@@ -438,8 +439,8 @@ ptrdiff_t pm_ravel_i_index(PM * pm, ptrdiff_t i[3]) {
 
 /* returns number of items moved in linear index */
 int pm_inc_o_index(PM * pm, ptrdiff_t i[3]) {
-    if(pm->init.transposed) {
-        if(pm->init.use_fftw) {
+    if(pm->transposed) {
+        if(pm->use_fftw) {
             /* y, x, z */
             inc(i, 1, 0, 2, pm->ORegion.size);
         } else {

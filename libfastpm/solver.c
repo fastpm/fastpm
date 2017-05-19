@@ -241,7 +241,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     PM * pm = fastpm->pm;
 
-    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
+    fastpm->info.Nmesh = fastpm->pm->Nmesh[0];
 
     FastPMFloat * delta_k = pm_alloc(pm);
     ENTER(decompose);

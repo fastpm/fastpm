@@ -33,10 +33,11 @@ typedef struct {
 } PMGrid;
 
 struct PM {
-    PMInit init;
-
     int NTask;
     int ThisTask;
+
+    int transposed;
+    int use_fftw;
 
     void * r2c;   /* Forward r2c plan */
     void * c2r;   /* Bacward c2r plan */
@@ -73,9 +74,6 @@ pm_module_cleanup();
 /* Initializing a PM object. */
 void 
 pm_init(PM * pm, PMInit * init, MPI_Comm comm);
-
-void 
-pm_init_simple(PM * pm, int Ngrid, double BoxSize, MPI_Comm comm);
 
 void pm_destroy(PM * pm);
 
