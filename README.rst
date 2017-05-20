@@ -180,23 +180,36 @@ is recommended.
 Docker
 ------
 
-There is a basic docker configuration file to set up a container
-for FastPM. 
+There is a basic docker configuration file to set up a container for FastPM. 
 
 To build it, run:
 
 .. code::
 
-    docker build -t fastpm .
+    # first remove all prebuilt binary files
 
-To start the docker container in interactive mode,
-with port 8888 exposed and with
-``/my/file/directory`` linked, run
+    make deep-clean
+
+    sudo docker build -t fastpm .
+
+To start the docker container in interactive mode, 
+with port 8888 exposed and linking ``/my/file/directory`` to ``/worksapce``, run
 
 .. code::
 
-    docker run -it -v /my/file/directory:/workspace -p 8888:8888 fastpm
+    sudo docker run -it -v /my/file/directory:/workspace -p 8888:8888 fastpm
 
+We install a jupyter notebook service in the docker image, which listens on the
+forwarded port of 8888.
+
+.. code::
+
+    jupyter notebook --ip=* --allow-root
+
+As of now, proper set up of docker needs root access.
+It may be necesssary to prepend `su -c` or `sudo` in docker command line, see [docker-root]_.
+
+.. [docker-root] http://www.projectatomic.io/blog/2015/08/why-we-dont-let-non-root-users-run-docker-in-centos-fedora-or-rhel/
 
 Examples
 --------

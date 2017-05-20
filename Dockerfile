@@ -14,6 +14,20 @@ RUN apt-get -qqy update && \
     git \
     curl
 
+# install python and jupyter
+RUN apt-get update && apt-get install -qqy \
+    python \
+    python-dev
+
+RUN curl -fSsL -O https://bootstrap.pypa.io/get-pip.py && \
+    python get-pip.py && \
+    rm get-pip.py
+
+RUN pip --no-cache-dir install \
+    setuptools \
+    numpy \
+    jupyter
+
 # Load fastpm into docker
 WORKDIR /fastpm
 COPY . .
