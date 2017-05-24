@@ -343,7 +343,7 @@ induce:
     }
 
     double variance = pm_compute_variance(fastpm->basepm, delta_k);
-    fastpm_info("Variance of input white noise is %g.\n", variance);
+    fastpm_info("Variance of input white noise is %0.8f, expectation is %0.8f\n", variance, 1.0 - 1.0 / pm_norm(fastpm->basepm));
 
     if(CONF(prr, write_whitenoisek)) {
         fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
