@@ -224,9 +224,6 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
                 /* we want two numbers that are of std ~ 1/sqrt(2) */
                 ampl = sqrt(- log(ampl));
 
-                for(d = 0; d < 3; d ++) {
-                    if(iabs[d] == pm->Nmesh[d] / 2) ampl = 0;
-                }
                 if(iabs[0] == 0 && iabs[1] == 0 && iabs[2] == 0) {
                     ampl = 0;
                 }
@@ -236,6 +233,14 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
 
                 if(hermitian && k == 0) {
                     delta_k[2 * ip + 1] *= -1;
+                }
+
+                if((pm->Nmesh[0] - iabs[0]) % pm->Nmesh[0] == iabs[0] &&
+                   (pm->Nmesh[1] - iabs[1]) % pm->Nmesh[1] == iabs[1] &&
+                   (pm->Nmesh[2] - iabs[2]) % pm->Nmesh[2] == iabs[2]) {
+                    /* The mode is self conjuguate, thus imaginary mode must be zero */
+                    (delta_k + ip)[1] = 0;
+                    (delta_k + ip)[0] = ampl;
                 }
             }
         }
