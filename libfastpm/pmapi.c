@@ -268,3 +268,22 @@ pm_destroy_k_factors(PMKIter * iter)
     }
 }
 
+double
+pm_compute_variance(PM * pm, FastPMFloat * complx)
+{
+    PMKIter kiter;
+    double v = 0;
+    for(pm_kiter_init(pm, &kiter);
+        !pm_kiter_stop(&kiter);
+        pm_kiter_next(&kiter)) {
+        int w = 2;
+        if (kiter.iabs[2] == 0 || kiter.iabs[2] == pm->Nmesh[2] / 2) {
+            w = 1;
+        }
+        v += w * complx[kiter.ind + 0] * complx[kiter.ind + 0];
+        v += w * complx[kiter.ind + 1] * complx[kiter.ind + 1];
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &v, 1, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
+    v = v / pm_norm(pm);
+    return v;
+}

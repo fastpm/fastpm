@@ -342,6 +342,9 @@ induce:
         fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
     }
 
+    double variance = pm_compute_variance(fastpm->basepm, delta_k);
+    fastpm_info("Variance of input white noise is %g.\n", variance);
+
     if(CONF(prr, write_whitenoisek)) {
         fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_whitenoisek), "WhiteNoiseK", prr->Nwriters);
