@@ -589,9 +589,11 @@ function config.compile(schema, opt)
         for(k = 0; k < *ndim; k ++) {
             *size *= shape[k];
         }
-        strides[*ndim - 1] = 1;
-        for(k = *ndim - 2; k >= 0; k --) {
-            strides[k] = strides[k + 1] * shape[k + 1];
+        if (*ndim >= 1) {
+            strides[*ndim - 1] = 1;
+            for(k = *ndim - 2; k >= 0; k --) {
+                strides[k] = strides[k + 1] * shape[k + 1];
+            }
         }
         lua_pop(lc->L, *ndim);
     }
