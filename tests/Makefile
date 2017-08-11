@@ -32,43 +32,43 @@ all: $(TESTS)
 
 testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testconstrained : .objs/testconstrained.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testlightcone : .objs/testlightcone.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testrecorder: .objs/testrecorder.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testgradient-c2r: .objs/testgradient-c2r.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testgradient-r2c: .objs/testgradient-r2c.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testgradient-paint: .objs/testgradient-paint.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testgradient-readout: .objs/testgradient-readout.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testgradient-force: .objs/testgradient-force.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testgradient-force-simple: .objs/testgradient-force-simple.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) -lgsl -lgslcblas -lm
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 

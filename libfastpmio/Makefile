@@ -3,7 +3,7 @@
 
 CPPFLAGS += -I ../api -I ../mpsort/
 
-DIR_PATH = $(GSL_DIR) ../depends/install
+DIR_PATH = ../depends/install
 
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 

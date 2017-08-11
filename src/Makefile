@@ -1,9 +1,7 @@
 include ../Makefile.local
 include ../Makefile.rules
 
-GSL_DIR   ?= 
-
-DIR_PATH = $(GSL_DIR)
+DIR_PATH = 
 
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
@@ -33,7 +31,7 @@ fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS
 
 fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ \
-		$(LDFLAGS) -lgsl -lgslcblas -lm
+		$(LDFLAGS) $(GSL_LIBS) -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 
