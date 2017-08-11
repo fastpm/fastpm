@@ -1,0 +1,48 @@
+# On Pleiades, we use anaconda installed from home directory to provide
+# a basic set of libraries.
+#
+# Pick the MPI C compiler; this is available after module load sgi-mpt/mpi
+
+CC = mpicc
+#
+
+#
+# cc flag to enable OPENMP
+#
+# OPENMP = -fopenmp
+#
+# Disable openmp
+# OPENMP = 
+# 
+# remember to remove depends/install to ensure a rebuild of the dependencies
+# flipping between openmp and not.
+
+GSL_LIBS = $(HOME)/anaconda3/envs/3.5/lib/libgsl.a $(HOME)/anaconda3/envs/3.5/lib/libgslcblas.a
+
+CPPFLAGS = -I$(HOME)/anaconda3/envs/3.5/include
+#
+# For double precision FFT, use 
+#
+# CPPFLAGS = -DFASTPM_FFT_PRECISION=64
+#
+# Usually, use
+# 
+# CPPFLAGS = -DFASTPM_FFT_PRECISION=32
+
+#
+# Set special LDFLAGS, 
+# e.g if mpicc cannot find MPI libraries
+#
+LDFLAGS =
+#
+
+#
+# Use -O3 for faster code
+#
+OPTIMIZE = -O3 -g
+
+#
+# On some systems, DEPCMD has to be modified to include MPI headers
+#
+# DEPCMD = gcc -MG -MP -MT .objs/$(<:%.c=%.o) -MM 
+
