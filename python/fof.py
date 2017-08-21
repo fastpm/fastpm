@@ -22,7 +22,7 @@ def main():
 
     cosmo = Planck15.clone(Om0=cat.attrs['OmegaM'])
 
-    M0 = cat.attrs['OmegaM'] * 27.75 * 1e10 * cat.attrs['BoxSize'].prod() / cat.csize
+    M0 = cat.attrs['OmegaM'][0] * 27.75 * 1e10 * cat.attrs['BoxSize'].prod() / cat.csize
 
     if cat.comm.rank == 0:
         print('BoxSize', cat.attrs['BoxSize'])
@@ -37,10 +37,10 @@ def main():
 
     features = fof.find_features(peakcolumn='Density')
     features['Mass'] = M0 * features['Length']
-
     if fof.comm.rank == 0:
         print('Total number of features found', features.csize)
         print('Saving columns', features.columns)
+
     features.save(ns.fof + '/%0.3f' % ns.ll, features.columns)
 
 
