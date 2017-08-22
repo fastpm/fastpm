@@ -394,7 +394,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     for(i=0; i<np; i++) {
         int d;
         for(d = 0; d < 3; d ++) {
-            /* convert the unit from a**2 H_0 dx/dt in Mpc/h to a dx/dt km/s */
+            /* convert the unit from a**2 dx/dt / H0 in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= HubbleConstant / aout;
         }
         po->id[i] = p->id[i];
