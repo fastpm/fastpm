@@ -35,6 +35,8 @@
 #
 OPTIMIZE = -O3 -g
 
+GSL_LIBS = -lgsl -lgslblas
+
 #
 # On some systems, DEPCMD has to be modified to include MPI headers
 #

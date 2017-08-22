@@ -2,6 +2,7 @@ CC=mpicc
 OPENMP = -fopenmp
 DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM 
 CPPFLAGS = -DFASTPM_FFT_PRECISION=32
+GSL_LIBS = -lgsl -lgslblas
 LDFLAGS = 
 OPTIMIZE ?= -O3 -g -Werror -Wall
 
