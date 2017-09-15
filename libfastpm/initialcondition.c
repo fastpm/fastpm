@@ -99,8 +99,8 @@ SETSEED(PM * pm, unsigned int * table[2][2], int i, int j, gsl_rng * rng)
 { 
     unsigned int seed = 0x7fffffff * gsl_rng_uniform(rng); 
 
-    int ii[2] = {i, pm->Nmesh[0] - i};
-    int jj[2] = {j, pm->Nmesh[1] - j};
+    int ii[2] = {i, (pm->Nmesh[0] - i) % pm->Nmesh[0]};
+    int jj[2] = {j, (pm->Nmesh[1] - j) % pm->Nmesh[1]};
     int d1, d2;
     for(d1 = 0; d1 < 2; d1++) {
         ii[d1] -= pm->ORegion.start[0];
@@ -127,6 +127,14 @@ GETSEED(PM * pm, unsigned int * table[2][2], int i, int j, int d1, int d2)
     if(i >= pm->ORegion.size[0]) abort();
     if(j >= pm->ORegion.size[1]) abort();
     return table[d1][d2][i * pm->ORegion.size[1] + j];
+}
+
+static void 
+SAMPLE(gsl_rng * rng, double * ampl, double * phase)
+{
+    *phase = gsl_rng_uniform(rng) * 2 * M_PI;
+    *ampl = 0;
+    do *ampl = gsl_rng_uniform(rng); while(*ampl == 0);
 }
 
 static void
@@ -164,52 +172,52 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
         i < pm->ORegion.start[0] + pm->ORegion.size[0]; 
         i ++) {
 
-        gsl_rng * random_generator0 = gsl_rng_alloc(gsl_rng_ranlxd1);
-        gsl_rng * random_generator1 = gsl_rng_alloc(gsl_rng_ranlxd1);
+        gsl_rng * lower_rng = gsl_rng_alloc(gsl_rng_ranlxd1);
+        gsl_rng * this_rng = gsl_rng_alloc(gsl_rng_ranlxd1);
+
+        int ci = pm->Nmesh[0] - i;
+        if(ci >= pm->Nmesh[0]) ci -= pm->Nmesh[0];
 
         for(j = pm->ORegion.start[1]; 
             j < pm->ORegion.start[1] + pm->ORegion.size[1]; 
             j ++) {
             /* always pull the gaussian from the lower quadrant plane for k = 0
              * plane*/
-            int hermitian = 0;
+            /* always pull the whitenoise from the lower quadrant plane for k = 0
+             * plane and k == Nmesh / 2 plane*/
             int d1 = 0, d2 = 0;
+            int cj = pm->Nmesh[1] - j;
+            if(cj >= pm->Nmesh[1]) cj -= pm->Nmesh[1];
 
-            if(i == 0) {
-                if(j > pm->Nmesh[1] / 2) {
-                    hermitian = 1; 
-                    d2 = 1;
-                } 
-            } else {
-                if(i > pm->Nmesh[0] / 2) {
-                    hermitian = 1;
-                    d1 = 1;
-                    d2 = j != 0;
-                }  else {
-                    /* no transpose */
-                    d1 = d2 = 0;
-                }
-            } 
+            /* d1, d2 points to the conjugate quandrant */
+            if( (ci == i && cj < j)
+             || (ci < i && cj != j)
+             || (ci < i && cj == j)) {
+                d1 = 1;
+                d2 = 1;
+            }
 
-            unsigned int seed;
-            seed = GETSEED(pm, seedtable, i, j, d1, d2);
-            gsl_rng_set(random_generator0, seed);
+            unsigned int seed_conj, seed_this;
+            /* the lower quadrant generator */
+            seed_conj = GETSEED(pm, seedtable, i, j, d1, d2);
+            gsl_rng_set(lower_rng, seed_conj);
 
-            seed = GETSEED(pm, seedtable, i, j, 0, 0);
-            gsl_rng_set(random_generator1, seed);
-
-            /* this black magic matches two generators. */
-            double skip = gsl_rng_uniform(random_generator1);
-            do skip = gsl_rng_uniform(random_generator1);
-            while(skip == 0);
+            seed_this = GETSEED(pm, seedtable, i, j, 0, 0);
+            gsl_rng_set(this_rng, seed_this);
 
             for(k = 0; k <= pm->Nmesh[2] / 2; k ++) {
-                gsl_rng * random_generator = k?random_generator1:random_generator0;
-                /* on k = 0 plane, we use the lower quadrant generator, 
-                 * then hermit transform the result if it is nessessary */
-                double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
-                double ampl = 0;
-                do ampl = gsl_rng_uniform(random_generator); while(ampl == 0);
+                int use_conj = (d1 != 0 || d2 != 0) && (k == 0 || k == pm->Nmesh[2] / 2);
+
+                double ampl, phase;
+                if(use_conj) {
+                    /* on k = 0 and Nmesh/2 plane, we use the lower quadrant generator, 
+                     * then hermit transform the result if it is nessessary */
+                    SAMPLE(this_rng, &ampl, &phase);
+                    SAMPLE(lower_rng, &ampl, &phase);
+                } else {
+                    SAMPLE(lower_rng, &ampl, &phase);
+                    SAMPLE(this_rng, &ampl, &phase);
+                }
 
                 ptrdiff_t iabs[3] = {i, j, k};
                 ptrdiff_t ip = 0;
@@ -224,28 +232,30 @@ pmic_fill_gaussian_gadget(PM * pm, FastPMFloat * delta_k, int seed)
                 /* we want two numbers that are of std ~ 1/sqrt(2) */
                 ampl = sqrt(- log(ampl));
 
-                if(iabs[0] == 0 && iabs[1] == 0 && iabs[2] == 0) {
-                    ampl = 0;
-                }
+                (delta_k + 2 * ip)[0] = ampl * cos(phase);
+                (delta_k + 2 * ip)[1] = ampl * sin(phase);
 
-                delta_k[2 * ip + 0] = ampl * cos(phase);
-                delta_k[2 * ip + 1] = ampl * sin(phase);
-
-                if(hermitian && k == 0) {
-                    delta_k[2 * ip + 1] *= -1;
+                if(use_conj) {
+                    (delta_k + 2 * ip)[1] *= -1;
                 }
 
                 if((pm->Nmesh[0] - iabs[0]) % pm->Nmesh[0] == iabs[0] &&
                    (pm->Nmesh[1] - iabs[1]) % pm->Nmesh[1] == iabs[1] &&
                    (pm->Nmesh[2] - iabs[2]) % pm->Nmesh[2] == iabs[2]) {
                     /* The mode is self conjuguate, thus imaginary mode must be zero */
-                    (delta_k + ip)[1] = 0;
-                    (delta_k + ip)[0] = ampl;
+                    (delta_k + 2 * ip)[1] = 0;
+                    (delta_k + 2 * ip)[0] = ampl * cos(phase);
+                }
+
+                if(iabs[0] == 0 && iabs[1] == 0 && iabs[2] == 0) {
+                    /* the mean is zero */
+                    (delta_k + 2 * ip)[0] = 0;
+                    (delta_k + 2 * ip)[1] = 0;
                 }
             }
         }
-        gsl_rng_free(random_generator0);
-        gsl_rng_free(random_generator1);
+        gsl_rng_free(lower_rng);
+        gsl_rng_free(this_rng);
     }
     for(i = 0; i < 2; i ++)
     for(j = 0; j < 2; j ++) {
