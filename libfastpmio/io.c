@@ -132,11 +132,13 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         double UnitVelocity_in_cm_per_s = 1e5; /* 1 km/sec */
         double UnitLength_in_cm = 3.085678e21 * 1e3; /* 1.0 Mpc /h */
         double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
+        int UsePeculiarVelocity = 1;
 
         big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
         big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 6);
         big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
         big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);
+        big_block_set_attr(&bb, "UsePeculiarVelocity", &UsePeculiarVelocity, "i4", 1);
         big_block_set_attr(&bb, "UnitLength_in_cm", &UnitLength_in_cm, "f8", 1);
         big_block_set_attr(&bb, "UnitMass_in_g", &UnitMass_in_g, "f8", 1);
         big_block_set_attr(&bb, "UnitVelocity_in_cm_per_s", &UnitVelocity_in_cm_per_s, "f8", 1);
