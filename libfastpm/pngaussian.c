@@ -55,9 +55,6 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
 
     if (k == 0) return 0.0;
 
-    /* MS: Zero-pad/truncate high k to avoid spurious Dirac delta images. */
-    if (k >= png->kmax_primordial) return 0.0;
-
     double k_pivot_in_h_over_Mpc, P_Phi_k;
 
     /* k_pivot is in 1/Mpc, so need to divide by h to get it in h/Mpc.  */
@@ -85,44 +82,42 @@ fastpm_png_transfer_function(double k, FastPMPNGaussian * png)
 {
     if (k == 0) return 0.0;
 
-    /* MS: Zero-pad/truncate high k to avoid spurious Dirac delta images. */
-    if (k >= png->kmax_primordial) return 0.0;
-
     double pk = png->pkfunc(k, png->pkdata);
 
     /* powerspec = transfer^2 * pot, so we remove pot */
     double transfer = sqrt(pk / fastpm_png_potential(k, png));
-
     return transfer;
 }
 
 static void
-fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * png)
+fastpm_png_transform_potential(PM * pm, FastPMFloat * delta_k, FastPMPNGaussian * png)
 {
+    FastPMFloat * g_x = pm_alloc(pm);
+    FastPMFloat * g_x2 = pm_alloc(pm);
+
+    /* The first order, gaussian piece is the full spetram*/
+    pm_assign(pm, delta_k, g_x);
+    pm_c2r(pm, g_x);
+
+    /* The second order, NG piece must be truncated to avoid Dirac folding. */
+    pm_assign(pm, delta_k, g_x2);
+    /* MS: Zero-pad/truncate high k to avoid spurious Dirac delta images. */
+    fastpm_apply_lowpass_transfer(pm, g_x2, g_x2, png->kmax_primordial);
+    pm_c2r(pm, g_x2);
+
     ptrdiff_t i;
     double avg_g_squared = 0.0;
-    /* MS: Should we better do this globally over all processors? */
     PMXIter xiter;
 
     for(pm_xiter_init(pm, &xiter);
        !pm_xiter_stop(&xiter);
         pm_xiter_next(&xiter)) {
 
-        avg_g_squared += g_x[xiter.ind] * g_x[xiter.ind];
-
+        avg_g_squared += g_x2[xiter.ind] * g_x2[xiter.ind];
     }
 
     MPI_Allreduce(MPI_IN_PLACE, &avg_g_squared, 1, MPI_DOUBLE, MPI_SUM, pm->Comm2D);
-
     avg_g_squared /= pm_norm(pm);
-
-    for(i = 0; i < pm_allocsize(pm); i ++) {
-        g_x[i] = g_x[i] + png->fNL * ( g_x[i] * g_x[i] - avg_g_squared );
-    }
-
-    /* MS: Print some info */
-    fastpm_info("Induced PNG with fNL=%g\n",png->fNL);
-    fastpm_info("avg_g_squared: %g, %g\n", avg_g_squared, avg_g_squared*avg_g_squared);
 
     /* Expect <Phi**2(x)> = \int dq/(2 pi**2) q**2 P_Phi(q) */
 
@@ -134,29 +129,35 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * g_x, FastPMPNGaussian * pn
     dq = png->kmax_primordial/1e6;
     double k0 = 2 * M_PI / pm->BoxSize[0];
     for(q = k0; q < png->kmax_primordial ; q += dq) {
-        double p = fastpm_png_potential(q,png);
+        double p = fastpm_png_potential(q, png);
         avg_g_squared_exp = avg_g_squared_exp + q*q * p;
     }
     avg_g_squared_exp *= dq/(2.0*M_PI*M_PI);
-    fastpm_info("Expected_avg_g_squared: %g, assuming no gaussian variance\n", avg_g_squared_exp);
 
+    fastpm_info("Expected_avg_g_squared: %g, when there is no gaussian variance\n", avg_g_squared_exp);
+    fastpm_info("avg_g_squared: %g, %g\n", avg_g_squared, avg_g_squared*avg_g_squared);
+
+    for(i = 0; i < pm_allocsize(pm); i ++) {
+        g_x[i] = g_x[i] + png->fNL * ( g_x2[i] * g_x2[i] - avg_g_squared );
+    }
+
+    /* MS: Print some info */
+    fastpm_info("Induced PNG with fNL=%g g_x[0] = %g\n", png->fNL, g_x[0]);
+
+    pm_r2c(pm, g_x, delta_k);
+
+    pm_free(pm, g_x2);
+    pm_free(pm, g_x);
 }
 
 void
 fastpm_png_induce_correlation(FastPMPNGaussian * png, PM * pm, FastPMFloat * delta_k)
 {
-    FastPMFloat * g_x = pm_alloc(pm);
     png->Volume = pm->Volume;
 
     fastpm_ic_induce_correlation(pm, delta_k, (fastpm_fkfunc) fastpm_png_potential, png);
 
-    pm_assign(pm, delta_k, g_x);
-    pm_c2r(pm, g_x);
-
-    fastpm_png_transform_potential(pm, g_x, png);
-
-    pm_r2c(pm, g_x, delta_k);
-    pm_free(pm, g_x);
+    fastpm_png_transform_potential(pm, delta_k, png);
 
     fastpm_apply_any_transfer(pm, delta_k, delta_k, (fastpm_fkfunc) fastpm_png_transfer_function, png);
 }
