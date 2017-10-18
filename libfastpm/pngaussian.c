@@ -137,6 +137,7 @@ fastpm_png_transform_potential(PM * pm, FastPMFloat * delta_k, FastPMPNGaussian 
     fastpm_info("Expected_avg_g_squared: %g, when there is no gaussian variance\n", avg_g_squared_exp);
     fastpm_info("avg_g_squared: %g, %g\n", avg_g_squared, avg_g_squared*avg_g_squared);
 
+    /* Use the realization mean because we want the mean of linear field to be exactly zero. */
     for(i = 0; i < pm_allocsize(pm); i ++) {
         g_x[i] = g_x[i] + png->fNL * ( g_x2[i] * g_x2[i] - avg_g_squared );
     }
