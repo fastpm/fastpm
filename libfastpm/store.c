@@ -51,6 +51,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
+    DISPATCH(PACK_AEMIT, aemit)
     DISPATCH(PACK_ACC, acc)
 
     /* components */
@@ -101,6 +102,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
+    DISPATCH(PACK_AEMIT, aemit)
     DISPATCH(PACK_ACC, acc)
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
