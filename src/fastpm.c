@@ -238,7 +238,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     if(CONF(prr, write_lightcone)) {
         write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters);
-        fastpm_info("%td particles are in the lightcone\n", lc->p->np);
+        long long np = lc->p->np;
+        MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
+        fastpm_info("%td particles are in the lightcone\n", np);
         fastpm_lc_destroy(lc);
     }
     fastpm_solver_destroy(fastpm);
