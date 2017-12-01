@@ -140,7 +140,9 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
         }
     }
     int d;
-
+    if(init->Nmesh % 2 != 0) {
+        fastpm_raise(-1, "Nmesh must be even, but %d is odd.\n", init->Nmesh);
+    }
     pm->Norm = 1.0;
     pm->Volume = 1.0;
     for(d = 0; d < 3; d ++) {
