@@ -7,6 +7,8 @@ typedef struct {
 
     void * gsl; // GSL solver pointer
 
+    double glmatrix[4][4];
+
     struct {
         double * Dc;
         size_t size;
@@ -23,7 +25,7 @@ int
 fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * pi);
 
 void
-fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMCosmology * c, FastPMStore * p);
+fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], FastPMCosmology * c, FastPMStore * p);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);

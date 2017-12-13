@@ -1,4 +1,5 @@
 #include <math.h>
+#include <string.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_sf_hyperg.h>
@@ -10,7 +11,7 @@
 #include <fastpm/logging.h>
 
 void
-fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMCosmology * c, FastPMStore * p)
+fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], FastPMCosmology * c, FastPMStore * p)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
@@ -22,6 +23,8 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, FastPMCosmology * c, Fa
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
     lc->cosmology = c;
+
+    memcpy(lc->glmatrix, glmatrix, 4 * 4 * sizeof(double));
 
     /* GSL init solver */
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
@@ -76,6 +79,18 @@ struct funct_params {
     double a2;
 };
 
+static void
+gldot(double glmatrix[4][4], double xi[4], double xo[4])
+{
+    int i, j;
+    for(i = 0; i < 4; i ++) {
+        xo[i] = 0;
+        for(j = 0; j < 4; j ++) {
+            xo[i] += glmatrix[i][j] * xi[j];
+        }
+    }
+}
+
 static double
 funct(double a, void *params)
 {
@@ -85,12 +100,20 @@ funct(double a, void *params)
     FastPMStore * p = Fp->p;
     FastPMDriftFactor * drift = Fp->drift;
     ptrdiff_t i = Fp->i;
-    double xo[3];
+    double xi[4];
+    double xo[4];
 
-    fastpm_drift_one(drift, p, i, xo, a);
+    fastpm_drift_one(drift, p, i, xi, a);
 
-    /*XXX: may need to worry about periodic boundary */
-    return xo[2] - fastpm_lc_horizon(lc, a);
+    xi[3] = 1;
+    /* transform the coordinate */
+    gldot(lc->glmatrix, xi, xo);
+
+    /* FIXME: allow a spherical distance. */
+    /* XXX: may need to worry about periodic boundary */
+    double distance = xo[2];
+
+    return distance - fastpm_lc_horizon(lc, a);
 }
 
 static int

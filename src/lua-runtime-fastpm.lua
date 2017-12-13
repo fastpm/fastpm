@@ -120,7 +120,16 @@ schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
 schema.declare{name='write_lightcone',         type='string'}
-schema.declare{name='dh_factor',    type='number', default=1.0}
+
+schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
+schema.declare{name='glmatrix',     type='array:number',
+        default={
+            {1, 0, 0, 0,},
+            {0, 1, 0, 0,},
+            {0, 0, 1, 0,},
+            {0, 0, 0, 0,},
+        },
+        help='transformation matrix to move (x, y, z, 1) to the observer coordinate with a left dot product. The observer is sitting at z=0'}
 
 schema.declare{name='za',                      type='boolean', default=false}
 schema.declare{name='kernel_type',             type='enum', default="3_4"}
