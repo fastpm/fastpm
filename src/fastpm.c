@@ -202,7 +202,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     FastPMLightCone lc[1] = {{
         .speedfactor = CONF(prr, dh_factor),
         .cosmology = fastpm->cosmology,
-        .flatsky = CONF(prr, flatsky),
+        .fov = CONF(prr, fov),
     }};
 
     if(CONF(prr, write_lightcone)) {

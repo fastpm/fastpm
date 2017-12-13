@@ -131,7 +131,7 @@ funct(double a, void *params)
 
     /* XXX: may need to worry about periodic boundary */
     double distance;
-    if (lc->flatsky) {
+    if (lc->fov <= 0) {
         distance = xo[2];
     } else {
         distance = 0;

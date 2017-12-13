@@ -76,7 +76,7 @@ int main(int argc, char * argv[]) {
                 {0, 0, 0, 0,},
             },
 
-        .flatsky = 1,
+        .fov = 0.,
         .cosmology = solver->cosmology,
     }};
 

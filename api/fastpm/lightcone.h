@@ -5,7 +5,8 @@ typedef struct {
     FastPMCosmology * cosmology;
     double speedfactor;
     double glmatrix[4][4];
-    int flatsky;
+    double fov; /* field of view angle. <=0 for flatsky.
+                    Remember the lightcone is always along z-direction.*/
 
     /* private: */
     FastPMStore * p;

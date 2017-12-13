@@ -42,7 +42,7 @@ write_snapshot= "lightcone/fastpm"
 -- write_powerspectrum = "pm/powerspec"
 write_lightcone = "lightcone/lightcone"
 dh_factor = 1.0
-flatsky = false
+fov = 0
 glmatrix = { 
         {1, 0, 0, 0},
         {0, 1, 0, 0},
