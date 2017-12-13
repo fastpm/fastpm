@@ -2,22 +2,23 @@ FASTPM_BEGIN_DECLS
 
 typedef struct {
     /* Storage of the particles on the light cone */
-    FastPMStore * p;
-    /* Need a table for drift factors */
-
-    void * gsl; // GSL solver pointer
-
+    FastPMCosmology * cosmology;
+    double speedfactor;
     double glmatrix[4][4];
-    double (* tileshifts)[3];
-    int ntiles;
     int flatsky;
 
+    /* private: */
+    FastPMStore * p;
+    double (* tileshifts)[3];
+    int ntiles;
     struct {
         double * Dc;
         size_t size;
     } EventHorizonTable;
 
-    FastPMCosmology * cosmology;
+    /* Need a table for drift factors */
+
+    void * gsl; // GSL solver pointer
 
 } FastPMLightCone;
 
@@ -28,13 +29,8 @@ int
 fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * pi);
 
 void
-fastpm_lc_init(FastPMLightCone * lc,
-                double speedfactor,
-                double glmatrix[4][4],
-                double (*tileshifts)[3], int ntiles,
-                int flatsky,
-                FastPMCosmology * c,
-                FastPMStore * p);
+fastpm_lc_init(FastPMLightCone * lc, FastPMStore * p,
+                double (*tileshifts)[3], int ntiles);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);

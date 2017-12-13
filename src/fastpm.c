@@ -199,10 +199,13 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         (FastPMEventHandlerFunction) print_transition,
         prr);
 
-    FastPMLightCone lc[1];
+    FastPMLightCone lc[1] = {{
+        .speedfactor = CONF(prr, dh_factor),
+        .cosmology = fastpm->cosmology,
+        .flatsky = CONF(prr, flatsky),
+    }};
+
     if(CONF(prr, write_lightcone)) {
-        double HubbleDistanceFactor = CONF(prr, dh_factor);
-        double glmatrix[4][4];
         double (*tiles)[3];
         int ntiles;
         {
@@ -218,13 +221,14 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
             for (i = 0; i < 4; i ++) {
                 for (j = 0; j < 4; j ++) {
-                    glmatrix[i][j] = *c;
+                    lc->glmatrix[i][j] = *c;
                     c ++;
                 }
                 fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
-                    glmatrix[i][0], glmatrix[i][1], glmatrix[i][2], glmatrix[i][3]);
+                    lc->glmatrix[i][0], lc->glmatrix[i][1], lc->glmatrix[i][2], lc->glmatrix[i][3]);
             }
         }
+
         {
             if(CONF(prr, ndim_tiles) != 2 ||
                CONF(prr, shape_tiles)[1] != 3
@@ -247,9 +251,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
             }
         }
 
-        fastpm_lc_init(lc, HubbleDistanceFactor, glmatrix,
-                tiles, ntiles,
-                CONF(prr, flatsky), fastpm->cosmology, fastpm->p);
+        fastpm_lc_init(lc, fastpm->p, tiles, ntiles);
 
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,

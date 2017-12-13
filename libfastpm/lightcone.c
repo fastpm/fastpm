@@ -11,13 +11,9 @@
 #include <fastpm/logging.h>
 
 void
-fastpm_lc_init(FastPMLightCone * lc,
-                double speedfactor,
-                double glmatrix[4][4],
-                double (*tileshifts)[3], int ntiles,
-                int flatsky,
-                FastPMCosmology * c,
-                FastPMStore * p)
+fastpm_lc_init(FastPMLightCone * lc, FastPMStore * p,
+                double (*tileshifts)[3], int ntiles
+                )
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
@@ -28,12 +24,9 @@ fastpm_lc_init(FastPMLightCone * lc,
 
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
-    lc->cosmology = c;
-    lc->flatsky = flatsky;
     lc->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     lc->ntiles = ntiles;
 
-    memcpy(lc->glmatrix, glmatrix, 4 * 4 * sizeof(double));
     memcpy(lc->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
 
     /* GSL init solver */
@@ -44,7 +37,7 @@ fastpm_lc_init(FastPMLightCone * lc,
 
     for(i = 0; i < lc->EventHorizonTable.size; i ++) {
         double a = 1.0 * i / (lc->EventHorizonTable.size - 1);
-        lc->EventHorizonTable.Dc[i] = speedfactor * HubbleDistance * ComovingDistance(a, c);
+        lc->EventHorizonTable.Dc[i] = lc->speedfactor * HubbleDistance * ComovingDistance(a, lc->cosmology);
     }
 
     fastpm_store_init(lc->p, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | (p->potential?PACK_POTENTIAL:0));

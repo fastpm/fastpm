@@ -37,8 +37,6 @@ int main(int argc, char * argv[]) {
     FastPMSolver solver[1];
     FastPMDriftFactor drift;
     FastPMKickFactor kick;
-    FastPMLightCone lc[1];
-
     fastpm_solver_init(solver, config, comm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
@@ -63,20 +61,26 @@ int main(int argc, char * argv[]) {
             (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
     double time_step[] = {0.1};
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
-    double glmatrix[4][4] = {
-            {1, 0, 0, 0,},
-            {0, 1, 0, 0,},
-            {0, 0, 1, 0,},
-            {0, 0, 0, 0,},
-        };
+
     double tiles[1][3] = {
             {0, 0, 0},
             };
 
-    fastpm_lc_init(lc, 0.02,
-        glmatrix,
-        tiles, 1,
-        1, solver->cosmology, solver->p);
+    FastPMLightCone lc[1] = {{
+        .speedfactor = 0.2,
+
+        .glmatrix = {
+                {1, 0, 0, 0,},
+                {0, 1, 0, 0,},
+                {0, 0, 1, 0,},
+                {0, 0, 0, 0,},
+            },
+
+        .flatsky = 1,
+        .cosmology = solver->cosmology,
+    }};
+
+    fastpm_lc_init(lc, solver->p, tiles, 1);
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
