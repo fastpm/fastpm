@@ -8,13 +8,15 @@ typedef struct {
     void * gsl; // GSL solver pointer
 
     double glmatrix[4][4];
+    double (* tiles)[3];
+    int ntiles;
+    int flatsky;
 
     struct {
         double * Dc;
         size_t size;
     } EventHorizonTable;
 
-    int flatsky;
     FastPMCosmology * cosmology;
 
 } FastPMLightCone;
@@ -26,7 +28,13 @@ int
 fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * pi);
 
 void
-fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], int flatsky, FastPMCosmology * c, FastPMStore * p);
+fastpm_lc_init(FastPMLightCone * lc,
+                double speedfactor,
+                double glmatrix[4][4],
+                double (*tiles)[3], int ntiles,
+                int flatsky,
+                FastPMCosmology * c,
+                FastPMStore * p);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);

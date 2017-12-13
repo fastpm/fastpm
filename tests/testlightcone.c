@@ -69,8 +69,14 @@ int main(int argc, char * argv[]) {
             {0, 0, 1, 0,},
             {0, 0, 0, 0,},
         };
+    double tiles[1][3] = {
+            {0, 0, 0},
+            };
 
-    fastpm_lc_init(lc, 0.02, glmatrix, 1, solver->cosmology, solver->p);
+    fastpm_lc_init(lc, 0.02,
+        glmatrix,
+        tiles, 1,
+        1, solver->cosmology, solver->p);
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {

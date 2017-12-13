@@ -203,33 +203,61 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     if(CONF(prr, write_lightcone)) {
         double HubbleDistanceFactor = CONF(prr, dh_factor);
         double glmatrix[4][4];
-
-        if(CONF(prr, ndim_glmatrix) != 2 ||
-           CONF(prr, shape_glmatrix)[0] != 4 ||
-           CONF(prr, shape_glmatrix)[1] != 4
-        ) {
-            fastpm_raise(-1, "GL Matrix must be a 4x4 matrix\n");
-        }
-
-        int i, j;
-        double * c = CONF(prr, glmatrix);
-
-        for (i = 0; i < 4; i ++) {
-            for (j = 0; j < 4; j ++) {
-                glmatrix[i][j] = *c;
-                c ++;
+        double (*tiles)[3];
+        int ntiles;
+        {
+            if(CONF(prr, ndim_glmatrix) != 2 ||
+               CONF(prr, shape_glmatrix)[0] != 4 ||
+               CONF(prr, shape_glmatrix)[1] != 4
+            ) {
+                fastpm_raise(-1, "GL Matrix must be a 4x4 matrix\n");
             }
-            fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
-                glmatrix[i][0], glmatrix[i][1], glmatrix[i][2], glmatrix[i][3]);
+
+            int i, j;
+            double * c = CONF(prr, glmatrix);
+
+            for (i = 0; i < 4; i ++) {
+                for (j = 0; j < 4; j ++) {
+                    glmatrix[i][j] = *c;
+                    c ++;
+                }
+                fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
+                    glmatrix[i][0], glmatrix[i][1], glmatrix[i][2], glmatrix[i][3]);
+            }
+        }
+        {
+            if(CONF(prr, ndim_tiles) != 2 ||
+               CONF(prr, shape_tiles)[1] != 3
+            ) {
+                fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
+            }
+
+            ntiles = CONF(prr, shape_tiles)[0];
+            tiles = malloc(sizeof(tiles[0]) * ntiles);
+            int i, j;
+            double * c = CONF(prr, tiles);
+
+            for (i = 0; i < ntiles; i ++) {
+                for (j = 0; j < 3; j ++) {
+                    tiles[i][j] = *c;
+                    c ++;
+                }
+                fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
+                    tiles[i][0], tiles[i][1], tiles[i][2]);
+            }
         }
 
-        fastpm_lc_init(lc, HubbleDistanceFactor, glmatrix, CONF(prr, flatsky), fastpm->cosmology, fastpm->p);
+        fastpm_lc_init(lc, HubbleDistanceFactor, glmatrix,
+                tiles, ntiles,
+                CONF(prr, flatsky), fastpm->cosmology, fastpm->p);
 
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,
             FASTPM_EVENT_STAGE_BEFORE,
             (FastPMEventHandlerFunction) check_lightcone,
             lc);
+
+        free(tiles);
     }
 
     MPI_Barrier(comm);

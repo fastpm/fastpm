@@ -11,7 +11,13 @@
 #include <fastpm/logging.h>
 
 void
-fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], int flatsky, FastPMCosmology * c, FastPMStore * p)
+fastpm_lc_init(FastPMLightCone * lc,
+                double speedfactor,
+                double glmatrix[4][4],
+                double (*tiles)[3], int ntiles,
+                int flatsky,
+                FastPMCosmology * c,
+                FastPMStore * p)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
@@ -24,8 +30,11 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], 
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
     lc->cosmology = c;
     lc->flatsky = flatsky;
+    lc->tiles = malloc(sizeof(tiles[0]) * ntiles);
+    lc->ntiles = ntiles;
 
     memcpy(lc->glmatrix, glmatrix, 4 * 4 * sizeof(double));
+    memcpy(lc->tiles, tiles, sizeof(tiles[0]) * ntiles);
 
     /* GSL init solver */
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
@@ -47,6 +56,7 @@ fastpm_lc_destroy(FastPMLightCone * lc)
     /* Free */
     fastpm_store_destroy(lc->p);
     free(lc->EventHorizonTable.Dc);
+    free(lc->tiles);
     free(lc->p);
     /* GSL destroy solver */
     gsl_root_fsolver_free(lc->gsl);
@@ -110,7 +120,6 @@ funct(double a, void *params)
     /* transform the coordinate */
     gldot(lc->glmatrix, xi, xo);
 
-    /* FIXME: allow a spherical distance. */
     /* XXX: may need to worry about periodic boundary */
     double distance;
     if (lc->flatsky) {

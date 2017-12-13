@@ -130,10 +130,21 @@ schema.declare{name='glmatrix',     type='array:number',
             {0, 0, 1, 0,},
             {0, 0, 0, 0,},
         },
-        help='transformation matrix to move (x, y, z, 1) to the observer coordinate with a left dot product. The observer is sitting at z=0'}
+        help=[[transformation matrix to move (x, y, z, 1) to the observer coordinate with a left dot product.
+               The observer is sitting at z=0. The last column of the matrix is the translation in Mpc/h.]]}
 
-schema.declare{name='za',                      type='boolean', default=false}
-schema.declare{name='kernel_type',             type='enum', default="3_4"}
+schema.declare{name='tiles',     type='array:number',
+        default={
+            {0, 0, 0},
+        },
+        help=[[tiling of the simulation box, in units of box edges.
+              all tiles will be considered during lightcone construction.
+              tiling occurs before the glmatrix.]]
+        }
+
+schema.declare{name='za',                      type='boolean', default=false, help='use ZA initial condition not 2LPT'}
+
+schema.declare{name='kernel_type',             type='enum', default="3_4", help='Force kernel; very little effect.'}
 schema.kernel_type.choices = {
     ['3_4'] = 'FASTPM_KERNEL_3_4',
     ['5_4'] = 'FASTPM_KERNEL_5_4',
@@ -142,7 +153,7 @@ schema.kernel_type.choices = {
     ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }
-schema.declare{name='dealiasing_type',             type='enum', default="none"}
+schema.declare{name='dealiasing_type',             type='enum', default="none", help='Dealiasing kernel (wipes out small scale force), very litle effect)'}
 schema.dealiasing_type.choices = {
     none = 'FASTPM_DEALIASING_NONE',
     gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
