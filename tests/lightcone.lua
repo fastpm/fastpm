@@ -2,7 +2,7 @@
 ------ Size of the simulation -------- 
 
 -- For Testing
-nc = 64
+nc = 128
 boxsize = 1024
 
 -------- Time Sequence ----
@@ -42,11 +42,11 @@ write_snapshot= "lightcone/fastpm"
 -- write_powerspectrum = "pm/powerspec"
 write_lightcone = "lightcone/lightcone"
 dh_factor = 1.0
-fov = 0
+fov = 20.
 glmatrix = { 
-        {1, 0, 0, 0},
-        {0, 1, 0, 0},
-        {0, 0, 1, 2100},
+        {1, 0, 0, -512},
+        {0, 1, 0, -512},
+        {0, 0, 1, 1000},
         {0, 0, 0, 0},
         }
 

@@ -214,6 +214,15 @@ _fastpm_lc_intersect_one(FastPMLightCone * lc,
     return 0;
 }
 
+static double
+zangle(double * x) {
+    double dxy = 0;
+    double dz = x[2];
+    dxy = x[0] * x[0] + x[1] * x[1];
+
+    return atan2(sqrt(dxy), dz) / M_PI * 180.;
+}
+
 static int
 fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * p)
 {
@@ -250,10 +259,7 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile, FastPMDriftFactor * dri
         }
         double xi[4];
         double xo[4];
-        float vo[3];
-        float vi[3];
         fastpm_drift_one(drift, p, i, xi, a_emit);
-        fastpm_kick_one(kick, p, i, vi, a_emit);
 
         int d;
         xi[3] = 1;
@@ -262,6 +268,13 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile, FastPMDriftFactor * dri
         }
         /* transform the coordinate */
         gldot(lc->glmatrix, xi, xo);
+        /* does it fall into the field of view? */
+        if(zangle(xo) > lc->fov * 0.5) continue;
+
+        float vo[3];
+        float vi[3];
+        fastpm_kick_one(kick, p, i, vi, a_emit);
+
         /* transform the coordinate */
         gldotv(lc->glmatrix, vi, vo);
 
