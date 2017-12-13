@@ -7,9 +7,8 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include <fastpm/lightcone.h>
+#include <fastpm/io.h>
 
-int
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase, char * parameters, int Nwriters);
 
 int main(int argc, char * argv[]) {
 

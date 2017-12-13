@@ -28,8 +28,8 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
-static void
-_radix_unpack_id(const void * ptr, void * radix, void * arg)
+void
+FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
@@ -38,8 +38,19 @@ _radix_unpack_id(const void * ptr, void * radix, void * arg)
     *((uint64_t*) radix) = p->id[0];
 }
 
+void
+FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
+{
+    FastPMStore * p = (FastPMStore *) arg;
+
+    p->unpack(p, 0, (void*) ptr, p->attributes);
+
+    /* larger than 53 is probably good enough but perhaps should have used ldexp (>GLIBC 2.19)*/
+    *((uint64_t*) radix) = p->aemit[0] * (1L << 60L); 
+}
+
 static void
-sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
+sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
 {
     int64_t size = p->np;
     int NTask;
@@ -62,7 +73,7 @@ sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
     for(i = 0; i < p->np; i ++) {
         p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
     }
-    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, _radix_unpack_id, 8, ptmp, comm);
+    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, ptmp, comm);
 
     for(i = 0; i < localsize; i ++) {
         p->unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
@@ -74,7 +85,12 @@ sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
 }
 
 int 
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * parameters, int Nwriters) 
+write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
+        char * filebase,
+        char * parameters,
+        int Nwriters,
+        FastPMSnapshotSorter sorter
+)
 {
 
     int NTask = fastpm->NTask;
@@ -95,7 +111,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    sort_snapshot_by_id(p, comm);
+    sort_snapshot(p, comm, sorter);
 
     BigFile bf;
     if(0 != big_file_mpi_create(&bf, filebase, comm)) {

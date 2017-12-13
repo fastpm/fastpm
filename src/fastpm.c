@@ -16,6 +16,7 @@
 #include <fastpm/string.h>
 #include <fastpm/lightcone.h>
 #include <fastpm/constrainedgaussian.h>
+#include <fastpm/io.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -54,16 +55,7 @@ int
 write_runpb_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase, char * parameters, int Nwriters);
-
-int
-write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
-
-int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
-
-int
-read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
 read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
@@ -258,10 +250,10 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     LEAVE(evolve);
 
     if(CONF(prr, write_lightcone)) {
-        write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters);
         long long np = lc->p->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
+        write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
         fastpm_lc_destroy(lc);
     }
     fastpm_solver_destroy(fastpm);
@@ -542,7 +534,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters);
+        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters, FastPMSnapshotSortByID);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
