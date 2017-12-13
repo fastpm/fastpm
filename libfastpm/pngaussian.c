@@ -53,6 +53,19 @@ fastpm_png_potential(double k, FastPMPNGaussian * png)
      *     Phi(k)=0 for k>=knyquist/4. Should be less than 0.5 or 0.25.
      */
 
+    /*
+     *  The parameterization is such that
+     *
+     *  <d**2, d> = 4 * sigma_L ** 2 * fNL <d, phi>
+     *            = 4 * sigma_l ** 2 * fNL * <d, d> / M
+     *   
+     *  where M = 2 / 3 (D_H k) ** 2 T(k) D_LSS(z) / Om
+     *
+     *  where T(k) -> 1 when k -> 0
+     *
+     *  where D(z)(1+z) = 1 in matter era and D_H is c / H_0, hubble distance.
+     *
+     * */
     if (k == 0) return 0.0;
 
     double k_pivot_in_h_over_Mpc, P_Phi_k;
