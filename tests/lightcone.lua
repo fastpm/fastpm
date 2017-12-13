@@ -43,16 +43,13 @@ write_snapshot= "lightcone/fastpm"
 write_lightcone = "lightcone/lightcone"
 dh_factor = 1.0
 fov = 20.
-glmatrix = { 
+s =[[glmatrix = { 
         {1, 0, 0, -512},
         {0, 1, 0, -512},
         {0, 0, 1, 1000},
         {0, 0, 0, 0},
         }
+]]
+glmatrix = fastpm.translation(-512, -512, 1000)
 
-tiles = {
-    {0, 0, 3},
-    {0, 0, 2},
-    {0, 0, 1},
-    {0, 0, 0},
-    }
+tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})

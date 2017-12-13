@@ -190,6 +190,28 @@ function schema.set_mode.action (set_mode)
     end
 end
 
+function fastpm.translation(dx, dy, dz)
+-- generate a translation gl matrix that shifts the coordinates
+    return {
+        {1, 0, 0, dx},
+        {0, 1, 0, dy},
+        {0, 0, 1, dz},
+        {0, 0, 0, 0 },
+        }
+end
+
+function fastpm.outerproduct(a, b, c)
+-- generate a list that is outer product of elements of a, b, c
+    local r = {}
+    for i=1, #a do
+        for j=1, #b do
+            for k=1, #c do
+                r[#r + 1] = {a[i], b[j], c[k]}
+            end
+        end
+    end
+    return r
+end
 
 function fastpm.linspace(a, e, N)
 -- Similar to numpy.linspace, but always append the end
@@ -294,10 +316,13 @@ function _parse_runmain(filename, ...)
     local fastpm = require('lua-runtime-fastpm')
     local config = require('lua-runtime-config')
 
-    logspace = fastpm.logspace
-    linspace = fastpm.linspace
+    local globals = setmetatable({}, {__index=_G})
 
-    return config.parse(fastpm.schema, filename, true, {...})
+    globals.fastpm = fastpm
+    globals.logspace = fastpm.logspace
+    globals.linspace = fastpm.linspace
+
+    return config.parse(fastpm.schema, filename, true, globals, {...})
 end
 
 function _parse(filename, ...)
@@ -305,10 +330,12 @@ function _parse(filename, ...)
     local fastpm = require('lua-runtime-fastpm')
     local config = require('lua-runtime-config')
 
-    logspace = fastpm.logspace
-    linspace = fastpm.linspace
+    local globals = setmetatable({}, {__index=_G})
+    globals.fastpm = fastpm
+    globals.logspace = fastpm.logspace
+    globals.linspace = fastpm.linspace
 
-    return config.parse(fastpm.schema, filename, false, {...})
+    return config.parse(fastpm.schema, filename, false, globals, {...})
 end
 
 function _help(filename, ...)
