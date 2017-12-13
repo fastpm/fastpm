@@ -3,7 +3,7 @@
 
 -- For Testing
 nc = 64
-boxsize = 2048
+boxsize = 1024
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -31,7 +31,7 @@ force_mode = "fastpm"
 
 pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
-np_alloc_factor= 4.0      -- Amount of memory allocated for particle
+np_alloc_factor= 8.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
@@ -41,11 +41,18 @@ write_snapshot= "lightcone/fastpm"
 -- 1d power spectrum (raw), without shotnoise correction
 -- write_powerspectrum = "pm/powerspec"
 write_lightcone = "lightcone/lightcone"
-dh_factor = 0.1
+dh_factor = 1.0
 flatsky = false
 glmatrix = { 
-        {1, 0, 0, -1024},
-        {0, 1, 0, -1024},
-        {0, 0, 1, -1024},
+        {1, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0, 1, 2100},
         {0, 0, 0, 0},
         }
+
+tiles = {
+    {0, 0, 3},
+    {0, 0, 2},
+    {0, 0, 1},
+    {0, 0, 0},
+    }

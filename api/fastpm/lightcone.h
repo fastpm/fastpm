@@ -8,7 +8,7 @@ typedef struct {
     void * gsl; // GSL solver pointer
 
     double glmatrix[4][4];
-    double (* tiles)[3];
+    double (* tileshifts)[3];
     int ntiles;
     int flatsky;
 
@@ -31,7 +31,7 @@ void
 fastpm_lc_init(FastPMLightCone * lc,
                 double speedfactor,
                 double glmatrix[4][4],
-                double (*tiles)[3], int ntiles,
+                double (*tileshifts)[3], int ntiles,
                 int flatsky,
                 FastPMCosmology * c,
                 FastPMStore * p);

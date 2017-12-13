@@ -239,7 +239,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
             for (i = 0; i < ntiles; i ++) {
                 for (j = 0; j < 3; j ++) {
-                    tiles[i][j] = *c;
+                    tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
                     c ++;
                 }
                 fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,

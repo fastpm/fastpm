@@ -14,7 +14,7 @@ void
 fastpm_lc_init(FastPMLightCone * lc,
                 double speedfactor,
                 double glmatrix[4][4],
-                double (*tiles)[3], int ntiles,
+                double (*tileshifts)[3], int ntiles,
                 int flatsky,
                 FastPMCosmology * c,
                 FastPMStore * p)
@@ -30,11 +30,11 @@ fastpm_lc_init(FastPMLightCone * lc,
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
     lc->cosmology = c;
     lc->flatsky = flatsky;
-    lc->tiles = malloc(sizeof(tiles[0]) * ntiles);
+    lc->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     lc->ntiles = ntiles;
 
     memcpy(lc->glmatrix, glmatrix, 4 * 4 * sizeof(double));
-    memcpy(lc->tiles, tiles, sizeof(tiles[0]) * ntiles);
+    memcpy(lc->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
 
     /* GSL init solver */
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
@@ -56,7 +56,7 @@ fastpm_lc_destroy(FastPMLightCone * lc)
     /* Free */
     fastpm_store_destroy(lc->p);
     free(lc->EventHorizonTable.Dc);
-    free(lc->tiles);
+    free(lc->tileshifts);
     free(lc->p);
     /* GSL destroy solver */
     gsl_root_fsolver_free(lc->gsl);
@@ -86,6 +86,7 @@ struct funct_params {
     FastPMStore * p;
     FastPMDriftFactor * drift;
     ptrdiff_t i;
+    double tileshift[4];
     double a1;
     double a2;
 };
@@ -102,6 +103,18 @@ gldot(double glmatrix[4][4], double xi[4], double xo[4])
     }
 }
 
+static void
+gldotv(double glmatrix[4][4], float vi[3], float vo[3])
+{
+    int i, j;
+    for(i = 0; i < 3; i ++) {
+        vo[i] = 0;
+        for(j = 0; j < 3; j ++) {
+            vo[i] += glmatrix[i][j] * vi[j];
+        }
+    }
+}
+
 static double
 funct(double a, void *params)
 {
@@ -111,12 +124,15 @@ funct(double a, void *params)
     FastPMStore * p = Fp->p;
     FastPMDriftFactor * drift = Fp->drift;
     ptrdiff_t i = Fp->i;
+    int d;
     double xi[4];
     double xo[4];
 
     fastpm_drift_one(drift, p, i, xi, a);
-
     xi[3] = 1;
+    for(d = 0; d < 4; d ++) {
+        xi[d] += Fp->tileshift[d];
+    }
     /* transform the coordinate */
     gldot(lc->glmatrix, xi, xo);
 
@@ -126,9 +142,8 @@ funct(double a, void *params)
         distance = xo[2];
     } else {
         distance = 0;
-        int i;
-        for (i = 0; i < 3; i ++) {
-            distance += xo[i] * xo[i];
+        for (d = 0; d < 3; d ++) {
+            distance += xo[d] * xo[d];
         }
         distance = sqrt(distance);
     }
@@ -206,8 +221,8 @@ _fastpm_lc_intersect_one(FastPMLightCone * lc,
     return 0;
 }
 
-int
-fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * p)
+static int
+fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * p)
 {
     struct funct_params params = {
         .lc = lc, 
@@ -217,6 +232,18 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         .a1 = drift->ai > drift->af ? drift->af: drift->ai,
         .a2 = drift->ai > drift->af ? drift->ai: drift->af,
     };
+    int d;
+
+    for(d = 0; d < 3; d ++) {
+        params.tileshift[d] = lc->tileshifts[tile][d];
+    }
+    fastpm_info("tileshift = %g %g %g\n",
+        params.tileshift[0],
+        params.tileshift[1],
+        params.tileshift[2]);
+
+    params.tileshift[3] = 0;
+
     ptrdiff_t i;
 
     for(i = 0; i < p->np; i ++) {
@@ -228,11 +255,23 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         if(next == lc->p->np_upper) {
             fastpm_raise(-1, "Too many particles in the light cone");
         }
-        double xo[3];
+        double xi[4];
+        double xo[4];
         float vo[3];
-        fastpm_drift_one(drift, p, i, xo, a_emit);
-        fastpm_kick_one(kick, p, i, vo, a_emit);
+        float vi[3];
+        fastpm_drift_one(drift, p, i, xi, a_emit);
+        fastpm_kick_one(kick, p, i, vi, a_emit);
+
         int d;
+        xi[3] = 1;
+        for(d = 0; d < 4; d ++) {
+            xi[d] += params.tileshift[d];
+        }
+        /* transform the coordinate */
+        gldot(lc->glmatrix, xi, xo);
+        /* transform the coordinate */
+        gldotv(lc->glmatrix, vi, vo);
+
         for(d = 0; d < 3; d ++) {
             lc->p->x[next][d] = xo[d];
             /* convert to peculiar velocity a dx / dt in kms */
@@ -245,6 +284,17 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
         if(lc->p->potential)
             lc->p->potential[next] = p->potential[i] / a_emit * potfactor;
         lc->p->np ++;
+    }
+    return 0;
+}
+
+int
+fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMStore * p)
+{
+    /* for each tile */
+    int t;
+    for(t = 0; t < lc->ntiles; t ++) {
+        fastpm_lc_intersect_tile(lc, t, drift, kick, p);
     }
     return 0;
 }
