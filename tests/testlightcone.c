@@ -71,7 +71,7 @@ int main(int argc, char * argv[]) {
             {0, 0, 0, 0,},
         };
 
-    fastpm_lc_init(lc, 0.02, glmatrix, solver->cosmology, solver->p);
+    fastpm_lc_init(lc, 0.02, glmatrix, 1, solver->cosmology, solver->p);
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {

@@ -11,7 +11,7 @@
 #include <fastpm/logging.h>
 
 void
-fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], FastPMCosmology * c, FastPMStore * p)
+fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], int flatsky, FastPMCosmology * c, FastPMStore * p)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
@@ -23,6 +23,7 @@ fastpm_lc_init(FastPMLightCone * lc, double speedfactor, double glmatrix[4][4], 
     lc->EventHorizonTable.size = size;
     lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
     lc->cosmology = c;
+    lc->flatsky = flatsky;
 
     memcpy(lc->glmatrix, glmatrix, 4 * 4 * sizeof(double));
 
@@ -111,7 +112,17 @@ funct(double a, void *params)
 
     /* FIXME: allow a spherical distance. */
     /* XXX: may need to worry about periodic boundary */
-    double distance = xo[2];
+    double distance;
+    if (lc->flatsky) {
+        distance = xo[2];
+    } else {
+        distance = 0;
+        int i;
+        for (i = 0; i < 3; i ++) {
+            distance += xo[i] * xo[i];
+        }
+        distance = sqrt(distance);
+    }
 
     return distance - fastpm_lc_horizon(lc, a);
 }

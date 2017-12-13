@@ -231,7 +231,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
                 glmatrix[i][0], glmatrix[i][1], glmatrix[i][2], glmatrix[i][3]);
         }
 
-        fastpm_lc_init(lc, HubbleDistanceFactor, glmatrix, fastpm->cosmology, fastpm->p);
+        fastpm_lc_init(lc, HubbleDistanceFactor, glmatrix, CONF(prr, flatsky), fastpm->cosmology, fastpm->p);
 
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,

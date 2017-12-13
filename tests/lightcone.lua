@@ -41,10 +41,11 @@ write_snapshot= "lightcone/fastpm"
 -- 1d power spectrum (raw), without shotnoise correction
 -- write_powerspectrum = "pm/powerspec"
 write_lightcone = "lightcone/lightcone"
-dh_factor = 1.0
+dh_factor = 0.1
+flatsky = false
 glmatrix = { 
-        {1, 0, 0, 0},
-        {0, 1, 0, 0},
-        {0, 0, 1, 2048},
+        {1, 0, 0, -1024},
+        {0, 1, 0, -1024},
+        {0, 0, 1, -1024},
         {0, 0, 0, 0},
         }

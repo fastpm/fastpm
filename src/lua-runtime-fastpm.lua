@@ -122,6 +122,7 @@ schema.declare{name='write_runpb_snapshot', type='string'}
 schema.declare{name='write_lightcone',         type='string'}
 
 schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
+schema.declare{name='flatsky',     type='boolean', default=true, help='If false, the distance will be the radial distance. other wise only the z component'}
 schema.declare{name='glmatrix',     type='array:number',
         default={
             {1, 0, 0, 0,},
