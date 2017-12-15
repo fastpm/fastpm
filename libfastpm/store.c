@@ -78,7 +78,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown packing field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
     }
     return s;
 }
@@ -134,7 +134,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %d\n", flags);
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
     }
 }
 static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {

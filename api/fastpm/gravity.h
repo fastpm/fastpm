@@ -5,6 +5,7 @@ typedef struct {
     FastPMPainterType PainterType;
     int PainterSupport;
     int ComputePotential;
+    int ComputeTidal;
 } FastPMGravity;
 
 void

@@ -131,6 +131,7 @@ int main(int argc, char ** argv) {
         .NprocY = prr->NprocY,
         .UseFFTW = prr->UseFFTW,
         .COMPUTE_POTENTIAL = CONF(prr, compute_potential),
+        .COMPUTE_TIDAL     = CONF(prr, compute_tidal),
     };
 
     run_fastpm(config, prr, comm);
@@ -509,7 +510,10 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
         FastPMStore snapshot[1];
 
         fastpm_store_init(snapshot, p->np_upper,
-                PACK_ID | PACK_POS | PACK_VEL | (CONF(prr, compute_potential)?PACK_POTENTIAL:0));
+                  PACK_ID | PACK_POS | PACK_VEL
+                | (CONF(prr, compute_potential)?PACK_POTENTIAL:0)
+                | (CONF(prr, compute_tidal)?PACK_TIDAL:0)
+            );
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);

@@ -22,6 +22,7 @@ typedef struct {
     int USE_SHIFT;
     int SAVE_Q;
     int COMPUTE_POTENTIAL;
+    int COMPUTE_TIDAL;
 
     double nLPT;
     FastPMPainterType PAINTER_TYPE;

@@ -36,6 +36,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .KernelType = config->KERNEL_TYPE,
         .DealiasingType = config->DEALIASING_TYPE,
         .ComputePotential = config->COMPUTE_POTENTIAL,
+        .ComputeTidal = config->COMPUTE_TIDAL,
     };
 
     fastpm->cosmology[0] = (FastPMCosmology) {
@@ -61,7 +62,11 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->p = malloc(sizeof(FastPMStore));
 
     fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-        PACK_POS | PACK_VEL | PACK_ID | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0) | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
+          PACK_POS | PACK_VEL | PACK_ID
+        | PACK_DX1 | PACK_DX2 | PACK_ACC
+        | (config->SAVE_Q?PACK_Q:0)
+        | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0)
+        | (config->COMPUTE_TIDAL?PACK_TIDAL:0),
         config->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(config->vpminit,
@@ -401,6 +406,11 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
         /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
         if(po->potential)
             po->potential[i] = p->potential[i] / aout * potfactor;
+        if(po->tidal) {
+            for( d = 0; d < 3; d ++) {
+                po->tidal[i][d] = p->tidal[i][d] / aout * potfactor;
+            }
+        }
     }
 
     po->np = np;

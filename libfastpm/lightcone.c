@@ -40,7 +40,12 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMStore * p,
         lc->EventHorizonTable.Dc[i] = lc->speedfactor * HubbleDistance * ComovingDistance(a, lc->cosmology);
     }
 
-    fastpm_store_init(lc->p, p->np_upper, PACK_ID | PACK_POS | PACK_VEL | PACK_AEMIT | (p->potential?PACK_POTENTIAL:0));
+    fastpm_store_init(lc->p, p->np_upper,
+                  PACK_ID | PACK_POS | PACK_VEL
+                | PACK_AEMIT
+                | (p->potential?PACK_POTENTIAL:0)
+                | (p->tidal?PACK_TIDAL:0)
+    );
 }
 
 void
@@ -285,10 +290,17 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile, FastPMDriftFactor * dri
         }
         lc->p->id[next] = p->id[i];
         lc->p->aemit[next] = a_emit;
+
         double potfactor = 1.5 * lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
         /* convert to dimensionless potential */
         if(lc->p->potential)
             lc->p->potential[next] = p->potential[i] / a_emit * potfactor;
+
+        if(lc->p->tidal) {
+            for(d = 0; d < 6; d++) {
+                lc->p->tidal[next][d] = p->tidal[i][d] / a_emit * potfactor;
+            }
+        }
         lc->p->np ++;
     }
     return 0;
