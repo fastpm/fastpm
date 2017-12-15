@@ -53,6 +53,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_Q, q)
     DISPATCH(PACK_AEMIT, aemit)
     DISPATCH(PACK_ACC, acc)
+    DISPATCH(PACK_TIDAL, tidal)
 
     /* components */
     DISPATCHC(PACK_ACC_X, acc, 0)
@@ -67,6 +68,12 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
 
     #undef DISPATCH
     #undef DISPATCHC
@@ -104,6 +111,8 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_Q, q)
     DISPATCH(PACK_AEMIT, aemit)
     DISPATCH(PACK_ACC, acc)
+    DISPATCH(PACK_TIDAL, tidal)
+
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
     DISPATCHC(PACK_ACC_Z, acc, 2)
@@ -116,6 +125,12 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
@@ -155,6 +170,12 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCHC
     #undef DISPATCH
     if(flags != 0) {
@@ -192,6 +213,12 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCH
     #undef DISPATCHC
 byebye:
@@ -232,6 +259,12 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCH
     #undef DISPATCHC
 byebye:
@@ -301,6 +334,11 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes)
         p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, FASTPM_MEMORY_HEAP);
     else
         p->potential = NULL;
+
+    if(attributes & PACK_TIDAL)
+        p->tidal = fastpm_memory_alloc(p->mem, sizeof(p->tidal[0]) * np_upper, FASTPM_MEMORY_HEAP);
+    else
+        p->tidal = NULL;
 };
 
 size_t 
@@ -324,6 +362,7 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
+    if(p->tidal) fastpm_memory_free(p->mem, p->tidal);
     if(p->potential) fastpm_memory_free(p->mem, p->potential);
     if(p->aemit) fastpm_memory_free(p->mem, p->aemit);
     if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
@@ -365,6 +404,8 @@ static void fastpm_store_permute(FastPMStore * p, int * ind) {
         permute(p->id, p->np, sizeof(p->id[0]), ind);
     if(p->potential)
         permute(p->potential, p->np, sizeof(p->potential[0]), ind);
+    if(p->tidal)
+        permute(p->tidal, p->np, sizeof(p->tidal[0]), ind);
     if(p->aemit)
         permute(p->aemit, p->np, sizeof(p->aemit[0]), ind);
     if(p->q)
@@ -609,6 +650,7 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
     if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
     if(po->aemit) memcpy(po->aemit, p->aemit, sizeof(p->aemit[0]) * p->np);
     if(po->potential) memcpy(po->potential, p->potential, sizeof(p->potential[0]) * p->np);
+    if(po->tidal) memcpy(po->tidal, p->tidal, sizeof(p->tidal[0]) * p->np);
 
     po->np = p->np;
     po->a_x = p->a_x;
@@ -643,6 +685,7 @@ fastpm_store_create_subsample(FastPMStore * po, FastPMStore * p, int mod, int nc
         if(po->id) po->id[j] = p->id[i];
         if(po->aemit) po->aemit[j] = p->aemit[i];
         if(po->potential) po->potential[j] = p->potential[i];
+        if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0][0]) * 6);
         j ++;
     }
     po->np = j; 

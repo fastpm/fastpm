@@ -15,6 +15,7 @@ FASTPM_BEGIN_DECLS
 #define PACK_Q     (1 << 6)
 #define PACK_AEMIT     (1 << 7)
 #define PACK_POTENTIAL (1 << 8)
+#define PACK_TIDAL     (1 << 9)
 
 
 #define PACK_ACC_X (1 << 10)
@@ -29,6 +30,13 @@ FASTPM_BEGIN_DECLS
 #define PACK_POS_X (1 << 19)
 #define PACK_POS_Y (1 << 20)
 #define PACK_POS_Z (1 << 21)
+
+#define PACK_TIDAL_XX (1 << 22)
+#define PACK_TIDAL_YY (1 << 23)
+#define PACK_TIDAL_ZZ (1 << 24)
+#define PACK_TIDAL_XY (1 << 25)
+#define PACK_TIDAL_YZ (1 << 26)
+#define PACK_TIDAL_ZX (1 << 27)
 
 struct FastPMStore {
     fastpm_posfunc get_position;
@@ -51,6 +59,7 @@ struct FastPMStore {
     float (* dx2)[3];
     float (* aemit);
     float (* potential);
+    float (* tidal)[6];
     uint64_t * id;
     size_t np;
     size_t np_upper;
