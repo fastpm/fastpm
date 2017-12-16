@@ -117,8 +117,8 @@ gaussian36(double k, double * knq)
 static void
 apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
 {
-    int potorder;
-    int gradorder;
+    int potorder = 0;
+    int gradorder = 0;
     switch(gravity->KernelType) {
         case FASTPM_KERNEL_EASTWOOD:
             potorder = 0;
