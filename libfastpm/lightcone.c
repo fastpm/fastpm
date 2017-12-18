@@ -274,7 +274,7 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile, FastPMDriftFactor * dri
         /* transform the coordinate */
         gldot(lc->glmatrix, xi, xo);
         /* does it fall into the field of view? */
-        if(zangle(xo) > lc->fov * 0.5) continue;
+        if(lc->fov > 0 && zangle(xo) > lc->fov * 0.5) continue;
 
         float vo[3];
         float vi[3];
