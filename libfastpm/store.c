@@ -362,16 +362,26 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
-    if(p->tidal) fastpm_memory_free(p->mem, p->tidal);
-    if(p->potential) fastpm_memory_free(p->mem, p->potential);
-    if(p->aemit) fastpm_memory_free(p->mem, p->aemit);
-    if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
-    if(p->dx1) fastpm_memory_free(p->mem, p->dx1);
-    if(p->acc) fastpm_memory_free(p->mem, p->acc);
-    if(p->id) fastpm_memory_free(p->mem, p->id);
-    if(p->v) fastpm_memory_free(p->mem, p->v);
-    if(p->x) fastpm_memory_free(p->mem, p->x);
-    if(p->q) fastpm_memory_free(p->mem, p->q);
+    if(p->attributes & PACK_TIDAL)
+        fastpm_memory_free(p->mem, p->tidal);
+    if(p->attributes & PACK_POTENTIAL)
+        fastpm_memory_free(p->mem, p->potential);
+    if(p->attributes & PACK_AEMIT)
+        fastpm_memory_free(p->mem, p->aemit);
+    if(p->attributes & PACK_DX2)
+        fastpm_memory_free(p->mem, p->dx2);
+    if(p->attributes & PACK_DX1)
+        fastpm_memory_free(p->mem, p->dx1);
+    if(p->attributes & PACK_ACC)
+        fastpm_memory_free(p->mem, p->acc);
+    if(p->attributes & PACK_ID)
+        fastpm_memory_free(p->mem, p->id);
+    if(p->attributes & PACK_VEL)
+        fastpm_memory_free(p->mem, p->v);
+    if(p->attributes & PACK_POS)
+        fastpm_memory_free(p->mem, p->x);
+    if(p->attributes & PACK_Q)
+        fastpm_memory_free(p->mem, p->q);
 }
 
 void fastpm_store_read(FastPMStore * p, char * datasource) {
