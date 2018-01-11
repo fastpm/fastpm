@@ -38,23 +38,48 @@ files without running the simulation, allowing creative usages of the configurat
 IO and Compatibility
 --------------------
 
-The snapshot format of FastPM is [bigfile]_. The format can be easily accessed by python, C, or Fortran.
-Alternatively, the snapshot can be written as TPM by Martin White, which can be subtly accessed by 
-Python, C, or Fortran.
+The snapshot container format of FastPM is [bigfile]_.
+The format can be easily accessed by python, C, or Fortran.
 
-Due to unjustified complicity, snapshots in legacy GADGET format is not supported by FastPM. 
+The snapshots can be read by nbodykit via the `BigFileCatalog`, or via
+the `DataSet` interface of `bigfile` python package, or directly accessed
+as binary files from Fortran, C, or with the unix command `od`.
 
-The nbody post-analysis package [NBODYKIT]_ natively supports bigfile and TPM formats.
+Position is stored in the unit of Mpc/h as double precision 3 vectors.
+Velocity is stored in peculiar velocity km/s as single precision 3 vectors.
+ID is stored as 8 bit unsigned integers.
 
-[NBODYKIT]_ provides tools for calculating two point functions, 
-generating QPM mocks, and identifying Friends-of-Friends (DBSCAN)
-haloes and calculating spherical overdensity properties of subhalos.
+The attributes of the `Header` column/dataset stores the meta data
+about the simulation, including the fully evaluated parameter file.
 
-In addition to the snapshots, FastPM calculates and writes the power-spectrum at each time step. 
-These power spectrum files are compatible with numpy plain text files. 
+A rarely used feature is to store the snapshot in the TPM container format by
+Martin White, which can be subtly accessed by Python, C, or Fortran.
 
-IO Units
-----------
+The FastPM container can be converted to a legacy Gadget-1/2 container format with
+the supplied python script in python directory.
+
+The nbody post-analysis package [NBODYKIT]_ natively supports bigfile
+and TPM formats via the `BigFileCatalog` class and `TPMBinaryCatalog` interfaces.
+Refer to nbodykit documentation (search for the class name) for examples.
+
+[NBODYKIT]_ provides tools for calculating two point functions,
+generating QPM mocks, and identifying Friends-of-Friends (also know as DBSCAN)
+halos and calculating spherical overdensity properties of subhalos.
+
+In addition to the snapshots, FastPM calculates and writes
+the power-spectrum at each time step.
+These power spectrum files are compatible with
+`k, p = numpy.loadtxt(filename, unpack=True)` Note that these are the power spectrum of the density field that goes
+into the force calculation, thus contain the mass assignment window effects.
+
+FastPM can also write the Linear Density field, white noise, or non-linear density.
+Use `write_lineark`, `write_whitenoise`, `white_nonlineark` in the parameter file.
+The output is also stored as columns in a `bigfile` container. Read these via
+the `BigFileMesh` class from [NBBODYKIT]_, or directly access the bigfile
+container via the `bigfile` module.
+
+Units
+-----
 
 *FastPM format*
 
@@ -95,6 +120,8 @@ The following files distributed in FastPM are originally from other projects:
 
 - lua : Lua library [LUA]_
 
+FastPM shared a majority of the particle mesh code with the `pmesh` python package.
+
 The source code of FastPM is distributed under GPLv3, with the exception files in
 lua directory distributed under any appropriate license of lua. 
 
@@ -109,12 +136,14 @@ lua directory distributed under any appropriate license of lua.
 .. [FastPMPaper] http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1603.00476].
 
 
-Installation
-------------
+Source Code Installation
+------------------------
 
 FastPM works out-of-the-box on many GNU/Linux and compatible systems.
 Notably the development is performed on a Cray system, a Fedora Workstation,
-and the integrated continuous integration tests are performed on a Ubuntu based Linux distribution.
+and the integrated continuous integration tests are performed on a Ubuntu
+based Linux distribution.
+
 The recommended compiler is `gcc`. FastPM is built with the GNU `make` tool.
 
 Set up the compilers and location of files in Makefile.local. An example
@@ -150,32 +179,37 @@ it based on the example for your site.
     # the rest is just make. It may take a while.
     make
 
-Anaconda
-++++++++
+Binary installation via Anaconda
+--------------------------------
 
-openmp does not seem to work with Anaconda. The reason is not clear.
+Anaconda is a popular Python distribution that provides portable
+binary distributions of software on most x86-64 and Linux platforms.
+FastPM compiles cleanly under the MPI provided by Anaconda.
 
+Binaries for Linux-64 and OSX-64 are provides. Sorry we do not have
+enough expertise on Windows builds.
 
-Macintosh Personal Computers
-----------------------------
-
-These computers are very popular. We find it easier to use the prepackaged
-binary from anaconda.
-
-Due to https://github.com/conda/conda/issues/2277, one need to set up a symlink
-from your anaconda installation to /opt/anaconda1anaconda2anaconda3 before this works.
+The following command will install FastPM and nbodykit to the cfastpm
+environment. 
 
 .. code::
 
-    conda install openmpi gsl
+    conda create -n cfastpm
+    conda activate cfastpm
 
-    export LD_LIBRARY_PATH=`conda info --root`/lib
-    export C_INCLUDE_PATH=`conda info --root`/include
+    conda install -c bccp cfastpm nbodykit
 
-Also make sure that in Makefile.local, `OPENMP` is set empty, because
-currently the compiler on these Macintosh Personal Computers do not support openmp.
-The compiler is also gives extra warnings, and remove `-Werror` from the Makefile.local
-is recommended.
+Notice that there is a package called `fastpm` from Python,
+which is a Python rewrite of FastPM that provides a playground for
+different ParticleMesh based Poisson solvers.
+
+For now, openmp does not seem to work with Anaconda, unless the
+anaconda compiler is used (installed via gcc_linux-64), but this
+currently interferes with the MPI compiler provided by the
+mpich2 package. Most problems we solve with FastPM are small enough
+that hybrid with threads is not necessary; for real large problems
+we likely will need to recompiler from source code on the super-computer
+anyways.
 
 Docker
 ------
@@ -214,7 +248,19 @@ It may be necesssary to prepend `su -c` or `sudo` in docker command line, see [d
 Examples
 --------
 
-Refer to tests/standard.lua and tests/runtest.sh
+- refer to tests/nbodykit.lua for a basic parameter file.
+- refer to python/make-pklin.py for generation a linear power spectrum to start the simulation.
+- refer to python/fof.py for halo finding. It is a MPI capable script that we
+  frequently use on a few thousand cores!
+- refer to python/convert-to-gadget-1.py for conversion from FastPM's bigfile to
+  Gadget container format.
+  The result can be used as an 2LPT or non-linear
+  intial condition for Gadget.
+  The script is currently sequential and takes about 6 hours
+  to convert a `4096**3` simulation. 
+
+Feel free to copy and modify these files to fit your own need, especially if you
+have strong opinions on the choice data containers.
 
 Commandline Interface
 ---------------------
@@ -267,10 +313,6 @@ force; no correction for aliasing or shot noise is applied.
 
 At selected redshifts (`output_redshift`), FastPM writes snapshot in [bigfile]_ format to a path (`write_snapshot`). 
 The bigfile format stores data in a sequence of plain binary files and meta data in plain text files. 
-
-The snapshots can be read by nbodykit via the `FastPM` data source plugin,
-or directly accessed as binary files. Position is stored in the unit of Mpc/h, 
-and velocity is stored as peculiar velocity in km/s. The attributes of the header block stores the meta data about the simulation.
 
 C Application Programming Interface
 -----------------------------------
