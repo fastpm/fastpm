@@ -111,7 +111,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    sort_snapshot(p, comm, sorter);
+    if(sorter)
+        sort_snapshot(p, comm, sorter);
 
     BigFile bf;
     if(0 != big_file_mpi_create(&bf, filebase, comm)) {

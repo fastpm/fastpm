@@ -131,7 +131,6 @@ int main(int argc, char ** argv) {
         .NprocY = prr->NprocY,
         .UseFFTW = prr->UseFFTW,
         .COMPUTE_POTENTIAL = CONF(prr, compute_potential),
-        .COMPUTE_TIDAL     = CONF(prr, compute_tidal),
     };
 
     run_fastpm(config, prr, comm);
@@ -204,9 +203,10 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .speedfactor = CONF(prr, dh_factor),
         .cosmology = fastpm->cosmology,
         .fov = CONF(prr, fov),
+        .compute_potential = CONF(prr, write_lightcone_potential) != 0,
     }};
 
-    if(CONF(prr, write_lightcone)) {
+    if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {
         double (*tiles)[3];
         int ntiles;
         {
@@ -252,7 +252,15 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
             }
         }
 
-        fastpm_lc_init(lc, fastpm->p, tiles, ntiles);
+        fastpm_lc_init(lc, fastpm, tiles, ntiles);
+
+        if(CONF(prr, write_lightcone_potential)) {
+            fastpm_solver_add_event_handler(fastpm,
+                FASTPM_EVENT_FORCE,
+                FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) fastpm_lc_compute_potential,
+                lc);
+        }
 
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,
@@ -285,8 +293,18 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
         write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+    }
+    if(CONF(prr, write_lightcone_potential)) {
+        long long np = lc->q->np;
+        MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
+        fastpm_info("%td grid points are in the lightcone potential\n", np);
+        write_snapshot(fastpm, lc->q, CONF(prr, write_lightcone_potential), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+    }
+
+    if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {
         fastpm_lc_destroy(lc);
     }
+
     fastpm_solver_destroy(fastpm);
 
     fastpm_clock_stat(comm);
@@ -512,7 +530,6 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
         fastpm_store_init(snapshot, p->np_upper,
                   PACK_ID | PACK_POS | PACK_VEL
                 | (CONF(prr, compute_potential)?PACK_POTENTIAL:0)
-                | (CONF(prr, compute_tidal)?PACK_TIDAL:0)
             );
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
@@ -598,7 +615,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 static int 
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc)
 {
-    fastpm_lc_intersect(lc, event->drift, event->kick, fastpm->p);
+    fastpm_lc_intersect(lc, event->drift, event->kick, fastpm);
     return 0;
 }
 

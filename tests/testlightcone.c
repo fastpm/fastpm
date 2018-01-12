@@ -51,17 +51,6 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
-
-    fastpm_info("dx1  : %g %g %g %g\n", 
-            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
-            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
-    fastpm_info("dx2  : %g %g %g %g\n", 
-            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
-            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
-    double time_step[] = {0.1};
-    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
-
     double tiles[1][3] = {
             {0, 0, 0},
             };
@@ -80,7 +69,18 @@ int main(int argc, char * argv[]) {
         .cosmology = solver->cosmology,
     }};
 
-    fastpm_lc_init(lc, solver->p, tiles, 1);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+
+    fastpm_lc_init(lc, solver, tiles, 1);
+
+    fastpm_info("dx1  : %g %g %g %g\n", 
+            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
+            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
+    fastpm_info("dx2  : %g %g %g %g\n", 
+            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
+            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
+    double time_step[] = {0.1};
+    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
@@ -91,20 +91,22 @@ int main(int argc, char * argv[]) {
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_lc_intersect(lc, &drift, &kick, solver->p);
+    fastpm_lc_intersect(lc, &drift, &kick, solver);
     fastpm_info("%td particles are in the light cone\n", lc->p->np);
+    fastpm_info("%td uniform particles are in the light cone\n", lc->q->np);
 
-    write_snapshot(solver, lc->p, "lightconeresult", "", 1);
+    write_snapshot(solver, lc->p, "lightconeresult-p", "", 1, NULL);
+    write_snapshot(solver, lc->q, "lightconeresult-q", "", 1, NULL);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
-    write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1);
+    write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
     
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step3[] = {0.1};
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
-    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1);
+    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
 
     fastpm_lc_destroy(lc);
 

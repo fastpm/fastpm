@@ -551,11 +551,13 @@ void fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_fun
 }
 
 void 
-fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], int Nc[3])
+fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 {
     /* fill p with a uniform grid, respecting domain given by pm. use a subsample ratio. 
      * (every subsample grid points) */
-
+    if(Nc == NULL) {
+        Nc = pm_nmesh(pm);
+    }
     int d;
     p->np = 1;
     for(d = 0; d < 3; d++) {
@@ -589,9 +591,11 @@ fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], 
             id = ii * Nc[1] * Nc[2] + jj * Nc[2] + kk;
 
             for(d = 0; d < 3; d ++) {
-                p->x[ptr][d] = pabs[d] * (pm->BoxSize[d] / Nc[d]) + shift[d];
+                p->x[ptr][d] = pabs[d] * (pm->BoxSize[d] / Nc[d]);
 
-                p->id[ptr]  = id;
+                if(shift) p->x[ptr][d] += shift[d];
+
+                if(p->id) p->id[ptr]  = id;
 
                 /* set q if it is allocated. */
                 if(p->q) p->q[ptr][d] = p->x[ptr][d];

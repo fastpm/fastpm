@@ -30,7 +30,6 @@ schema.declare{name='h',                 type='number', required=true, default=0
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential',   type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
-schema.declare{name='compute_tidal',       type='boolean', required=false, default=false, help="Calculate the gravitional tidal field."}
 
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
@@ -121,6 +120,7 @@ schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
 schema.declare{name='write_lightcone',         type='string'}
+schema.declare{name='write_lightcone_potential',         type='string'}
 
 schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
 schema.declare{name='fov',     type='number', default=0.0, help=' field of view of the sky. 0 for flat sky. the beam is along the z-direction after glmatrix.'}

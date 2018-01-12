@@ -36,7 +36,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .KernelType = config->KERNEL_TYPE,
         .DealiasingType = config->DEALIASING_TYPE,
         .ComputePotential = config->COMPUTE_POTENTIAL,
-        .ComputeTidal = config->COMPUTE_TIDAL,
     };
 
     fastpm->cosmology[0] = (FastPMCosmology) {
@@ -65,8 +64,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
           PACK_POS | PACK_VEL | PACK_ID
         | PACK_DX1 | PACK_DX2 | PACK_ACC
         | (config->SAVE_Q?PACK_Q:0)
-        | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0)
-        | (config->COMPUTE_TIDAL?PACK_TIDAL:0),
+        | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0),
         config->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(config->vpminit,
@@ -101,9 +99,7 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
         }
         double shift[3] = {shift0, shift0, shift0};
 
-        int nc[3] = {config->nc, config->nc, config->nc};
-
-        fastpm_store_set_lagrangian_position(p, basepm, shift, nc);
+        fastpm_store_set_lagrangian_position(p, basepm, shift, NULL);
 
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);

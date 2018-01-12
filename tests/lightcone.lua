@@ -42,6 +42,8 @@ write_snapshot= "lightcone/fastpm"
 -- 1d power spectrum (raw), without shotnoise correction
 -- write_powerspectrum = "pm/powerspec"
 write_lightcone = "lightcone/lightcone"
+write_lightcone_potential = "lightcone/potential"
+
 dh_factor = 1.0
 fov = 20.
 s =[[glmatrix = { 

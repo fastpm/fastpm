@@ -114,8 +114,8 @@ gaussian36(double k, double * knq)
     return exp(- 36 * pow(x, 36));
 }
 
-static void
-apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
+void
+gravity_apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
 {
     int potorder = 0;
     int gradorder = 0;
@@ -249,15 +249,13 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     int ACC[] = {
                  PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z,
                  PACK_POTENTIAL,
-                 PACK_TIDAL_XX, PACK_TIDAL_YY, PACK_TIDAL_ZZ,
-                 PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
                 };
 
-    for(d = 0; d < 3 + 1 + 6; d ++) {
+    for(d = 0; d < 3 + 1; d ++) {
         if (d == 3 && !gravity->ComputePotential) continue;
-        if (d >  3 && !gravity->ComputeTidal) continue;
+
         CLOCK(transfer);
-        apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
+        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
         LEAVE(transfer);
 
         CLOCK(c2r);

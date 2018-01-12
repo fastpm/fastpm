@@ -81,7 +81,7 @@ void
 fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm);
 
 void
-fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], int Nc[3]);
+fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], ptrdiff_t Nc[3]);
 
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
