@@ -13,13 +13,7 @@ CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install -I../mpsort
 TEST_SOURCES = testpm.c \
                testconstrained.c \
                testlightcone.c \
-               testrecorder.c \
-               testgradient-c2r.c \
-               testgradient-paint.c \
-               testgradient-readout.c \
-               testgradient-r2c.c \
-               testgradient-force.c \
-               testgradient-force-simple.c \
+               testrecorder.c
 
 TESTS = $(TEST_SOURCES:%.c=%)
 
@@ -43,30 +37,6 @@ testlightcone : .objs/testlightcone.o $(LIBFASTPM_LIBS)
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testrecorder: .objs/testrecorder.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
-
-testgradient-c2r: .objs/testgradient-c2r.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
-
-testgradient-r2c: .objs/testgradient-r2c.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
-
-testgradient-paint: .objs/testgradient-paint.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
-
-testgradient-readout: .objs/testgradient-readout.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
-
-testgradient-force: .objs/testgradient-force.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
-
-testgradient-force-simple: .objs/testgradient-force-simple.o $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
