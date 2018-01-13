@@ -374,44 +374,12 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     }
 }
 
-void pm_c2r_gradient(PM * pm, FastPMFloat * grad_real, FastPMFloat * grad_complex)
-{
-    /* contract the sensitivity matrix of c2r to grad_real */
-    pm_r2c(pm, grad_real, grad_complex);
-
-    ptrdiff_t i;
-#pragma omp parallel for
-    for(i = 0; i < pm->allocsize; i ++) {
-        grad_complex[i] *= pm->Norm;
-    }
-}
-
-void pm_compress_gradient(PM * pm, FastPMFloat * grad_compressed, FastPMFloat * grad_indep)
-{
-    /* Gradient of Hermitian compression. Because of the compression, most of
-     * free modes affect two compressed modes; Thus if we look at the complex field
-     * as independent modes, we shall give them factor of two.*/
-    fastpm_apply_c2r_weight_transfer(pm, grad_compressed, grad_indep);
-}
-
 void pm_c2r(PM * pm, FastPMFloat * inplace) {
     /* r2c and c2r round trip is unitary */
     if(pm->init.use_fftw) {
         execute_dft_c2r_fftw(pm->c2r, (void*) inplace, inplace);
     } else {
         execute_dft_c2r(pm->c2r, (void*) inplace, inplace);
-    }
-}
-
-void pm_r2c_gradient(PM * pm, FastPMFloat * grad_complex, FastPMFloat * grad_real) {
-    /* contract the sensitivity matrix of r2c to grad_complex */
-    pm_assign(pm, grad_complex, grad_real);
-    pm_c2r(pm, grad_real);
-
-    ptrdiff_t i;
-#pragma omp parallel for
-    for(i = 0; i < pm->allocsize; i ++) {
-        grad_real[i] *= 1 / pm->Norm;
     }
 }
 
