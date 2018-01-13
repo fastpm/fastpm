@@ -309,6 +309,14 @@ zangle(double * x) {
     return atan2(sqrt(dxy), dz) / M_PI * 180.;
 }
 
+/* FIXME:
+ * the function shall take ai, af as input,
+ *
+ * the function shall be able to interpolate potential as 
+ * well as position and velocity.
+ * We need a more general representation of '*drift' and '*kick'.
+ *
+ * */
 static int
 fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile,
         FastPMDriftFactor * drift,
