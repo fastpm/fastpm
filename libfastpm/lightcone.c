@@ -50,14 +50,18 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
         /* p0 is the lagrangian _position */
         fastpm_store_init(lc->p0, fastpm->p->np_upper,
               PACK_POS
-            | PACK_AEMIT
             | PACK_POTENTIAL
             | PACK_TIDAL
         );
 
         fastpm_store_set_lagrangian_position(lc->p0, fastpm->basepm, NULL, NULL);
+
         /* for saving the lagrangian sampling of potential */
-        fastpm_store_init(lc->q, fastpm->p->np_upper, lc->p0->attributes);
+        fastpm_store_init(lc->q, fastpm->p->np_upper,
+              PACK_POS
+            | PACK_POTENTIAL
+            | PACK_TIDAL
+            | PACK_AEMIT);
     }
     /* for saving the density with particles */
     fastpm_store_init(lc->p, fastpm->p->np_upper,
