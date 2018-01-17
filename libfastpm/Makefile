@@ -3,10 +3,10 @@
 
 CPPFLAGS += -I ../api -I ../depends/install/include
 
-DIR_PATH = 
+DIR_PATH =
 
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
-LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib) 
+LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
 FILES = $(shell git ls-files)
 FILES += $(shell git ls-files ../api)
@@ -23,6 +23,7 @@ LIBSOURCES = libfastpm.c \
     pngaussian.c \
     constrainedgaussian.c \
     lightcone.c \
+		lightcone_potential.c \
     timemachine.c \
     cosmology.c \
     powerspectrum.c \
@@ -47,7 +48,7 @@ MPSORTLIBS = ../mpsort/libradixsort.a ../mpsort/libmpsort-mpi.a
 # prefix the path
 PFFTLIBS = $(PFFTLIBS0:%.a=../depends/install/lib/%.a)
 
-all: libfastpm.a 
+all: libfastpm.a
 
 libfastpm.a : $(LIBSOURCES:%.c=.objs/%.o)
 	$(AR) rc $@ $^
@@ -57,7 +58,7 @@ version.c : $(FILES)
 	echo 'const char * LIBFASTPM_VERSION = "1.0.'$${GIT}'";' > $@
 
 #libfastpm.so : libfastpm.a $(PFFTLIBS)
-#	$(CC) -shared -fvisibility=hidden -o $@ $^ 
+#	$(CC) -shared -fvisibility=hidden -o $@ $^
 
 -include $(LIBSOURCES:%.c=.deps/%.d)
 
@@ -65,4 +66,3 @@ clean:
 	rm -rf .objs
 	rm -rf .deps
 	rm -rf libfastpm.a
-
