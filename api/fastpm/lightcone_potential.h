@@ -20,10 +20,16 @@ typedef struct {
     double (* tileshifts)[3];
     int ntiles;
 
-    int interp_start_indx;/*lc particle index from which we need to start interpolation
-                            after force step calculation */
-    int *interp_q_indx;/*list of indices on the uniform grid, for lc particles that require
-                        interpolation*/
+    double a_prev,a_now; //a at previous force calculcation and current force calculation
+
+    ptrdiff_t interp_start_indx;
+    ptrdiff_t interp_stop_indx;  /*lc particle index from which we need to start interpolation
+                                  after force step calculation */
+    ptrdiff_t *interp_q_indx;/*list of indices on the uniform grid, for lc particles.
+                      For now we will
+                        keep it as array to size of lc particle array. Can be shortened to a list of
+                        particles that require interpolation.*/
+                        /*XXX We don't need to worry about particle entering lightcone more than once. Right?*/
 
     struct {
         double * Dc;

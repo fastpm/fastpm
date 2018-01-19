@@ -21,8 +21,8 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
-//Do we need all of these?
-//    lcp->p = malloc(sizeof(FastPMStore));
+//XXX Do we need all of these?
+    lcp->p = malloc(sizeof(FastPMStore));
     lcp->q = malloc(sizeof(FastPMStore));
     lcp->p0 = malloc(sizeof(FastPMStore));
 
@@ -73,6 +73,11 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
                 | (fastpm->p->potential?PACK_POTENTIAL:0)
     );
 
+    lcp->interp_q_indx=malloc(sizeof(ptrdiff_t) * lcp->q->np_upper);
+    lcp->a_now=-1;
+    lcp->a_prev=-1;
+    lcp->interp_start_indx=0;
+    lcp->interp_stop_indx=0;
 }
 
 void
@@ -194,6 +199,29 @@ funct(double a, void *params)
     return distance - fastpm_lcp_horizon(lcp, a);
 }
 
+int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp){
+  double potfactor = 1.5 * lcp->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
+
+  FastPMStore *p=lcp->p;
+  FastPMStore *pout=lcp->q;
+
+  ptrdiff_t *indxs=lcp->interp_q_indx;
+
+double ai=lcp->a_prev;
+double af=lcp->a_now;
+
+  for(ptrdiff_t i=lcp->interp_start_indx;i<=lcp->interp_stop_indx;i++){
+      // pout->potential[i] = (pout->potential[i] *ai
+      //             +p->potential[indxs[i]]*potfactor)/pout->aemit[i];
+      pout->potential[i] = pout->potential[i]*2;//XXX just for some basic sanity checks
+
+        /*FIXME Placeholder interpolation. replace with correct scheme*/
+  }
+lcp->interp_start_indx=lcp->interp_stop_indx;
+lcp->a_prev=lcp->a_now;
+}
+
+
 int
 fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         FastPMForceEvent * event,
@@ -206,6 +234,8 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
     FastPMGravity * gravity = fastpm->gravity;
     FastPMPainter reader[1];
     fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
+
+    lcp->a_now=-1;/*FIXME*/
 
     FastPMStore * p = lcp->p0;
 
@@ -236,6 +266,8 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         LEAVE(reduce);
 
     }
+    fastpm_lcp_compute_final_potential(lcp);
+
     pm_free(pm, canvas);
 
     pm_ghosts_free(pgd);
@@ -427,7 +459,9 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
                 pout->tidal[next][d] = p->tidal[i][d] / a_emit * potfactor;
             }
         }
+        lcp->interp_q_indx[next]=i;
         pout->np ++;
+        lcp->interp_stop_indx++;
     }
     return 0;
 }
