@@ -79,8 +79,9 @@ schema.declare{name='read_lineark',        type='string'}
 schema.declare{name='read_runpbic',       type='string'}
 schema.declare{name='read_whitenoisek',         type='string'}
 
-schema.declare{name='read_powerspectrum', type='file'}
-schema.declare{name='sigma8',             type='number', default=0}
+schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum.'}
+schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear density field. '}
+schema.declare{name='sigma8',             type='number', default=0, help='normalize linear power spectrumt to sigma8(z); this shall be sigma8 at linear_density_redshift, not z=0.'}
 schema.declare{name='random_seed',         type='int'}
 schema.declare{name='shift',             type='boolean', default=false}
 schema.declare{name='inverted_ic',             type='boolean', default=false}

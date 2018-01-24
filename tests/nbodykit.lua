@@ -18,14 +18,15 @@ output_redshifts= {0.0}  -- redshifts of output
 omega_m = 0.307494
 h       = 0.6774
 
--- Start with a power spectrum file
--- Initial power spectrum: k P(k) in Mpc/h units
+-- Start with a linear density field
+-- Power spectrum of the linear density field: k P(k) in Mpc/h units
 -- Must be compatible with the Cosmology parameter
 read_powerspectrum= "powerspec.txt"
+linear_density_redshift = 0.0 -- the redshift of the linear density field.
 random_seed= 100
 
 -------- Approximation Method ---------------
-force_mode = "pm"
+force_mode = "fastpm"
 
 pm_nc_factor = 2
 
