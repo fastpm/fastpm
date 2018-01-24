@@ -194,7 +194,7 @@ fastpm_lc_compute_potential(FastPMSolver * fastpm,
 
     PM * pm = fastpm->pm;
     FastPMFloat * delta_k = event->delta_k;
-    FastPMFloat * canvas = pm_alloc(pm);
+    FastPMFloat * canvas = pm_alloc(pm);/*Allocates memory and returns success*/
     FastPMGravity * gravity = fastpm->gravity;
     FastPMPainter reader[1];
     fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
@@ -259,10 +259,10 @@ _fastpm_lc_intersect_one(FastPMLightCone * lc,
 
     status = gsl_root_fsolver_set(lc->gsl, &F, x_lo, x_hi);
 
-    if(status == GSL_EINVAL || status == GSL_EDOM) { 
+    if(status == GSL_EINVAL || status == GSL_EDOM) {
         /** Error in value or out of range **/
-        return 0; 
-    } 
+        return 0;
+    }
 
     do
     {
@@ -316,7 +316,7 @@ zangle(double * x) {
 /* FIXME:
  * the function shall take ai, af as input,
  *
- * the function shall be able to interpolate potential as 
+ * the function shall be able to interpolate potential as
  * well as position and velocity.
  * We need a more general representation of '*drift' and '*kick'.
  *
@@ -330,7 +330,7 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile,
 )
 {
     struct funct_params params = {
-        .lc = lc, 
+        .lc = lc,
         .drift = drift,
         .p = p,
         .i = 0,
@@ -430,11 +430,10 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
     /* for each tile */
     int t;
     for(t = 0; t < lc->ntiles; t ++) {
-        fastpm_lc_intersect_tile(lc, t, drift, kick, fastpm->p, lc->p);
+        fastpm_lc_intersect_tile(lc, t, drift, kick, fastpm->p, lc->p);/*Store particle to get density*/
 
         if(lc->compute_potential)
-            fastpm_lc_intersect_tile(lc, t, drift, kick, lc->p0, lc->q);
+            fastpm_lc_intersect_tile(lc, t, drift, kick, lc->p0, lc->q);/*store potential on fixed grid*/
     }
     return 0;
 }
-
