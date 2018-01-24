@@ -309,6 +309,18 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     /* Nothing to read from, just generate a gadget IC with the seed. */
     fastpm_ic_fill_gaussiank(fastpm->basepm, delta_k, CONF(prr, random_seed), FASTPM_DELTAK_GADGET);
 
+    /* The linear density field is not redshift zero, then evolve it with the model cosmology to 
+     * redshift zero.
+     * This matches the linear power at the given redshift, not necessarily redshift 0. */
+    {
+        double linear_density_redshift = CONF(prr, linear_density_redshift);
+        double linear_evolve = fastpm_solver_growth_factor(fastpm, 1.0) /
+                               fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
+
+        fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift 0.\n", linear_density_redshift, linear_evolve);
+
+        fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, linear_evolve);
+    }
 induce:
     if(CONF(prr, remove_cosmic_variance)) {
         fastpm_info("Remove Cosmic variance from initial condition.\n");
