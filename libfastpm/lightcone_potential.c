@@ -199,7 +199,7 @@ funct(double a, void *params)
     return distance - fastpm_lcp_horizon(lcp, a);
 }
 
-int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp){
+int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent * event){
   double potfactor = 1.5 * lcp->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
 
   FastPMStore *p=lcp->p;
@@ -207,8 +207,10 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp){
 
   ptrdiff_t *indxs=lcp->interp_q_indx;
 
-double ai=lcp->a_prev;
-double af=lcp->a_now;
+  lcp->a_now=event->a_f;
+
+  double ai=lcp->a_prev;
+  double af=lcp->a_now;
 
   for(ptrdiff_t i=lcp->interp_start_indx;i<=lcp->interp_stop_indx;i++){
       // pout->potential[i] = (pout->potential[i] *ai
@@ -266,7 +268,8 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         LEAVE(reduce);
 
     }
-    fastpm_lcp_compute_final_potential(lcp);
+
+    fastpm_lcp_compute_final_potential(lcp,event);
 
     pm_free(pm, canvas);
 

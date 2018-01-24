@@ -65,7 +65,7 @@ int main(int argc, char * argv[]) {
                 {0, 0, 0, 0,},
             },
 
-        .fov = 0.,
+        .fov = 1.,
         .cosmology = solver->cosmology,
     }};
 
