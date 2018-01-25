@@ -73,10 +73,15 @@ int main(int argc, char * argv[]) {
 
     fastpm_lc_init(lc, solver, tiles, 1);
 
-    fastpm_info("dx1  : %g %g %g %g\n", 
+    fastpm_solver_add_event_handler(solver, FASTPM_EVENT_FORCE,
+            FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) fastpm_lc_compute_potential,
+            lc);
+
+    fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
             (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
-    fastpm_info("dx2  : %g %g %g %g\n", 
+    fastpm_info("dx2  : %g %g %g %g\n",
             solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
             (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
     double time_step[] = {0.1};
@@ -102,7 +107,7 @@ int main(int argc, char * argv[]) {
     double time_step2[] = {0.1, 1.0};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
-    
+
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step3[] = {0.1};
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
@@ -116,4 +121,3 @@ int main(int argc, char * argv[]) {
     MPI_Finalize();
     return 0;
 }
-

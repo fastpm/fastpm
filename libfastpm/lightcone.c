@@ -191,7 +191,6 @@ fastpm_lc_compute_potential(FastPMSolver * fastpm,
         FastPMForceEvent * event,
         FastPMLightCone * lc)
 {
-
     PM * pm = fastpm->pm;
     FastPMFloat * delta_k = event->delta_k;
     FastPMFloat * canvas = pm_alloc(pm);/*Allocates memory and returns success*/

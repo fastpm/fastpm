@@ -65,13 +65,18 @@ int main(int argc, char * argv[]) {
                 {0, 0, 0, 0,},
             },
 
-        .fov = 1.,
+        .fov = 0.,
         .cosmology = solver->cosmology,
     }};
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_lcp_init(lcp, solver, tiles, 1);
+
+    fastpm_solver_add_event_handler(solver, FASTPM_EVENT_FORCE,
+            FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) fastpm_lcp_compute_potential,
+            lcp);
 
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -102,6 +107,10 @@ int main(int argc, char * argv[]) {
     double time_step2[] = {0.1, 1.0};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
     write_snapshot(solver, solver->p, "nonlightconePresultZ=0", "", 1, NULL);
+
+    write_snapshot(solver, lcp->p, "lightconePresult-p2", "", 1, NULL);
+    write_snapshot(solver, lcp->q, "lightconePresult-q2", "", 1, NULL);
+
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step3[] = {0.1};
