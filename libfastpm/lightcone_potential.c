@@ -212,15 +212,20 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
   double ai=lcp->a_prev;
   double af=lcp->a_now;
 
-  for(ptrdiff_t i=lcp->interp_start_indx;i<=lcp->interp_stop_indx;i++){
-      // pout->potential[i] = (pout->potential[i] *ai
-      //             +p->potential[indxs[i]]*potfactor)/pout->aemit[i];
-      pout->potential[i] = pout->potential[i]*2;//XXX just for some basic sanity checks
+  fastpm_info("Potential interpolation: %g %g %td %td \n",ai,af,lcp->interp_start_indx,lcp->interp_stop_indx);
 
-        /*FIXME Placeholder interpolation. replace with correct scheme*/
+  if (ai>0){
+    for(ptrdiff_t i=lcp->interp_start_indx;i<lcp->interp_stop_indx;i++){
+         pout->potential[i] = (pout->potential[i] *ai
+                     +p->potential[indxs[i]]*potfactor)/pout->aemit[i];
+        //fastpm_info("potential_intp i,p %td,%g\n",i, pout->potential[i]);
+        //pout->potential[i] = pout->potential[i]*2;//XXX just for some basic sanity checks
+      //  fastpm_info("potential_intp i,p %td,%g\n",i, pout->potential[i]);
+          /*FIXME Placeholder interpolation. replace with correct scheme*/
+    }
   }
-lcp->interp_start_indx=lcp->interp_stop_indx;
-lcp->a_prev=lcp->a_now;
+  lcp->interp_start_indx=lcp->interp_stop_indx;
+  lcp->a_prev=lcp->a_now;
 }
 
 
@@ -229,7 +234,6 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         FastPMForceEvent * event,
         FastPMLightConeP * lcp)
 {
-
     PM * pm = fastpm->pm;
     FastPMFloat * delta_k = event->delta_k;
     FastPMFloat * canvas = pm_alloc(pm);/*Allocates memory and returns success*/
@@ -237,10 +241,9 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
     FastPMPainter reader[1];
     fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
 
-    lcp->a_now=-1;/*FIXME*/
-
     FastPMStore * p = lcp->p0;
 
+/*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate*/
     int d;
     int ACC[] = {
                  PACK_POTENTIAL,
@@ -268,8 +271,11 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         LEAVE(reduce);
 
     }
+    ptrdiff_t i=0;
+    fastpm_info("potential_intp i,p %td,%g\n",i, lcp->q->potential[i]);
 
     fastpm_lcp_compute_final_potential(lcp,event);
+      fastpm_info("potential_intp i,p %td,%g\n",i, lcp->q->potential[i]);
 
     pm_free(pm, canvas);
 
@@ -464,7 +470,7 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
         }
         lcp->interp_q_indx[next]=i;
         pout->np ++;
-        lcp->interp_stop_indx++;
+        lcp->interp_stop_indx=next;
     }
     return 0;
 }
