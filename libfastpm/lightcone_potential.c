@@ -78,6 +78,21 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
     lcp->a_prev=-1;
     lcp->interp_start_indx=0;
     lcp->interp_stop_indx=0;
+
+    static int handler_i= 0;
+    if (handler_i==0){/*to avoid adding multiple handlers if lightcone is initialized many times*/
+      fastpm_solver_add_event_handler(fastpm, FASTPM_EVENT_FORCE,
+              FASTPM_EVENT_STAGE_AFTER,
+              (FastPMEventHandlerFunction) fastpm_lcp_compute_potential,
+              lcp);
+
+      fastpm_solver_add_event_handler(fastpm, FASTPM_EVENT_TRANSITION,
+                      FASTPM_EVENT_STAGE_AFTER,
+                      (FastPMEventHandlerFunction) fastpm_lcp_intersect,
+                      lcp);
+        handler_i++;
+      }
+
 }
 
 void
@@ -123,7 +138,7 @@ fastpm_lcp_horizon(FastPMLightConeP * lcp, double a)
 struct funct_params {/*FIXME *Is it ok to use same name in 2 files?*/
     FastPMLightConeP *lcp;
     FastPMStore * p;
-    FastPMDriftFactor * drift; /*TODO: not needed??*/
+    //FastPMDriftFactor * drift; /*TODO: not needed??*/
     ptrdiff_t i;
     double tileshift[4];
     double a1;
@@ -164,20 +179,20 @@ funct(double a, void *params)
 
     FastPMLightConeP *lcp = Fp->lcp;
     FastPMStore * p = Fp->p;
-    FastPMDriftFactor * drift = Fp->drift;
+    //FastPMDriftFactor * drift = Fp->drift;
     ptrdiff_t i = Fp->i;
     int d;
     double xi[4];
     double xo[4];
 
     xi[3] = 1;
-    if(p->v) {
-        fastpm_drift_one(drift, p, i, xi, a);
-    } else {
-        for(d = 0; d < 3; d ++) {
+    // if(p->v) {
+    //     fastpm_drift_one(drift, p, i, xi, a);
+    // } else {
+    for(d = 0; d < 3; d ++) {
             xi[d] = p->x[i][d];
-        }
     }
+    //}
     for(d = 0; d < 4; d ++) {
         xi[d] += Fp->tileshift[d];
     }
@@ -212,7 +227,8 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
   double ai=lcp->a_prev;
   double af=lcp->a_now;
 
-  fastpm_info("Potential interpolation: %g %g %td %td \n",ai,af,lcp->interp_start_indx,lcp->interp_stop_indx);
+  fastpm_info("%td particles are in the light cone\n", lcp->p->np);
+  fastpm_info("Potential interpolation, ai,af, start_indx, stop_indx: %g %g %td %td \n",ai,af,lcp->interp_start_indx,lcp->interp_stop_indx);
 
   if (ai>0){
     for(ptrdiff_t i=lcp->interp_start_indx;i<lcp->interp_stop_indx;i++){
@@ -271,11 +287,11 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         LEAVE(reduce);
 
     }
-    ptrdiff_t i=0;
-    fastpm_info("potential_intp i,p %td,%g\n",i, lcp->q->potential[i]);
+    ptrdiff_t i=lcp->interp_start_indx;
+    fastpm_info("potential_intp before i,p %td,%g\n",i, lcp->q->potential[i]);
 
     fastpm_lcp_compute_final_potential(lcp,event);
-      fastpm_info("potential_intp i,p %td,%g\n",i, lcp->q->potential[i]);
+      fastpm_info("potential_intp after i,p %td,%g\n",i, lcp->q->potential[i]);
 
     pm_free(pm, canvas);
 
@@ -283,6 +299,8 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
 
     return 0;
 }
+
+
 static int
 _fastpm_lcp_intersect_one(FastPMLightConeP * lcp,
         struct funct_params * params,
@@ -372,19 +390,18 @@ zangle(double * x) {
  * */
 static int
 fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
-        FastPMDriftFactor * drift,
-        FastPMKickFactor * kick,
+        FastPMTransitionEvent *event,
         FastPMStore * p,
         FastPMStore * pout
 )
 {
     struct funct_params params = {
         .lcp = lcp,
-        .drift = drift,
         .p = p,
         .i = 0,
-        .a1 = drift->ai > drift->af ? drift->af: drift->ai,
-        .a2 = drift->ai > drift->af ? drift->ai: drift->af,
+        .a1 = event->transition->a.i,//drift->ai > drift->af ? drift->af: drift->ai,
+        .a2 = event->transition->a.r//drift->ai > drift->af ? drift->ai: drift->af,
+        /*XXX What is a.r?*/
     };
     int d;
 
@@ -416,7 +433,8 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
         xi[3] = 1;
         if(p->v) {
             /* can we drift? if we are using a fixed grid there is no v. */
-            fastpm_drift_one(drift, p, i, xi, a_emit);
+          //  fastpm_drift_one(drift, p, i, xi, a_emit);
+          //we should not need this as func will be called after particles are drifted/kicked?
         } else {
             for(d = 0; d < 3; d ++) {
                 xi[d] = p->x[i][d];
@@ -442,7 +460,9 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
         float vi[3];
         if(p->v) {
             /* can we kick? if we are using a fixed grid there is no v */
-            fastpm_kick_one(kick, p, i, vi, a_emit);
+            //fastpm_kick_one(kick, p, i, vi, a_emit);
+            //we should not need this as func will be called after particles are drifted/kicked?
+
             /* transform the coordinate */
             gldotv(lcp->glmatrix, vi, vo);
 
@@ -476,15 +496,22 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
 }
 
 int
-fastpm_lcp_intersect(FastPMLightConeP * lcp, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm)
+fastpm_lcp_intersect(FastPMSolver * fastpm, FastPMTransitionEvent *event, FastPMLightConeP * lcp)
 {
+  fastpm_info("fastpm_lcp_intersect, action ai,ar,af: %d %g %g %g \n", event->transition->action, event->transition->a.i,event->transition->a.r,event->transition->a.f);
+
+    if (event->transition->action!=FASTPM_ACTION_FORCE)
+    {
+      return 0;
+      /*FIXME we donot want this after every transition. Decide which ones we need.*/
+    }
     /* for each tile */
     int t;
     for(t = 0; t < lcp->ntiles; t ++) {
-        fastpm_lcp_intersect_tile(lcp, t, drift, kick, fastpm->p, lcp->p);/*Store particle to get density*/
+        fastpm_lcp_intersect_tile(lcp, t, event, fastpm->p, lcp->p);/*Store particle to get density*/
 
         if(lcp->compute_potential)
-            fastpm_lcp_intersect_tile(lcp, t, drift, kick, lcp->p0, lcp->q);/*store potential on fixed grid*/
+            fastpm_lcp_intersect_tile(lcp, t, event, lcp->p0, lcp->q);/*store potential on fixed grid*/
     }
     return 0;
 }

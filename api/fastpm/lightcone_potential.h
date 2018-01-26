@@ -46,8 +46,7 @@ double
 fastpm_lcp_horizon(FastPMLightConeP * lcp, double a);
 
 int
-fastpm_lcp_intersect(FastPMLightConeP * lcp, FastPMDriftFactor * drift, FastPMKickFactor * kick,
-                    FastPMSolver * fastpm);
+fastpm_lcp_intersect(FastPMSolver * fastpm, FastPMTransitionEvent *event, FastPMLightConeP * lcp);
 
 void
 fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,

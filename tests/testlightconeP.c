@@ -73,18 +73,13 @@ int main(int argc, char * argv[]) {
 
     fastpm_lcp_init(lcp, solver, tiles, 1);
 
-    fastpm_solver_add_event_handler(solver, FASTPM_EVENT_FORCE,
-            FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) fastpm_lcp_compute_potential,
-            lcp);
-
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
             (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
     fastpm_info("dx2  : %g %g %g %g\n",
             solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
             (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
-    double time_step[] = {0.1};
+    double time_step[] = {0.1,1};
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     double a, d;
@@ -96,7 +91,7 @@ int main(int argc, char * argv[]) {
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_lcp_intersect(lcp, &drift, &kick, solver);
+    //fastpm_lcp_intersect(lcp, &drift, &kick, solver);
     fastpm_info("%td particles are in the light cone\n", lcp->p->np);
     fastpm_info("%td uniform particles are in the light cone\n", lcp->q->np);
 
@@ -104,15 +99,19 @@ int main(int argc, char * argv[]) {
     write_snapshot(solver, lcp->q, "lightconePresult-q", "", 1, NULL);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
-    double time_step2[] = {0.1, 1.0};
+    fastpm_lcp_init(lcp, solver, tiles, 1);
+    double time_step2[] = {0.1,0.5,0.8,0.9,.99};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
+    fastpm_info("%td particles are in the light cone\n", lcp->p->np);
+    fastpm_info("%td uniform particles are in the light cone\n", lcp->q->np);
+
     write_snapshot(solver, solver->p, "nonlightconePresultZ=0", "", 1, NULL);
 
     write_snapshot(solver, lcp->p, "lightconePresult-p2", "", 1, NULL);
     write_snapshot(solver, lcp->q, "lightconePresult-q2", "", 1, NULL);
 
-
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    fastpm_lcp_init(lcp, solver, tiles, 1);
     double time_step3[] = {0.1};
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
