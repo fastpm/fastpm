@@ -22,6 +22,8 @@ typedef struct {
 
     double a_prev,a_now; //a at previous force calculcation and current force calculation
 
+    double G_prev,G_now; //Growth function at previous force calculcation and current force calculation
+
     ptrdiff_t interp_start_indx;
     ptrdiff_t interp_stop_indx;  /*lc particle index from which we need to start interpolation
                                   after force step calculation */
@@ -33,6 +35,7 @@ typedef struct {
 
     struct {
         double * Dc;
+        double *Growth;
         size_t size;
     } EventHorizonTable;
 

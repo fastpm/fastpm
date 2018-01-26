@@ -34,6 +34,8 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 
     lcp->EventHorizonTable.size = size;
     lcp->EventHorizonTable.Dc = malloc(sizeof(double) * size);
+    lcp->EventHorizonTable.Growth = malloc(sizeof(double) * size);
+
     lcp->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     lcp->ntiles = ntiles;
 
@@ -47,6 +49,7 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
     for(i = 0; i < lcp->EventHorizonTable.size; i ++) {
         double a = 1.0 * i / (lcp->EventHorizonTable.size - 1);
         lcp->EventHorizonTable.Dc[i] = lcp->speedfactor * HubbleDistance * ComovingDistance(a, lcp->cosmology);
+        lcp->EventHorizonTable.Growth[i]=GrowthFactor(a, lcp->cosmology);//aemit[i];
     }
 
     if(lcp->compute_potential) {
@@ -76,6 +79,8 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
     lcp->interp_q_indx=malloc(sizeof(ptrdiff_t) * lcp->q->np_upper);
     lcp->a_now=-1;
     lcp->a_prev=-1;
+    lcp->G_prev=0;
+    lcp->G_now=0;
     lcp->interp_start_indx=0;
     lcp->interp_stop_indx=0;
 
@@ -134,6 +139,24 @@ fastpm_lcp_horizon(FastPMLightConeP * lcp, double a)
     return lcp->EventHorizonTable.Dc[l] * (r - x)
          + lcp->EventHorizonTable.Dc[r] * (x - l);
 }
+
+double
+fastpm_lcp_growth(FastPMLightConeP * lcp, double a)
+{
+    /* It may be worth to switch to log_a interpolation, but it only matters
+     * at very high z (~ z = 9). */
+
+    double x = a * (lcp->EventHorizonTable.size - 1);
+    int l = floor(x);
+    int r = l + 1;
+    if(r >= lcp->EventHorizonTable.size||l<=0) {
+        return GrowthFactor(a, lcp->cosmology);
+    }
+
+    return lcp->EventHorizonTable.Growth[l] * (r - x)
+         + lcp->EventHorizonTable.Growth[r] * (x - l);
+}
+
 
 struct funct_params {/*FIXME *Is it ok to use same name in 2 files?*/
     FastPMLightConeP *lcp;
@@ -227,21 +250,28 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
   double ai=lcp->a_prev;
   double af=lcp->a_now;
 
-  fastpm_info("%td particles are in the light cone\n", lcp->p->np);
-  fastpm_info("Potential interpolation, ai,af, start_indx, stop_indx: %g %g %td %td \n",ai,af,lcp->interp_start_indx,lcp->interp_stop_indx);
+  lcp->G_now=GrowthFactor(af, lcp->cosmology);
+  //lcp->G_now=fastpm_lcp_growth( lcp, af);
+  double Gi=lcp->G_prev;
+  double Gf=lcp->G_now;
+  double Gemit=0;
 
+  fastpm_info("%td particles are in the light cone\n", lcp->p->np);
+  fastpm_info("Potential interpolation, ai,af,Gi,Gf, start_indx, stop_indx: %g %g %g %g %td %td \n",ai,af,Gi,Gf,lcp->interp_start_indx,lcp->interp_stop_indx);
+
+/*XXX Parallelize if too slow*/
   if (ai>0){
     for(ptrdiff_t i=lcp->interp_start_indx;i<lcp->interp_stop_indx;i++){
-         pout->potential[i] = (pout->potential[i] *ai
-                     +p->potential[indxs[i]]*potfactor)/pout->aemit[i];
-        //fastpm_info("potential_intp i,p %td,%g\n",i, pout->potential[i]);
-        //pout->potential[i] = pout->potential[i]*2;//XXX just for some basic sanity checks
-      //  fastpm_info("potential_intp i,p %td,%g\n",i, pout->potential[i]);
-          /*FIXME Placeholder interpolation. replace with correct scheme*/
+         //Gemit=GrowthFactor(pout->aemit[i], lcp->cosmology);//aemit[i];
+         Gemit=fastpm_lcp_growth( lcp, pout->aemit[i]);
+
+          pout->potential[i] =pout->potential[i]+
+                      (p->potential[indxs[i]]-pout->potential[i])/(Gf-Gi)*(Gemit-Gi);
     }
   }
   lcp->interp_start_indx=lcp->interp_stop_indx;
   lcp->a_prev=lcp->a_now;
+  lcp->G_prev=lcp->G_now;
 }
 
 
