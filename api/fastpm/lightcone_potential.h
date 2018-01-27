@@ -66,4 +66,6 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         FastPMForceEvent * event,
         FastPMLightConeP * lcp);
 
+double(* fastpm_lcp_tile(FastPMSolver *fastpm,int tile_x, int tile_y, int tile_z, int *ntiles, double (*tiles)[3]))[3];
+
 FASTPM_END_DECLS

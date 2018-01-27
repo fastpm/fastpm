@@ -21,10 +21,12 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
+    int lcp_np_ratio=ntiles;
+
 //XXX Do we need all of these?
-    lcp->p = malloc(sizeof(FastPMStore));
-    lcp->q = malloc(sizeof(FastPMStore));
-    lcp->p0 = malloc(sizeof(FastPMStore));
+    lcp->p = malloc(sizeof(FastPMStore)*lcp_np_ratio); // times ntiles??
+    lcp->q = malloc(sizeof(FastPMStore)*lcp_np_ratio);
+    lcp->p0 = malloc(sizeof(FastPMStore)*lcp_np_ratio);
 
 
 
@@ -54,7 +56,7 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 
     if(lcp->compute_potential) {
         /* p0 is the lagrangian _position */
-        fastpm_store_init(lcp->p0, fastpm->p->np_upper,
+        fastpm_store_init(lcp->p0, fastpm->p->np_upper*lcp_np_ratio,
               PACK_POS
             | PACK_POTENTIAL
             | PACK_TIDAL
@@ -63,14 +65,14 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
         fastpm_store_set_lagrangian_position(lcp->p0, fastpm->basepm, NULL, NULL);
 
         /* for saving the lagrangian sampling of potential */
-        fastpm_store_init(lcp->q, fastpm->p->np_upper,
+        fastpm_store_init(lcp->q, fastpm->p->np_upper*lcp_np_ratio,
               PACK_POS
             | PACK_POTENTIAL
             | PACK_TIDAL
             | PACK_AEMIT);
     }
     /* for saving the density with particles */
-    fastpm_store_init(lcp->p, fastpm->p->np_upper,
+    fastpm_store_init(lcp->p, fastpm->p->np_upper*lcp_np_ratio,
                   PACK_ID | PACK_POS | PACK_VEL
                 | PACK_AEMIT
                 | (fastpm->p->potential?PACK_POTENTIAL:0)
@@ -100,6 +102,25 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 
 }
 
+double(* fastpm_lcp_tile(FastPMSolver *fastpm, int tile_x, int tile_y, int tile_z, int * ntiles, double (*tiles)[3]))[3]{
+  *ntiles=(tile_x*2+1)*(tile_y*2+1)*(tile_z*2+1);
+  tiles=malloc(sizeof(tiles[0]) * (*ntiles));
+
+    int nt=0;
+    for(int i_x=-tile_x;i_x<=tile_x;i_x++){
+      for(int i_y=-tile_y;i_y<=tile_y;i_y++){
+        for(int i_z=-tile_z;i_z<=tile_z;i_z++){
+          tiles[nt][0]=i_x*pm_boxsize(fastpm->basepm)[0];
+          tiles[nt][1]=i_y*pm_boxsize(fastpm->basepm)[1];
+          tiles[nt][2]=i_z*pm_boxsize(fastpm->basepm)[2];
+          nt++;
+        }
+      }
+    }
+    return tiles;
+}
+
+
 void
 fastpm_lcp_destroy(FastPMLightConeP * lcp)
 {
@@ -111,6 +132,7 @@ fastpm_lcp_destroy(FastPMLightConeP * lcp)
         fastpm_store_destroy(lcp->p0);
     }
     free(lcp->EventHorizonTable.Dc);
+    free(lcp->EventHorizonTable.Growth);
     free(lcp->tileshifts);
     free(lcp->p0);
     free(lcp->q);
@@ -182,7 +204,6 @@ gldot(double glmatrix[4][4], double xi[4], double xo[4])
     }
 }
 
-/*FIXME: Not needed?*/
 static void
 gldotv(double glmatrix[4][4], float vi[3], float vo[3])
 {
@@ -240,7 +261,7 @@ funct(double a, void *params)
 int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent * event){
   double potfactor = 1.5 * lcp->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
 
-  FastPMStore *p=lcp->p;
+  FastPMStore *p0=lcp->p0;
   FastPMStore *pout=lcp->q;
 
   ptrdiff_t *indxs=lcp->interp_q_indx;
@@ -256,7 +277,7 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
   double Gf=lcp->G_now;
   double Gemit=0;
 
-  fastpm_info("%td particles are in the light cone\n", lcp->p->np);
+  fastpm_info("%td particles are in the uniform light cone\n", lcp->q->np);
   fastpm_info("Potential interpolation, ai,af,Gi,Gf, start_indx, stop_indx: %g %g %g %g %td %td \n",ai,af,Gi,Gf,lcp->interp_start_indx,lcp->interp_stop_indx);
 
 /*XXX Parallelize if too slow*/
@@ -265,8 +286,11 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
          //Gemit=GrowthFactor(pout->aemit[i], lcp->cosmology);//aemit[i];
          Gemit=fastpm_lcp_growth( lcp, pout->aemit[i]);
 
-          pout->potential[i] =pout->potential[i]+
-                      (p->potential[indxs[i]]-pout->potential[i])/(Gf-Gi)*(Gemit-Gi);
+         //pout->potential[i] =p0->potential[indxs[i]]/ pout->aemit[i] * potfactor;
+
+           pout->potential[i] =pout->potential[i]
+                        +(p0->potential[indxs[i]]/ pout->aemit[i] * potfactor
+                            -pout->potential[i])/(Gf-Gi)*(Gemit-Gi);
     }
   }
   lcp->interp_start_indx=lcp->interp_stop_indx;
@@ -289,7 +313,7 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
 
     FastPMStore * p = lcp->p0;
 
-/*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate*/
+/*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
     int d;
     int ACC[] = {
                  PACK_POTENTIAL,
@@ -301,7 +325,7 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
 
     for(d = 0; d < 7; d ++) {
         CLOCK(transfer);
-        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
+        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, d+3);
         LEAVE(transfer);
 
         CLOCK(c2r);
@@ -533,15 +557,18 @@ fastpm_lcp_intersect(FastPMSolver * fastpm, FastPMTransitionEvent *event, FastPM
     if (event->transition->action!=FASTPM_ACTION_FORCE)
     {
       return 0;
-      /*FIXME we donot want this after every transition. Decide which ones we need.*/
+      /*FIXME we donot nned to intersect LC after every transition, may even lead to particle
+              duplication. Decide which ones we need.*/
     }
     /* for each tile */
     int t;
     for(t = 0; t < lcp->ntiles; t ++) {
-        fastpm_lcp_intersect_tile(lcp, t, event, fastpm->p, lcp->p);/*Store particle to get density*/
+        fastpm_lcp_intersect_tile(lcp, t, event, fastpm->p, lcp->p);/*Store particle to get
+                                                                  density*/
 
         if(lcp->compute_potential)
-            fastpm_lcp_intersect_tile(lcp, t, event, lcp->p0, lcp->q);/*store potential on fixed grid*/
+            fastpm_lcp_intersect_tile(lcp, t, event, lcp->p0, lcp->q);/*store potential on fixed
+                                                                        grid*/
     }
     return 0;
 }
