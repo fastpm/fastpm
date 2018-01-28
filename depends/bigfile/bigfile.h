@@ -184,7 +184,17 @@ BigAttr * big_block_list_attrs(BigBlock * block, size_t * count);
  * dtype: a subset of numpy's dtype descriptor.
  *
  * dtype[0]: endianness, '<' for LE and '>' BE. '=' is native and will be converted to LE or BE during IO.
- * dtype[1]: kind in char: 'i'  int, 'f'  float, 'u'  unsigned int
+ * dtype[1]: kind in char: 
+ *
+ *    'i' :int, 
+ *    'f'  float, 
+ *    'c'  complex, 
+ *    'u'  unsigned int
+ *    'b'  boolean / byte
+ *    'a'  string bytes
+ *
+ *    Other kinds are bypassed; the python API will explain them as numpy dtypes.
+ *
  * dtype[2:]: is the byte-width, 4 and 8 are supported.
  *
  * dtype[0] can be omitted, in which case native is prepended to form a 'normalized' dtype.

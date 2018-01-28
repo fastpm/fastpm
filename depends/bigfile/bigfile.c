@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <dirent.h>
 
@@ -197,7 +198,6 @@ static int (filter)(const struct dirent * ent) {
 static struct
 bblist * listbigfile_r(const char * basename, char * blockname, struct bblist * bblist) {
     struct dirent **namelist;
-    struct stat st;
     int n;
     int i;
 
@@ -212,7 +212,6 @@ bblist * listbigfile_r(const char * basename, char * blockname, struct bblist * 
     for(i = 0; i < n ; i ++) {
         char * blockname1 = _path_join(blockname, namelist[i]->d_name);
         char * fullpath1 = _path_join(basename, blockname1);
-        BigBlock bb = {0};
         if(_big_file_path_is_block(fullpath1)) {
             struct bblist * n = malloc(sizeof(struct bblist) + strlen(blockname1) + 1);
             n->next = bblist;
@@ -436,7 +435,6 @@ _big_block_create_internal(BigBlock * bb, const char * basename, const char * dt
         return 0;
 ex_flush:
         attrset_free(bb->attrset);
-ex_fileio:
         free(bb->foffset);
 ex_foffset:
         free(bb->fchecksum);
@@ -1054,7 +1052,7 @@ big_array_iter_advance(BigArrayIter * iter)
 typedef struct {double r; double i;} cplx128_t;
 typedef struct {float r; float i;} cplx64_t;
 typedef union {
-    char *S1;
+    char *a1;
     char *b1;
     int64_t *i8;
     uint64_t *u8;
@@ -1095,7 +1093,7 @@ dtype_format(char * buffer, const char * dtype, const void * data, const char * 
         sprintf(buffer, fmt, p.dtype->r, p.dtype->i); \
     } else
 
-    FORMAT1(S1, "%c")
+    FORMAT1(a1, "%c")
     FORMAT1(b1, "%d")
     FORMAT1(i8, "%ld")
     FORMAT1(i4, "%d")
@@ -1136,7 +1134,7 @@ dtype_parse(const char * buffer, const char * dtype, void * data, const char * f
         if(fmt == NULL) fmt = defaultfmt; \
         sscanf(buffer, fmt, &p.dtype->r, &p.dtype->i); \
     } else
-    PARSE1(S1, "%c")
+    PARSE1(a1, "%c")
     PARSE1(i8, "%ld")
     PARSE1(i4, "%d")
     PARSE1(u8, "%lu")
@@ -1491,14 +1489,16 @@ attrset_write_attr_set_v2(BigAttrSet * attrset, const char * basename)
         }
         rawdata[j] = 0;
         for(j = 0; j < a->nmemb; j ++) {
-            if(a->dtype[1] != 'S') {
+            if(a->dtype[1] != 'a' && 
+              !(a->dtype[1] == 'S' && dtype_itemsize(a->dtype) == 1))
+            {
                 char buf[128];
                 dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
                 strcat(textual, buf);
                 if(j != a->nmemb - 1) {
                     strcat(textual, " ");
                 }
-            } else {
+            } else { /* pretty print string encoded as a1 or S1. */
                 char buf[] = {adata[j], 0};
                 if(buf[0] == '\n') {
                     strcat(textual, "...");
@@ -1749,19 +1749,23 @@ int _big_file_mkdir(const char * dirname)
 {
     struct stat buf;
     int mkdirret;
-    /* already exists */
-    if(0 == stat(dirname, &buf)) return 0;
 
     mkdirret = mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     /* stat is to make sure the dir doesn't exist; it could be owned by others and stopped
-     * by a permission error, but we are still OK. */
+     * by a permission error, but we are still OK, as the dir is created*/
 
-    RAISEIF((mkdirret !=0 && errno != EEXIST),
+    /* already exists; only check stat after mkdir fails with EACCES, avoid meta data calls. */
+
+    RAISEIF((mkdirret !=0 && errno != EEXIST && stat(dirname, &buf)),
         ex_mkdir,
         "Failed to create directory structure at `%s' (%s)",
         dirname,
         strerror(errno)
     );
+
+    /* Attempt to update the time stamp */
+    utimes(dirname, NULL);
+
     return 0;
 ex_mkdir:
     return -1;
