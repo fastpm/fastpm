@@ -67,7 +67,6 @@ int main(int argc, char * argv[]) {
         }
         LuaConfig * config;
         config = lua_config_new(confstr);
-        fastpm_info("nc = %d\n", lua_config_get_nc(config));
         lua_config_free(config);
         free(confstr);
     }
