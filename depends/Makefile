@@ -38,12 +38,12 @@ libfastpm-dep.a: $(BIGFILE_LIBS:%.a=install/lib/%.a) \
 $(BIGFILE_LIBS:%.a=install/lib/%.a): .bigfile
 
 .bigfile:
-	(cd bigfile; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "MPICC=$(CC)")
+	(cd bigfile; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC) $(OPTIMIZE) $(CFLAGS)" "MPICC=$(CC) $(OPTIMIZE) $(CFLAGS)")
 
 $(MPSORT_LIBS:%.a=install/lib/%.a): .mpsort
 
 .mpsort:
-	(cd mpsort; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "MPICC=$(CC)")
+	(cd mpsort; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC) $(OPTIMIZE) $(CFLAGS)" "MPICC=$(CC) $(OPTIMIZE) $(CFLAGS)")
 
 $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
