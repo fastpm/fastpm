@@ -4,10 +4,11 @@ PFFT_VERSION=1.0.8-alpha3-fftw3
 PFFT_CONFIGURE_FLAGS ?= --enable-sse2 --enable-avx
 PFFTSRC = download/pfft-$(PFFT_VERSION).tar.gz 
 ifdef OPENMP
-PFFT_CONFIGURE_FLAGS += --enable-openmp
+OPENMP_FLAGS = --enable-openmp
 PFFTLIB = install/lib/libpfft_omp.a
 PFFTFLIB = install/lib/libpfftf_omp.a
 else
+OPENMP_FLAGS =
 PFFTLIB = install/lib/libpfft.a
 PFFTFLIB = install/lib/libpfftf.a
 endif
@@ -26,7 +27,7 @@ $(PFFTLIB): $(PFFT_CONFIGURE)
 	mkdir -p double;
 	(cd double; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath install) --disable-shared --enable-static  \
-	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) "MPICC=$(CC)" \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) $(OPENMP_FLAGS) "MPICC=$(CC)" \
 	2>&1 ; \
 	make -j 4 2>&1 ; \
 	make install 2>&1; \
@@ -36,7 +37,7 @@ $(PFFTFLIB): $(PFFT_CONFIGURE)
 	mkdir -p single;
 	(cd single; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath install) --enable-single --disable-shared --enable-static  \
-	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) "MPICC=$(CC)" \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) $(OPENMP_FLAGS) "MPICC=$(CC)" \
 	2>&1 ; \
        	make -j 4 2>&1 ; \
 	make install 2>&1; \
