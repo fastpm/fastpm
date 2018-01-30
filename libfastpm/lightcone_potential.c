@@ -65,19 +65,12 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 
     if (read_ra_dec){
 
-      int n_a=10;
+      int n_a=20;
+      int n_a_subsample=0;
+      double *a_subsample;
+      double *r_subsample;
       double *a = malloc(sizeof(double)*n_a);
       double *r = malloc(sizeof(double)*n_a);
-
-      size_t size= read_angular_grid(NULL, "healpix64", r, a, n_a, MPI_COMM_WORLD);
-
-/*FIXME fudge factor for ghosts*/
-      fastpm_store_init(lcp->p0,size*3, PACK_POS
-                    | PACK_POTENTIAL
-                    | PACK_TIDAL
-                    | PACK_AEMIT);
-      /*XXX use the domain decompose */
-      //double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
 
       double a_max=1;
       double a_min=.1;
@@ -85,10 +78,40 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
         {
             a[i_a]=a_min+i_a*(a_max-a_min)/(n_a-1);
             r[i_a]=fastpm_lcp_horizon(lcp,a[i_a]);
+            if (a[i_a]>lcp->subsample_a)
+              n_a_subsample+=1;
         }
-      read_angular_grid(lcp->p0, "healpix64", r, a, n_a, MPI_COMM_WORLD);
 
-      fastpm_store_init(lcp->q, size,   PACK_POS
+      size_t size= read_angular_grid(NULL, lcp->ra_dec_filename, r, a, n_a-n_a_subsample, 1,
+        MPI_COMM_WORLD);
+        size_t size2=0;
+      if (n_a_subsample>0){
+          size2=read_angular_grid(NULL, lcp->ra_dec_subsample_filename, r, a, n_a_subsample,
+                          lcp->grid_subsample_factor, MPI_COMM_WORLD);
+          a_subsample = malloc(sizeof(double)*n_a_subsample);
+          r_subsample = malloc(sizeof(double)*n_a_subsample);
+          for (int i_a=0;i_a<n_a_subsample;i_a++){
+              a_subsample[i_a]=a[i_a+n_a-n_a_subsample];
+              r_subsample[i_a]=r[i_a+n_a-n_a_subsample];
+              fastpm_info("subsample i=%td,a=%g,r=%g\n",i_a,a_subsample[i_a],r_subsample[i_a]);
+            }
+      }
+      fastpm_info("lightcone size=%td size2=%td\n",size,size2);
+/*FIXME fudge factor for ghosts*/
+      fastpm_store_init(lcp->p0,size+size2, PACK_POS
+                    | PACK_POTENTIAL
+                    | PACK_TIDAL
+                    | PACK_AEMIT);
+      /*XXX use the domain decompose */
+      //double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+      read_angular_grid(lcp->p0, lcp->ra_dec_filename, r, a, n_a-n_a_subsample, 1, MPI_COMM_WORLD);
+
+      if (n_a_subsample>0){
+            read_angular_grid(lcp->p0, lcp->ra_dec_subsample_filename, r_subsample, a_subsample, n_a_subsample, lcp->grid_subsample_factor, MPI_COMM_WORLD);
+      }
+
+      fastpm_store_init(lcp->q, lcp->p0->np_upper,   PACK_POS
                     | PACK_POTENTIAL
                     | PACK_TIDAL
                     | PACK_AEMIT);
@@ -511,12 +534,19 @@ fastpm_lcp_intersect_tile_grid(FastPMLightConeP * lcp, int tile,
 
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
-        if(0 == _fastpm_lcp_intersect_one(lcp, &params, i, &a_emit)) continue;
+        if (lcp->read_ra_dec==0){/*XXX This doesnot give exact answer when a_emit is known for ra_dec grid*/
+          if(0 == _fastpm_lcp_intersect_one(lcp, &params, i, &a_emit)) continue;
+        }
+        else{
+          a_emit=p->aemit[i];
+          if(a_emit>params.a2||a_emit<params.a1)continue;
+        }
         /* A solution is found */
         /* move the particle and store it. */
         ptrdiff_t next = pout->np;
         if(next == pout->np_upper) {
-            fastpm_raise(-1, "Too many particles in the light cone");
+            fastpm_raise(-1, "Too many particles in the light cone next=%td, max=%td, aemit=%g \n",
+                    next,pout->np_upper,a_emit);
         }
         double xi[4];
         double xo[4];

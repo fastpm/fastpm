@@ -45,7 +45,7 @@ int main(int argc, char * argv[]) {
     double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
     double a[] = {0, 1, 2, 3, 4, 5, 6, 7};
 
-    read_angular_grid(store, "healpix64", r, a, 8, MPI_COMM_WORLD);
+    read_angular_grid(store, "healpix64", r, a, 8, 1, MPI_COMM_WORLD);
 
     write_snapshot(solver, store, "angulargrid", "", 1, NULL);
 

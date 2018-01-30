@@ -53,7 +53,8 @@ int main(int argc, char * argv[]) {
 
     double (*tiles)[3];
     int ntiles;
-    tiles=fastpm_lcp_tile(solver,1, 1, 1, &ntiles, tiles);
+    //tiles=fastpm_lcp_tile(solver,1, 1, 1, &ntiles, tiles);
+    tiles=fastpm_lcp_tile(solver,0, 0, 0, &ntiles, tiles);
     //static int ntiles=1;
     // double tiles[1][3] = {
     //         {0, 0, 0},
@@ -68,9 +69,13 @@ int main(int argc, char * argv[]) {
                 {0, 0, 1, 0,},
                 {0, 0, 0, 0,},
             },
-
+        .read_ra_dec=1,
         .fov = 360.,
         .cosmology = solver->cosmology,
+        .ra_dec_filename="healpix512",
+        .ra_dec_subsample_filename="healpix64",
+        .subsample_a=.9,
+        .grid_subsample_factor=1
     }};
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
@@ -102,8 +107,9 @@ int main(int argc, char * argv[]) {
     // write_snapshot(solver, lcp->p, "lightconePresult-p", "", 1, NULL);
     // write_snapshot(solver, lcp->q, "lightconePresult-q", "", 1, NULL);
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
-    fastpm_lcp_init(lcp, solver, tiles, ntiles);
+    // fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    // fastpm_lcp_init(lcp, solver, tiles, ntiles);
+
     double time_step2[] = {0.1,0.7,0.8,0.9,.99,1};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
     fastpm_info("%td particles are in the light cone\n", lcp->p->np);
@@ -114,11 +120,11 @@ int main(int argc, char * argv[]) {
     write_snapshot(solver, lcp->p, "lightconePresult-p2", "", 1, NULL);
     write_snapshot(solver, lcp->q, "lightconePresult-q2", "", 1, NULL);
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
-    fastpm_lcp_init(lcp, solver, tiles, ntiles);
-    double time_step3[] = {0.1};
-    fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
-    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
+    // fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    // fastpm_lcp_init(lcp, solver, tiles, ntiles);
+    // double time_step3[] = {0.1};
+    // fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
+    // write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
 
     fastpm_lcp_destroy(lcp);
 

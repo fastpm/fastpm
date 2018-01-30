@@ -19,8 +19,13 @@ typedef struct {
 
     double (* tileshifts)[3];
     int ntiles;//number of times box is repeated or tiled.
+
     int read_ra_dec;// To keep track whether grid particles are read in or on regular xyz grid
-    int ra_dec_size;
+    int grid_subsample_factor;/*Subsample grid by this factor (default=1, no subsampling).
+                      If negative, read subsample from a file */
+    double subsample_a; /*Minimum a for which to do subsampling. Default 1, no subsampling*/
+    char * ra_dec_filename;
+    char * ra_dec_subsample_filename;
 
     double a_prev,a_now; //a at previous force calculcation and current force calculation
 

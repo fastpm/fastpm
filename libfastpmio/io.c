@@ -412,6 +412,7 @@ read_angular_grid(FastPMStore * store,
         const double * r,
         const double * aemit,
         const size_t Nr,
+        int sampling_factor,
         MPI_Comm comm)
 {
 
@@ -437,7 +438,8 @@ read_angular_grid(FastPMStore * store,
     size_t localend = bb.size * (ThisTask + 1) / NTask;
     size_t localsize = localend - localstart;
 
-    fastpm_info("Reading %td ra dec coordinates; localsize = %td\n", bb.size, localsize);
+    fastpm_info("Reading %td ra dec coordinates with sampling of %td; localsize = %td\n",
+                bb.size, sampling_factor, localsize);
 
     if(0 != big_block_mpi_close(&bb, comm)) {
         goto exc_open;
@@ -447,10 +449,8 @@ read_angular_grid(FastPMStore * store,
       if(0 != big_file_mpi_close(&bf, comm)) {
           goto exc_close;
       }
-      return localsize*Nr;
+      return localsize*Nr/sampling_factor+1;//XXX check for proper rounding off factor
     }
-
-
 
     double * RA = malloc(localsize * sizeof(double));
     double * DEC = malloc(localsize * sizeof(double));
@@ -495,27 +495,31 @@ read_angular_grid(FastPMStore * store,
     ptrdiff_t i;
     ptrdiff_t j;
     ptrdiff_t n;
-    n = 0;
+    n = store->np;
     double d2r=180./M_PI;
     for(i = 0; i < localsize; i ++) {
         RA[i] /= d2r;
-        DEC[i] /= d2r;
+        //DEC[i] /= d2r;
+        DEC[i]=M_PI/2.-DEC[i]/d2r;
     }
 
-    for(i = 0; i < localsize; i ++) {
+    for(i = 0; i < localsize; i+=sampling_factor) {
         /* FIXME conversion is likely wrong. */
-        double x = cos(DEC[i]) * sin(RA[i]);
-        double y = cos(DEC[i]) * cos(RA[i]);
-        double z = sin(DEC[i]);
+        double x = sin(DEC[i]) * cos(RA[i]);
+        double y = sin(DEC[i]) * sin(RA[i]);
+        double z = cos(DEC[i]);
         for(j = 0; j < Nr; j ++) {
             store->x[n][0] = x * r[j];
             store->x[n][1] = y * r[j];
             store->x[n][2] = z * r[j];
             store->aemit[n] = aemit[j];
+            // if (i==0&&j==0){ //DEBUG print
+            //   fastpm_info("RA DEC conversion RA=%g DEC=%g r=%g, x=%g y=%g z=%g \n ",RA[i],DEC[i],r[j],store->x[n][0],store->x[n][1],store->x[n][2]);
+            // }
             n++;
         }
         if(n == store->np_upper) {
-            fastpm_raise(-1, "Too many grid points on the grid, the limit is %td\n", store->np_upper);
+            fastpm_raise(-1, "Too many grid points on the grid, the limit is %td with %td r bins, i=%td  j=%td n=%td \n", store->np_upper,Nr,i,j,n);
         }
     }
 
