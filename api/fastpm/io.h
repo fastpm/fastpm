@@ -10,7 +10,7 @@ FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg);
 void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg);
 
-int 
+int
 write_snapshot(FastPMSolver * fastpm,
         FastPMStore * p,
         char * filebase,
@@ -19,7 +19,7 @@ write_snapshot(FastPMSolver * fastpm,
         FastPMSnapshotSorter sorter;
     );
 
-int 
+int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase);
 
 int
@@ -28,7 +28,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
 int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
 
-int 
+size_t 
 read_angular_grid(FastPMStore * store,
         const char * filename,
         const double * r,

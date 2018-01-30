@@ -15,8 +15,8 @@
 #include <fastpm/io.h>
 
 /*
-static void 
-cumsum(int64_t offsets[], int N) 
+static void
+cumsum(int64_t offsets[], int N)
 {
     int i;
     int64_t tmp[N];
@@ -48,7 +48,7 @@ FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
     p->unpack(p, 0, (void*) ptr, p->attributes);
 
     /* larger than 53 is probably good enough but perhaps should have used ldexp (>GLIBC 2.19)*/
-    *((uint64_t*) radix) = p->aemit[0] * (1L << 60L); 
+    *((uint64_t*) radix) = p->aemit[0] * (1L << 60L);
 }
 
 static void
@@ -86,7 +86,7 @@ sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
     free(send_buffer);
 }
 
-int 
+int
 write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         char * filebase,
         char * parameters,
@@ -201,7 +201,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
     return 0;
 }
 
-int 
+int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase)
 {
     return 0;
@@ -403,8 +403,10 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
  *
  * The ->x and ->aemit elements are updated.
  * np is also updated.
+ * XXX There may be issues at low-z as RA-DEC grid is concentrated around the observer. In that
+ * case may need to downsample the RA-DEC grid points
  */
-int 
+size_t
 read_angular_grid(FastPMStore * store,
         const char * filename,
         const double * r,
@@ -440,6 +442,14 @@ read_angular_grid(FastPMStore * store,
     if(0 != big_block_mpi_close(&bb, comm)) {
         goto exc_open;
     }
+
+    if (store==NULL){
+      if(0 != big_file_mpi_close(&bf, comm)) {
+          goto exc_close;
+      }
+      return localsize*Nr;
+    }
+
 
 
     double * RA = malloc(localsize * sizeof(double));
@@ -486,10 +496,10 @@ read_angular_grid(FastPMStore * store,
     ptrdiff_t j;
     ptrdiff_t n;
     n = 0;
-
+    double d2r=180./M_PI;
     for(i = 0; i < localsize; i ++) {
-        RA[i] /= (2 * M_PI);
-        DEC[i] /= (2 * M_PI);
+        RA[i] /= d2r;
+        DEC[i] /= d2r;
     }
 
     for(i = 0; i < localsize; i ++) {
@@ -513,7 +523,7 @@ read_angular_grid(FastPMStore * store,
 
     fastpm_info("Generated %td x, y, z coordinates locally\n", n);
 
-    return 0;
+    return n;
 
     exc_close:
     exc_close_blk:
@@ -526,5 +536,5 @@ read_angular_grid(FastPMStore * store,
     exc_open:
         fastpm_raise(-1, "Failed to read angular file %s, for %s\n", filename, big_file_get_error_message());
 
-    return 1;
+    return 0;
 }

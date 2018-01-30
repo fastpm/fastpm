@@ -10,13 +10,14 @@
 #include <fastpm/prof.h>
 #include <fastpm/lightcone_potential.h>
 #include <fastpm/logging.h>
+#include <fastpm/io.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
 
 void
 fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
-                double (*tileshifts)[3], int ntiles, int read_ra_dec
+                double (*tileshifts)[3], int ntiles
                 )
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
@@ -24,17 +25,20 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
     int lcp_np_ratio=ntiles;
 
 //XXX Do we need these?
-    lcp->p = malloc(sizeof(FastPMStore)*lcp_np_ratio);//To store (matter) particles as they enter horizon
+    lcp->p = malloc(sizeof(FastPMStore));//To store (matter) particles as they enter horizon
+    /* for saving the density with particles */
 
-    lcp->read_ra_dec=read_ra_dec;
+    lcp->p0 = malloc(sizeof(FastPMStore));
+    lcp->q = malloc(sizeof(FastPMStore));
 
-    if (read_ra_dec){
-    }
+    fastpm_store_init(lcp->p, fastpm->p->np_upper*lcp_np_ratio,
+                  PACK_ID | PACK_POS | PACK_VEL
+                | PACK_AEMIT
+                | (fastpm->p->potential?PACK_POTENTIAL:0)
+    );
 
-    else{
-      lcp->p0 = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*fixed grid*/
-      lcp->q = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*for storing fixed grid particles as they intersect lightcone*/
-      }
+    int read_ra_dec=lcp->read_ra_dec;
+
     /* Allocation */
 
     int size = 8192;
@@ -59,29 +63,59 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
         lcp->EventHorizonTable.Growth[i]=GrowthFactor(a, lcp->cosmology);//aemit[i];
     }
 
-    if(lcp->compute_potential) {
-        /* p0 is the lagrangian _position */
-        fastpm_store_init(lcp->p0, fastpm->p->np_upper*lcp_np_ratio,
-              PACK_POS
-            | PACK_POTENTIAL
-            | PACK_TIDAL
-        );
+    if (read_ra_dec){
 
-        fastpm_store_set_lagrangian_position(lcp->p0, fastpm->basepm, NULL, NULL);
+      int n_a=10;
+      double *a = malloc(sizeof(double)*n_a);
+      double *r = malloc(sizeof(double)*n_a);
 
-        /* for saving the lagrangian sampling of potential */
-        fastpm_store_init(lcp->q, fastpm->p->np_upper*lcp_np_ratio,
-              PACK_POS
-            | PACK_POTENTIAL
-            | PACK_TIDAL
-            | PACK_AEMIT);
+      size_t size= read_angular_grid(NULL, "healpix64", r, a, n_a, MPI_COMM_WORLD);
+
+/*FIXME fudge factor for ghosts*/
+      fastpm_store_init(lcp->p0,size*3, PACK_POS
+                    | PACK_POTENTIAL
+                    | PACK_TIDAL
+                    | PACK_AEMIT);
+      /*XXX use the domain decompose */
+      //double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+      double a_max=1;
+      double a_min=.1;
+      for (int i_a=0;i_a<n_a;i_a++)
+        {
+            a[i_a]=a_min+i_a*(a_max-a_min)/(n_a-1);
+            r[i_a]=fastpm_lcp_horizon(lcp,a[i_a]);
+        }
+      read_angular_grid(lcp->p0, "healpix64", r, a, n_a, MPI_COMM_WORLD);
+
+      fastpm_store_init(lcp->q, size,   PACK_POS
+                    | PACK_POTENTIAL
+                    | PACK_TIDAL
+                    | PACK_AEMIT);
+      fastpm_info("%td max particles in the lightcone\n",lcp->q->np_upper);
     }
-    /* for saving the density with particles */
-    fastpm_store_init(lcp->p, fastpm->p->np_upper*lcp_np_ratio,
-                  PACK_ID | PACK_POS | PACK_VEL
-                | PACK_AEMIT
-                | (fastpm->p->potential?PACK_POTENTIAL:0)
-    );
+
+    else{
+      lcp->p0 = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*fixed grid*/
+      lcp->q = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*for storing fixed grid particles as they intersect lightcone*/
+      if(lcp->compute_potential) {
+          /* p0 is the lagrangian _position */
+          fastpm_store_init(lcp->p0, fastpm->p->np_upper*lcp_np_ratio,
+                PACK_POS
+              | PACK_POTENTIAL
+              | PACK_TIDAL
+          );
+
+          fastpm_store_set_lagrangian_position(lcp->p0, fastpm->basepm, NULL, NULL);
+
+          /* for saving the lagrangian sampling of potential */
+          fastpm_store_init(lcp->q, fastpm->p->np_upper*lcp_np_ratio,
+                PACK_POS
+              | PACK_POTENTIAL
+              | PACK_TIDAL
+              | PACK_AEMIT);
+            }
+    }
 
     lcp->interp_q_indx=malloc(sizeof(ptrdiff_t) * lcp->q->np_upper);
     lcp->a_now=-1;
@@ -104,7 +138,6 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
                       lcp);
         handler_i++;
       }
-
 }
 
 double(* fastpm_lcp_tile(FastPMSolver *fastpm, int tile_x, int tile_y, int tile_z, int * ntiles, double (*tiles)[3]))[3]{
@@ -442,12 +475,13 @@ zangle(double * x) {
 /* FIXME:
  * the function shall take ai, af as input,
  *
- * the function instersects particles with the lightcone and saves position and velocity
- * We will have separate function for intesection for particles on grid, to save potential
- * and tidal field
+ * the function shall be able to interpolate potential as
+ * well as position and velocity.
+ * We need a more general representation of '*drift' and '*kick'.
+ *
  * */
 static int
-fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
+fastpm_lcp_intersect_tile_grid(FastPMLightConeP * lcp, int tile,
         FastPMTransitionEvent *event,
         FastPMStore * p,
         FastPMStore * pout
@@ -489,15 +523,11 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
         int d;
 
         xi[3] = 1;
-        if(p->v) {
-            /* can we drift? if we are using a fixed grid there is no v. */
-          //  fastpm_drift_one(drift, p, i, xi, a_emit);
-          //we should not need this as func will be called after particles are drifted/kicked?
-        } else {
+
             for(d = 0; d < 3; d ++) {
                 xi[d] = p->x[i][d];
             }
-        }
+
         for(d = 0; d < 4; d ++) {
             xi[d] += params.tileshift[d];
         }
@@ -514,25 +544,6 @@ fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,
             }
         }
 
-        float vo[3];
-        float vi[3];
-        if(p->v) {
-            /* can we kick? if we are using a fixed grid there is no v */
-            //fastpm_kick_one(kick, p, i, vi, a_emit);
-            //we should not need this as func will be called after particles are drifted/kicked?
-
-            /* transform the coordinate */
-            gldotv(lcp->glmatrix, vi, vo);
-
-            if(pout->v) {
-                for(d = 0; d < 3; d ++) {
-                    /* convert to peculiar velocity a dx / dt in kms */
-                    pout->v[next][d] = vo[d] * HubbleConstant / a_emit;
-                }
-            }
-        }
-        if(pout->id)
-            pout->id[next] = p->id[i];
         if(pout->aemit)
             pout->aemit[next] = a_emit;
 
@@ -567,11 +578,11 @@ fastpm_lcp_intersect(FastPMSolver * fastpm, FastPMTransitionEvent *event, FastPM
     /* for each tile */
     int t;
     for(t = 0; t < lcp->ntiles; t ++) {
-        fastpm_lcp_intersect_tile(lcp, t, event, fastpm->p, lcp->p);/*Store particle to get
-                                                                  density*/
+        // fastpm_lcp_intersect_tile(lcp, t, event, fastpm->p, lcp->p);/*Store particle to get
+        //                                                           density*/
 
         if(lcp->compute_potential)
-            fastpm_lcp_intersect_tile(lcp, t, event, lcp->p0, lcp->q);/*store potential on fixed
+            fastpm_lcp_intersect_tile_grid(lcp, t, event, lcp->p0, lcp->q);/*store potential on fixed
                                                                         grid*/
     }
     return 0;
