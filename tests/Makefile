@@ -8,13 +8,13 @@ DIR_PATH = $(GSL_DIR)
 CPPFLAGS += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
-CPPFLAGS += -I../api/ -I../lua/ -I../bigfile -I../depends/install -I../mpsort
+CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 
 TEST_SOURCES = testpm.c \
                testconstrained.c \
                testlightcone.c \
-							 testlightconeP.c \
-               testrecorder.c
+			   testlightconeP.c \
+               testangulargrid.c
 
 TESTS = $(TEST_SOURCES:%.c=%)
 
@@ -26,15 +26,19 @@ SOURCES = $(TEST_SOURCES)
 all: $(TESTS)
 
 testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testconstrained : .objs/testconstrained.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testlightcone : .objs/testlightcone.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) $(GSL_LIBS) -lm
+
+testangulargrid: .objs/testangulargrid.o $(LIBFASTPM_LIBS)
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testlightconeP : .objs/testlightconeP.o $(LIBFASTPM_LIBS)
@@ -42,7 +46,7 @@ testlightconeP : .objs/testlightconeP.o $(LIBFASTPM_LIBS)
 				$(LDFLAGS) $(GSL_LIBS) -lm
 
 testrecorder: .objs/testrecorder.o $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 -include $(SOURCES:%.c=.deps/%.d)

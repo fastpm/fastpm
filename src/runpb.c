@@ -25,7 +25,17 @@ typedef struct {
   float eps;            /* Gravitational softening    */
 } FileHeader;
 
-int 
+void
+fwrite_or_die(void * ptr, size_t elsize, size_t size, FILE * fp,
+    const char * message
+    )
+{
+    if(size != fwrite(ptr, elsize, size, fp)) {
+        fastpm_raise(0030, "failed to write %td bytes for %s. \n", size, message);
+    }
+}
+
+int
 read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 {
     int ThisTask = fastpm->ThisTask;
@@ -333,9 +343,9 @@ static void write_mine(const char * filebase,
         sprintf(buf, FILENAME, filebase, i);
         FILE * fp = fopen(buf, "r+");
         /* skip these */
-        fwrite(&eflag, sizeof(int), 1, fp);
-        fwrite(&hsize, sizeof(int), 1, fp);
-        fwrite(&header, sizeof(FileHeader), 1, fp);
+        fwrite_or_die(&eflag, sizeof(int), 1, fp, "eflag");
+        fwrite_or_die(&hsize, sizeof(int), 1, fp, "hsize");
+        fwrite_or_die(&header, sizeof(FileHeader), 1, fp, "header");
         /* pos */
         fseek(fp, mystart * sizeof(float) * 3, SEEK_CUR);
         nread = 0;
@@ -348,7 +358,7 @@ static void write_mine(const char * filebase,
                 for(d = 0; d < 3; d++) 
                     fscratch[q++] = p->x[offset + nread + ip][d] / boxsize;
             }
-            fwrite(scratch, sizeof(float) * 3, nbatch, fp);
+            fwrite_or_die(scratch, sizeof(float) * 3, nbatch, fp, "pos");
             nread += nbatch;
         }
         fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
@@ -364,7 +374,7 @@ static void write_mine(const char * filebase,
                 for(d = 0; d < 3; d++) 
                     fscratch[q++] = p->v[offset + nread + ip][d] * RSD / boxsize;
             }
-            fwrite(scratch, sizeof(float) * 3, nbatch, fp);
+            fwrite_or_die(scratch, sizeof(float) * 3, nbatch, fp, "vel");
             nread += nbatch;
         }
         fseek(fp, (NperFile[i] - myend) * sizeof(float) * 3, SEEK_CUR);
@@ -378,7 +388,7 @@ static void write_mine(const char * filebase,
             for(ip = 0, q = 0; ip < nbatch; ip ++) {
                 lscratch[q++] = p->id[offset + nread + ip];
             }
-            fwrite(scratch, sizeof(int64_t), nbatch, fp);
+            fwrite_or_die(scratch, sizeof(int64_t), nbatch, fp, "id");
             nread += nbatch;
         }
         fseek(fp, (NperFile[i] - myend) * sizeof(int64_t), SEEK_CUR);

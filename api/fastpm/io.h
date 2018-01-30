@@ -28,5 +28,12 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
 int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
 
+int 
+read_angular_grid(FastPMStore * store,
+        const char * filename,
+        const double * r,
+        const double * aemit,
+        const size_t Nr, MPI_Comm comm);
+
 FASTPM_END_DECLS
 #endif

@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
 #include <bigfile.h>
 #include <bigfile-mpi.h>
 #include <mpsort.h>
@@ -385,4 +387,144 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
 
     free(buf);
     return 0;
+}
+
+/**
+ *
+ * This routine creates an angular mesh from a data file that stores RA, DEC in degrees
+ *
+ * store : particle storage for the file; must be preallocated large enough to handle the file.
+ * filename : location of bigfile data repository, must contain RA and DEC columns
+ * r : an array of radial distance to place the mesh
+ * aemit : an array of emission redshift; that is also stored in the mesh; This shall be solved from r
+ * before the function is called.
+ * Nr : number of entries in aemit / r
+ * comm : MPI Communicator.
+ *
+ * The ->x and ->aemit elements are updated.
+ * np is also updated.
+ */
+int 
+read_angular_grid(FastPMStore * store,
+        const char * filename,
+        const double * r,
+        const double * aemit,
+        const size_t Nr,
+        MPI_Comm comm)
+{
+
+    int NTask;
+    int ThisTask;
+
+    MPI_Comm_size(comm, &NTask);
+    MPI_Comm_rank(comm, &ThisTask);
+
+    BigFile bf = {0};
+    BigBlock bb = {0};
+    BigArray array = {0};
+    BigBlockPtr ptr;
+
+    if(0 != big_file_mpi_open(&bf, filename, comm)) {
+        goto exc_open;
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, "RA", comm)) {
+        goto exc_open;
+    }
+    size_t localstart = bb.size * ThisTask / NTask;
+    size_t localend = bb.size * (ThisTask + 1) / NTask;
+    size_t localsize = localend - localstart;
+
+    fastpm_info("Reading %td ra dec coordinates; localsize = %td\n", bb.size, localsize);
+
+    if(0 != big_block_mpi_close(&bb, comm)) {
+        goto exc_open;
+    }
+
+
+    double * RA = malloc(localsize * sizeof(double));
+    double * DEC = malloc(localsize * sizeof(double));
+
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, "RA", comm)) {
+        goto exc_open_blk;
+    }
+    if(0 != big_block_seek(&bb, &ptr, 0)) {
+        goto exc_seek;
+    }
+    if(0 != big_array_init(&array, RA, "f8", 1, (size_t[]) {localsize, }, NULL)) {
+        goto exc_arr;
+    }
+    if(0 != big_block_mpi_read(&bb, &ptr, &array, NTask, comm)) {
+        goto exc_read;
+    }
+    if(0 != big_block_mpi_close(&bb, comm)) {
+        goto exc_close_blk;
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, "DEC", comm)) {
+        goto exc_open_blk;
+    }
+    if(0 != big_block_seek(&bb, &ptr, 0)) {
+        goto exc_seek;
+    }
+    if(0 != big_array_init(&array, DEC, "f8", 1, (size_t[]) {localsize, }, NULL)) {
+        goto exc_arr;
+    }
+    if(0 != big_block_mpi_read(&bb, &ptr, &array, NTask, comm)) {
+        goto exc_read;
+    }
+    if(0 != big_block_mpi_close(&bb, comm)) {
+        goto exc_close_blk;
+    }
+
+    if(0 != big_file_mpi_close(&bf, comm)) {
+        goto exc_close;
+    }
+
+    ptrdiff_t i;
+    ptrdiff_t j;
+    ptrdiff_t n;
+    n = 0;
+
+    for(i = 0; i < localsize; i ++) {
+        RA[i] /= (2 * M_PI);
+        DEC[i] /= (2 * M_PI);
+    }
+
+    for(i = 0; i < localsize; i ++) {
+        /* FIXME conversion is likely wrong. */
+        double x = cos(DEC[i]) * sin(RA[i]);
+        double y = cos(DEC[i]) * cos(RA[i]);
+        double z = sin(DEC[i]);
+        for(j = 0; j < Nr; j ++) {
+            store->x[n][0] = x * r[j];
+            store->x[n][1] = y * r[j];
+            store->x[n][2] = z * r[j];
+            store->aemit[n] = aemit[j];
+            n++;
+        }
+        if(n == store->np_upper) {
+            fastpm_raise(-1, "Too many grid points on the grid, the limit is %td\n", store->np_upper);
+        }
+    }
+
+    store->np = n;
+
+    fastpm_info("Generated %td x, y, z coordinates locally\n", n);
+
+    return 0;
+
+    exc_close:
+    exc_close_blk:
+    exc_read:
+    exc_arr:
+    exc_seek:
+    exc_open_blk:
+    free(DEC);
+    free(RA);
+    exc_open:
+        fastpm_raise(-1, "Failed to read angular file %s, for %s\n", filename, big_file_get_error_message());
+
+    return 1;
 }
