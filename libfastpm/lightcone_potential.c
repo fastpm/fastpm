@@ -16,20 +16,25 @@
 
 void
 fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
-                double (*tileshifts)[3], int ntiles
+                double (*tileshifts)[3], int ntiles, int read_ra_dec
                 )
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
     int lcp_np_ratio=ntiles;
 
-//XXX Do we need all of these?
-    lcp->p = malloc(sizeof(FastPMStore)*lcp_np_ratio); // times ntiles??
-    lcp->q = malloc(sizeof(FastPMStore)*lcp_np_ratio);
-    lcp->p0 = malloc(sizeof(FastPMStore)*lcp_np_ratio);
+//XXX Do we need these?
+    lcp->p = malloc(sizeof(FastPMStore)*lcp_np_ratio);//To store (matter) particles as they enter horizon
 
+    lcp->read_ra_dec=read_ra_dec;
 
+    if (read_ra_dec){
+    }
 
+    else{
+      lcp->p0 = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*fixed grid*/
+      lcp->q = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*for storing fixed grid particles as they intersect lightcone*/
+      }
     /* Allocation */
 
     int size = 8192;
@@ -119,7 +124,6 @@ double(* fastpm_lcp_tile(FastPMSolver *fastpm, int tile_x, int tile_y, int tile_
     }
     return tiles;
 }
-
 
 void
 fastpm_lcp_destroy(FastPMLightConeP * lcp)
@@ -258,6 +262,7 @@ funct(double a, void *params)
     return distance - fastpm_lcp_horizon(lcp, a);
 }
 
+/*Potential interpolation. Required even when using ra-dec grid*/
 int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent * event){
   double potfactor = 1.5 * lcp->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
 
@@ -437,10 +442,9 @@ zangle(double * x) {
 /* FIXME:
  * the function shall take ai, af as input,
  *
- * the function shall be able to interpolate potential as
- * well as position and velocity.
- * We need a more general representation of '*drift' and '*kick'.
- *
+ * the function instersects particles with the lightcone and saves position and velocity
+ * We will have separate function for intesection for particles on grid, to save potential
+ * and tidal field
  * */
 static int
 fastpm_lcp_intersect_tile(FastPMLightConeP * lcp, int tile,

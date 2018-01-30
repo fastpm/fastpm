@@ -18,7 +18,8 @@ typedef struct {
 
 
     double (* tileshifts)[3];
-    int ntiles;
+    int ntiles;//number of times box is repeated or tiled.
+    int read_ra_dec;// To keep track whether grid particles are read in or on regular xyz grid
 
     double a_prev,a_now; //a at previous force calculcation and current force calculation
 
