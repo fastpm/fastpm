@@ -35,6 +35,7 @@ fastpm_lcp_read_angular_grid(FastPMLightConeP * lcp)
       {
         shell->a[i_a]=a_min+i_a*(a_max-a_min)/(n_a-1);
         shell->r[i_a]=fastpm_lcp_horizon(lcp,shell->a[i_a]);
+        //fastpm_info("shell a=%g\n",shell->a[i_a]);
       }
 
     shell->size= read_angular_grid(NULL, shell->ra_dec_filename, shell->r, shell->a, n_a,
@@ -49,19 +50,19 @@ fastpm_lcp_read_angular_grid(FastPMLightConeP * lcp)
                 | PACK_TIDAL
                 | PACK_AEMIT);
   /*XXX use the domain decompose */
-  //double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
 
   for (int i=0;i<lcp->read_ra_dec;i++){
     shell=&lcp->shell_params[i];
     shell->start_indx=lcp->p0->np;
     read_angular_grid(lcp->p0, shell->ra_dec_filename, shell->r, shell->a, shell->n_a,
                   shell->subsample_factor, MPI_COMM_WORLD);
-    shell->stop_indx=lcp->p0->np-1; //XXX check that -1 is correct
+    shell->stop_indx=lcp->p0->np; //XXX check that -1 is correct
   }
-  fastpm_store_init(lcp->q, lcp->p0->np_upper,   PACK_POS
+  fastpm_store_init(lcp->q, lcp->p0->np,   PACK_POS
                 | PACK_POTENTIAL
                 | PACK_TIDAL
                 | PACK_AEMIT);
+
   for (ptrdiff_t i=0;i<lcp->q->np_upper;i++)
   {
     lcp->q->potential[i]=NAN;
@@ -123,9 +124,9 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
 
     if (read_ra_dec){
       fastpm_lcp_read_angular_grid(lcp);
-      fastpm_info("%td max particles in the lightcone\n",lcp->q->np_upper);
+      lcp->interp_start_indx=0;
+      lcp->interp_stop_indx=0;
     }
-
     else{
       lcp->p0 = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*fixed grid*/
       lcp->q = malloc(sizeof(FastPMStore)*lcp_np_ratio);/*for storing fixed grid particles as they intersect lightcone*/
@@ -146,15 +147,16 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
               | PACK_TIDAL
               | PACK_AEMIT);
             }
+            lcp->interp_start_indx=0;
+            lcp->interp_stop_indx=0;
     }
-
+    fastpm_info("%td max particles in the lightcone\n",lcp->q->np_upper);
     lcp->interp_q_indx=malloc(sizeof(ptrdiff_t) * lcp->q->np_upper);
     lcp->a_now=-1;
     lcp->a_prev=-1;
     lcp->G_prev=0;
     lcp->G_now=0;
-    lcp->interp_start_indx=0;
-    lcp->interp_stop_indx=0;
+
 
     static int handler_i= 0;
     if (handler_i==0){/*to avoid adding multiple handlers if lightcone is initialized many times*/
@@ -294,14 +296,16 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
   double Gf=lcp->G_now;
   double Gemit=0;
 
-  fastpm_info("%td particles are in the uniform light cone\n", lcp->q->np);
-  fastpm_info("Potential interpolation, ai,af,Gi,Gf, start_indx, stop_indx: %g %g %g %g %td %td \n",ai,af,Gi,Gf,lcp->interp_start_indx,lcp->interp_stop_indx);
+  fastpm_info("%td particles are in the uniform light cone compared to maximum%td\n",
+              lcp->q->np, lcp->q->np_upper);
+  fastpm_info("Potential interpolation, ai,af,Gi,Gf, start_indx, stop_indx:%g %g %g %g %td %td \n",ai,af,Gi,Gf,lcp->interp_start_indx,lcp->interp_stop_indx);
 
 /*XXX Parallelize if too slow*/
-  if (ai>0){
+  if (ai>0 && lcp->q->np>0){
     for(ptrdiff_t i=lcp->interp_start_indx;i<lcp->interp_stop_indx;i++){
-         //Gemit=GrowthFactor(pout->aemit[i], lcp->cosmology);//aemit[i];
-         Gemit=fastpm_lcp_growth( lcp, pout->aemit[i]);
+
+         if(pout->aemit[i-1]!=pout->aemit[i])
+          Gemit=fastpm_lcp_growth( lcp, pout->aemit[i]);
 
          //pout->potential[i] =p0->potential[indxs[i]]/ pout->aemit[i] * potfactor;
 
@@ -310,6 +314,7 @@ int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent 
                             -pout->potential[i])/(Gf-Gi)*(Gemit-Gi);
     }
   }
+
   lcp->interp_start_indx=lcp->interp_stop_indx;
   lcp->a_prev=lcp->a_now;
   lcp->G_prev=lcp->G_now;
@@ -521,20 +526,24 @@ fastpm_lcp_intersect_tile_grid(FastPMLightConeP * lcp, int tile,
     ptrdiff_t i;
 
     for(i = 0; i < p->np; i ++) {
-        double a_emit = 0;
+        double a_emit = -1;
+        ptrdiff_t next=-1;
+
         if (lcp->read_ra_dec==0){/*XXX This doesnot give exact answer when a_emit is known for ra_dec grid*/
           if(0 == _fastpm_lcp_intersect_one(lcp, &params, i, &a_emit)) continue;
+          next = pout->np;
         }
         else{
           a_emit=p->aemit[i];
-          if(a_emit>params.a2||a_emit<params.a1)continue;
+          if(a_emit>=params.a2||a_emit<params.a1)continue;
+          next=i; // we want to use same indexing in both input and output.
+                  //XXX Check to ensure that all particles enter lightcone. Maybe a problem otherwise
         }
         /* A solution is found */
         /* move the particle and store it. */
-        ptrdiff_t next = pout->np;
-        if (lcp->read_ra_dec!=0)
-          next=i; // we want to use same indexing in both input and output.
-                  //XXX Check to ensure that all particles enter lightcone. Maybe a problem otherwise
+        if(a_emit>params.a2||a_emit<params.a1){
+          fastpm_info("a_emit out of range%g\n",a_emit);
+        }
 
         if(next == pout->np_upper) {
             fastpm_raise(-1, "Too many particles in the light cone next=%td, max=%td, aemit=%g \n",
@@ -579,9 +588,16 @@ fastpm_lcp_intersect_tile_grid(FastPMLightConeP * lcp, int tile,
                 pout->tidal[next][d] = p->tidal[i][d] / a_emit * potfactor;
             }
         }
-        lcp->interp_q_indx[next]=i;
         pout->np ++;
-        lcp->interp_stop_indx=next;
+
+        if(pout->np > pout->np_upper)
+        {
+          fastpm_raise(-1, "Too many particles in the light cone next=%td, max=%td, aemit=%g \n",
+                  pout->np,pout->np_upper,a_emit);
+        }
+          lcp->interp_q_indx[next]=i;
+
+          lcp->interp_stop_indx=next;
     }
     return 0;
 }

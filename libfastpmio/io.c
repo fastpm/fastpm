@@ -455,6 +455,10 @@ read_angular_grid(FastPMStore * store,
     double * RA = malloc(localsize * sizeof(double));
     double * DEC = malloc(localsize * sizeof(double));
 
+    double * x = malloc(localsize * sizeof(double));
+    double * y = malloc(localsize * sizeof(double));
+    double * z = malloc(localsize * sizeof(double));
+
 
     if(0 != big_file_mpi_open_block(&bf, &bb, "RA", comm)) {
         goto exc_open_blk;
@@ -501,21 +505,18 @@ read_angular_grid(FastPMStore * store,
         RA[i] /= d2r;
         //DEC[i] /= d2r;
         DEC[i]=M_PI/2.-DEC[i]/d2r;
+        /* FIXME conversion is likely wrong. */
+        x[i] = sin(DEC[i]) * cos(RA[i]);
+        y[i] = sin(DEC[i]) * sin(RA[i]);
+        z[i] = cos(DEC[i]);
     }
 
-    for(i = 0; i < localsize; i+=sampling_factor) {
-        /* FIXME conversion is likely wrong. */
-        double x = sin(DEC[i]) * cos(RA[i]);
-        double y = sin(DEC[i]) * sin(RA[i]);
-        double z = cos(DEC[i]);
-        for(j = 0; j < Nr; j ++) {
-            store->x[n][0] = x * r[j];
-            store->x[n][1] = y * r[j];
-            store->x[n][2] = z * r[j];
+    for(j = 0; j < Nr; j ++) {
+      for(i = 0; i < localsize; i+=sampling_factor) {
+            store->x[n][0] = x[i] * r[j];
+            store->x[n][1] = y[i] * r[j];
+            store->x[n][2] = z[i] * r[j];
             store->aemit[n] = aemit[j];
-            // if (i==0&&j==0){ //DEBUG print
-            //   fastpm_info("RA DEC conversion RA=%g DEC=%g r=%g, x=%g y=%g z=%g \n ",RA[i],DEC[i],r[j],store->x[n][0],store->x[n][1],store->x[n][2]);
-            // }
             n++;
         }
         if(n == store->np_upper) {
@@ -526,6 +527,12 @@ read_angular_grid(FastPMStore * store,
     store->np = n;
 
     fastpm_info("Generated %td x, y, z coordinates locally\n", n);
+
+    free(DEC);
+    free(RA);
+    free(x);
+    free(y);
+    free(z);
 
     return n;
 
