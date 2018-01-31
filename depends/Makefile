@@ -48,7 +48,7 @@ $(MPSORT_LIBS:%.a=install/lib/%.a): .mpsort
 $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
 .pfft:
-	($(MAKE) "OPENMP=$(OPENMP)" "CC=$(CC)" -f Makefile.pfft "PFFT_CONFIGURE_FLAGS=$(PFFT_CONFIGURE_FLAGS)")
+	($(MAKE) "OPENMP=$(OPENMP)" "CC=$(CC)" "CFLAGS=$(OPTIMIZE)" -f Makefile.pfft "PFFT_CONFIGURE_FLAGS=$(PFFT_CONFIGURE_FLAGS)")
 
 clean:
 	rm -f libfastpm-dep.a
