@@ -16,6 +16,64 @@
 #include "pmghosts.h"
 
 void
+fastpm_lcp_read_angular_grid(FastPMLightConeP * lcp)
+{
+  int n_a;
+  grid_params *shell;
+  size_t size_total=0;
+
+  for (int i=0;i<lcp->read_ra_dec;i++){
+    shell=&lcp->shell_params[i];
+    n_a=shell->n_a;
+    shell->a = malloc(sizeof(double)*n_a);
+    shell->r = malloc(sizeof(double)*n_a);
+
+    double a_max=shell->a_max;
+    double a_min=shell->a_min;
+
+    for (int i_a=0;i_a<n_a;i_a++)
+      {
+        shell->a[i_a]=a_min+i_a*(a_max-a_min)/(n_a-1);
+        shell->r[i_a]=fastpm_lcp_horizon(lcp,shell->a[i_a]);
+      }
+
+    shell->size= read_angular_grid(NULL, shell->ra_dec_filename, shell->r, shell->a, n_a,
+                                  shell->subsample_factor, MPI_COMM_WORLD);
+    size_total+=shell->size;
+    fastpm_info("lightcone %td size=%td size_total=%td\n",i,shell->size,size_total);
+  }
+
+  /*FIXME fudge factor for ghosts*/
+  fastpm_store_init(lcp->p0,size_total, PACK_POS
+                | PACK_POTENTIAL
+                | PACK_TIDAL
+                | PACK_AEMIT);
+  /*XXX use the domain decompose */
+  //double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+  for (int i=0;i<lcp->read_ra_dec;i++){
+    shell=&lcp->shell_params[i];
+    shell->start_indx=lcp->p0->np;
+    read_angular_grid(lcp->p0, shell->ra_dec_filename, shell->r, shell->a, shell->n_a,
+                  shell->subsample_factor, MPI_COMM_WORLD);
+    shell->stop_indx=lcp->p0->np-1; //XXX check that -1 is correct
+  }
+  fastpm_store_init(lcp->q, lcp->p0->np_upper,   PACK_POS
+                | PACK_POTENTIAL
+                | PACK_TIDAL
+                | PACK_AEMIT);
+  for (ptrdiff_t i=0;i<lcp->q->np_upper;i++)
+  {
+    lcp->q->potential[i]=NAN;
+    lcp->q->aemit[i]=NAN;
+    if(lcp->q->tidal) {
+        for(int d = 0; d < 6; d++) {
+            lcp->q->tidal[i][d] = NAN;
+        }}
+  }
+}
+
+void
 fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
                 double (*tileshifts)[3], int ntiles
                 )
@@ -64,57 +122,7 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
     }
 
     if (read_ra_dec){
-
-      int n_a=20;
-      int n_a_subsample=0;
-      double *a_subsample;
-      double *r_subsample;
-      double *a = malloc(sizeof(double)*n_a);
-      double *r = malloc(sizeof(double)*n_a);
-
-      double a_max=1;
-      double a_min=.1;
-      for (int i_a=0;i_a<n_a;i_a++)
-        {
-            a[i_a]=a_min+i_a*(a_max-a_min)/(n_a-1);
-            r[i_a]=fastpm_lcp_horizon(lcp,a[i_a]);
-            if (a[i_a]>lcp->subsample_a)
-              n_a_subsample+=1;
-        }
-
-      size_t size= read_angular_grid(NULL, lcp->ra_dec_filename, r, a, n_a-n_a_subsample, 1,
-        MPI_COMM_WORLD);
-        size_t size2=0;
-      if (n_a_subsample>0){
-          size2=read_angular_grid(NULL, lcp->ra_dec_subsample_filename, r, a, n_a_subsample,
-                          lcp->grid_subsample_factor, MPI_COMM_WORLD);
-          a_subsample = malloc(sizeof(double)*n_a_subsample);
-          r_subsample = malloc(sizeof(double)*n_a_subsample);
-          for (int i_a=0;i_a<n_a_subsample;i_a++){
-              a_subsample[i_a]=a[i_a+n_a-n_a_subsample];
-              r_subsample[i_a]=r[i_a+n_a-n_a_subsample];
-              fastpm_info("subsample i=%td,a=%g,r=%g\n",i_a,a_subsample[i_a],r_subsample[i_a]);
-            }
-      }
-      fastpm_info("lightcone size=%td size2=%td\n",size,size2);
-/*FIXME fudge factor for ghosts*/
-      fastpm_store_init(lcp->p0,size+size2, PACK_POS
-                    | PACK_POTENTIAL
-                    | PACK_TIDAL
-                    | PACK_AEMIT);
-      /*XXX use the domain decompose */
-      //double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
-
-      read_angular_grid(lcp->p0, lcp->ra_dec_filename, r, a, n_a-n_a_subsample, 1, MPI_COMM_WORLD);
-
-      if (n_a_subsample>0){
-            read_angular_grid(lcp->p0, lcp->ra_dec_subsample_filename, r_subsample, a_subsample, n_a_subsample, lcp->grid_subsample_factor, MPI_COMM_WORLD);
-      }
-
-      fastpm_store_init(lcp->q, lcp->p0->np_upper,   PACK_POS
-                    | PACK_POTENTIAL
-                    | PACK_TIDAL
-                    | PACK_AEMIT);
+      fastpm_lcp_read_angular_grid(lcp);
       fastpm_info("%td max particles in the lightcone\n",lcp->q->np_upper);
     }
 
@@ -163,14 +171,15 @@ fastpm_lcp_init(FastPMLightConeP * lcp, FastPMSolver * fastpm,
       }
 }
 
-double(* fastpm_lcp_tile(FastPMSolver *fastpm, int tile_x, int tile_y, int tile_z, int * ntiles, double (*tiles)[3]))[3]{
-  *ntiles=(tile_x*2+1)*(tile_y*2+1)*(tile_z*2+1);
+double(* fastpm_lcp_tile(FastPMSolver *fastpm, int tile_x, int tile_y, int tile_z,
+                    int shift_one_negative, int * ntiles, double (*tiles)[3]))[3]{
+  *ntiles=(tile_x*2+1+shift_one_negative)*(tile_y*2+1+shift_one_negative)*(tile_z*2+1+shift_one_negative);
   tiles=malloc(sizeof(tiles[0]) * (*ntiles));
 
     int nt=0;
-    for(int i_x=-tile_x;i_x<=tile_x;i_x++){
-      for(int i_y=-tile_y;i_y<=tile_y;i_y++){
-        for(int i_z=-tile_z;i_z<=tile_z;i_z++){
+    for(int i_x=-tile_x-shift_one_negative;i_x<=tile_x;i_x++){
+      for(int i_y=-tile_y-shift_one_negative;i_y<=tile_y;i_y++){
+        for(int i_z=-tile_z-shift_one_negative;i_z<=tile_z;i_z++){
           tiles[nt][0]=i_x*pm_boxsize(fastpm->basepm)[0];
           tiles[nt][1]=i_y*pm_boxsize(fastpm->basepm)[1];
           tiles[nt][2]=i_z*pm_boxsize(fastpm->basepm)[2];
@@ -239,18 +248,6 @@ fastpm_lcp_growth(FastPMLightConeP * lcp, double a)
          + lcp->EventHorizonTable.Growth[r] * (x - l);
 }
 
-
-struct funct_params {/*FIXME *Is it ok to use same name in 2 files?*/
-    FastPMLightConeP *lcp;
-    FastPMStore * p;
-    //FastPMDriftFactor * drift; /*TODO: not needed??*/
-    ptrdiff_t i;
-    double tileshift[4];
-    double a1;
-    double a2;
-};
-
-
 /*FIXME: Code duplication*/
 static void
 gldot(double glmatrix[4][4], double xi[4], double xo[4])
@@ -276,47 +273,6 @@ gldotv(double glmatrix[4][4], float vi[3], float vo[3])
     }
 }
 
-static double
-funct(double a, void *params)
-{
-    struct funct_params *Fp = (struct funct_params *) params;
-
-    FastPMLightConeP *lcp = Fp->lcp;
-    FastPMStore * p = Fp->p;
-    //FastPMDriftFactor * drift = Fp->drift;
-    ptrdiff_t i = Fp->i;
-    int d;
-    double xi[4];
-    double xo[4];
-
-    xi[3] = 1;
-    // if(p->v) {
-    //     fastpm_drift_one(drift, p, i, xi, a);
-    // } else {
-    for(d = 0; d < 3; d ++) {
-            xi[d] = p->x[i][d];
-    }
-    //}
-    for(d = 0; d < 4; d ++) {
-        xi[d] += Fp->tileshift[d];
-    }
-    /* transform the coordinate */
-    gldot(lcp->glmatrix, xi, xo);
-
-    /* XXX: may need to worry about periodic boundary */
-    double distance;
-    if (lcp->fov <= 0) {
-        distance = xo[2];
-    } else {
-        distance = 0;
-        for (d = 0; d < 3; d ++) {
-            distance += xo[d] * xo[d];
-        }
-        distance = sqrt(distance);
-    }
-
-    return distance - fastpm_lcp_horizon(lcp, a);
-}
 
 /*Potential interpolation. Required even when using ra-dec grid*/
 int fastpm_lcp_compute_final_potential(FastPMLightConeP * lcp, FastPMForceEvent * event){
@@ -415,6 +371,29 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
     return 0;
 }
 
+struct funct_params {/*FIXME *Is it ok to use same name in 2 files?*/
+    FastPMLightConeP *lcp;
+    FastPMStore * p;
+    ptrdiff_t i;
+    double tileshift[4];
+    double a1;
+    double a2;
+    double distance;
+};
+
+
+static double
+funct(double a, void *params)
+{
+    struct funct_params *Fp = (struct funct_params *) params;
+
+    FastPMLightConeP *lcp = Fp->lcp;
+    FastPMStore * p = Fp->p;
+    //FastPMDriftFactor * drift = Fp->drift;
+    ptrdiff_t i = Fp->i;
+
+    return Fp->distance - fastpm_lcp_horizon(lcp, a);
+}
 
 static int
 _fastpm_lcp_intersect_one(FastPMLightConeP * lcp,
@@ -423,6 +402,33 @@ _fastpm_lcp_intersect_one(FastPMLightConeP * lcp,
         double * solution)
 {
     params->i = i;
+
+    int d;
+    double xi[4];
+    double xo[4];
+
+    xi[3] = 1;
+
+    for(d = 0; d < 3; d ++) {
+            xi[d] = params->p->x[i][d];
+    }
+
+    for(d = 0; d < 4; d ++) {
+        xi[d] += params->tileshift[d];
+    }
+    /* transform the coordinate */
+    gldot(lcp->glmatrix, xi, xo);
+
+    /* XXX: may need to worry about periodic boundary */
+    if (lcp->fov <= 0) {
+        params->distance = xo[2];
+    } else {
+        params->distance = 0;
+        for (d = 0; d < 3; d ++) {
+            params->distance += xo[d] * xo[d];
+        }
+        params->distance = sqrt(params->distance);
+    }
 
     int status;
     int iter = 0, max_iter;
@@ -449,12 +455,6 @@ _fastpm_lcp_intersect_one(FastPMLightConeP * lcp,
     do
     {
         iter++;
-        //
-        // Debug printout #1
-        //if(iter == 1) {
-        //fastpm_info("ID | [x_lo, x_hi] | r | funct(r) | x_hi - x_lo\n");
-        //}
-        //
 
         status = gsl_root_fsolver_iterate(lcp->gsl);
         r = gsl_root_fsolver_root(lcp->gsl);
@@ -463,25 +463,13 @@ _fastpm_lcp_intersect_one(FastPMLightConeP * lcp,
         x_hi = gsl_root_fsolver_x_upper(lcp->gsl);
 
         status = gsl_root_test_interval(x_lo, x_hi, eps, 0.0);
-        //
-        //Debug printout #2
-        //fastpm_info("%5d [%.7f, %.7f] %.7f %.7f %.7f\n", iter, x_lo, x_hi, r, funct(r, &params), x_hi - x_lo);
-        //
 
         if(status == GSL_SUCCESS) {
             *solution = r;
-            //
-            // Debug printout #3.1
-            //fastpm_info("fastpm_lcp_intersect() called with parameters %.7f and %.7f, returned status %d.\n\n", a, b, 1);
-            //
             return 1;
         }
     }
     while (status == GSL_CONTINUE && iter < max_iter);
-    //
-    // Debug printout #3.2
-    //fastpm_info("fastpm_lcp_intersect() called with parameters %.7f and %.7f, returned status %d.\n\n", a, b, 0);
-    //
 
     return 0;
 }
@@ -544,6 +532,10 @@ fastpm_lcp_intersect_tile_grid(FastPMLightConeP * lcp, int tile,
         /* A solution is found */
         /* move the particle and store it. */
         ptrdiff_t next = pout->np;
+        if (lcp->read_ra_dec!=0)
+          next=i; // we want to use same indexing in both input and output.
+                  //XXX Check to ensure that all particles enter lightcone. Maybe a problem otherwise
+
         if(next == pout->np_upper) {
             fastpm_raise(-1, "Too many particles in the light cone next=%td, max=%td, aemit=%g \n",
                     next,pout->np_upper,a_emit);

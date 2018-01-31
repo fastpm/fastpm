@@ -1,5 +1,18 @@
 FASTPM_BEGIN_DECLS
 
+typedef struct{
+      int subsample_factor;/*Subsample grid by this factor (default=1, no subsampling).
+                        If negative, read subsample from a file */
+      char * ra_dec_filename;
+      ptrdiff_t start_indx,stop_indx; /*keep track of start and end index of these particles in the
+                                      lightcone*/
+      size_t size;
+      double a_max,a_min;
+      int n_a;
+      double *a,*r; //a, r array for the line of sight grid.
+    } grid_params; //parameters for reading in ra-dec grids
+
+
 typedef struct {
     int compute_potential;
     /* Storage of the particles on the light cone */
@@ -20,12 +33,11 @@ typedef struct {
     double (* tileshifts)[3];
     int ntiles;//number of times box is repeated or tiled.
 
-    int read_ra_dec;// To keep track whether grid particles are read in or on regular xyz grid
-    int grid_subsample_factor;/*Subsample grid by this factor (default=1, no subsampling).
-                      If negative, read subsample from a file */
-    double subsample_a; /*Minimum a for which to do subsampling. Default 1, no subsampling*/
-    char * ra_dec_filename;
-    char * ra_dec_subsample_filename;
+
+    int read_ra_dec;/*If zero, lightcone on xyz grid. If non-zero then read in read_ra_dec number
+                    of grids. eg. if read_ra_dec=2, read in 2 grids*/
+
+    grid_params *shell_params;
 
     double a_prev,a_now; //a at previous force calculcation and current force calculation
 
@@ -73,6 +85,7 @@ fastpm_lcp_compute_potential(FastPMSolver * fastpm,
         FastPMForceEvent * event,
         FastPMLightConeP * lcp);
 
-double(* fastpm_lcp_tile(FastPMSolver *fastpm,int tile_x, int tile_y, int tile_z, int *ntiles, double (*tiles)[3]))[3];
+double(* fastpm_lcp_tile(FastPMSolver *fastpm,int tile_x, int tile_y, int tile_z,
+                        int shift_one_negative, int *ntiles,double (*tiles)[3]))[3];
 
 FASTPM_END_DECLS

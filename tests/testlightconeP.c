@@ -51,15 +51,6 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2005, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    double (*tiles)[3];
-    int ntiles;
-    //tiles=fastpm_lcp_tile(solver,1, 1, 1, &ntiles, tiles);
-    tiles=fastpm_lcp_tile(solver,0, 0, 0, &ntiles, tiles);
-    //static int ntiles=1;
-    // double tiles[1][3] = {
-    //         {0, 0, 0},
-    //         };
-
     FastPMLightConeP lcp[1] = {{
         .speedfactor = 1,//0.2,
         .compute_potential = 1,
@@ -69,14 +60,32 @@ int main(int argc, char * argv[]) {
                 {0, 0, 1, 0,},
                 {0, 0, 0, 0,},
             },
-        .read_ra_dec=1,
+        .read_ra_dec=2,
         .fov = 360.,
         .cosmology = solver->cosmology,
-        .ra_dec_filename="healpix512",
-        .ra_dec_subsample_filename="healpix64",
-        .subsample_a=.9,
-        .grid_subsample_factor=1
     }};
+    double (*tiles)[3];
+    int ntiles;
+
+    if (lcp->read_ra_dec!=0){
+      tiles=fastpm_lcp_tile(solver,0, 0, 0, 0, &ntiles, tiles);
+      lcp->shell_params=malloc(sizeof(grid_params)*lcp->read_ra_dec);
+      lcp->shell_params[0].ra_dec_filename="healpix512";
+      lcp->shell_params[1].ra_dec_filename="healpix64";
+      lcp->shell_params[0].a_min=.5;
+      lcp->shell_params[0].a_max=.9;
+
+      lcp->shell_params[1].a_min=.9;
+      lcp->shell_params[1].a_max=1;
+      lcp->shell_params[0].n_a=25;
+      lcp->shell_params[1].n_a=5;
+      lcp->shell_params[0].subsample_factor=1;
+      lcp->shell_params[1].subsample_factor=1;
+    }
+    else{
+      tiles=fastpm_lcp_tile(solver, 1, 1, 1, 1, &ntiles, tiles);
+    }
+
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
@@ -110,7 +119,7 @@ int main(int argc, char * argv[]) {
     // fastpm_solver_setup_ic(solver, rho_init_ktruth);
     // fastpm_lcp_init(lcp, solver, tiles, ntiles);
 
-    double time_step2[] = {0.1,0.7,0.8,0.9,.99,1};
+    double time_step2[] = {0.1,0.5,0.7,0.9,.99,1};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
     fastpm_info("%td particles are in the light cone\n", lcp->p->np);
     fastpm_info("%td uniform particles are in the light cone\n", lcp->q->np);
