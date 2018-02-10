@@ -113,8 +113,9 @@ _sigma(PM * pm, FastPMFloat * delta_x)
         d2 += od * od;
     }
     MPI_Allreduce(MPI_IN_PLACE, &d2, 1, MPI_DOUBLE, MPI_SUM, pm_comm(pm));
-    d2 /= pm_norm(pm);
-    return d2;
+    /* unbiased estimator of the variance. the mean is 1. */
+    d2 /= (pm_norm(pm) - 1);
+    return sqrt(d2);
 }
 
 void
@@ -188,11 +189,11 @@ fastpm_cg_apply_constraints(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *
 
     _readout(constraints, size, pm, delta_x, dfi);
     for(i = 0; i < size; i ++) {
-        fastpm_info("Realization x[] = %g %g %g v = %g\n",
+        fastpm_info("After constraints, Realization x[] = %g %g %g overdensity = %g, peak-sigma= %g\n",
                 constraints[i].x[0],
                 constraints[i].x[1],
                 constraints[i].x[2],
-                (dfi[i] - 1.0) / sigma);
+                (dfi[i] - 1.0), (dfi[i] - 1.0) / sigma);
     }
     pm_r2c(pm, delta_x, delta_k);
     pm_free(pm, delta_x);

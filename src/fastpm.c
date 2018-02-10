@@ -364,7 +364,7 @@ induce:
         write_complex(fastpm->basepm, delta_k, CONF(prr, write_whitenoisek), "WhiteNoiseK", prr->Nwriters);
     }
 
-    /* FIXME: use enums */
+    /* introduce correlation */
     if(CONF(prr, f_nl_type) == FASTPM_FNL_NONE) {
         fastpm_info("Inducing correlation to the white noise.\n");
 
@@ -388,9 +388,13 @@ induce:
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
         fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
     }
+
+    /* set the mean to 1.0 */
     ptrdiff_t mode[4] = { 0, 0, 0, 0, };
+
     fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
 
+    /* add constraints */
     if(CONF(prr, constraints)) {
         FastPM2PCF xi;
 
@@ -407,7 +411,7 @@ induce:
             cg.constraints[i].x[1] = c[4 * i + 1];
             cg.constraints[i].x[2] = c[4 * i + 2];
             cg.constraints[i].c = c[4 * i + 3];
-            fastpm_info("Constraint %d : %g %g %g overdensity = %g\n", i, c[4 * i + 0], c[4 * i + 1], c[4 * i + 2], c[4 * i + 3]);
+            fastpm_info("Constraint %d : %g %g %g peak-sigma = %g\n", i, c[4 * i + 0], c[4 * i + 1], c[4 * i + 2], c[4 * i + 3]);
         }
         cg.constraints[i].x[0] = -1;
         cg.constraints[i].x[1] = -1;

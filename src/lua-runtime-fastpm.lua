@@ -142,14 +142,14 @@ schema.dealiasing_type.choices = {
     twothird = 'FASTPM_DEALIASING_TWO_THIRD',
 }
 
-schema.declare{name='constraints',      type='array:number',  help="A list of {x, y, z, overdensity}, giving the constraints in MPC/h units. "}
+schema.declare{name='constraints',      type='array:number',  help="A list of {x, y, z, peak-sigma}, giving the constraints in MPC/h units. "}
 function schema.constraints.action (constraints)
     if constraints == nil then
         return
     end
     for i,v in pairs(constraints) do
         if #v ~= 4 then
-            error("contraints must be a list of 4-vectors (x, y, z, real_or_imag, value)")
+            error("contraints must be a list of 4-vectors (x, y, z, peak-sigma)")
         end
     end
 end
