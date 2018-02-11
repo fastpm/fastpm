@@ -195,6 +195,14 @@ static int (filter)(const struct dirent * ent) {
     if(ent->d_name[0] == '.') return 0;
     return 1;
 }
+
+/* taken from glibc not always there. e.g. with c99. */
+static int
+_alphasort (const struct dirent **a, const struct dirent **b)
+{
+    return strcoll ((*a)->d_name, (*b)->d_name);
+}
+
 static struct
 bblist * listbigfile_r(const char * basename, char * blockname, struct bblist * bblist) {
     struct dirent **namelist;
@@ -204,7 +212,7 @@ bblist * listbigfile_r(const char * basename, char * blockname, struct bblist * 
     char * current;
     current = _path_join(basename, blockname);
 
-    n = scandir(current, &namelist, filter, alphasort);
+    n = scandir(current, &namelist, filter, _alphasort);
     free(current);
     if (n < 0)
         return bblist;
