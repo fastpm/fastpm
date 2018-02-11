@@ -21,6 +21,11 @@
 #endif
 #include "lua-config.h"
 
+/* c99 has no pi. */
+#ifndef M_PI
+#define M_PI (3.14159265358979323846264338327950288)
+#endif
+
 typedef struct {
     int UseFFTW;
     int NprocY;
