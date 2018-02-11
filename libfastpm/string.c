@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <alloca.h>
 
 #include <sys/stat.h>
 #include <unistd.h>
