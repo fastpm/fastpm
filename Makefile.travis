@@ -4,5 +4,5 @@ DEPCMD = gcc -MG -MT .objs/$(<:%.c=%.o) -MM
 CPPFLAGS = -DFASTPM_FFT_PRECISION=32
 GSL_LIBS = -lgsl -lgslcblas
 LDFLAGS = 
-OPTIMIZE ?= -O3 -g -Wall
+OPTIMIZE ?= -O3 -g -Wall -std=c99
 
