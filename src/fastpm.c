@@ -145,7 +145,7 @@ static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr);
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc);
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUnstructuredMesh * lc);
 
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
@@ -205,7 +205,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .fov = CONF(prr, fov),
     }};
 
-    if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {
+    FastPMUnstructuredMesh usmesh[1];
+
+    if(CONF(prr, write_lightcone)) {
         double (*tiles)[3];
         int ntiles;
         {
@@ -251,13 +253,14 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
             }
         }
 
-        fastpm_lc_init(lc, fastpm, tiles, ntiles);
+        fastpm_lc_init(lc);
+        fastpm_unstruct_mesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles);
 
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,
             FASTPM_EVENT_STAGE_BEFORE,
             (FastPMEventHandlerFunction) check_lightcone,
-            lc);
+            usmesh);
 
         free(tiles);
     }
@@ -280,10 +283,10 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     LEAVE(evolve);
 
     if(CONF(prr, write_lightcone)) {
-        long long np = lc->unstruct->np;
+        long long np = usmesh->p->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
-        write_snapshot(fastpm, lc->unstruct, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+        write_snapshot(fastpm, usmesh->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
 
     if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {
@@ -598,9 +601,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 }
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc)
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUnstructuredMesh * usmesh)
 {
-    fastpm_lc_intersect(lc, event->drift, event->kick, fastpm);
+    fastpm_unstruct_mesh_intersect(usmesh, event->drift, event->kick, fastpm);
     return 0;
 }
 

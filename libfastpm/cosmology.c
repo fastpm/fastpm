@@ -179,13 +179,13 @@ HorizonGrowthFactor(double a, FastPMHorizon * horizon)
     int l = floor(x);
     int r = l + 1;
     if(r >= horizon->size) {
-        return horizon->growth_a[horizon->size - 1];
+        return horizon->growthfactor_a[horizon->size - 1];
     }
     if(l <= 0) {
-        return horizon->growth_a[0];
+        return horizon->growthfactor_a[0];
     }
-    return horizon->growth_a[l] * (r - x)
-         + horizon->growth_a[r] * (x - l);
+    return horizon->growthfactor_a[l] * (r - x)
+         + horizon->growthfactor_a[r] * (x - l);
 }
 
 int

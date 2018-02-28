@@ -68,9 +68,11 @@ int main(int argc, char * argv[]) {
         .cosmology = solver->cosmology,
     }};
 
+    FastPMUnstructuredMesh usmesh[1];
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
-    fastpm_lc_init(lc, solver, tiles, 1);
+    fastpm_lc_init(lc);
+    fastpm_unstruct_mesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
 
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -90,10 +92,10 @@ int main(int argc, char * argv[]) {
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_lc_intersect(lc, &drift, &kick, solver);
-    fastpm_info("%td particles are in the light cone\n", lc->unstruct->np);
+    fastpm_unstruct_mesh_intersect(usmesh, &drift, &kick, solver);
+    fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
-    write_snapshot(solver, lc->unstruct, "lightconeresult-p", "", 1, NULL);
+    write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};

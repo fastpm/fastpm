@@ -15,44 +15,46 @@
 #include "pmghosts.h"
 
 void
-fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
-                double (*tileshifts)[3], int ntiles
-                )
+fastpm_lc_init(FastPMLightCone * lc)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
-    lc->unstruct = malloc(sizeof(FastPMStore));
-
     /* Allocation */
-
-    lc->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
-    lc->ntiles = ntiles;
-
-    memcpy(lc->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
-
     lc->horizon = malloc(sizeof(FastPMHorizon));
     fastpm_horizon_init(lc->horizon, lc->cosmology);
-
-    /* for saving the density with particles */
-    fastpm_store_init(lc->unstruct, fastpm->p->np_upper,
-                  PACK_ID | PACK_POS | PACK_VEL
-                | PACK_AEMIT
-                | (fastpm->p->potential?PACK_POTENTIAL:0)
-    );
-
 }
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc)
 {
-    /* Free */
-    fastpm_store_destroy(lc->unstruct);
-
-    free(lc->tileshifts);
-    free(lc->unstruct);
-
     fastpm_horizon_destroy(lc->horizon);
     free(lc->horizon);
+}
+
+void
+fastpm_unstruct_mesh_init(FastPMUnstructuredMesh * mesh, FastPMLightCone * lc,
+            size_t np_upper,
+            double (*tileshifts)[3], int ntiles)
+{
+
+    mesh->lc = lc;
+    mesh->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
+    mesh->ntiles = ntiles;
+
+    memcpy(mesh->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
+
+    /* for saving the density with particles */
+    fastpm_store_init(mesh->p, np_upper,
+                  PACK_ID | PACK_POS | PACK_VEL
+                | PACK_AEMIT
+    );
+}
+
+void fastpm_unstruct_mesh_destroy(FastPMUnstructuredMesh * mesh)
+{
+    fastpm_store_destroy(mesh->p);
+    free(mesh->tileshifts);
+    free(mesh->p);
 }
 
 struct funct_params {
@@ -132,14 +134,14 @@ funct(double a, void *params)
 }
 
 static int
-_fastpm_lc_intersect_one(FastPMLightCone * lc,
+_fastpm_unstruct_mesh_intersect_one(FastPMUnstructuredMesh * mesh,
         struct funct_params * params,
         ptrdiff_t i,
         double * solution)
 {
     params->i = i;
 
-    return fastpm_horizon_solve(lc->horizon,
+    return fastpm_horizon_solve(mesh->lc->horizon,
         solution,
         params->a1, params->a2,
         funct, params);
@@ -163,13 +165,14 @@ zangle(double * x) {
  *
  * */
 static int
-fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile,
+fastpm_unstruct_mesh_intersect_tile(FastPMUnstructuredMesh * mesh, double * tileshift,
         FastPMDriftFactor * drift,
         FastPMKickFactor * kick,
         FastPMStore * p,
         FastPMStore * pout
 )
 {
+    FastPMLightCone * lc = mesh->lc;
     struct funct_params params = {
         .lc = lc,
         .drift = drift,
@@ -181,7 +184,7 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile,
     int d;
 
     for(d = 0; d < 3; d ++) {
-        params.tileshift[d] = lc->tileshifts[tile][d];
+        params.tileshift[d] = tileshift[d];
     }
     fastpm_info("tileshift = %g %g %g\n",
         params.tileshift[0],
@@ -194,7 +197,7 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile,
 
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
-        if(0 == _fastpm_lc_intersect_one(lc, &params, i, &a_emit)) continue;
+        if(0 == _fastpm_unstruct_mesh_intersect_one(mesh, &params, i, &a_emit)) continue;
         /* A solution is found */
         /* move the particle and store it. */
         ptrdiff_t next = pout->np;
@@ -266,12 +269,15 @@ fastpm_lc_intersect_tile(FastPMLightCone * lc, int tile,
 }
 
 int
-fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm)
+fastpm_unstruct_mesh_intersect(FastPMUnstructuredMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm)
 {
     /* for each tile */
     int t;
-    for(t = 0; t < lc->ntiles; t ++) {
-        fastpm_lc_intersect_tile(lc, t, drift, kick, fastpm->p, lc->unstruct);/*Store particle to get density*/
+    for(t = 0; t < mesh->ntiles; t ++) {
+        fastpm_unstruct_mesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
+                drift, kick,
+                fastpm->p,
+                mesh->p); /*Store particle to get density*/
 
     }
     return 0;
