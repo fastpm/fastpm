@@ -107,6 +107,7 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
 
+    fastpm_unstruct_mesh_destroy(usmesh);
     fastpm_lc_destroy(lc);
 
     pm_free(solver->basepm, rho_init_ktruth);

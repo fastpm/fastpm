@@ -53,6 +53,7 @@ fastpm_unstruct_mesh_init(FastPMUnstructuredMesh * mesh,
                 FastPMLightCone * lc, size_t np_upper,
                 double (*tileshifts)[3], int ntiles);
 
+void fastpm_unstruct_mesh_destroy(FastPMUnstructuredMesh * mesh);
 int
 fastpm_unstruct_mesh_intersect(FastPMUnstructuredMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm);
 
