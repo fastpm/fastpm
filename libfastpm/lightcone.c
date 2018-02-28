@@ -29,8 +29,6 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
 
     int size = 8192;
 
-    lc->EventHorizonTable.size = size;
-    lc->EventHorizonTable.Dc = malloc(sizeof(double) * size);
     lc->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     lc->ntiles = ntiles;
 
@@ -39,12 +37,8 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
     lc->gsl = gsl_root_fsolver_alloc(T);
 
-    int i;
-
-    for(i = 0; i < lc->EventHorizonTable.size; i ++) {
-        double a = 1.0 * i / (lc->EventHorizonTable.size - 1);
-        lc->EventHorizonTable.Dc[i] = lc->speedfactor * HubbleDistance * ComovingDistance(a, lc->cosmology);
-    }
+    lc->horizon = malloc(sizeof(FastPMHorizon));
+    fastpm_horizon_init(lc->horizon, lc->cosmology);
 
     if(lc->compute_potential) {
         /* p0 is the lagrangian _position */
@@ -82,32 +76,13 @@ fastpm_lc_destroy(FastPMLightCone * lc)
         fastpm_store_destroy(lc->q);
         fastpm_store_destroy(lc->p0);
     }
-    free(lc->EventHorizonTable.Dc);
+    free(lc->horizon);
     free(lc->tileshifts);
     free(lc->p0);
     free(lc->q);
     free(lc->p);
     /* GSL destroy solver */
     gsl_root_fsolver_free(lc->gsl);
-}
-
-double
-fastpm_lc_horizon(FastPMLightCone * lc, double a)
-{
-    /* It may be worth to switch to log_a interpolation, but it only matters
-     * at very high z (~ z = 9). */
-
-    double x = a * (lc->EventHorizonTable.size - 1);
-    int l = floor(x);
-    int r = l + 1;
-    if(r >= lc->EventHorizonTable.size) {
-        return lc->EventHorizonTable.Dc[lc->EventHorizonTable.size - 1];
-    }
-    if(l <= 0) {
-        return lc->EventHorizonTable.Dc[0];
-    }
-    return lc->EventHorizonTable.Dc[l] * (r - x)
-         + lc->EventHorizonTable.Dc[r] * (x - l);
 }
 
 struct funct_params {
@@ -183,7 +158,7 @@ funct(double a, void *params)
         distance = sqrt(distance);
     }
 
-    return distance - fastpm_lc_horizon(lc, a);
+    return distance - HorizonDistance(a, lc->horizon);
 }
 
 int
@@ -241,66 +216,10 @@ _fastpm_lc_intersect_one(FastPMLightCone * lc,
 {
     params->i = i;
 
-    int status;
-    int iter = 0, max_iter;
-    double r, x_lo, x_hi, eps;
-
-    /* Reorganize to struct later */
-    x_lo = params->a1;
-    x_hi = params->a2;
-    max_iter = 100;
-    eps = 1e-7;
-
-    gsl_function F;
-
-    F.function = &funct;
-    F.params = params;
-
-    status = gsl_root_fsolver_set(lc->gsl, &F, x_lo, x_hi);
-
-    if(status == GSL_EINVAL || status == GSL_EDOM) {
-        /** Error in value or out of range **/
-        return 0;
-    }
-
-    do
-    {
-        iter++;
-        //
-        // Debug printout #1
-        //if(iter == 1) {
-        //fastpm_info("ID | [x_lo, x_hi] | r | funct(r) | x_hi - x_lo\n");
-        //}
-        //
-
-        status = gsl_root_fsolver_iterate(lc->gsl);
-        r = gsl_root_fsolver_root(lc->gsl);
-
-        x_lo = gsl_root_fsolver_x_lower(lc->gsl);
-        x_hi = gsl_root_fsolver_x_upper(lc->gsl);
-
-        status = gsl_root_test_interval(x_lo, x_hi, eps, 0.0);
-        //
-        //Debug printout #2
-        //fastpm_info("%5d [%.7f, %.7f] %.7f %.7f %.7f\n", iter, x_lo, x_hi, r, funct(r, &params), x_hi - x_lo);
-        //
-
-        if(status == GSL_SUCCESS) {
-            *solution = r;
-            //
-            // Debug printout #3.1
-            //fastpm_info("fastpm_lc_intersect() called with parameters %.7f and %.7f, returned status %d.\n\n", a, b, 1);
-            //
-            return 1;
-        }
-    }
-    while (status == GSL_CONTINUE && iter < max_iter);
-    //
-    // Debug printout #3.2
-    //fastpm_info("fastpm_lc_intersect() called with parameters %.7f and %.7f, returned status %d.\n\n", a, b, 0);
-    //
-
-    return 0;
+    return fastpm_horizon_solve(lc->horizon,
+        solution,
+        params->a1, params->a2,
+        funct, params);
 }
 
 static double

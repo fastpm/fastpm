@@ -22,6 +22,7 @@ typedef struct FastPMStore FastPMStore;
 typedef struct FastPMPainter FastPMPainter;
 typedef struct FastPMTransition FastPMTransition;
 typedef struct FastPMCosmology FastPMCosmology;
+typedef struct FastPMHorizon FastPMHorizon;
 
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32

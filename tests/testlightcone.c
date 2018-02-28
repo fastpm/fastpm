@@ -89,7 +89,7 @@ int main(int argc, char * argv[]) {
 
     double a, d;
     for(a = 0.1; a < 1.0; a += 0.1) {
-        d = fastpm_lc_horizon(lc, a);
+        d = HorizonDistance(a, lc->horizon);
         fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d);
     }
 
