@@ -289,7 +289,8 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         write_snapshot(fastpm, usmesh->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
 
-    if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {
+    if(CONF(prr, write_lightcone)) {
+        fastpm_unstruct_mesh_destroy(usmesh);
         fastpm_lc_destroy(lc);
     }
 
