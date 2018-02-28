@@ -1,7 +1,6 @@
 FASTPM_BEGIN_DECLS
 
 typedef struct {
-    int compute_potential;
     /* Storage of the particles on the light cone */
     FastPMCosmology * cosmology;
     FastPMHorizon * horizon;
@@ -11,17 +10,10 @@ typedef struct {
                     Remember the lightcone is always along z-direction.*/
 
     /* private: */
-    FastPMStore * p0; /* per step potential and tidal field.  */
-
-    FastPMStore * p; /* storing the output, particles on lightcone */
-    FastPMStore * q; /* stores the output, uniform sampling of potential on lightcone */
+    FastPMStore * unstruct; /* storing the unstructred output, particles on lightcone */
 
     double (* tileshifts)[3];
     int ntiles;
-
-    /* Need a table for drift factors */
-
-    void * gsl; // GSL solver pointer
 
 } FastPMLightCone;
 
@@ -34,10 +26,5 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);
-
-int
-fastpm_lc_compute_potential(FastPMSolver * fastpm,
-        FastPMForceEvent * event,
-        FastPMLightCone * lc);
 
 FASTPM_END_DECLS

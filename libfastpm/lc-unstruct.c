@@ -8,7 +8,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
-#include <fastpm/lc-density.h>
+#include <fastpm/lc-unstruct.h>
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
@@ -21,9 +21,7 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
-    lc->p = malloc(sizeof(FastPMStore));
-    lc->q = malloc(sizeof(FastPMStore));
-    lc->p0 = malloc(sizeof(FastPMStore));
+    lc->unstruct = malloc(sizeof(FastPMStore));
 
     /* Allocation */
 
@@ -33,32 +31,12 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
     lc->ntiles = ntiles;
 
     memcpy(lc->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
-    /* GSL init solver */
-    const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
-    lc->gsl = gsl_root_fsolver_alloc(T);
 
     lc->horizon = malloc(sizeof(FastPMHorizon));
     fastpm_horizon_init(lc->horizon, lc->cosmology);
 
-    if(lc->compute_potential) {
-        /* p0 is the lagrangian _position */
-        fastpm_store_init(lc->p0, fastpm->p->np_upper,
-              PACK_POS
-            | PACK_POTENTIAL
-            | PACK_TIDAL
-        );
-
-        fastpm_store_set_lagrangian_position(lc->p0, fastpm->basepm, NULL, NULL);
-
-        /* for saving the lagrangian sampling of potential */
-        fastpm_store_init(lc->q, fastpm->p->np_upper,
-              PACK_POS
-            | PACK_POTENTIAL
-            | PACK_TIDAL
-            | PACK_AEMIT);
-    }
     /* for saving the density with particles */
-    fastpm_store_init(lc->p, fastpm->p->np_upper,
+    fastpm_store_init(lc->unstruct, fastpm->p->np_upper,
                   PACK_ID | PACK_POS | PACK_VEL
                 | PACK_AEMIT
                 | (fastpm->p->potential?PACK_POTENTIAL:0)
@@ -70,19 +48,13 @@ void
 fastpm_lc_destroy(FastPMLightCone * lc)
 {
     /* Free */
-    fastpm_store_destroy(lc->p);
+    fastpm_store_destroy(lc->unstruct);
 
-    if(lc->compute_potential) {
-        fastpm_store_destroy(lc->q);
-        fastpm_store_destroy(lc->p0);
-    }
-    free(lc->horizon);
     free(lc->tileshifts);
-    free(lc->p0);
-    free(lc->q);
-    free(lc->p);
-    /* GSL destroy solver */
-    gsl_root_fsolver_free(lc->gsl);
+    free(lc->unstruct);
+
+    fastpm_horizon_destroy(lc->horizon);
+    free(lc->horizon);
 }
 
 struct funct_params {
@@ -161,53 +133,6 @@ funct(double a, void *params)
     return distance - HorizonDistance(a, lc->horizon);
 }
 
-int
-fastpm_lc_compute_potential(FastPMSolver * fastpm,
-        FastPMForceEvent * event,
-        FastPMLightCone * lc)
-{
-    PM * pm = fastpm->pm;
-    FastPMFloat * delta_k = event->delta_k;
-    FastPMFloat * canvas = pm_alloc(pm);/*Allocates memory and returns success*/
-    FastPMGravity * gravity = fastpm->gravity;
-    FastPMPainter reader[1];
-    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
-
-    FastPMStore * p = lc->p0;
-
-    int d;
-    int ACC[] = {
-                 PACK_POTENTIAL,
-                 PACK_TIDAL_XX, PACK_TIDAL_YY, PACK_TIDAL_ZZ,
-                 PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
-                };
-
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
-
-    for(d = 0; d < 7; d ++) {
-        CLOCK(transfer);
-        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
-        LEAVE(transfer);
-
-        CLOCK(c2r);
-        pm_c2r(pm, canvas);
-        LEAVE(c2r);
-
-        CLOCK(readout);
-        fastpm_readout_local(reader, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
-        LEAVE(readout);
-
-        CLOCK(reduce);
-        pm_ghosts_reduce(pgd, ACC[d]);
-        LEAVE(reduce);
-
-    }
-    pm_free(pm, canvas);
-
-    pm_ghosts_free(pgd);
-
-    return 0;
-}
 static int
 _fastpm_lc_intersect_one(FastPMLightCone * lc,
         struct funct_params * params,
@@ -348,10 +273,8 @@ fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickF
     /* for each tile */
     int t;
     for(t = 0; t < lc->ntiles; t ++) {
-        fastpm_lc_intersect_tile(lc, t, drift, kick, fastpm->p, lc->p);/*Store particle to get density*/
+        fastpm_lc_intersect_tile(lc, t, drift, kick, fastpm->p, lc->unstruct);/*Store particle to get density*/
 
-        if(lc->compute_potential)
-            fastpm_lc_intersect_tile(lc, t, drift, kick, lc->p0, lc->q);/*store potential on fixed grid*/
     }
     return 0;
 }

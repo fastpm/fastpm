@@ -149,6 +149,12 @@ fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology)
     horizon->gsl = gsl_root_fsolver_alloc(T);
 }
 
+void
+fastpm_horizon_destroy(FastPMHorizon * horizon)
+{
+    gsl_root_fsolver_free(horizon->gsl);
+}
+
 double
 HorizonDistance(double a, FastPMHorizon * horizon)
 {

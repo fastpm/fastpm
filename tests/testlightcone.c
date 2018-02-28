@@ -6,7 +6,7 @@
 #include <math.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-#include <fastpm/lc-density.h>
+#include <fastpm/lc-unstruct.h>
 #include <fastpm/io.h>
 
 
@@ -57,7 +57,6 @@ int main(int argc, char * argv[]) {
 
     FastPMLightCone lc[1] = {{
         .speedfactor = 0.2,
-        .compute_potential = 1,
         .glmatrix = {
                 {1, 0, 0, 0,},
                 {0, 1, 0, 0,},
@@ -72,11 +71,6 @@ int main(int argc, char * argv[]) {
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_lc_init(lc, solver, tiles, 1);
-
-    fastpm_solver_add_event_handler(solver, FASTPM_EVENT_FORCE,
-            FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) fastpm_lc_compute_potential,
-            lc);
 
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -97,11 +91,9 @@ int main(int argc, char * argv[]) {
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
     fastpm_lc_intersect(lc, &drift, &kick, solver);
-    fastpm_info("%td particles are in the light cone\n", lc->p->np);
-    fastpm_info("%td uniform particles are in the light cone\n", lc->q->np);
+    fastpm_info("%td particles are in the light cone\n", lc->unstruct->np);
 
-    write_snapshot(solver, lc->p, "lightconeresult-p", "", 1, NULL);
-    write_snapshot(solver, lc->q, "lightconeresult-q", "", 1, NULL);
+    write_snapshot(solver, lc->unstruct, "lightconeresult-p", "", 1, NULL);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};

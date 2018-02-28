@@ -14,7 +14,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
-#include <fastpm/lc-density.h>
+#include <fastpm/lc-unstruct.h>
 #include <fastpm/constrainedgaussian.h>
 #include <fastpm/io.h>
 #ifdef _OPENMP
@@ -203,7 +203,6 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .speedfactor = CONF(prr, dh_factor),
         .cosmology = fastpm->cosmology,
         .fov = CONF(prr, fov),
-        .compute_potential = CONF(prr, write_lightcone_potential) != 0,
     }};
 
     if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {
@@ -254,14 +253,6 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
         fastpm_lc_init(lc, fastpm, tiles, ntiles);
 
-        if(CONF(prr, write_lightcone_potential)) {
-            fastpm_solver_add_event_handler(fastpm,
-                FASTPM_EVENT_FORCE,
-                FASTPM_EVENT_STAGE_AFTER,
-                (FastPMEventHandlerFunction) fastpm_lc_compute_potential,
-                lc);
-        }
-
         fastpm_solver_add_event_handler(fastpm,
             FASTPM_EVENT_INTERPOLATION,
             FASTPM_EVENT_STAGE_BEFORE,
@@ -289,16 +280,10 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     LEAVE(evolve);
 
     if(CONF(prr, write_lightcone)) {
-        long long np = lc->p->np;
+        long long np = lc->unstruct->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
-        write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
-    }
-    if(CONF(prr, write_lightcone_potential)) {
-        long long np = lc->q->np;
-        MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
-        fastpm_info("%td grid points are in the lightcone potential\n", np);
-        write_snapshot(fastpm, lc->q, CONF(prr, write_lightcone_potential), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+        write_snapshot(fastpm, lc->unstruct, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
 
     if(CONF(prr, write_lightcone) || CONF(prr, write_lightcone_potential)) {

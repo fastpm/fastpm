@@ -22,7 +22,7 @@ LIBSOURCES = libfastpm.c \
     initialcondition.c \
     pngaussian.c \
     constrainedgaussian.c \
-    lc-density.c \
+    lc-unstruct.c \
     lightcone_potential.c \
     timemachine.c \
     cosmology.c \
