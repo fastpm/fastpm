@@ -17,6 +17,29 @@ typedef struct {
 
 } FastPMLightCone;
 
+struct FastPMStructuredMesh {
+    enum {
+        FASTPM_2DMESH_SPHERE,
+        FASTPM_2DMESH_PLANE,
+    } type;
+
+    union {
+        struct {
+            double * ra;
+            double * dec;
+            int Npix;
+        };
+        struct {
+            int Nxy;
+        };
+    };
+
+    double * z;
+    int Nz;
+    /* private : */
+    FastPMStore * q; /* storing the structred output, particles on lightcone */
+};
+
 int
 fastpm_lc_intersect(FastPMLightCone * lc, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm);
 

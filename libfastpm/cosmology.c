@@ -144,6 +144,7 @@ fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology)
     for (i = 0; i < horizon->size; i ++) {
         double a = 1.0 * i / (horizon->size - 1);
         horizon->xi_a[i] = HubbleDistance * ComovingDistance(a, horizon->cosmology);
+        horizon->growthfactor_a[i] = GrowthFactor(a, horizon->cosmology);
     }
     const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
     horizon->gsl = gsl_root_fsolver_alloc(T);
@@ -169,6 +170,22 @@ HorizonDistance(double a, FastPMHorizon * horizon)
     }
     return horizon->xi_a[l] * (r - x)
          + horizon->xi_a[r] * (x - l);
+}
+
+double
+HorizonGrowthFactor(double a, FastPMHorizon * horizon)
+{
+    double x = a * (horizon->size - 1);
+    int l = floor(x);
+    int r = l + 1;
+    if(r >= horizon->size) {
+        return horizon->growth_a[horizon->size - 1];
+    }
+    if(l <= 0) {
+        return horizon->growth_a[0];
+    }
+    return horizon->growth_a[l] * (r - x)
+         + horizon->growth_a[r] * (x - l);
 }
 
 int
