@@ -25,8 +25,6 @@ fastpm_lc_init(FastPMLightCone * lc, FastPMSolver * fastpm,
 
     /* Allocation */
 
-    int size = 8192;
-
     lc->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     lc->ntiles = ntiles;
 
