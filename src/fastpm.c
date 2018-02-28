@@ -14,7 +14,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
-#include <fastpm/lightcone.h>
+#include <fastpm/lc-density.h>
 #include <fastpm/constrainedgaussian.h>
 #include <fastpm/io.h>
 #ifdef _OPENMP

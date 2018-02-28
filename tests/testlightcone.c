@@ -6,7 +6,7 @@
 #include <math.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-#include <fastpm/lightcone.h>
+#include <fastpm/lc-density.h>
 #include <fastpm/io.h>
 
 
