@@ -24,25 +24,25 @@ typedef struct FastPMStructuredMesh {
     FastPMLightCone * lc;
 
     enum {
-        FASTPM_2DMESH_SPHERE,
-        FASTPM_2DMESH_PLANE,
+        FASTPM_STRUCT_MESH_SPHERE,
+        FASTPM_STRUCT_MESH_PLANE,
     } type;
 
     union {
         struct {
             double * ra;
             double * dec;
+            double (* vec)[3];
             int Npix;
         };
         struct {
+            double (* xy)[2];
             int Nxy;
         };
     };
 
     double * z;
     int Nz;
-    /* private : */
-    FastPMStore * q; /* storing the structred output, particles on lightcone */
 } FastPMStructuredMesh;
 
 void
