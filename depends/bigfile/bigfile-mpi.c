@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <alloca.h>
 #include <string.h>
 #include "bigfile-mpi.h"
 
