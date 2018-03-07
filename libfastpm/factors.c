@@ -273,7 +273,7 @@ fastpm_drift_store(FastPMDriftFactor * drift,
 #pragma omp parallel for
     for(i=0; i<np; i++) {
         double xo[3] = {0};
-        fastpm_drift_one(drift, pi, i, xo, drift->af);
+        fastpm_drift_one(drift, pi, i, xo, af);
         int d;
         for(d = 0; d < 3; d ++) {
             po->x[i][d] = xo[d];
