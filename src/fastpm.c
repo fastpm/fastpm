@@ -181,19 +181,19 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     LEAVE(init);
 
-    fastpm_solver_add_event_handler(fastpm,
+    fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_FORCE,
         FASTPM_EVENT_STAGE_AFTER,
         (FastPMEventHandlerFunction) write_powerspectrum,
         prr);
 
-    fastpm_solver_add_event_handler(fastpm,
+    fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) check_snapshots,
         prr);
 
-    fastpm_solver_add_event_handler(fastpm,
+    fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_TRANSITION,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) print_transition,
@@ -256,7 +256,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         fastpm_lc_init(lc);
         fastpm_unstruct_mesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles);
 
-        fastpm_solver_add_event_handler(fastpm,
+        fastpm_add_event_handler(&fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION,
             FASTPM_EVENT_STAGE_BEFORE,
             (FastPMEventHandlerFunction) check_lightcone,

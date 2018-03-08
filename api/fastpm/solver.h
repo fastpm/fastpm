@@ -1,4 +1,8 @@
 FASTPM_BEGIN_DECLS
+#define FASTPM_EVENT_FORCE "FORCE"
+#define FASTPM_EVENT_TRANSITION "TRANSITION"
+#define FASTPM_EVENT_INTERPOLATION "INTERPOLATION"
+
 typedef struct VPM VPM;
 
 typedef struct VPMInit {
@@ -8,7 +12,25 @@ typedef struct VPMInit {
 
 typedef struct FastPMDriftFactor FastPMDriftFactor;
 typedef struct FastPMKickFactor FastPMKickFactor;
-typedef struct FastPMEventHandler FastPMEventHandler;
+
+typedef struct {
+    FastPMEvent base;
+    FastPMDriftFactor * drift;
+    FastPMKickFactor * kick;
+    double a1;
+    double a2;
+} FastPMInterpolationEvent;
+
+typedef struct {
+    FastPMEvent base;
+    FastPMTransition * transition;
+} FastPMTransitionEvent;
+
+typedef struct {
+    FastPMEvent base;
+    FastPMFloat * delta_k;
+    double a_f;
+} FastPMForceEvent;
 
 typedef struct {
     size_t nc;

@@ -154,8 +154,8 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
         CLOCK(beforetransit);
         ENTER(beforetransit);
-        fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
-                FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event);
+        fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_TRANSITION,
+                FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
         LEAVE(beforetransit);
 
         switch(transition->action) {
@@ -172,8 +172,8 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
         CLOCK(aftertransit);
         ENTER(aftertransit);
-        fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
-                FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
+        fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_TRANSITION,
+                FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
         LEAVE(aftertransit);
 
         if(i == 1) {
@@ -205,7 +205,9 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
     event->kick = kick;
     event->a1 = a1;
     event->a2 =a2;
-    fastpm_solver_emit_event(fastpm, FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event);
+    fastpm_emit_event(fastpm->event_handlers,
+            FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEvent*) event, fastpm);
 
     LEAVE(interpolation);
 }
@@ -260,7 +262,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     event->delta_k = delta_k;
     event->a_f = trans->a.f;
 
-    fastpm_solver_emit_event(fastpm, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
+    fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
     LEAVE(afterforce);
 
     pm_free(pm, delta_k);
