@@ -43,15 +43,17 @@ typedef struct FastPMSMesh {
         };
     };
 
+    double * a;
     double * z;
-    int Nz;
+    int Na;
 
     /* state about the last time range */
     struct {
         FastPMStore p[1];
-        double z0;
-        double z1;
+        double a0;
+        double a1;
     } last;
+    int started;
 
     /* Extensions */
     FastPMEventHandler * event_handlers;
@@ -61,8 +63,8 @@ typedef struct FastPMSMesh {
 typedef struct FastPMLCEvent {
     FastPMEvent base;
     FastPMStore * p;
-    double z0;
-    double z1;
+    double a0;
+    double a1;
 } FastPMLCEvent;
 
 void
@@ -83,18 +85,18 @@ void
 fastpm_lc_destroy(FastPMLightCone * lc);
 
 void
-fastpm_smesh_init_plane(FastPMSMesh * mesh,
+fastpm_smesh_init_plane(FastPMSMesh * mesh, FastPMLightCone * lc,
         double (*xy)[2], size_t Nxy,
-        double * z, size_t Nz);
+        double * a, size_t Na);
 
 void
-fastpm_smesh_init_sphere(FastPMSMesh * mesh,
+fastpm_smesh_init_sphere(FastPMSMesh * mesh, FastPMLightCone * lc,
         double * ra, double * dec, size_t Npix,
-        double * z, size_t Nz);
+        double * a, size_t Na);
 
 void
 fastpm_smesh_select_active(FastPMSMesh * mesh,
-        double z0, double z1,
+        double a0, double a1,
         FastPMStore * q
     );
 

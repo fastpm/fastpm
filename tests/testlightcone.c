@@ -21,7 +21,7 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 128,
+        .nc = 64,
         .boxsize = 128.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
@@ -78,7 +78,7 @@ int main(int argc, char * argv[]) {
     {
         double xy[][2] =  {{0, 0}, {1, 1,}};
         double z[] = {0, 1, 2, 3};
-        fastpm_smesh_init_plane(smesh, xy, 2, z, 4);
+        fastpm_smesh_init_plane(smesh, lc, xy, 2, z, 4);
     }
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -104,6 +104,8 @@ int main(int argc, char * argv[]) {
 
     write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
 
+    fastpm_smesh_compute_potential(solver, rho_init_ktruth, 1.0, smesh);
+
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
@@ -120,6 +122,7 @@ int main(int argc, char * argv[]) {
 
     pm_free(solver->basepm, rho_init_ktruth);
     fastpm_solver_destroy(solver);
+
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;
