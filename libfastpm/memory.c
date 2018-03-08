@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <fastpm/libfastpm.h>
@@ -47,7 +48,7 @@ fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered)
 
     }
 
-    m->allow_unordered = 1;
+    m->allow_unordered = 0;
     m->free_bytes = total_bytes;
     m->total_bytes = total_bytes;
     m->used_bytes = 0;
@@ -61,9 +62,11 @@ fastpm_memory_tag(FastPMMemory * m, void * p, const char * tag)
     for(entry = m->stack; entry != &head; entry = entry->prev) {
         if(entry->p == p) break;
     }
-    for(entry = m->heap; entry != &head; entry = entry->prev) {
-        if(entry->p == p) break;
-    }
+    if(entry == &head)
+        for(entry = m->heap; entry != &head; entry = entry->prev) {
+            if(entry->p == p) break;
+        }
+
     if(entry->p != p) abort();
 
     strncpy(entry->tag, tag, 120);
@@ -84,8 +87,8 @@ fastpm_memory_destroy(FastPMMemory * m)
     }
 }
 
-void *
-fastpm_memory_alloc(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
+static void *
+fastpm_memory_alloc0(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
 {
     s = _align(s, m->alignment);
     if(m->free_bytes <= s) {
@@ -124,11 +127,22 @@ fastpm_memory_alloc(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
     return entry->p;
 }
 
+void *
+fastpm_memory_alloc_details(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc, const char * file, const int line)
+{
+    char buf[80];
+    
+    sprintf(buf, "%40s:%d", file, line);
+    void * r = fastpm_memory_alloc0(m, s, loc);
+    fastpm_memory_tag(m, r, buf);
+    return r;
+}
+
+
 MemoryBlock * _delist(MemoryBlock ** start, void * p, int * isfirst)
 {
     MemoryBlock * entry = NULL;
     MemoryBlock * last= NULL;
-    *isfirst = entry == *start;
 
     for(entry=*start;
         entry != &head; last=entry, entry=entry->prev) {
@@ -136,6 +150,7 @@ MemoryBlock * _delist(MemoryBlock ** start, void * p, int * isfirst)
             break;
         }
     }
+    *isfirst = entry == *start;
     if(entry == &head) return NULL;
 
     if(last) {

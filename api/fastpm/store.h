@@ -5,38 +5,39 @@
 #include <stdint.h>
 
 FASTPM_BEGIN_DECLS
+enum FastPMPackFields {
+    PACK_POS   =  1 << 0,
+    PACK_VEL   =  1 << 1,
+    PACK_DX1   =  1 << 2,
+    PACK_DX2   =  1 << 3,
+    PACK_ACC   =  1 << 4,
+    PACK_ID    =  1 << 5,
+    PACK_Q     =  1 << 6,
+    PACK_AEMIT     =  1 << 7,
+    PACK_POTENTIAL =  1 << 8,
+    PACK_TIDAL     =  1 << 9,
 
-#define PACK_POS   (1 << 0)
-#define PACK_VEL   (1 << 1)
-#define PACK_DX1   (1 << 2)
-#define PACK_DX2   (1 << 3)
-#define PACK_ACC   (1 << 4)
-#define PACK_ID    (1 << 5)
-#define PACK_Q     (1 << 6)
-#define PACK_AEMIT     (1 << 7)
-#define PACK_POTENTIAL (1 << 8)
-#define PACK_TIDAL     (1 << 9)
 
+    PACK_ACC_X =  1 << 10,
+    PACK_ACC_Y =  1 << 11,
+    PACK_ACC_Z =  1 << 12,
+    PACK_DX1_X   =  1 << 13,
+    PACK_DX1_Y   =  1 << 14,
+    PACK_DX1_Z   =  1 << 15,
+    PACK_DX2_X   =  1 << 16,
+    PACK_DX2_Y   =  1 << 17,
+    PACK_DX2_Z   =  1 << 18,
+    PACK_POS_X =  1 << 19,
+    PACK_POS_Y =  1 << 20,
+    PACK_POS_Z =  1 << 21,
 
-#define PACK_ACC_X (1 << 10)
-#define PACK_ACC_Y (1 << 11)
-#define PACK_ACC_Z (1 << 12)
-#define PACK_DX1_X   (1 << 13)
-#define PACK_DX1_Y   (1 << 14)
-#define PACK_DX1_Z   (1 << 15)
-#define PACK_DX2_X   (1 << 16)
-#define PACK_DX2_Y   (1 << 17)
-#define PACK_DX2_Z   (1 << 18)
-#define PACK_POS_X (1 << 19)
-#define PACK_POS_Y (1 << 20)
-#define PACK_POS_Z (1 << 21)
-
-#define PACK_TIDAL_XX (1 << 22)
-#define PACK_TIDAL_YY (1 << 23)
-#define PACK_TIDAL_ZZ (1 << 24)
-#define PACK_TIDAL_XY (1 << 25)
-#define PACK_TIDAL_YZ (1 << 26)
-#define PACK_TIDAL_ZX (1 << 27)
+    PACK_TIDAL_XX =  1 << 22,
+    PACK_TIDAL_YY =  1 << 23,
+    PACK_TIDAL_ZZ =  1 << 24,
+    PACK_TIDAL_XY =  1 << 25,
+    PACK_TIDAL_YZ =  1 << 26,
+    PACK_TIDAL_ZX =  1 << 27,
+};
 
 struct FastPMStore {
     fastpm_posfunc get_position;

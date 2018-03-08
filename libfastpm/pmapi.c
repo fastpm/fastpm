@@ -6,10 +6,12 @@
 #include <fastpm/libfastpm.h>
 #include "pmpfft.h"
 
-FastPMFloat * pm_alloc(PM * pm)
+FastPMFloat * pm_alloc_details(PM * pm, const char * file, const int line)
 {
     void * p = fastpm_memory_alloc(pm->mem, sizeof(FastPMFloat) * pm->allocsize, FASTPM_MEMORY_HEAP);
-    fastpm_memory_tag(pm->mem, p, "FastPMFloat");
+    char buf[80];
+    sprintf(buf, "PMFloat: %40s:%d\n", file, line);
+    fastpm_memory_tag(pm->mem, p, buf);
     return p;
 }
 
