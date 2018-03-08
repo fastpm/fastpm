@@ -1,5 +1,7 @@
 FASTPM_BEGIN_DECLS
 
+#define FASTPM_EVENT_LC_READY "LIGHTCONEREADY"
+
 typedef struct {
     /* Storage of the particles on the light cone */
     FastPMCosmology * cosmology;
@@ -43,7 +45,25 @@ typedef struct FastPMStructuredMesh {
 
     double * z;
     int Nz;
+
+    /* state about the last time range */
+    struct {
+        FastPMStore p[1];
+        double z0;
+        double z1;
+    } last;
+
+    /* Extensions */
+    FastPMEventHandler * event_handlers;
+
 } FastPMStructuredMesh;
+
+typedef struct FastPMLCEvent {
+    FastPMEvent base;
+    FastPMStore * p;
+    double z0;
+    double z1;
+} FastPMLCEvent;
 
 void
 fastpm_lc_init(FastPMLightCone * lc);

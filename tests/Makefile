@@ -13,8 +13,9 @@ CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 TEST_SOURCES = testpm.c \
                testconstrained.c \
                testlightcone.c \
-			   testlightconeP.c \
                testangulargrid.c
+
+#			   testlightconeP.c
 
 TESTS = $(TEST_SOURCES:%.c=%)
 

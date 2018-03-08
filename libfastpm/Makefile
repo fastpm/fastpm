@@ -23,6 +23,7 @@ LIBSOURCES = libfastpm.c \
     pngaussian.c \
     constrainedgaussian.c \
     lc-unstruct.c \
+    lc-struct.c \
     timemachine.c \
     cosmology.c \
     powerspectrum.c \
