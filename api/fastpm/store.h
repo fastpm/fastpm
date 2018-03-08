@@ -68,7 +68,7 @@ struct FastPMStore {
 };
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes);
+fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes, enum FastPMMemoryLocation loc);
 
 size_t
 fastpm_store_init_evenly(FastPMStore * p, size_t np_total, int attributes,

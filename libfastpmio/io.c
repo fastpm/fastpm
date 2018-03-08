@@ -70,7 +70,7 @@ sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
     ptrdiff_t i;
 
     FastPMStore ptmp[1];
-    fastpm_store_init(ptmp, 1, p->attributes);
+    fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
 
     for(i = 0; i < p->np; i ++) {
         p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);

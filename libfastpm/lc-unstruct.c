@@ -47,7 +47,8 @@ fastpm_unstruct_mesh_init(FastPMUnstructuredMesh * mesh, FastPMLightCone * lc,
     /* for saving the density with particles */
     fastpm_store_init(mesh->p, np_upper,
                   PACK_ID | PACK_POS | PACK_VEL
-                | PACK_AEMIT
+                | PACK_AEMIT,
+                FASTPM_MEMORY_HEAP
     );
 }
 

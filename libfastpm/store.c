@@ -274,7 +274,7 @@ byebye:
 }
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes) 
+fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes, enum FastPMMemoryLocation loc) 
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -290,53 +290,53 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes)
     p->attributes = attributes;
 
     if(attributes & PACK_Q)
-        p->q = fastpm_memory_alloc(p->mem, sizeof(p->q[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->q = fastpm_memory_alloc(p->mem, sizeof(p->q[0]) * np_upper, loc);
     else
         p->q = NULL;
 
     if(attributes & PACK_POS)
-        p->x = fastpm_memory_alloc(p->mem, sizeof(p->x[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->x = fastpm_memory_alloc(p->mem, sizeof(p->x[0]) * np_upper, loc);
     else
         p->x = NULL;
 
 
     if(attributes & PACK_VEL)
-        p->v = fastpm_memory_alloc(p->mem, sizeof(p->v[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->v = fastpm_memory_alloc(p->mem, sizeof(p->v[0]) * np_upper, loc);
     else
         p->v = NULL;
 
     if(attributes & PACK_ID)
-        p->id = fastpm_memory_alloc(p->mem, sizeof(p->id[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->id = fastpm_memory_alloc(p->mem, sizeof(p->id[0]) * np_upper, loc);
     else
         p->id = NULL;
 
     if(attributes & PACK_ACC)
-        p->acc = fastpm_memory_alloc(p->mem, sizeof(p->acc[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->acc = fastpm_memory_alloc(p->mem, sizeof(p->acc[0]) * np_upper, loc);
     else
         p->acc = NULL;
 
     if(attributes & PACK_DX1)
-        p->dx1 = fastpm_memory_alloc(p->mem, sizeof(p->dx1[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->dx1 = fastpm_memory_alloc(p->mem, sizeof(p->dx1[0]) * np_upper, loc);
     else
         p->dx1 = NULL;
 
     if(attributes & PACK_DX2)
-        p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, loc);
     else
         p->dx2 = NULL;
 
     if(attributes & PACK_AEMIT)
-        p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, loc);
     else
         p->aemit = NULL;
 
     if(attributes & PACK_POTENTIAL)
-        p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, loc);
     else
         p->potential = NULL;
 
     if(attributes & PACK_TIDAL)
-        p->tidal = fastpm_memory_alloc(p->mem, sizeof(p->tidal[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->tidal = fastpm_memory_alloc(p->mem, sizeof(p->tidal[0]) * np_upper, loc);
     else
         p->tidal = NULL;
 };
@@ -347,7 +347,7 @@ fastpm_store_init_evenly(FastPMStore * p, size_t np_total, int attributes, doubl
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
+    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes, FASTPM_MEMORY_HEAP);
     return 0;
 }
 

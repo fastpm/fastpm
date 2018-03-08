@@ -518,7 +518,8 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
 
         fastpm_store_init(snapshot, p->np_upper,
                   PACK_ID | PACK_POS | PACK_VEL
-                | (CONF(prr, compute_potential)?PACK_POTENTIAL:0)
+                | (CONF(prr, compute_potential)?PACK_POTENTIAL:0),
+                FASTPM_MEMORY_STACK
             );
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);

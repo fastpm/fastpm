@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
     fastpm_solver_init(solver, config, comm);
 
     FastPMStore store[1];
-    fastpm_store_init(store, 1024*1024, PACK_AEMIT | PACK_POS);
+    fastpm_store_init(store, 1024*1024, PACK_AEMIT | PACK_POS, FASTPM_MEMORY_HEAP);
     double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
     double a[] = {0, 1, 2, 3, 4, 5, 6, 7};
 
