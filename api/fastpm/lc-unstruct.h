@@ -13,21 +13,21 @@ typedef struct {
 
 } FastPMLightCone;
 
-typedef struct FastPMUnstructuredMesh {
+typedef struct FastPMUSMesh {
     FastPMLightCone * lc;
     FastPMStore * p; /* storing the unstructred output, particles on lightcone */
 
     double (* tileshifts)[3];
     int ntiles;
-} FastPMUnstructuredMesh;
+} FastPMUSMesh;
 
 
-typedef struct FastPMStructuredMesh {
+typedef struct FastPMSMesh {
     FastPMLightCone * lc;
 
     enum {
-        FASTPM_STRUCT_MESH_SPHERE,
-        FASTPM_STRUCT_MESH_PLANE,
+        FASTPM_SMESH_SPHERE,
+        FASTPM_SMESH_PLANE,
     } type;
 
     union {
@@ -56,7 +56,7 @@ typedef struct FastPMStructuredMesh {
     /* Extensions */
     FastPMEventHandler * event_handlers;
 
-} FastPMStructuredMesh;
+} FastPMSMesh;
 
 typedef struct FastPMLCEvent {
     FastPMEvent base;
@@ -69,13 +69,13 @@ void
 fastpm_lc_init(FastPMLightCone * lc);
 
 void
-fastpm_unstruct_mesh_init(FastPMUnstructuredMesh * mesh,
+fastpm_usmesh_init(FastPMUSMesh * mesh,
                 FastPMLightCone * lc, size_t np_upper,
                 double (*tileshifts)[3], int ntiles);
 
-void fastpm_unstruct_mesh_destroy(FastPMUnstructuredMesh * mesh);
+void fastpm_usmesh_destroy(FastPMUSMesh * mesh);
 int
-fastpm_unstruct_mesh_intersect(FastPMUnstructuredMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm);
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);

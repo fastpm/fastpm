@@ -15,11 +15,11 @@
 #include "pmghosts.h"
 
 void
-fastpm_struct_mesh_init_plane(FastPMStructuredMesh * mesh,
+fastpm_smesh_init_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
         double * z, size_t Nz)
 {
-    mesh->type = FASTPM_STRUCT_MESH_PLANE;
+    mesh->type = FASTPM_SMESH_PLANE;
     mesh->z = malloc(sizeof(double) * Nz);
     mesh->Nz = Nz;
     size_t i;
@@ -36,11 +36,11 @@ fastpm_struct_mesh_init_plane(FastPMStructuredMesh * mesh,
 }
 
 void
-fastpm_struct_mesh_init_sphere(FastPMStructuredMesh * mesh,
+fastpm_smesh_init_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, size_t Npix,
         double * z, size_t Nz)
 {
-    mesh->type = FASTPM_STRUCT_MESH_SPHERE;
+    mesh->type = FASTPM_SMESH_SPHERE;
     mesh->z = malloc(sizeof(double) * Nz);
     mesh->Nz = Nz;
     size_t i;
@@ -64,7 +64,7 @@ fastpm_struct_mesh_init_sphere(FastPMStructuredMesh * mesh,
 }
 
 void
-fastpm_struct_mesh_select_active(FastPMStructuredMesh * mesh,
+fastpm_smesh_select_active(FastPMSMesh * mesh,
         double z0, double z1,
         FastPMStore * q
     )
@@ -94,12 +94,12 @@ fastpm_struct_mesh_select_active(FastPMStructuredMesh * mesh,
         for(k = 0; k < mesh->Nz; k ++) {
             if(mesh->z[i] >= z0 && mesh->z[i] < z1) {
                 switch(mesh->type) {
-                    case FASTPM_STRUCT_MESH_PLANE:
+                    case FASTPM_SMESH_PLANE:
                         q->x[q->np][0] = mesh->xy[j][0];
                         q->x[q->np][1] = mesh->xy[j][1];
                         q->x[q->np][2] = mesh->z[j];
                         break;
-                    case FASTPM_STRUCT_MESH_SPHERE:
+                    case FASTPM_SMESH_SPHERE:
                         q->x[q->np][0] = mesh->vec[j][0] * mesh->z[j];
                         q->x[q->np][1] = mesh->vec[j][1] * mesh->z[j];
                         q->x[q->np][2] = mesh->vec[j][2] * mesh->z[j];
@@ -112,16 +112,16 @@ fastpm_struct_mesh_select_active(FastPMStructuredMesh * mesh,
 }
 
 void
-fastpm_struct_mesh_intersect(FastPMSolver * fastpm, FastPMTransitionEvent * event, FastPMStructuredMesh * mesh)
+fastpm_smesh_intersect(FastPMSolver * fastpm, FastPMTransitionEvent * event, FastPMSMesh * mesh)
 {
 
 
 }
 
 int
-fastpm_struct_mesh_compute_potential(FastPMSolver * fastpm,
+fastpm_smesh_compute_potential(FastPMSolver * fastpm,
         FastPMForceEvent * event,
-        FastPMStructuredMesh * mesh)
+        FastPMSMesh * mesh)
 {
     PM * pm = fastpm->pm;
 
@@ -139,7 +139,7 @@ fastpm_struct_mesh_compute_potential(FastPMSolver * fastpm,
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 
-    fastpm_struct_mesh_select_active(mesh, z0, z1, p_new_now);
+    fastpm_smesh_select_active(mesh, z0, z1, p_new_now);
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */

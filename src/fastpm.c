@@ -145,7 +145,7 @@ static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr);
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUnstructuredMesh * lc);
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * lc);
 
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
@@ -205,7 +205,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .fov = CONF(prr, fov),
     }};
 
-    FastPMUnstructuredMesh usmesh[1];
+    FastPMUSMesh usmesh[1];
 
     if(CONF(prr, write_lightcone)) {
         double (*tiles)[3];
@@ -254,7 +254,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         }
 
         fastpm_lc_init(lc);
-        fastpm_unstruct_mesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles);
+        fastpm_usmesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION,
@@ -290,7 +290,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     }
 
     if(CONF(prr, write_lightcone)) {
-        fastpm_unstruct_mesh_destroy(usmesh);
+        fastpm_usmesh_destroy(usmesh);
         fastpm_lc_destroy(lc);
     }
 
@@ -603,9 +603,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 }
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUnstructuredMesh * usmesh)
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_unstruct_mesh_intersect(usmesh, event->drift, event->kick, fastpm);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
     return 0;
 }
 

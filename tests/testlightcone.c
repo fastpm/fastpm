@@ -68,11 +68,12 @@ int main(int argc, char * argv[]) {
         .cosmology = solver->cosmology,
     }};
 
-    FastPMUnstructuredMesh usmesh[1];
+    FastPMUSMesh usmesh[1];
+
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_lc_init(lc);
-    fastpm_unstruct_mesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
+    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
 
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -80,6 +81,7 @@ int main(int argc, char * argv[]) {
     fastpm_info("dx2  : %g %g %g %g\n",
             solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
             (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
+
     double time_step[] = {0.1};
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
@@ -92,7 +94,7 @@ int main(int argc, char * argv[]) {
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_unstruct_mesh_intersect(usmesh, &drift, &kick, solver);
+    fastpm_usmesh_intersect(usmesh, &drift, &kick, solver);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
     write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
@@ -107,7 +109,7 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
 
-    fastpm_unstruct_mesh_destroy(usmesh);
+    fastpm_usmesh_destroy(usmesh);
     fastpm_lc_destroy(lc);
 
     pm_free(solver->basepm, rho_init_ktruth);
