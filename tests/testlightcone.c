@@ -69,12 +69,17 @@ int main(int argc, char * argv[]) {
     }};
 
     FastPMUSMesh usmesh[1];
+    FastPMSMesh  smesh[1];
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_lc_init(lc);
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
-
+    {
+        double xy[][2] =  {{0, 0}, {1, 1,}};
+        double z[] = {0, 1, 2, 3};
+        fastpm_smesh_init_plane(smesh, xy, 2, z, 4);
+    }
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
             (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
@@ -109,6 +114,7 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
 
+    fastpm_smesh_destroy(smesh);
     fastpm_usmesh_destroy(usmesh);
     fastpm_lc_destroy(lc);
 

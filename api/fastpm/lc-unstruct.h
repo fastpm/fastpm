@@ -73,11 +73,38 @@ fastpm_usmesh_init(FastPMUSMesh * mesh,
                 FastPMLightCone * lc, size_t np_upper,
                 double (*tileshifts)[3], int ntiles);
 
-void fastpm_usmesh_destroy(FastPMUSMesh * mesh);
+void
+fastpm_usmesh_destroy(FastPMUSMesh * mesh);
+
 int
 fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);
+
+void
+fastpm_smesh_init_plane(FastPMSMesh * mesh,
+        double (*xy)[2], size_t Nxy,
+        double * z, size_t Nz);
+
+void
+fastpm_smesh_init_sphere(FastPMSMesh * mesh,
+        double * ra, double * dec, size_t Npix,
+        double * z, size_t Nz);
+
+void
+fastpm_smesh_select_active(FastPMSMesh * mesh,
+        double z0, double z1,
+        FastPMStore * q
+    );
+
+int
+fastpm_smesh_compute_potential(FastPMSolver * fastpm,
+        FastPMFloat * delta_k,
+        double a_f,
+        FastPMSMesh * mesh);
+
+void
+fastpm_smesh_destroy(FastPMSMesh * mesh);
 
 FASTPM_END_DECLS

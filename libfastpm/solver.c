@@ -331,12 +331,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 
     vpm_free(fastpm->vpm_list);
 
-    /* FIXME: free VPM and stuff. */
-    FastPMEventHandler * h, * h2;
-    for(h = fastpm->event_handlers; h; h = h2) {
-        h2 = h->next;
-        free(h);
-    }
+    fastpm_destroy_event_handlers(&fastpm->event_handlers);
 }
 
 static int 

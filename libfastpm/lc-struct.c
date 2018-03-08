@@ -19,6 +19,7 @@ fastpm_smesh_init_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
         double * z, size_t Nz)
 {
+    mesh->event_handlers = NULL;
     mesh->type = FASTPM_SMESH_PLANE;
     mesh->z = malloc(sizeof(double) * Nz);
     mesh->Nz = Nz;
@@ -40,6 +41,7 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, size_t Npix,
         double * z, size_t Nz)
 {
+    mesh->event_handlers = NULL;
     mesh->type = FASTPM_SMESH_SPHERE;
     mesh->z = malloc(sizeof(double) * Nz);
     mesh->Nz = Nz;
@@ -61,6 +63,23 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh,
         mesh->ra[i] = ra[i];
         mesh->dec[i] = dec[i];
     }
+}
+
+void
+fastpm_smesh_destroy(FastPMSMesh * mesh)
+{
+    switch(mesh->type) {
+        case FASTPM_SMESH_PLANE:
+            free(mesh->xy);
+            break;
+        case FASTPM_SMESH_SPHERE:
+            free(mesh->ra);
+            free(mesh->dec);
+            free(mesh->vec);
+        break;
+    }
+    free(mesh->z);
+    fastpm_destroy_event_handlers(&mesh->event_handlers);
 }
 
 void
@@ -111,21 +130,14 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     }
 }
 
-void
-fastpm_smesh_intersect(FastPMSolver * fastpm, FastPMTransitionEvent * event, FastPMSMesh * mesh)
-{
-
-
-}
-
 int
 fastpm_smesh_compute_potential(FastPMSolver * fastpm,
-        FastPMForceEvent * event,
+        FastPMFloat * delta_k,
+        double a_f,
         FastPMSMesh * mesh)
 {
     PM * pm = fastpm->pm;
 
-    FastPMFloat * delta_k = event->delta_k;
     FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
     FastPMGravity * gravity = fastpm->gravity;
     FastPMPainter reader[1];
@@ -134,7 +146,7 @@ fastpm_smesh_compute_potential(FastPMSolver * fastpm,
     double z0, z1; /* z in xyz */
 
     z0 = mesh->last.z1;
-    z1 = HorizonDistance(event->a_f, mesh->lc->horizon);
+    z1 = HorizonDistance(a_f, mesh->lc->horizon);
 
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];

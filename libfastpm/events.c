@@ -47,3 +47,15 @@ fastpm_emit_event(FastPMEventHandler * handlers,
         handler->function(context, event, handler->userdata);
     }
 }
+
+void
+fastpm_destroy_event_handlers(FastPMEventHandler ** handlers)
+{
+    /* FIXME: free VPM and stuff. */
+    FastPMEventHandler * h, * h2;
+    for(h = *handlers; h; h = h2) {
+        h2 = h->next;
+        free(h);
+    }
+    *handlers = NULL;
+}

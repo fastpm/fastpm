@@ -32,3 +32,6 @@ void
 fastpm_emit_event(FastPMEventHandler * handlers,
     const char * type, enum FastPMEventStage stage,
     FastPMEvent * event, void * context);
+
+void
+fastpm_destroy_event_handlers(FastPMEventHandler ** handlers);
