@@ -104,7 +104,7 @@ int main(int argc, char * argv[]) {
 
     write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
 
-    fastpm_smesh_compute_potential(solver, rho_init_ktruth, 1.0, smesh);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};

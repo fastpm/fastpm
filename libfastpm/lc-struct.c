@@ -157,10 +157,12 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
 }
 
 int
-fastpm_smesh_compute_potential(FastPMSolver * fastpm,
+fastpm_smesh_compute_potential(
+        FastPMSMesh * mesh,
+        PM * pm,
+        FastPMGravity * gravity,
         FastPMFloat * delta_k,
-        double a_f,
-        FastPMSMesh * mesh)
+        double a_f)
 {
     double z0, z1; /* z in xyz */
 
@@ -180,11 +182,8 @@ fastpm_smesh_compute_potential(FastPMSolver * fastpm,
                     );
     p_last_now->x = mesh->last.p->x;
 
-    PM * pm = fastpm->pm;
-
     FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
 
-    FastPMGravity * gravity = fastpm->gravity;
     FastPMPainter reader[1];
     fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
 

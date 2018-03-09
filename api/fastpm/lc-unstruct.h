@@ -101,10 +101,12 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     );
 
 int
-fastpm_smesh_compute_potential(FastPMSolver * fastpm,
+fastpm_smesh_compute_potential(
+        FastPMSMesh * mesh,
+        PM * pm,
+        FastPMGravity * gravity,
         FastPMFloat * delta_k,
-        double a_f,
-        FastPMSMesh * mesh);
+        double a_f);
 
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh);
