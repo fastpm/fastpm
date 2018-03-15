@@ -22,7 +22,7 @@ smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver
 static void
 force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
 {
-    fastpm_smesh_compute_potential(smesh, solver->pm, solver->gravity, event->delta_k, event->a_f, event->a_n);
+    fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
 }
 
 int main(int argc, char * argv[]) {
@@ -93,6 +93,11 @@ int main(int argc, char * argv[]) {
         double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
         double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
         fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
+
+        fastpm_add_event_handler(&smesh->event_handlers,
+                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_handler,
+                solver);
     }
 
     fastpm_info("dx1  : %g %g %g %g\n",
@@ -119,14 +124,23 @@ int main(int argc, char * argv[]) {
 
     write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
 
-    fastpm_add_event_handler(&smesh->event_handlers,
-            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) smesh_handler,
-            solver);
-
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
+
+    fastpm_smesh_destroy(smesh);
+
+    {
+        double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
+        double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+        fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
+
+        fastpm_add_event_handler(&smesh->event_handlers,
+                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_handler,
+                solver);
+    }
+
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
@@ -139,12 +153,19 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
 
+    fastpm_remove_event_handler(&solver->event_handlers,
+            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) force_handler,
+            smesh);
+
+    fastpm_smesh_destroy(smesh);
+
+
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step3[] = {0.1};
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
 
-    fastpm_smesh_destroy(smesh);
     fastpm_usmesh_destroy(usmesh);
     fastpm_lc_destroy(lc);
 
