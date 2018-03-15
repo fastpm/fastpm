@@ -30,6 +30,7 @@ typedef struct {
     FastPMEvent base;
     FastPMFloat * delta_k;
     double a_f;
+    double a_n; /* time of next force calculation; or -1. if already the last force calculation. */
 } FastPMForceEvent;
 
 typedef struct {

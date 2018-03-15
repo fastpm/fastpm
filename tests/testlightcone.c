@@ -8,7 +8,16 @@
 #include <fastpm/logging.h>
 #include <fastpm/lc-unstruct.h>
 #include <fastpm/io.h>
+#include <fastpm/string.h>
 
+static void
+handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver)
+{
+    fastpm_info("lc event : a0 = %g a1 = %g, n = %td \n", lcevent->a0, lcevent->a1, lcevent->p->np);
+    char * fn = fastpm_strdup_printf("lightcone_ustruct_%6.4f_%6.4f", lcevent->a0, lcevent->a1);
+    write_snapshot(solver, lcevent->p, fn, "", 1, NULL);
+    free(fn);
+}
 
 int main(int argc, char * argv[]) {
 
@@ -77,8 +86,8 @@ int main(int argc, char * argv[]) {
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
     {
         double xy[][2] =  {{0, 0}, {1, 1,}};
-        double z[] = {0, 1, 2, 3};
-        fastpm_smesh_init_plane(smesh, lc, xy, 2, z, 4);
+        double a[] = {0.1, 0.2, 0.5, 0.8, 1.0};
+        fastpm_smesh_init_plane(smesh, lc, xy, 2, a, 4);
     }
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
@@ -104,7 +113,13 @@ int main(int argc, char * argv[]) {
 
     write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
 
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0);
+    fastpm_add_event_handler(&smesh->event_handlers,
+            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) handler,
+            solver);
+
+    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 1.0);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
     double time_step2[] = {0.1, 1.0};

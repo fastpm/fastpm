@@ -262,6 +262,15 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     event->delta_k = delta_k;
     event->a_f = trans->a.f;
 
+    /* find the time stamp of the next force calculation. This will
+     * be useful for interpolating potentials of the structured mesh */
+    int inext = trans->iend + 1;
+
+    if (inext <= trans->states->cycles) {
+        event->a_n = trans->states->timesteps[inext];
+    } else {
+        event->a_n = -1;
+    }
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
     LEAVE(afterforce);
 

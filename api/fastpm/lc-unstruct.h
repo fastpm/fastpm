@@ -50,8 +50,7 @@ typedef struct FastPMSMesh {
     /* state about the last time range */
     struct {
         FastPMStore p[1];
-        double a0;
-        double a1;
+        double a_f; /* the time potential was updated */
     } last;
     int started;
 
@@ -106,7 +105,8 @@ fastpm_smesh_compute_potential(
         PM * pm,
         FastPMGravity * gravity,
         FastPMFloat * delta_k,
-        double a_f);
+        double a_f,
+        double a_n);
 
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh);

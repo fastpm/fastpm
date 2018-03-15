@@ -38,8 +38,7 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
             | PACK_TIDAL
             | PACK_AEMIT,
             FASTPM_MEMORY_STACK);
-    mesh->last.a0 = 0;
-    mesh->last.a1 = 0;
+    mesh->last.a_f = 0;
 }
 
 void
@@ -137,7 +136,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     size_t k = 0;
     for(j = 0; j < mesh->Nxy; j ++) {
         for(k = 0; k < mesh->Na; k ++) {
-            if(mesh->a[i] >= a0 && mesh->a[i] < a1) {
+            if(mesh->a[j] >= a0 && mesh->a[j] < a1) {
                 switch(mesh->type) {
                     case FASTPM_SMESH_PLANE:
                         q->x[q->np][0] = mesh->xy[j][0];
@@ -150,6 +149,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
                         q->x[q->np][2] = mesh->vec[j][2] * mesh->z[j];
                         break;
                 }
+                q->aemit[q->np] = mesh->a[j];
                 q->np++;
             }
         }
@@ -162,22 +162,21 @@ fastpm_smesh_compute_potential(
         PM * pm,
         FastPMGravity * gravity,
         FastPMFloat * delta_k,
-        double a_f)
+        double a_f,
+        double a_n)
 {
-    double z0, z1; /* z in xyz */
-
-    z0 = HorizonDistance(mesh->last.a1, mesh->lc->horizon);
-    z1 = HorizonDistance(a_f, mesh->lc->horizon);
+    double z1, z2; /* z in xyz */
 
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 
-    fastpm_smesh_select_active(mesh, z0, z1, p_new_now);
+    fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
     fastpm_store_init(p_last_now, mesh->last.p->np_upper,
-                    mesh->last.p->attributes & ~ PACK_POS, /* skip pos, we'll use an external reference next line*/
+                    mesh->last.p->attributes & ~ PACK_POS,
+                    /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
                     );
     p_last_now->x = mesh->last.p->x;
@@ -226,23 +225,56 @@ fastpm_smesh_compute_potential(
 
     pm_free(pm, canvas);
 
+    /* last.a_f is when the potential is last updated */
+    double G_then = HorizonGrowthFactor(mesh->last.a_f, mesh->lc->horizon);
+    double G_now = HorizonGrowthFactor(a_f, mesh->lc->horizon);
 
-    /* FIXME: read off the potential, probably emit another event to write out
-     * p_last_now? */
+    /* interpolate potential and tidal field between the range, and convert the unit, into
+     * last.p, which is then emitted as an event. */
+    #define INTERP(field) \
+        p_last_then->field = (( \
+            (G_now - G_emit) * p_last_then->field \
+          + (G_emit - G_then) * p_last_now->field \
+            ) / (G_now - G_then))
 
+    ptrdiff_t i;
+
+    double potfactor = 1.5 * mesh->lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
+    FastPMStore * p_last_then = mesh->last.p;
+
+    for(i = 0; i < p_last_now->np; i ++) {
+        double a_emit = p_last_now->aemit[i];
+        if(a_emit < mesh->last.a_f || a_emit >= a_f) {
+            fastpm_raise(-1, " out of bounds. a_emit = %g should be between %g and %g", a_emit, mesh->last.a_f, a_f);
+        }
+        double G_emit = HorizonGrowthFactor(a_emit, mesh->lc->horizon);
+
+        INTERP(potential[i]);
+        p_last_then->potential[i] *= potfactor / a_emit;
+        int j;
+        for(j = 0; j < 6; j ++) {
+            INTERP(tidal[i][j]);
+            p_last_then->tidal[i][j] *= potfactor / a_emit;
+        }
+    }
+    /* p_last_now is no longer useful after interpolation */
+    fastpm_store_destroy(p_last_now);
+
+    /* a portion of light cone is ready between a0 and a1 */
     FastPMLCEvent lcevent[1];
     lcevent->p = mesh->last.p;
-    lcevent->a0 = mesh->last.a0;
-    lcevent->a1 = mesh->last.a1;
+    lcevent->a0 = mesh->last.a_f;
+    lcevent->a1 = a_f;
 
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
             (FastPMEvent*) lcevent, mesh);
 
-    fastpm_store_destroy(p_last_now);
-    fastpm_store_destroy(mesh->last.p);
+    /* last.a_f is when the potential is last updated */
+    mesh->last.a_f = a_f;
 
     /* copy the new into the last. new is on the tack; last is on the heap. */
+    fastpm_store_destroy(mesh->last.p);
     fastpm_store_init(mesh->last.p,
                     p_new_now->np_upper,
                     p_new_now->attributes,
@@ -250,8 +282,6 @@ fastpm_smesh_compute_potential(
 
     fastpm_store_copy(p_new_now, mesh->last.p);
 
-    mesh->last.a0 = mesh->last.a1;
-    mesh->last.a1 = a_f;
 
     fastpm_store_destroy(p_new_now);
 
