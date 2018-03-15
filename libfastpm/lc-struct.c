@@ -136,20 +136,20 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     size_t k = 0;
     for(j = 0; j < mesh->Nxy; j ++) {
         for(k = 0; k < mesh->Na; k ++) {
-            if(mesh->a[j] >= a0 && mesh->a[j] < a1) {
+            if(mesh->a[k] >= a0 && mesh->a[k] < a1) {
                 switch(mesh->type) {
                     case FASTPM_SMESH_PLANE:
                         q->x[q->np][0] = mesh->xy[j][0];
                         q->x[q->np][1] = mesh->xy[j][1];
-                        q->x[q->np][2] = mesh->z[j];
+                        q->x[q->np][2] = mesh->z[k];
                         break;
                     case FASTPM_SMESH_SPHERE:
-                        q->x[q->np][0] = mesh->vec[j][0] * mesh->z[j];
-                        q->x[q->np][1] = mesh->vec[j][1] * mesh->z[j];
-                        q->x[q->np][2] = mesh->vec[j][2] * mesh->z[j];
+                        q->x[q->np][0] = mesh->vec[j][0] * mesh->z[k];
+                        q->x[q->np][1] = mesh->vec[j][1] * mesh->z[k];
+                        q->x[q->np][2] = mesh->vec[j][2] * mesh->z[k];
                         break;
                 }
-                q->aemit[q->np] = mesh->a[j];
+                q->aemit[q->np] = mesh->a[k];
                 q->np++;
             }
         }
