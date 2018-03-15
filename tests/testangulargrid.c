@@ -33,7 +33,6 @@ int main(int argc, char * argv[]) {
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .nLPT = 2.5,
-        .K_LINEAR = 0.04,
         .COMPUTE_POTENTIAL = 1,
     };
     FastPMSolver solver[1];

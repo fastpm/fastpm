@@ -28,7 +28,10 @@ typedef struct {
 
 typedef struct {
     FastPMEvent base;
+    FastPMGravity * gravity;
+    PM * pm;
     FastPMFloat * delta_k;
+    double N; /* total number of particles painted. */
     double a_f;
     double a_n; /* time of next force calculation; or -1. if already the last force calculation. */
 } FastPMForceEvent;
@@ -52,7 +55,6 @@ typedef struct {
     FastPMForceType FORCE_TYPE;
     FastPMKernelType KERNEL_TYPE;
     FastPMDealiasingType DEALIASING_TYPE;
-    int K_LINEAR;
 
     int NprocY;  /* Use 0 for auto */
     int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
@@ -86,7 +88,6 @@ typedef struct {
             double min;
             double max;
         } imbalance;
-        int Nmesh;
     } info;
 
     VPM * vpm_list;

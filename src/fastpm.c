@@ -121,7 +121,6 @@ int main(int argc, char ** argv) {
         .hubble_param = CONF(prr, h),
         .USE_DX1_ONLY = CONF(prr, za),
         .nLPT = -2.5f,
-        .K_LINEAR = CONF(prr, enforce_broadband_kmax),
         .USE_SHIFT = CONF(prr, shift),
         .FORCE_TYPE = CONF(prr, force_mode),
         .KERNEL_TYPE = CONF(prr, kernel_type),
@@ -640,10 +639,13 @@ print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameter
 static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
 {
+
+    int K_LINEAR = CONF(prr, enforce_broadband_kmax);
+
     CLOCK(compute);
     CLOCK(io);
 
-    fastpm_info("Force Calculation Nmesh = %d ====\n", fastpm->info.Nmesh);
+    fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
 
     fastpm_info("Load imbalance is - %g / + %g\n",
         fastpm->info.imbalance.min, fastpm->info.imbalance.max);
@@ -655,16 +657,16 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, event->delta_k, event->delta_k);
+    fastpm_powerspectrum_init_from_delta(&ps, event->pm, event->delta_k, event->delta_k);
 
-    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->config->K_LINEAR);
+    double Plin = fastpm_powerspectrum_large_scale(&ps, K_LINEAR);
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
     Plin /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
     Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
 
-    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, fastpm->config->K_LINEAR * 6.28 / fastpm->config->boxsize, Plin, Sigma8);
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, K_LINEAR * 6.28 / pm_boxsize(event->pm)[0], Plin, Sigma8);
 
     LEAVE(compute);
 
@@ -677,7 +679,7 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
         fastpm_info("writing power spectrum to %s\n", buf);
         if(fastpm->ThisTask == 0) {
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
-            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
+            fastpm_powerspectrum_write(&ps, buf, event->N);
         }
     }
     LEAVE(io);

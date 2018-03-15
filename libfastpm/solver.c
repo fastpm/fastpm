@@ -244,8 +244,6 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     PM * pm = fastpm->pm;
 
-    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
-
     FastPMFloat * delta_k = pm_alloc(pm);
     ENTER(decompose);
     fastpm_decompose(fastpm);
@@ -258,10 +256,17 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     ENTER(afterforce);
 
+    double N = fastpm->p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, fastpm->comm);
+
+
     FastPMForceEvent event[1];
     event->delta_k = delta_k;
     event->a_f = trans->a.f;
-
+    event->pm = pm;
+    event->N = N;
+    event->gravity = gravity;
     /* find the time stamp of the next force calculation. This will
      * be useful for interpolating potentials of the structured mesh */
     int inext = trans->iend + 1;
