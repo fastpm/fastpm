@@ -29,6 +29,13 @@ fastpm_add_event_handler(FastPMEventHandler ** handlers,
     void * userdata);
 
 void
+fastpm_remove_event_handler(FastPMEventHandler ** handlers,
+    const char * type,
+    enum FastPMEventStage stage,
+    FastPMEventHandlerFunction function,
+    void * userdata);
+
+void
 fastpm_emit_event(FastPMEventHandler * handlers,
     const char * type, enum FastPMEventStage stage,
     FastPMEvent * event, void * context);
