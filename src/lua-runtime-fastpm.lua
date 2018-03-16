@@ -14,15 +14,23 @@ local schema = config.Schema()
 schema.declare{name='nc',                type='int', required=true, help="Number of Particles Per side"}
 schema.declare{name='boxsize',           type='number', required=true, help="Size of box in Mpc/h"}
 schema.declare{name='time_step',         type='array:number',  required=true, help="Scaling factor of steps, can be linspace(start, end, Nsteps)." }
-schema.declare{name='output_redshifts',  type='array:number',  required=true, help="Redshifts for outputs" }
-schema.declare{name='aout',  type='array:number',  required=false}
+schema.declare{name='output_redshifts',  type='array:number',  required=false, help="Redshifts for outputs" }
+schema.declare{name='aout',              type='array:number',  required=false, help='a of redshifts'}
+
+-- set aout from output_redshifts
+function schema.aout.action(aout)
+    schema.output_redshifts.required = false
+end
+
 -- set aout from output_redshifts
 function schema.output_redshifts.action(output_redshifts)
     local aout = {}
-    for i, z in pairs(output_redshifts) do
-        aout[i] = 1.0 / (z + 1.)
+    if output_redshifts ~= nil then
+        for i, z in pairs(output_redshifts) do
+            aout[i] = 1.0 / (z + 1.)
+        end
+        schema.aout.default = aout
     end
-    schema.aout.default = aout
 end
 
 schema.declare{name='omega_m',           type='number', required=true, default=0.3 }
