@@ -1,11 +1,16 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <alloca.h>
 #include <string.h>
 #include "bigfile-mpi.h"
 
 /* disable aggregation by default */
 static size_t _BigFileAggThreshold = 0;
+
+static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm);
+static void big_file_mpi_broadcast_error(int root, MPI_Comm comm);
+
 
 void
 big_file_mpi_set_aggregated_threshold(size_t bytes)
@@ -23,8 +28,18 @@ int big_file_mpi_open(BigFile * bf, const char * basename, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
     int rank;
     MPI_Comm_rank(comm, &rank);
-    int rt = big_file_open(bf, basename);
-    MPI_Barrier(comm);
+    int rt = 0;
+    if (rank == 0) {
+        rt = big_file_open(bf, basename);
+    } else {
+        /* FIXME : */
+        bf->basename = strdup(basename);
+    }
+
+    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
+    if(rt != 0) {
+        big_file_mpi_broadcast_error(0, comm);
+    }
     return rt;
 }
 
@@ -32,27 +47,50 @@ int big_file_mpi_create(BigFile * bf, const char * basename, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
     int rank;
     MPI_Comm_rank(comm, &rank);
-    int rt = big_file_create(bf, basename);
-    MPI_Barrier(comm);
+    int rt;
+    if (rank == 0) {
+        rt = big_file_create(bf, basename);
+    } else {
+        /* FIXME : */
+        bf->basename = strdup(basename);
+    }
+    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
+    if(rt != 0) {
+        big_file_mpi_broadcast_error(0, comm);
+    }
     return rt;
 }
+
 int big_file_mpi_open_block(BigFile * bf, BigBlock * block, const char * blockname, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
+    if(!bf || !bf->basename || !blockname) return 1;
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
     sprintf(basename, "%s/%s/", bf->basename, blockname);
     return big_block_mpi_open(block, basename, comm);
 }
 
 int big_file_mpi_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, size_t size, MPI_Comm comm) {
+    if(comm == MPI_COMM_NULL) return 0;
+
     size_t fsize[Nfile];
     int i;
     for(i = 0; i < Nfile; i ++) {
         fsize[i] = size * (i + 1) / Nfile 
                  - size * (i) / Nfile;
     }
-    if(comm == MPI_COMM_NULL) return 0;
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    int rt = 0;
+    if (rank == 0) {
+        rt = _big_file_mksubdir_r(bf->basename, blockname);
+    }
+    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
+    if(rt != 0) {
+        big_file_mpi_broadcast_error(0, comm);
+        return -1;
+    }
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
-    if(0 != _big_file_mksubdir_r(bf->basename, blockname)) return -1;
     sprintf(basename, "%s/%s/", bf->basename, blockname);
     return big_block_mpi_create(block, basename, dtype, nmemb, Nfile, fsize, comm);
 }
@@ -63,10 +101,6 @@ int big_file_mpi_close(BigFile * bf, MPI_Comm comm) {
     MPI_Barrier(comm);
     return rt;
 }
-
-static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm);
-static void big_file_mpi_broadcast_error(int root, MPI_Comm comm);
-
 
 int big_block_mpi_open(BigBlock * bb, const char * basename, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
@@ -106,12 +140,58 @@ int big_block_mpi_create(BigBlock * bb, const char * basename, const char * dtyp
     big_block_mpi_broadcast(bb, 0, comm);
 
     int i;
-    for(i = bb->Nfile * rank / NTask; i < bb->Nfile * (rank + 1) / NTask; i ++) {
+    for(i = (size_t) bb->Nfile * rank / NTask; i < (size_t) bb->Nfile * (rank + 1) / NTask; i ++) {
         FILE * fp = _big_file_open_a_file(bb->basename, i, "w");
-        if(fp == NULL) return -1;
+        if(fp == NULL) {
+            rt = -1;
+            break;
+        }
         fclose(fp);
     }
+    MPI_Allreduce(MPI_IN_PLACE, &rt, 1, MPI_INT, MPI_LOR, comm);
+    if(rt != 0) {
+        big_file_mpi_broadcast_error(0, comm);
+        return -1;
+    }
+    return 0;
+}
 
+int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_Comm comm) {
+    int rank;
+    int NTask;
+    int rt;
+
+    if(comm == MPI_COMM_NULL) return 0;
+
+    MPI_Comm_size(comm, &NTask);
+    MPI_Comm_rank(comm, &rank);
+
+    int oldNfile = bb->Nfile;
+
+    if(rank == 0) {
+        rt = _big_block_grow_internal(bb, Nfile_grow, fsize_grow);
+    }
+    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
+    if(rt) {
+        big_file_mpi_broadcast_error(0, comm);
+        return rt;
+    }
+    big_block_mpi_broadcast(bb, 0, comm);
+
+    int i;
+    for(i = (size_t) Nfile_grow * rank / NTask; i < (size_t) Nfile_grow * (rank + 1) / NTask; i ++) {
+        FILE * fp = _big_file_open_a_file(bb->basename, i + oldNfile, "w");
+        if(fp == NULL) {
+            rt = -1;
+            break;
+        }
+        fclose(fp);
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &rt, 1, MPI_INT, MPI_LOR, comm);
+    if(rt != 0) {
+        big_file_mpi_broadcast_error(0, comm);
+        return -1;
+    }
     return 0;
 }
 
@@ -161,11 +241,10 @@ static void big_file_mpi_broadcast_error(int root, MPI_Comm comm) {
     }
 }
 static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm) {
-    ptrdiff_t i;
     int rank;
     MPI_Comm_rank(comm, &rank);
     int lname = 0;
-    void * attrpack;
+    void * attrpack=NULL;
     size_t attrpacksize = 0;
     if(rank == root) {
         lname = strlen(bb->basename);
@@ -228,7 +307,7 @@ _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, BigBl
         concurrency = NTask;
     }
 
-    int color = ThisTask * concurrency / NTask;
+    int color = (ptrdiff_t) ThisTask * concurrency / NTask;
     MPI_Comm_split(MPI_COMM_WORLD, color, ThisTask, &plan->group);
     MPI_Comm_size(plan->group, &plan->GroupSize);
     MPI_Comm_rank(plan->group, &plan->GroupRank);
@@ -276,7 +355,7 @@ _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, BigBl
     return 0;
 }
 
-static int _throttle_plan_destroy(ThrottlePlan * plan)
+static void _throttle_plan_destroy(ThrottlePlan * plan)
 {
     MPI_Comm_free(&plan->group);
     MPI_Type_free(&plan->mpidtype);
