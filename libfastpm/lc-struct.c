@@ -23,7 +23,7 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
     mesh->event_handlers = NULL;
     mesh->lc = lc;
     mesh->a = malloc(sizeof(double) * Na);
-    mesh->z = malloc(sizeof(double) * Na);// This is z distance.
+    mesh->z = malloc(sizeof(double) * Na);
     mesh->Na = Na;
     size_t i;
 
@@ -80,9 +80,9 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh,
 
     for(i = 0; i < Npix; i ++) {
         /* FIXME: does this look correct? */
-        mesh->vec[i][0] = sin(dec[i]) * cos(ra[i]);
-        mesh->vec[i][1] = sin(dec[i]) * sin(ra[i]);
-        mesh->vec[i][2] = cos(dec[i]);
+        mesh->vec[i][0] = cos(dec[i]) * cos(ra[i]);
+        mesh->vec[i][1] = cos(dec[i]) * sin(ra[i]);
+        mesh->vec[i][2] = sin(dec[i]);
         mesh->ra[i] = ra[i];
         mesh->dec[i] = dec[i];
     }
@@ -134,20 +134,33 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     );
     size_t j = 0;
     size_t k = 0;
+    size_t m=0;
+    size_t n=0;
+    double x_temp[4];
+    x_temp[3]=1;
     for(j = 0; j < mesh->Nxy; j ++) {
         for(k = 0; k < mesh->Na; k ++) {
             if(mesh->a[k] >= a0 && mesh->a[k] < a1) {
                 switch(mesh->type) {
                     case FASTPM_SMESH_PLANE:
-                        q->x[q->np][0] = mesh->xy[j][0];
-                        q->x[q->np][1] = mesh->xy[j][1];
-                        q->x[q->np][2] = mesh->z[k];
+                        // q->x[q->np][0] = mesh->xy[j][0];
+                        // q->x[q->np][1] = mesh->xy[j][1];
+                        // q->x[q->np][2] = mesh->z[k];
+                        x_temp[0]=mesh->xy[j][0];
+                        x_temp[1]=mesh->xy[j][1];
+                        x_temp[2]=mesh->z[k];
                         break;
                     case FASTPM_SMESH_SPHERE:
-                        q->x[q->np][0] = mesh->vec[j][0] * mesh->z[k];
-                        q->x[q->np][1] = mesh->vec[j][1] * mesh->z[k];
-                        q->x[q->np][2] = mesh->vec[j][2] * mesh->z[k];
+                        x_temp[0] = mesh->vec[j][0] * mesh->z[k];
+                        x_temp[1] = mesh->vec[j][1] * mesh->z[k];
+                        x_temp[2] = mesh->vec[j][2] * mesh->z[k];
                         break;
+                }
+                for( m= 0; m < 4; m ++) {
+                    q->x[q->np][m] = 0;
+                    for(n = 0; n < 4; n ++) {
+                        q->x[q->np][m]+=mesh->lc->glmatrix_inv[m][n]*x_temp[n];
+                    }
                 }
                 q->aemit[q->np] = mesh->a[k];
                 q->np++;
