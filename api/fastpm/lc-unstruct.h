@@ -8,6 +8,7 @@ typedef struct {
     FastPMHorizon * horizon;
     double speedfactor;
     double glmatrix[4][4];
+    double glmatrix_inv[4][4];
     double fov; /* field of view angle. <=0 for flatsky.
                     Remember the lightcone is always along z-direction.*/
 

@@ -10,9 +10,24 @@
 #include <fastpm/prof.h>
 #include <fastpm/lc-unstruct.h>
 #include <fastpm/logging.h>
+#include <gsl/gsl_linalg.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
+
+void matrix_invert(double (*matrix)[4], double (*matrix_inv)[4], int matrix_size) //square matrix.. 
+                                                                        //matrix_size fixed to 4 
+{
+    gsl_matrix_view m= gsl_matrix_view_array(&matrix[0][0], matrix_size, matrix_size);
+    gsl_matrix_view inv = gsl_matrix_view_array(&matrix_inv[0][0],matrix_size, matrix_size);
+    gsl_permutation * p = gsl_permutation_alloc (matrix_size);
+
+    int signum;
+    gsl_linalg_LU_decomp (&m.matrix, p, &signum);    
+    gsl_linalg_LU_invert (&m.matrix, p, &inv.matrix);
+
+    gsl_permutation_free (p);
+}
 
 void
 fastpm_lc_init(FastPMLightCone * lc)
@@ -22,6 +37,9 @@ fastpm_lc_init(FastPMLightCone * lc)
     /* Allocation */
     lc->horizon = malloc(sizeof(FastPMHorizon));
     fastpm_horizon_init(lc->horizon, lc->cosmology);
+
+    matrix_invert(lc->glmatrix,lc->glmatrix_inv,4);
+
 }
 
 void
