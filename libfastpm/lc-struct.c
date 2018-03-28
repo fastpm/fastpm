@@ -23,7 +23,7 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
     mesh->event_handlers = NULL;
     mesh->lc = lc;
     mesh->a = malloc(sizeof(double) * Na);
-    mesh->z = malloc(sizeof(double) * Na);
+    mesh->z = malloc(sizeof(double) * Na);// This is z distance.
     mesh->Na = Na;
     size_t i;
 
@@ -80,9 +80,9 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh,
 
     for(i = 0; i < Npix; i ++) {
         /* FIXME: does this look correct? */
-        mesh->vec[i][0] = cos(dec[i]) * cos(ra[i]);
-        mesh->vec[i][1] = cos(dec[i]) * sin(ra[i]);
-        mesh->vec[i][2] = sin(dec[i]);
+        mesh->vec[i][0] = sin(dec[i]) * cos(ra[i]);
+        mesh->vec[i][1] = sin(dec[i]) * sin(ra[i]);
+        mesh->vec[i][2] = cos(dec[i]);
         mesh->ra[i] = ra[i];
         mesh->dec[i] = dec[i];
     }

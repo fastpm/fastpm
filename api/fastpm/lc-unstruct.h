@@ -112,4 +112,6 @@ fastpm_smesh_compute_potential(
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh);
 
+void fastpm_matrix_invert(double (*matrix)[4], double (*matrix_inv)[4], int matrix_size);
+
 FASTPM_END_DECLS

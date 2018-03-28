@@ -15,7 +15,8 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 
-void matrix_invert(double (*matrix)[4], double (*matrix_inv)[4], int matrix_size) //square matrix.. 
+void fastpm_matrix_invert(double (*matrix)[4], double (*matrix_inv)[4], int matrix_size) 
+                                                                        //square matrix.. 
                                                                         //matrix_size fixed to 4 
 {
     gsl_matrix_view m= gsl_matrix_view_array(&matrix[0][0], matrix_size, matrix_size);
@@ -38,8 +39,7 @@ fastpm_lc_init(FastPMLightCone * lc)
     lc->horizon = malloc(sizeof(FastPMHorizon));
     fastpm_horizon_init(lc->horizon, lc->cosmology);
 
-    matrix_invert(lc->glmatrix,lc->glmatrix_inv,4);
-
+    fastpm_matrix_invert(lc->glmatrix,lc->glmatrix_inv,4);
 }
 
 void
