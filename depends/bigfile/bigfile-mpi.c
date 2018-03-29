@@ -95,6 +95,21 @@ int big_file_mpi_create_block(BigFile * bf, BigBlock * block, const char * block
     return big_block_mpi_create(block, basename, dtype, nmemb, Nfile, fsize, comm);
 }
 
+int
+big_file_mpi_grow_block(BigFile * bf, BigBlock * bb, int Nfile_grow, size_t size_grow, MPI_Comm comm)
+{
+    size_t fsize[Nfile_grow];
+    int i;
+    for(i = 0; i < Nfile_grow; i ++) {
+        fsize[i] = size_grow * (i + 1) / Nfile_grow
+                 - size_grow * (i) / Nfile_grow;
+    }
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    return big_block_mpi_grow(bb, Nfile_grow, fsize, comm);
+}
+
 int big_file_mpi_close(BigFile * bf, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
     int rt = big_file_close(bf);
