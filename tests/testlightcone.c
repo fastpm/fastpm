@@ -153,7 +153,8 @@ int main(int argc, char * argv[]) {
     {
         double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
         double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
-        fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
+        // fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
+        fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 9);
 
         fastpm_add_event_handler(&smesh->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,

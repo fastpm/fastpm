@@ -30,6 +30,7 @@ void healpix_ra_dec( double **ra, double **dec,long nside, long npix)
         pix2ang_ring(nside,i,&(dec[0][i]),&(ra[0][i]));
         ra[0][i]*=rad_to_degree;
         dec[0][i]*=rad_to_degree;
+        dec[0][i]= 90 - dec[0][i];
         //fastpm_info("healpix radec %ld %g %g \n",i,ra[0][i],dec[0][i]);
     }
 }
@@ -101,9 +102,9 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh,
 
     for(i = 0; i < Npix; i ++) {
         /* FIXME: does this look correct? */
-        mesh->vec[i][0] = cos(dec[i]) * cos(ra[i]);
-        mesh->vec[i][1] = cos(dec[i]) * sin(ra[i]);
-        mesh->vec[i][2] = sin(dec[i]);
+        mesh->vec[i][0] = cos(dec[i] / rad_to_degree) * cos(ra[i] / rad_to_degree);
+        mesh->vec[i][1] = cos(dec[i] / rad_to_degree) * sin(ra[i] / rad_to_degree);
+        mesh->vec[i][2] = sin(dec[i] / rad_to_degree);
         mesh->ra[i] = ra[i];
         mesh->dec[i] = dec[i];
     }
