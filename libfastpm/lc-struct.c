@@ -10,9 +10,29 @@
 #include <fastpm/prof.h>
 #include <fastpm/lc-unstruct.h>
 #include <fastpm/logging.h>
+#include <fastpm/chealpix.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
+
+double rad_to_degree=180./M_PI;
+
+void healpix_ra_dec( double **ra, double **dec,long nside, long npix)
+{
+    //const long nside2=nside;
+    //npix=nside2npix (nside2);
+    //fastpm_info("healpix npix %ld \n",*npix);
+    *ra=malloc(sizeof(double)*npix);
+    *dec=malloc(sizeof(double)*npix);
+    long i=0;
+    for (i=0;i<npix;i++)
+    {
+        pix2ang_ring(nside,i,&(dec[0][i]),&(ra[0][i]));
+        ra[0][i]*=rad_to_degree;
+        dec[0][i]*=rad_to_degree;
+        //fastpm_info("healpix radec %ld %g %g \n",i,ra[0][i],dec[0][i]);
+    }
+}
 
 static int
 fastpm_smesh_init_common(FastPMSMesh * mesh,
@@ -57,6 +77,7 @@ fastpm_smesh_init_plane(FastPMSMesh * mesh,
     size_t i;
 
     for(i = 0; i < Nxy; i ++) {
+        fastpm_info("init plane %ld %g %g \n",i,xy[i][0],xy[i][1]);
         mesh->xy[i][0] = xy[i][0];
         mesh->xy[i][1] = xy[i][1];
     }

@@ -38,7 +38,8 @@ LIBSOURCES = libfastpm.c \
     pm2lpt.c \
     pmapi.c \
     string.c \
-    version.c
+    version.c \
+    chealpix.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
 PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a

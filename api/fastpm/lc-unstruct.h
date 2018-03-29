@@ -113,5 +113,6 @@ void
 fastpm_smesh_destroy(FastPMSMesh * mesh);
 
 void fastpm_matrix_invert(double (*matrix)[4], double (*matrix_inv)[4], int matrix_size);
+void healpix_ra_dec(double **ra, double **dec,long nside,long npix);
 
 FASTPM_END_DECLS

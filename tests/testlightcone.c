@@ -69,6 +69,16 @@ int main(int argc, char * argv[]) {
             {0, 0, 0},
             };
 
+    double *ra,*dec;
+    long nside=32;
+    long npix=12*nside*nside;
+    //ra_dec=malloc(sizeof(double)*npix*2);
+    healpix_ra_dec(&ra, &dec, nside,npix);
+
+    // for(size_t i = 0; i < npix; i ++) {
+    //     fastpm_info("test lightcone %ld %g %g \n",i,ra[i],dec[i]);
+    // }
+
     FastPMLightCone lc[1] = {{
         .speedfactor = 0.2,
         .glmatrix = {
@@ -90,9 +100,10 @@ int main(int argc, char * argv[]) {
     fastpm_lc_init(lc);
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
     {
-        double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
+        //double xy[][2] = {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
         double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
-        fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
+        //fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
+        fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 9);
 
         fastpm_add_event_handler(&smesh->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
