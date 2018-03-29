@@ -139,7 +139,7 @@ fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states
     }
 }
 
-void
+int
 fastpm_tevo_transition_find_dual(FastPMTransition * transition, FastPMTransition * dual)
 {
     /* Find the dual action that updates the dual to the last state, invert it */
@@ -164,6 +164,7 @@ fastpm_tevo_transition_find_dual(FastPMTransition * transition, FastPMTransition
         if(dual->action == dual_action) break;
     }
     if(i == -1) { /* not found */
+        return 0;
         fastpm_raise(-1, "Dual transition not found. The state table is likely run. Look at states->table.\n");
     }
 
@@ -173,4 +174,19 @@ fastpm_tevo_transition_find_dual(FastPMTransition * transition, FastPMTransition
     if(dual->a.r != transition->a.i) {
         fastpm_raise(-1, "dual transition reference is not the same as my initial state.\n");
     }
+    return 1;
 }
+
+int
+fastpm_tevo_transition_find_next(FastPMTransition * transition, FastPMTransition * next)
+{
+    int i;
+    FastPMStates * states = transition->states;
+
+    for(i = transition->iend; states->table[i + 1].force != -1; i++) {
+        fastpm_tevo_transition_init(next, states, i, i + 1);
+        if(next->action == transition->action) return 1;
+    }
+    return 0;
+}
+
