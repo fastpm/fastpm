@@ -86,12 +86,13 @@ sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
     free(send_buffer);
 }
 
-int
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
+static int
+write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
         char * filebase,
         char * parameters,
         int Nwriters,
-        FastPMSnapshotSorter sorter
+        FastPMSnapshotSorter sorter,
+        int append
 )
 {
 
@@ -186,19 +187,52 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
-                    Nfile, size, comm)) {
-            fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+        if(!append) {
+            if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                        Nfile, size, comm)) {
+                fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+            }
+            big_block_seek(&bb, &ptr, 0);
+        } else {
+            if(0 != big_file_mpi_open_block(&bf, &bb, bdesc->name, comm)) {
+                /* if open failed, create an empty block instead.*/
+                if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                            0, 0, comm)) {
+                    fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+                }
+            }
+            size_t oldsize = bb.size;
+            /* FIXME : check the dtype and nmemb are consistent */
+            big_file_mpi_grow_block(&bf, &bb, Nfile, size, comm);
+            big_block_seek(&bb, &ptr, oldsize);
         }
-
         big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
-        big_block_seek(&bb, &ptr, 0);
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);
     }
 
     big_file_mpi_close(&bf, comm);
     return 0;
+}
+
+int
+write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
+        char * filebase,
+        char * parameters,
+        int Nwriters,
+        FastPMSnapshotSorter sorter)
+{
+    return write_snapshot_internal(fastpm, p, filebase, parameters, Nwriters, sorter, 0);
+}
+
+int
+append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
+        char * filebase,
+        char * parameters,
+        int Nwriters,
+        FastPMSnapshotSorter sorter)
+{
+    return write_snapshot_internal(fastpm, p, filebase, parameters, Nwriters, sorter, 1);
 }
 
 int
