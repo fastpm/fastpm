@@ -14,14 +14,21 @@ static void
 smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver)
 {
     fastpm_info("lc event : a0 = %g a1 = %g, n = %td \n", lcevent->a0, lcevent->a1, lcevent->p->np);
-    char * fn = fastpm_strdup_printf("lightcone_ustruct_%6.4f_%6.4f", lcevent->a0, lcevent->a1);
-    write_snapshot(solver, lcevent->p, fn, "", 1, NULL);
+    char * fn = fastpm_strdup_printf("lightcone_struct");
+    if(lcevent->is_first) {
+        fastpm_info("First iteration\n");
+        write_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+    } else {
+        fastpm_info("not first iteration\n");
+        append_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+    }
     free(fn);
 }
 
 static void
 force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
 {
+    fastpm_info("force handler, %g %g\n", event->a_f, event->a_n);
     fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
 }
 
@@ -141,6 +148,8 @@ int main(int argc, char * argv[]) {
 
     fastpm_smesh_destroy(smesh);
 
+    fastpm_info("stage 2\n");
+
     {
         double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
         double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
@@ -173,6 +182,9 @@ int main(int argc, char * argv[]) {
 
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
+
+    fastpm_info("stage 3\n");
+
     double time_step3[] = {0.1};
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
     write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);

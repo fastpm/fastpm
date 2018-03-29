@@ -267,15 +267,20 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     event->pm = pm;
     event->N = N;
     event->gravity = gravity;
+
     /* find the time stamp of the next force calculation. This will
      * be useful for interpolating potentials of the structured mesh */
-    int inext = trans->iend + 1;
+    FastPMTransition next[1];
 
-    if (inext <= trans->states->cycles) {
-        event->a_n = trans->states->timesteps[inext];
-    } else {
+    if(!fastpm_tevo_transition_find_next(trans, next)) {
         event->a_n = -1;
+    } else {
+        if(! next->a.i == trans->a.f) {
+            fastpm_raise(-1, "Failed to find next Force calculation\n");
+        }
+        event->a_n = next->a.f;
     }
+
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
     LEAVE(afterforce);
 
@@ -297,7 +302,9 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
         FastPMDriftFactor drift;
 
         FastPMTransition dual[1];
-        fastpm_tevo_transition_find_dual(trans, dual);
+        if(!fastpm_tevo_transition_find_dual(trans, dual)) {
+            fastpm_raise(-1, "Dual transition not found. The state table is likely wrong. Look at states->table.\n");
+        }
 
         fastpm_drift_init(&drift, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
@@ -324,7 +331,9 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
         FastPMKickFactor kick;
 
         FastPMTransition dual[1];
-        fastpm_tevo_transition_find_dual(trans, dual);
+        if(!fastpm_tevo_transition_find_dual(trans, dual)) {
+            fastpm_raise(-1, "Dual transition not found. The state table is likely wrong. Look at states->table.\n");
+        }
         fastpm_kick_init(&kick, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
         fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);

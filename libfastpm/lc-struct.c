@@ -299,6 +299,7 @@ fastpm_smesh_compute_potential(
     lcevent->p = mesh->last.p;
     lcevent->a0 = mesh->last.a_f;
     lcevent->a1 = a_f;
+    lcevent->is_first = mesh->last.a_f == 0;
 
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,

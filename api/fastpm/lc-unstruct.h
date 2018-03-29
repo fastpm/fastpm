@@ -62,6 +62,7 @@ typedef struct FastPMSMesh {
 
 typedef struct FastPMLCEvent {
     FastPMEvent base;
+    int is_first;
     FastPMStore * p;
     double a0;
     double a1;
