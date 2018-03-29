@@ -36,12 +36,15 @@ typedef struct FastPMSMesh {
             double * ra;
             double * dec;
             double (* vec)[3];
-            int Npix;
         };
         struct {
             double (* xy)[2];
-            int Nxy;
         };
+    };
+
+    union {
+            int Npix;
+            int Nxy;
     };
 
     double * a;
