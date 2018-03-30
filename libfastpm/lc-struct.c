@@ -168,6 +168,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
                         x_temp[2] = mesh->vec[j][2] * mesh->z[k];
                         break;
                 }
+                /* transform to simulation coordinates */
                 double xo[4];
                 fastpm_gldot(mesh->lc->glmatrix_inv, x_temp, xo);
                 for(m = 0; m < 3; m ++) {
@@ -271,6 +272,21 @@ fastpm_smesh_compute_potential(
     FastPMStore * p_last_then = mesh->last.p;
 
     for(i = 0; i < p_last_now->np; i ++) {
+
+        /* transform back to observer coordinate */
+        double x_temp[4], xo[4];
+        int m;
+        for(m = 0; m < 3; m ++) {
+            x_temp[m] = p_last_then->x[i][m];
+        }
+        x_temp[3] = 1;
+
+        fastpm_gldot(mesh->lc->glmatrix, x_temp, xo);
+
+        for(m = 0; m < 3; m ++) {
+            p_last_then->x[i][m] = xo[m];
+        }
+
         float a_emit = p_last_now->aemit[i];
         if(a_emit < mesh->last.a_f || a_emit >= a_f) {
             fastpm_raise(-1, " out of bounds. a_emit = %g should be between %g and %g", a_emit, mesh->last.a_f, a_f);

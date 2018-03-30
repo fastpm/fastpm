@@ -22,7 +22,11 @@ _matrix_invert(double (*matrix)[4],
                                                                         //square matrix.. 
                                                                         //matrix_size fixed to 4 
 {
-    gsl_matrix_view m= gsl_matrix_view_array(&matrix[0][0], matrix_size, matrix_size);
+    double temp[16];
+
+    memcpy(temp, matrix, sizeof(double) * 16);
+
+    gsl_matrix_view m = gsl_matrix_view_array(temp, matrix_size, matrix_size);
     gsl_matrix_view inv = gsl_matrix_view_array(&matrix_inv[0][0],matrix_size, matrix_size);
     gsl_permutation * p = gsl_permutation_alloc (matrix_size);
 

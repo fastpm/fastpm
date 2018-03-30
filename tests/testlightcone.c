@@ -200,7 +200,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, 361., comm);
+    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, 90, comm);
 
     {
         int p = 0;
@@ -222,13 +222,13 @@ int main(int argc, char * argv[]) {
     FastPMLightCone lc[1] = {{
         .speedfactor = 0.01,
         .glmatrix = {
-                {1, 0, 0, 0,},
                 {0, 1, 0, 0,},
+                {1, 0, 0, 0,},
                 {0, 0, 1, 0,},
                 {0, 0, 0, 1,},
             },
 
-        .fov = 361., /* full sky */
+        .fov = 90., /* full sky */
         .cosmology = solver->cosmology,
     }};
 
