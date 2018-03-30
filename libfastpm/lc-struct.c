@@ -19,7 +19,7 @@ double rad_to_degree=180./M_PI;
 static int
 fastpm_smesh_init_common(FastPMSMesh * mesh,
         FastPMLightCone * lc,
-        double * a, double Na)
+        double * a, double Na, MPI_Comm comm)
 {
     mesh->started = 0;
     mesh->event_handlers = NULL;
@@ -40,21 +40,24 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
             | PACK_TIDAL
             | PACK_AEMIT,
             FASTPM_MEMORY_STACK);
+
     mesh->last.a_f = 0;
+
+    MPI_Allreduce(&mesh->Nxy, &mesh->Nxy_upper, 1, MPI_INT, MPI_MAX, comm);
 }
 
 void
 fastpm_smesh_init_plane(FastPMSMesh * mesh,
         FastPMLightCone * lc,
         double (*xy)[2], size_t Nxy,
-        double * a, size_t Na)
+        double * a, size_t Na, MPI_Comm comm)
 {
-    fastpm_smesh_init_common(mesh, lc, a, Na);
-
     mesh->type = FASTPM_SMESH_PLANE;
+    mesh->Nxy = Nxy;
+
+    fastpm_smesh_init_common(mesh, lc, a, Na, comm);
 
     mesh->xy = malloc(sizeof(double) * Nxy * 2);
-    mesh->Nxy = Nxy;
 
     size_t i;
 
@@ -68,21 +71,21 @@ fastpm_smesh_init_plane(FastPMSMesh * mesh,
 void
 fastpm_smesh_init_sphere(FastPMSMesh * mesh,
         FastPMLightCone * lc,
-        double * ra, double * dec, size_t Npix,
-        double * a, size_t Na)
+        double * ra, double * dec, size_t Nxy,
+        double * a, size_t Na, MPI_Comm comm)
 {
-    fastpm_smesh_init_common(mesh, lc, a, Na);
-
     mesh->type = FASTPM_SMESH_SPHERE;
-    mesh->Npix = Npix;
+    mesh->Nxy = Nxy;
+
+    fastpm_smesh_init_common(mesh, lc, a, Na, comm);
+
     size_t i;
 
-    mesh->vec = malloc(sizeof(double) * Npix * 3);
-    mesh->ra = malloc(sizeof(double) * Npix);
-    mesh->dec = malloc(sizeof(double) * Npix);
+    mesh->vec = malloc(sizeof(double) * Nxy * 3);
+    mesh->ra = malloc(sizeof(double) * Nxy);
+    mesh->dec = malloc(sizeof(double) * Nxy);
 
-    for(i = 0; i < Npix; i ++) {
-        /* FIXME: does this look correct? */
+    for(i = 0; i < Nxy; i ++) {
         mesh->vec[i][0] = cos(dec[i] / rad_to_degree) * cos(ra[i] / rad_to_degree);
         mesh->vec[i][1] = cos(dec[i] / rad_to_degree) * sin(ra[i] / rad_to_degree);
         mesh->vec[i][2] = sin(dec[i] / rad_to_degree);
@@ -126,7 +129,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     }
 
     /* 2 is fudge factor for ghosts */
-    size_t np_upper = mesh->Nxy * Na * 2;
+    size_t np_upper = mesh->Nxy_upper * Na * 2;
 
     fastpm_store_init(q, np_upper,
               PACK_POS

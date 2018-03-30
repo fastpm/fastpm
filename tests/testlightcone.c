@@ -55,7 +55,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128);
+    fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128, solver->comm);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -104,7 +104,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128);
+    fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128, solver->comm);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
