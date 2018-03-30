@@ -155,7 +155,7 @@ funct(double a, void *params)
         distance = sqrt(distance);
     }
 
-    return distance - HorizonDistance(a, lc->horizon);
+    return distance - lc->speedfactor * HorizonDistance(a, lc->horizon);
 }
 
 static int

@@ -50,7 +50,7 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
 
     for(i = 0; i < Na; i ++) {
         mesh->a[i] = a[i];
-        mesh->z[i] = HorizonDistance(a[i], lc->horizon);
+        mesh->z[i] = lc->speedfactor * HorizonDistance(a[i], lc->horizon);
     }
 
     fastpm_store_init(mesh->last.p, 0,
