@@ -52,9 +52,14 @@ fastpm_lc_destroy(FastPMLightCone * lc)
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
             size_t np_upper,
-            double (*tileshifts)[3], int ntiles)
+            double (*tileshifts)[3],
+            int ntiles,
+            double amin,
+            double amax)
 {
 
+    mesh->amin = amin;
+    mesh->amax = amax;
     mesh->lc = lc;
     mesh->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     mesh->ntiles = ntiles;
@@ -203,9 +208,17 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
     };
     int d;
 
+    int a1_is_outside = (params.a1 > mesh->amax) || (params.a1 < mesh->amin);
+    int a2_is_outside = (params.a2 > mesh->amax) || (params.a2 < mesh->amin);
+
+    if(a1_is_outside && a2_is_outside) {
+        return 0;
+    }
+
     for(d = 0; d < 3; d ++) {
         params.tileshift[d] = tileshift[d];
     }
+
     fastpm_info("tileshift = %g %g %g\n",
         params.tileshift[0],
         params.tileshift[1],
@@ -218,6 +231,10 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
         if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
+        
+        /* the event is outside the region we care, skip */
+        if(a_emit > mesh->amax || a_emit < mesh->amin) continue;
+
         /* A solution is found */
         /* move the particle and store it. */
         ptrdiff_t next = pout->np;

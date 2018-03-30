@@ -20,6 +20,9 @@ typedef struct FastPMUSMesh {
 
     double (* tileshifts)[3];
     int ntiles;
+    /* we need to apply a cut in time, because at early time we tend to write too many particles. */
+    double amax; /* range for largest a; above which no particles will be written */
+    double amin; /* range for smallest a; below which no particles will be written */
 } FastPMUSMesh;
 
 
@@ -77,7 +80,8 @@ fastpm_lc_init(FastPMLightCone * lc);
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh,
                 FastPMLightCone * lc, size_t np_upper,
-                double (*tileshifts)[3], int ntiles);
+                double (*tileshifts)[3], int ntiles,
+                double amin, double amax);
 
 void
 fastpm_usmesh_destroy(FastPMUSMesh * mesh);
