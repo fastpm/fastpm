@@ -253,7 +253,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         }
 
         fastpm_lc_init(lc);
-        fastpm_usmesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles);
+        fastpm_usmesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles, 0, 1.0);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION,
