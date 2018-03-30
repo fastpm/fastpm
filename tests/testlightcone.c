@@ -32,6 +32,12 @@ force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * sme
     fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
 }
 
+static void
+interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
+{
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
+}
+
 int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
@@ -72,10 +78,20 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    double tiles[1][3] = {
-            {0, 0, 0},
-            };
+    double tiles[4*4*4][3];
 
+    {
+        int p = 0;
+        int i, j, k;
+        for(i = -2; i <= 1; i ++) {
+        for(j = -2; j <= 1; j ++) {
+        for(k = -2; k <= 1; k ++) {
+            tiles[p][0] = i * config->boxsize;
+            tiles[p][1] = j * config->boxsize;
+            tiles[p][2] = k * config->boxsize;
+            p ++;
+        }}}
+    }
     double *ra,*dec;
     long nside=32;
     long npix=12*nside*nside;
@@ -87,7 +103,7 @@ int main(int argc, char * argv[]) {
     // }
 
     FastPMLightCone lc[1] = {{
-        .speedfactor = 0.2,
+        .speedfactor = 0.01,
         .glmatrix = {
                 {1, 0, 0, 0,},
                 {0, 1, 0, 0,},
@@ -95,7 +111,7 @@ int main(int argc, char * argv[]) {
                 {0, 0, 0, 1,},
             },
 
-        .fov = 0.,
+        .fov = 361., /* full sky */
         .cosmology = solver->cosmology,
     }};
 
@@ -105,7 +121,7 @@ int main(int argc, char * argv[]) {
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_lc_init(lc);
-    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, 1);
+    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
     {
         //double xy[][2] = {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
         double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
@@ -147,14 +163,21 @@ int main(int argc, char * argv[]) {
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
 
     fastpm_smesh_destroy(smesh);
+    fastpm_usmesh_destroy(usmesh);
 
     fastpm_info("stage 2\n");
 
     {
+        fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+
         double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
-        double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+        double a[128];
+        int i;
+        for(i = 0; i < 128; i ++) {
+            a[i] = 0.4 + 0.4 * i / 128.;
+        }
         // fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
-        fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 9);
+        fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128);
 
         fastpm_add_event_handler(&smesh->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -170,13 +193,27 @@ int main(int argc, char * argv[]) {
             (FastPMEventHandlerFunction) force_handler,
             smesh);
 
-    double time_step2[] = {0.1, 1.0};
+    fastpm_add_event_handler(&solver->event_handlers,
+        FASTPM_EVENT_INTERPOLATION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) interp_handler,
+        usmesh);
+
+
+    double time_step2[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
+
     write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
+    write_snapshot(solver, usmesh->p, "lightcone-unstruct", "", 1, NULL);
 
     fastpm_remove_event_handler(&solver->event_handlers,
             FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
             (FastPMEventHandlerFunction) force_handler,
+            smesh);
+
+    fastpm_remove_event_handler(&solver->event_handlers,
+            FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEventHandlerFunction) interp_handler,
             smesh);
 
     fastpm_smesh_destroy(smesh);
