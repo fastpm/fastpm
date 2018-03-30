@@ -19,7 +19,8 @@ double rad_to_degree=180./M_PI;
 static int
 fastpm_smesh_init_common(FastPMSMesh * mesh,
         FastPMLightCone * lc,
-        double * a, double Na, MPI_Comm comm)
+        size_t np_upper,
+        double * a, double Na)
 {
     mesh->started = 0;
     mesh->event_handlers = NULL;
@@ -27,6 +28,7 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
     mesh->a = malloc(sizeof(double) * Na);
     mesh->z = malloc(sizeof(double) * Na);
     mesh->Na = Na;
+    mesh->np_upper = np_upper;
     size_t i;
 
     for(i = 0; i < Na; i ++) {
@@ -34,7 +36,7 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
         mesh->z[i] = lc->speedfactor * HorizonDistance(a[i], lc->horizon);
     }
 
-    fastpm_store_init(mesh->last.p, 0,
+    fastpm_store_init(mesh->last.p, mesh->np_upper,
               PACK_POS
             | PACK_POTENTIAL
             | PACK_TIDAL
@@ -43,19 +45,19 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
 
     mesh->last.a_f = 0;
 
-    MPI_Allreduce(&mesh->Nxy, &mesh->Nxy_upper, 1, MPI_INT, MPI_MAX, comm);
 }
 
 void
 fastpm_smesh_init_plane(FastPMSMesh * mesh,
         FastPMLightCone * lc,
+        size_t np_upper,
         double (*xy)[2], size_t Nxy,
-        double * a, size_t Na, MPI_Comm comm)
+        double * a, size_t Na)
 {
     mesh->type = FASTPM_SMESH_PLANE;
     mesh->Nxy = Nxy;
 
-    fastpm_smesh_init_common(mesh, lc, a, Na, comm);
+    fastpm_smesh_init_common(mesh, lc, np_upper, a, Na);
 
     mesh->xy = malloc(sizeof(double) * Nxy * 2);
 
@@ -71,13 +73,14 @@ fastpm_smesh_init_plane(FastPMSMesh * mesh,
 void
 fastpm_smesh_init_sphere(FastPMSMesh * mesh,
         FastPMLightCone * lc,
+        size_t np_upper,
         double * ra, double * dec, size_t Nxy,
-        double * a, size_t Na, MPI_Comm comm)
+        double * a, size_t Na)
 {
     mesh->type = FASTPM_SMESH_SPHERE;
     mesh->Nxy = Nxy;
 
-    fastpm_smesh_init_common(mesh, lc, a, Na, comm);
+    fastpm_smesh_init_common(mesh, lc, np_upper, a, Na);
 
     size_t i;
 
@@ -128,10 +131,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
         }
     }
 
-    /* 2 is fudge factor for ghosts */
-    size_t np_upper = mesh->Nxy_upper * Na * 2;
-
-    fastpm_store_init(q, np_upper,
+    fastpm_store_init(q, mesh->np_upper,
               PACK_POS
             | PACK_POTENTIAL
             | PACK_TIDAL
@@ -193,7 +193,7 @@ fastpm_smesh_compute_potential(
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
-    fastpm_store_init(p_last_now, mesh->last.p->np_upper,
+    fastpm_store_init(p_last_now, mesh->np_upper,
                     mesh->last.p->attributes & ~ PACK_POS,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP

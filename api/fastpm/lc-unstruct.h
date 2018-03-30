@@ -46,7 +46,7 @@ typedef struct FastPMSMesh {
     };
 
     int Nxy;
-    int Nxy_upper;
+    size_t np_upper;
 
     double * a;
     double * z;
@@ -92,13 +92,15 @@ fastpm_lc_destroy(FastPMLightCone * lc);
 
 void
 fastpm_smesh_init_plane(FastPMSMesh * mesh, FastPMLightCone * lc,
+        size_t np_upper,
         double (*xy)[2], size_t Nxy,
-        double * a, size_t Na, MPI_Comm comm);
+        double * a, size_t Na);
 
 void
 fastpm_smesh_init_sphere(FastPMSMesh * mesh, FastPMLightCone * lc,
+        size_t np_upper,
         double * ra, double * dec, size_t Npix,
-        double * a, size_t Na, MPI_Comm comm);
+        double * a, size_t Na);
 
 void
 fastpm_smesh_select_active(FastPMSMesh * mesh,
