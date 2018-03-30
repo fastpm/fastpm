@@ -176,6 +176,7 @@ write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
         {"1/ID", p->id, "i8", 1, "i8"},
         {"1/Aemit", p->aemit, "f4", 1, "f4"},
         {"1/Potential", p->potential, "f4", 1, "f4"},
+        {"1/Density", p->rho, "f4", 1, "f4"},
         {"1/Tidal", p->tidal, "f4", 6, "f4"},
         {NULL, },
     };

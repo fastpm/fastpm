@@ -35,5 +35,11 @@ fastpm_utils_healpix_ra_dec (
                 MPI_Comm comm
                 );
 
+void
+fastpm_gldot(double glmatrix[4][4], double xi[4], double xo[4]);
+
+void
+fastpm_gldotf(double glmatrix[4][4], float vi[4], float vo[4]);
+
 FASTPM_END_DECLS
 

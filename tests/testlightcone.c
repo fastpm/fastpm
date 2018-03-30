@@ -174,7 +174,7 @@ int main(int argc, char * argv[]) {
     FastPMConfig * config = & (FastPMConfig) {
         .nc = 64,
         .boxsize = 128.,
-        .alloc_factor = 4.0,
+        .alloc_factor = 10.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
@@ -200,7 +200,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, 60., comm);
+    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, 361., comm);
 
     {
         int p = 0;

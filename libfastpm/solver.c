@@ -35,7 +35,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .PainterSupport = config->painter_support,
         .KernelType = config->KERNEL_TYPE,
         .DealiasingType = config->DEALIASING_TYPE,
-        .ComputePotential = config->COMPUTE_POTENTIAL,
     };
 
     fastpm->cosmology[0] = (FastPMCosmology) {

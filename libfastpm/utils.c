@@ -282,3 +282,27 @@ fastpm_utils_healpix_ra_dec (
     *n = local_npix;
 }
 
+void
+fastpm_gldot(double glmatrix[4][4], double xi[4], double xo[4])
+{
+    int i, j;
+    for(i = 0; i < 4; i ++) {
+        xo[i] = 0;
+        for(j = 0; j < 4; j ++) {
+            xo[i] += glmatrix[i][j] * xi[j];
+        }
+    }
+}
+
+void
+fastpm_gldotf(double glmatrix[4][4], float vi[4], float vo[4])
+{
+    int i, j;
+    for(i = 0; i < 4; i ++) {
+        vo[i] = 0;
+        for(j = 0; j < 4; j ++) {
+            vo[i] += glmatrix[i][j] * vi[j];
+        }
+    }
+}
+

@@ -95,30 +95,6 @@ struct funct_params {
     double a2;
 };
 
-static void
-gldot(double glmatrix[4][4], double xi[4], double xo[4])
-{
-    int i, j;
-    for(i = 0; i < 4; i ++) {
-        xo[i] = 0;
-        for(j = 0; j < 4; j ++) {
-            xo[i] += glmatrix[i][j] * xi[j];
-        }
-    }
-}
-
-static void
-gldotv(double glmatrix[4][4], float vi[3], float vo[3])
-{
-    int i, j;
-    for(i = 0; i < 3; i ++) {
-        vo[i] = 0;
-        for(j = 0; j < 3; j ++) {
-            vo[i] += glmatrix[i][j] * vi[j];
-        }
-    }
-}
-
 static double
 funct(double a, void *params)
 {
@@ -144,7 +120,7 @@ funct(double a, void *params)
         xi[d] += Fp->tileshift[d];
     }
     /* transform the coordinate */
-    gldot(lc->glmatrix, xi, xo);
+    fastpm_gldot(lc->glmatrix, xi, xo);
 
     /* XXX: may need to worry about periodic boundary */
     double distance;
@@ -263,7 +239,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
             xi[d] += params.tileshift[d];
         }
         /* transform the coordinate */
-        gldot(lc->glmatrix, xi, xo);
+        fastpm_gldot(lc->glmatrix, xi, xo);
 
         /* does it fall into the field of view? */
         if(lc->fov > 0 && zangle(xo) > lc->fov * 0.5) continue;
@@ -275,13 +251,14 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
             }
         }
 
-        float vo[3];
-        float vi[3];
+        float vo[4];
+        float vi[4];
         if(p->v) {
             /* can we kick? if we are using a fixed grid there is no v */
             fastpm_kick_one(kick, p, i, vi, a_emit);
+            vi[3] = 0;
             /* transform the coordinate */
-            gldotv(lc->glmatrix, vi, vo);
+            fastpm_gldotf(lc->glmatrix, vi, vo);
 
             if(pout->v) {
                 for(d = 0; d < 3; d ++) {
