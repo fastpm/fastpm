@@ -210,27 +210,75 @@ fastpm_utils_powerspec_white(double k, double * amplitude) 	/* White Noise*/
     return *amplitude;
 }
 
+static double
+zangle(double * x) {
+    double dxy = 0;
+    double dz = x[2];
+    dxy = x[0] * x[0] + x[1] * x[1];
+
+    double rt = atan2(sqrt(dxy), dz) / M_PI * 180.;
+    if (rt < 0) rt += 360.;
+    return rt;
+}
+
 void
 fastpm_utils_healpix_ra_dec (
-                size_t nside,
+                int nside,
                 double **ra,
                 double **dec,
-                size_t * npix)
+                size_t * n,
+                double fov,
+                MPI_Comm comm
+            )
 {
     const double rad_to_degree = 180./M_PI;
 
-    *npix = nside2npix (nside);
+    size_t npix = nside2npix (nside);
+    int ThisTask, NTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
+
     //fastpm_info("healpix npix %ld \n",*npix);
-    *ra = malloc(sizeof(double) * *npix);
-    *dec = malloc(sizeof(double) * *npix);
-    size_t i=0;
-    for (i = 0;i < *npix; i++)
-    {
-        pix2ang_ring(nside,i,&((*dec)[i]),&((*ra)[i]));
-        (*ra)[i]*=rad_to_degree;
-        (*dec)[i]*=rad_to_degree;
-        (*dec)[i]= 90 - (*dec)[i];
-        //fastpm_info("healpix radec %ld %g %g \n",i,ra[0][i],dec[0][i]);
+    size_t i = 0;
+
+    size_t pix_start = ThisTask * npix / NTask;
+    size_t pix_end = (ThisTask + 1) * npix / NTask;
+
+    *ra = NULL;
+    size_t local_npix = 0;
+    /* two iterations; estimate and fill */
+    while(1) {
+        size_t j = 0;
+
+        for (i = pix_start; i < pix_end; i++)
+        {
+            double vec[3];
+
+            pix2vec_ring(nside, i, vec);
+
+            if(zangle(vec) > fov * 0.5) continue;
+
+            if(*ra) {
+                double phi, theta;
+                pix2ang_ring(nside, i, &theta, &phi);
+                phi *= rad_to_degree;
+                theta*= rad_to_degree;
+                (*ra)[j] = phi;
+                (*dec)[j]= 90 - theta;
+            }
+
+            j ++;
+        }
+        if(*ra == NULL) {
+            local_npix = j;
+            *ra = malloc(sizeof(double) * j);
+            *dec = malloc(sizeof(double) * j);
+        } else {
+            break;
+        }
     }
+
+    *n = local_npix;
 }
 

@@ -27,10 +27,13 @@ fastpm_utils_get_random(uint64_t id);
 
 void
 fastpm_utils_healpix_ra_dec (
-                size_t nside,
+                int nside,
                 double **ra,
                 double **dec,
-                size_t * npix);
+                size_t * n,
+                double fov,
+                MPI_Comm comm
+                );
 
 FASTPM_END_DECLS
 

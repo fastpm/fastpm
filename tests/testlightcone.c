@@ -38,6 +38,129 @@ interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUS
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
 }
 
+double tiles[4*4*4][3];
+double a[128];
+
+double *ra, *dec;
+size_t npix;
+
+static void
+stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktruth)
+{
+
+    FastPMUSMesh usmesh[1];
+    FastPMSMesh  smesh[1];
+
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+
+    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+
+    fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128);
+
+    fastpm_add_event_handler(&smesh->event_handlers,
+            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) smesh_handler,
+            solver);
+
+    fastpm_info("dx1  : %g %g %g %g\n",
+            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
+            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
+    fastpm_info("dx2  : %g %g %g %g\n",
+            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
+            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
+
+    fastpm_info("stage 1\n");
+
+    double time_step[] = {0.1};
+
+    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
+
+    FastPMDriftFactor drift;
+    FastPMKickFactor kick;
+
+    fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
+    fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
+
+    fastpm_usmesh_intersect(usmesh, &drift, &kick, solver);
+    fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
+
+    write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
+
+    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
+
+    fastpm_smesh_destroy(smesh);
+    fastpm_usmesh_destroy(usmesh);
+
+}
+
+static void
+stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktruth)
+{
+    fastpm_info("stage 2\n");
+    FastPMUSMesh usmesh[1];
+    FastPMSMesh  smesh[1];
+
+    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+
+    fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128);
+
+    fastpm_add_event_handler(&smesh->event_handlers,
+            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) smesh_handler,
+            solver);
+
+    fastpm_add_event_handler(&solver->event_handlers,
+            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) force_handler,
+            smesh);
+
+    fastpm_add_event_handler(&solver->event_handlers,
+        FASTPM_EVENT_INTERPOLATION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) interp_handler,
+        usmesh);
+
+
+    double time_step2[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+
+    fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
+
+    //write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
+    write_snapshot(solver, usmesh->p, "lightcone-unstruct", "", 1, NULL);
+
+    fastpm_remove_event_handler(&solver->event_handlers,
+            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEventHandlerFunction) force_handler,
+            smesh);
+
+    fastpm_remove_event_handler(&solver->event_handlers,
+            FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEventHandlerFunction) interp_handler,
+            smesh);
+
+    fastpm_smesh_destroy(smesh);
+    fastpm_usmesh_destroy(usmesh);
+}
+
+static void
+stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktruth)
+{
+    fastpm_info("stage 3\n");
+
+    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+
+    double time_step3[] = {0.1};
+    fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
+
+    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
+
+}
+
+
 int main(int argc, char * argv[]) {
 
     MPI_Init(&argc, &argv);
@@ -51,7 +174,7 @@ int main(int argc, char * argv[]) {
     FastPMConfig * config = & (FastPMConfig) {
         .nc = 64,
         .boxsize = 128.,
-        .alloc_factor = 2.0,
+        .alloc_factor = 4.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
@@ -62,8 +185,7 @@ int main(int argc, char * argv[]) {
         .COMPUTE_POTENTIAL = 1,
     };
     FastPMSolver solver[1];
-    FastPMDriftFactor drift;
-    FastPMKickFactor kick;
+
     fastpm_solver_init(solver, config, comm);
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
@@ -78,7 +200,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    double tiles[4*4*4][3];
+    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, 60., comm);
 
     {
         int p = 0;
@@ -92,11 +214,6 @@ int main(int argc, char * argv[]) {
             p ++;
         }}}
     }
-    double *ra, *dec;
-    size_t nside=32;
-    size_t npix;
-    //ra_dec=malloc(sizeof(double)*npix*2);
-    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &npix);
 
     // for(size_t i = 0; i < npix; i ++) {
     //     fastpm_info("test lightcone %ld %g %g \n",i,ra[i],dec[i]);
@@ -115,119 +232,29 @@ int main(int argc, char * argv[]) {
         .cosmology = solver->cosmology,
     }};
 
-    FastPMUSMesh usmesh[1];
-    FastPMSMesh  smesh[1];
-
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
-
-    fastpm_lc_init(lc);
-    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
     {
-        //double xy[][2] = {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
-        double a[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
-        //fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
-        fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 9);
-
-        fastpm_add_event_handler(&smesh->event_handlers,
-                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-                (FastPMEventHandlerFunction) smesh_handler,
-                solver);
-    }
-
-    fastpm_info("dx1  : %g %g %g %g\n",
-            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
-            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
-    fastpm_info("dx2  : %g %g %g %g\n",
-            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
-            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
-
-    double time_step[] = {0.1};
-    fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
-
-    double a, d;
-    for(a = 0.1; a < 1.0; a += 0.1) {
-        d = HorizonDistance(a, lc->horizon);
-        fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d);
-    }
-
-    fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
-    fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
-
-    fastpm_usmesh_intersect(usmesh, &drift, &kick, solver);
-    fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
-
-    write_snapshot(solver, usmesh->p, "lightconeresult-p", "", 1, NULL);
-
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
-
-    fastpm_smesh_destroy(smesh);
-    fastpm_usmesh_destroy(usmesh);
-
-    fastpm_info("stage 2\n");
-
-    {
-        fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
-
-        double xy[][2] =  {{0, 0}, {32, 32,}, {64, 64}, {96, 96}};
-        double a[128];
         int i;
         for(i = 0; i < 128; i ++) {
             a[i] = 0.4 + 0.4 * i / 128.;
         }
-        // fastpm_smesh_init_plane(smesh, lc, xy, 4, a, 9);
-        fastpm_smesh_init_sphere(smesh, lc, ra,dec, npix, a, 128);
-
-        fastpm_add_event_handler(&smesh->event_handlers,
-                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-                (FastPMEventHandlerFunction) smesh_handler,
-                solver);
     }
 
+    fastpm_lc_init(lc);
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    {
+        double a, d;
+        for(a = 0.1; a < 1.0; a += 0.1) {
+            d = HorizonDistance(a, lc->horizon);
+            fastpm_info("a = %0.04f z = %0.08f d = %g\n", a, 1 / a - 1, d);
+        }
+    }
 
-    fastpm_add_event_handler(&solver->event_handlers,
-            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) force_handler,
-            smesh);
+    stage1(solver, lc, rho_init_ktruth);
 
-    fastpm_add_event_handler(&solver->event_handlers,
-        FASTPM_EVENT_INTERPOLATION,
-        FASTPM_EVENT_STAGE_BEFORE,
-        (FastPMEventHandlerFunction) interp_handler,
-        usmesh);
+    stage2(solver, lc, rho_init_ktruth);
 
+    stage3(solver, lc, rho_init_ktruth);
 
-    double time_step2[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
-    fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
-
-    write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
-    write_snapshot(solver, usmesh->p, "lightcone-unstruct", "", 1, NULL);
-
-    fastpm_remove_event_handler(&solver->event_handlers,
-            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) force_handler,
-            smesh);
-
-    fastpm_remove_event_handler(&solver->event_handlers,
-            FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
-            (FastPMEventHandlerFunction) interp_handler,
-            smesh);
-
-    fastpm_smesh_destroy(smesh);
-
-
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
-
-    fastpm_info("stage 3\n");
-
-    double time_step3[] = {0.1};
-    fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
-    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "", 1, NULL);
-
-    fastpm_usmesh_destroy(usmesh);
     fastpm_lc_destroy(lc);
 
     pm_free(solver->basepm, rho_init_ktruth);
@@ -235,5 +262,4 @@ int main(int argc, char * argv[]) {
 
     libfastpm_cleanup();
     MPI_Finalize();
-    return 0;
 }
