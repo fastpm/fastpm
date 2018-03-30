@@ -178,7 +178,9 @@ zangle(double * x) {
     double dz = x[2];
     dxy = x[0] * x[0] + x[1] * x[1];
 
-    return atan2(sqrt(dxy), dz) / M_PI * 180.;
+    double rt = atan2(sqrt(dxy), dz) / M_PI * 180.;
+    if (rt < 0) rt += 360.;
+    return rt;
 }
 
 /* FIXME:
