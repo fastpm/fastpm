@@ -92,11 +92,11 @@ int main(int argc, char * argv[]) {
             p ++;
         }}}
     }
-    double *ra,*dec;
-    long nside=32;
-    long npix=12*nside*nside;
+    double *ra, *dec;
+    size_t nside=32;
+    size_t npix;
     //ra_dec=malloc(sizeof(double)*npix*2);
-    healpix_ra_dec(&ra, &dec, nside,npix);
+    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &npix);
 
     // for(size_t i = 0; i < npix; i ++) {
     //     fastpm_info("test lightcone %ld %g %g \n",i,ra[i],dec[i]);
