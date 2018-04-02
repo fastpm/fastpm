@@ -103,6 +103,13 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh, FastPMLightCone * lc,
         double * a, size_t Na);
 
 void
+fastpm_smesh_init_healpix(FastPMSMesh * mesh,
+        FastPMLightCone * lc,
+        size_t np_upper,
+        int nside,
+        double * a, size_t Na, MPI_Comm comm);
+
+void
 fastpm_smesh_select_active(FastPMSMesh * mesh,
         double a0, double a1,
         FastPMStore * q

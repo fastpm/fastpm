@@ -99,6 +99,24 @@ fastpm_smesh_init_sphere(FastPMSMesh * mesh,
 }
 
 void
+fastpm_smesh_init_healpix(FastPMSMesh * mesh,
+        FastPMLightCone * lc,
+        size_t np_upper,
+        int nside,
+        double * a, size_t Na, MPI_Comm comm)
+{
+    double *ra, *dec;
+    size_t npix;
+
+    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, lc->fov, comm);
+
+    fastpm_smesh_init_sphere(mesh, lc, np_upper, ra, dec, npix, a, Na);
+
+    free(ra);
+    free(dec);
+}
+
+void
 fastpm_smesh_destroy(FastPMSMesh * mesh)
 {
     switch(mesh->type) {

@@ -41,9 +41,6 @@ interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUS
 double tiles[4*4*4][3];
 double a[128];
 
-double *ra, *dec;
-size_t npix;
-
 static void
 stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktruth)
 {
@@ -55,7 +52,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init_sphere(smesh, lc, solver->p->np_upper, ra,dec, npix, a, 128);
+    fastpm_smesh_init_healpix(smesh, lc, solver->p->np_upper, 32, a, 128, solver->comm);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -104,7 +101,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init_sphere(smesh, lc, solver->p->np_upper, ra,dec, npix, a, 128);
+    fastpm_smesh_init_healpix(smesh, lc, solver->p->np_upper, 32, a, 128, solver->comm);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -199,8 +196,6 @@ int main(int argc, char * argv[]) {
     };
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
-
-    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, 90, comm);
 
     {
         int p = 0;
