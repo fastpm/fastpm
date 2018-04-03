@@ -119,22 +119,15 @@ schema.declare{name='write_powerspectrum', type='string'}
 schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
-schema.declare{name='write_lightcone',         type='string'}
-schema.declare{name='write_lightcone_potential',         type='string'}
 
-schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
-schema.declare{name='fov',     type='number', default=0.0, help=' field of view of the sky. 0 for flat sky. the beam is along the z-direction after glmatrix.'}
-schema.declare{name='glmatrix',     type='array:number',
-        default={
-            {1, 0, 0, 0,},
-            {0, 1, 0, 0,},
-            {0, 0, 1, 0,},
-            {0, 0, 0, 0,},
-        },
-        help=[[transformation matrix to move (x, y, z, 1) to the observer coordinate with a left dot product.
-               The observer is sitting at z=0. The last column of the matrix is the translation in Mpc/h.]]}
 
-schema.declare{name='tiles',     type='array:number',
+schema.declare{name='lc_write_usmesh',         type='string', help='file name base for writing the particle lightcone'}
+schema.declare{name='lc_usmesh_amin',
+            type='number', help='min scale factor for truncation of particle lightcone.'}
+schema.declare{name='lc_usmesh_amax',
+            type='number', help='max scale factor for truncation of particle lightcone.'}
+
+schema.declare{name='lc_usmesh_tiles',     type='array:number',
         default={
             {0, 0, 0},
         },
@@ -142,6 +135,38 @@ schema.declare{name='tiles',     type='array:number',
               all tiles will be considered during lightcone construction.
               tiling occurs before the glmatrix.]]
         }
+
+schema.declare{name='lc_write_smesh',
+             type='string', help='file name base for writing the structured mesh. Two meshes are written to the same file.'}
+
+schema.declare{name='lc_smesh1_nside',
+              type='number', help='nside of first structured mesh;'}
+
+schema.declare{name='lc_smesh1_a',         type='array:number', help='list of scale factors for the first structred mesh'}
+schema.declare{name='lc_smesh2_nside',         type='number', help='nside of second structured mesh; usually the second mesh shall be behind the first mesh.'}
+schema.declare{name='lc_smesh2_a',         type='array:number', help='list of scale factors for the second structured mesh; if empty, disabled.'}
+
+function schema.lc_write_smesh.action (value)
+    if value ~= nil then
+        schema.lc_smesh1_nside.required = true
+        schema.lc_smesh1_a.required = true
+        schema.lc_smesh2_nside.required = true
+        schema.lc_smesh2_a.required = true
+    end
+end
+
+schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
+schema.declare{name='lc_fov',     type='number', default=0.0, help=' field of view of the sky in degrees. 0 for flat sky and 360 for full sky. The beam is along the z-direction after glmatrix.'}
+schema.declare{name='lc_glmatrix',     type='array:number',
+        default={
+            {1, 0, 0, 0,},
+            {0, 1, 0, 0,},
+            {0, 0, 1, 0,},
+            {0, 0, 0, 0,},
+        },
+        help=[[transformation matrix to move simulation coordinate (x, y, z, 1) to the observer coordinate with a left dot product.
+               The observer is sitting at z=0 in the observer coordinate. The last column of the matrix is the translation in Mpc/h.
+               use the translation and rotation methods provide in the intepreter to build the matrix. ]]}
 
 schema.declare{name='za',                      type='boolean', default=false, help='use ZA initial condition not 2LPT'}
 

@@ -40,12 +40,9 @@ np_alloc_factor= 8.0      -- Amount of memory allocated for particle
 -- write_runpb_snapshot= "nbodykit/tpm"
 write_snapshot= "lightcone/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
--- write_powerspectrum = "pm/powerspec"
-write_lightcone = "lightcone/lightcone"
-write_lightcone_potential = "lightcone/potential"
 
 dh_factor = 1.0
-fov = 20.
+lc_fov = 20.
 s =[[glmatrix = { 
         {1, 0, 0, -512},
         {0, 1, 0, -512},
@@ -53,6 +50,8 @@ s =[[glmatrix = {
         {0, 0, 0, 0},
         }
 ]]
-glmatrix = fastpm.translation(-512, -512, 1000)
+lc_glmatrix = fastpm.translation(-512, -512, 1000)
 
-tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
+lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
+lc_write_usmesh = "lightcone/usmesh"
+

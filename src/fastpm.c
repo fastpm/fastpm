@@ -35,6 +35,7 @@ extern char *
 lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
 
 #define CONF(prr, name) lua_config_get_ ## name (prr->config)
+#define HAS(prr, name) lua_config_has_ ## name (prr->config)
 
 /* command-line arguments */
 static char * ParamFileName;
@@ -152,6 +153,11 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
+static void
+prepare_lc(FastPMSolver * fastpm, Parameters * prr,
+        FastPMLightCone * lc, FastPMUSMesh ** usmesh,
+        FastPMSMesh ** smesh, int * n_smesh);
+
 static int 
 print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr);
 
@@ -198,71 +204,18 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         (FastPMEventHandlerFunction) print_transition,
         prr);
 
+    /* initialize the lightcone */
     FastPMLightCone lc[1] = {{
         .speedfactor = CONF(prr, dh_factor),
         .cosmology = fastpm->cosmology,
-        .fov = CONF(prr, fov),
+        .fov = CONF(prr, lc_fov),
     }};
 
-    FastPMUSMesh usmesh[1];
+    FastPMUSMesh * usmesh = NULL;
+    FastPMSMesh * smesh = NULL;
+    int n_smesh = 0;
 
-    if(CONF(prr, write_lightcone)) {
-        double (*tiles)[3];
-        int ntiles;
-        {
-            if(CONF(prr, ndim_glmatrix) != 2 ||
-               CONF(prr, shape_glmatrix)[0] != 4 ||
-               CONF(prr, shape_glmatrix)[1] != 4
-            ) {
-                fastpm_raise(-1, "GL Matrix must be a 4x4 matrix\n");
-            }
-
-            int i, j;
-            double * c = CONF(prr, glmatrix);
-
-            for (i = 0; i < 4; i ++) {
-                for (j = 0; j < 4; j ++) {
-                    lc->glmatrix[i][j] = *c;
-                    c ++;
-                }
-                fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
-                    lc->glmatrix[i][0], lc->glmatrix[i][1], lc->glmatrix[i][2], lc->glmatrix[i][3]);
-            }
-        }
-
-        {
-            if(CONF(prr, ndim_tiles) != 2 ||
-               CONF(prr, shape_tiles)[1] != 3
-            ) {
-                fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
-            }
-
-            ntiles = CONF(prr, shape_tiles)[0];
-            tiles = malloc(sizeof(tiles[0]) * ntiles);
-            int i, j;
-            double * c = CONF(prr, tiles);
-
-            for (i = 0; i < ntiles; i ++) {
-                for (j = 0; j < 3; j ++) {
-                    tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
-                    c ++;
-                }
-                fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
-                    tiles[i][0], tiles[i][1], tiles[i][2]);
-            }
-        }
-
-        fastpm_lc_init(lc);
-        fastpm_usmesh_init(usmesh, lc, fastpm->p->np_upper, tiles, ntiles, 0, 1.0);
-
-        fastpm_add_event_handler(&fastpm->event_handlers,
-            FASTPM_EVENT_INTERPOLATION,
-            FASTPM_EVENT_STAGE_BEFORE,
-            (FastPMEventHandlerFunction) check_lightcone,
-            usmesh);
-
-        free(tiles);
-    }
+    prepare_lc(fastpm, prr, lc, &usmesh, &smesh, &n_smesh);
 
     MPI_Barrier(comm);
     ENTER(ic);
@@ -281,17 +234,25 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     fastpm_solver_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
     LEAVE(evolve);
 
-    if(CONF(prr, write_lightcone)) {
+    if(CONF(prr, lc_write_usmesh)) {
         long long np = usmesh->p->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
-        write_snapshot(fastpm, usmesh->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
 
-    if(CONF(prr, write_lightcone)) {
-        fastpm_usmesh_destroy(usmesh);
-        fastpm_lc_destroy(lc);
+    int i;
+    for(i = n_smesh - 1; i >=0 ; i --) {
+        fastpm_smesh_destroy(&smesh[i]);
     }
+
+    if(usmesh)
+        fastpm_usmesh_destroy(usmesh);
+
+    free(smesh);
+    free(usmesh);
+
+    fastpm_lc_destroy(lc);
 
     fastpm_solver_destroy(fastpm);
 
@@ -491,6 +452,97 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
+
+static void
+prepare_lc(FastPMSolver * fastpm, Parameters * prr,
+        FastPMLightCone * lc, FastPMUSMesh ** usmesh,
+        FastPMSMesh ** smesh, int * n_smesh)
+{
+    {
+        if(CONF(prr, ndim_lc_glmatrix) != 2 ||
+           CONF(prr, shape_lc_glmatrix)[0] != 4 ||
+           CONF(prr, shape_lc_glmatrix)[1] != 4
+        ) {
+            fastpm_raise(-1, "GL Matrix must be a 4x4 matrix\n");
+        }
+
+        int i, j;
+        double * c = CONF(prr, lc_glmatrix);
+
+        for (i = 0; i < 4; i ++) {
+            for (j = 0; j < 4; j ++) {
+                lc->glmatrix[i][j] = *c;
+                c ++;
+            }
+            fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
+                lc->glmatrix[i][0], lc->glmatrix[i][1], lc->glmatrix[i][2], lc->glmatrix[i][3]);
+        }
+    }
+
+    fastpm_lc_init(lc);
+
+    if(CONF(prr, lc_write_usmesh)) {
+        *usmesh = malloc(sizeof(FastPMUSMesh));
+
+        double (*tiles)[3];
+        int ntiles;
+
+        if(CONF(prr, ndim_lc_usmesh_tiles) != 2 ||
+           CONF(prr, shape_lc_usmesh_tiles)[1] != 3
+        ) {
+            fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
+        }
+
+        ntiles = CONF(prr, shape_lc_usmesh_tiles)[0];
+        tiles = malloc(sizeof(tiles[0]) * ntiles);
+        int i, j;
+        double * c = CONF(prr, lc_usmesh_tiles);
+
+        for (i = 0; i < ntiles; i ++) {
+            for (j = 0; j < 3; j ++) {
+                tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
+                c ++;
+            }
+            fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
+                tiles[i][0], tiles[i][1], tiles[i][2]);
+        }
+
+        double amin = HAS(prr, lc_usmesh_amin)?CONF(prr, lc_usmesh_amin):CONF(prr, time_step)[0];
+
+        double amax = HAS(prr, lc_usmesh_amax)?CONF(prr, lc_usmesh_amax):CONF(prr, time_step)[CONF(prr, n_time_step) - 1];
+
+        fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", amin, amax);
+
+        fastpm_usmesh_init(*usmesh, lc, fastpm->p->np_upper, tiles, ntiles, amin, amax);
+
+        fastpm_add_event_handler(&fastpm->event_handlers,
+            FASTPM_EVENT_INTERPOLATION,
+            FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEventHandlerFunction) check_lightcone,
+            *usmesh);
+
+        free(tiles);
+    }
+
+    *n_smesh = 0;
+    if(CONF(prr, lc_write_smesh)) {
+        *smesh = malloc(2 * sizeof(FastPMUSMesh));
+
+        double * a1 = CONF(prr, lc_smesh1_a);
+        double * a2 = CONF(prr, lc_smesh2_a);
+
+        int n_a1 = CONF(prr, n_lc_smesh1_a);
+        int n_a2 = CONF(prr, n_lc_smesh2_a);
+
+        int nside1 = CONF(prr, lc_smesh1_nside);
+        int nside2 = CONF(prr, lc_smesh2_nside);
+
+        fastpm_smesh_init_healpix(&(*smesh)[0], lc, fastpm->p->np_upper, nside1, a1, n_a1, fastpm->comm);
+        fastpm_smesh_init_healpix(&(*smesh)[1], lc, fastpm->p->np_upper, nside2, a2, n_a2, fastpm->comm);
+
+        *n_smesh = 2;
+    }
+}
 static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr) {
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
         event->a1, event->a2,
