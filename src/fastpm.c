@@ -526,7 +526,9 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
     *n_smesh = 0;
     if(CONF(prr, lc_write_smesh)) {
-        *smesh = malloc(2 * sizeof(FastPMUSMesh));
+        *smesh = malloc(sizeof(FastPMUSMesh));
+
+        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper);
 
         double * a1 = CONF(prr, lc_smesh1_a);
         double * a2 = CONF(prr, lc_smesh2_a);
@@ -537,8 +539,8 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         int nside1 = CONF(prr, lc_smesh1_nside);
         int nside2 = CONF(prr, lc_smesh2_nside);
 
-        fastpm_smesh_init_healpix(&(*smesh)[0], lc, fastpm->p->np_upper, nside1, a1, n_a1, fastpm->comm);
-        fastpm_smesh_init_healpix(&(*smesh)[1], lc, fastpm->p->np_upper, nside2, a2, n_a2, fastpm->comm);
+        fastpm_smesh_add_layer_healpix(&(*smesh)[0], nside1, a1, n_a1, fastpm->comm);
+        fastpm_smesh_add_layer_healpix(&(*smesh)[1], nside2, a2, n_a2, fastpm->comm);
 
         *n_smesh = 2;
     }

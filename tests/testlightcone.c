@@ -52,7 +52,9 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init_healpix(smesh, lc, solver->p->np_upper, 32, a, 128, solver->comm);
+    fastpm_smesh_init(smesh, lc, solver->p->np_upper);
+    fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
+    fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -101,7 +103,9 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init_healpix(smesh, lc, solver->p->np_upper, 32, a, 128, solver->comm);
+    fastpm_smesh_init(smesh, lc, solver->p->np_upper);
+    fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
+    fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -223,7 +227,7 @@ int main(int argc, char * argv[]) {
                 {0, 0, 0, 1,},
             },
 
-        .fov = 90., /* full sky */
+        .fov = 360., /* full sky */
         .cosmology = solver->cosmology,
     }};
 

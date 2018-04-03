@@ -16,27 +16,15 @@
 
 double rad_to_degree=180./M_PI;
 
-static int
-fastpm_smesh_init_common(FastPMSMesh * mesh,
-        FastPMLightCone * lc,
-        size_t np_upper,
-        double * a, double Na)
+void
+fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper)
 {
-    mesh->started = 0;
     mesh->event_handlers = NULL;
     mesh->lc = lc;
-    mesh->a = malloc(sizeof(double) * Na);
-    mesh->z = malloc(sizeof(double) * Na);
-    mesh->Na = Na;
     mesh->np_upper = np_upper;
-    size_t i;
+    mesh->n_layers = 0;
 
-    for(i = 0; i < Na; i ++) {
-        mesh->a[i] = a[i];
-        mesh->z[i] = lc->speedfactor * HorizonDistance(a[i], lc->horizon);
-    }
-
-    fastpm_store_init(mesh->last.p, mesh->np_upper,
+    fastpm_store_init(mesh->last.p, 0,
               PACK_POS
             | PACK_POTENTIAL
             | PACK_DENSITY
@@ -45,72 +33,87 @@ fastpm_smesh_init_common(FastPMSMesh * mesh,
             FASTPM_MEMORY_STACK);
 
     mesh->last.a_f = 0;
+    mesh->started = 0;
+}
 
+struct FastPMSMeshLayer *
+fastpm_smesh_add_layer_common(FastPMSMesh * mesh,
+        double * a, double Na)
+{
+    int il = mesh->n_layers;
+
+    mesh->n_layers ++;
+    struct FastPMSMeshLayer * layer = &mesh->layers[il];
+    layer->a = malloc(sizeof(double) * Na);
+    layer->z = malloc(sizeof(double) * Na);
+    layer->Na = Na;
+    size_t i;
+
+    for(i = 0; i < Na; i ++) {
+        layer->a[i] = a[i];
+        layer->z[i] = mesh->lc->speedfactor * HorizonDistance(a[i], mesh->lc->horizon);
+    }
+
+    return layer;
 }
 
 void
-fastpm_smesh_init_plane(FastPMSMesh * mesh,
-        FastPMLightCone * lc,
-        size_t np_upper,
+fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
         double * a, size_t Na)
 {
-    mesh->type = FASTPM_SMESH_PLANE;
-    mesh->Nxy = Nxy;
+    struct FastPMSMeshLayer * layer = fastpm_smesh_add_layer_common(mesh, a, Na);
 
-    fastpm_smesh_init_common(mesh, lc, np_upper, a, Na);
+    layer->type = FASTPM_SMESH_PLANE;
+    layer->Nxy = Nxy;
 
-    mesh->xy = malloc(sizeof(double) * Nxy * 2);
+    layer->xy = malloc(sizeof(double) * Nxy * 2);
 
     size_t i;
 
     for(i = 0; i < Nxy; i ++) {
         fastpm_info("init plane %ld %g %g \n",i,xy[i][0],xy[i][1]);
-        mesh->xy[i][0] = xy[i][0];
-        mesh->xy[i][1] = xy[i][1];
+        layer->xy[i][0] = xy[i][0];
+        layer->xy[i][1] = xy[i][1];
     }
 }
 
 void
-fastpm_smesh_init_sphere(FastPMSMesh * mesh,
-        FastPMLightCone * lc,
-        size_t np_upper,
+fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, size_t Nxy,
         double * a, size_t Na)
 {
-    mesh->type = FASTPM_SMESH_SPHERE;
-    mesh->Nxy = Nxy;
+    struct FastPMSMeshLayer * layer = fastpm_smesh_add_layer_common(mesh, a, Na);
 
-    fastpm_smesh_init_common(mesh, lc, np_upper, a, Na);
+    layer->type = FASTPM_SMESH_SPHERE;
+    layer->Nxy = Nxy;
 
     size_t i;
 
-    mesh->vec = malloc(sizeof(double) * Nxy * 3);
-    mesh->ra = malloc(sizeof(double) * Nxy);
-    mesh->dec = malloc(sizeof(double) * Nxy);
+    layer->vec = malloc(sizeof(double) * Nxy * 3);
+    layer->ra = malloc(sizeof(double) * Nxy);
+    layer->dec = malloc(sizeof(double) * Nxy);
 
     for(i = 0; i < Nxy; i ++) {
-        mesh->vec[i][0] = cos(dec[i] / rad_to_degree) * cos(ra[i] / rad_to_degree);
-        mesh->vec[i][1] = cos(dec[i] / rad_to_degree) * sin(ra[i] / rad_to_degree);
-        mesh->vec[i][2] = sin(dec[i] / rad_to_degree);
-        mesh->ra[i] = ra[i];
-        mesh->dec[i] = dec[i];
+        layer->vec[i][0] = cos(dec[i] / rad_to_degree) * cos(ra[i] / rad_to_degree);
+        layer->vec[i][1] = cos(dec[i] / rad_to_degree) * sin(ra[i] / rad_to_degree);
+        layer->vec[i][2] = sin(dec[i] / rad_to_degree);
+        layer->ra[i] = ra[i];
+        layer->dec[i] = dec[i];
     }
 }
 
 void
-fastpm_smesh_init_healpix(FastPMSMesh * mesh,
-        FastPMLightCone * lc,
-        size_t np_upper,
+fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
         int nside,
         double * a, size_t Na, MPI_Comm comm)
 {
     double *ra, *dec;
     size_t npix;
 
-    fastpm_utils_healpix_ra_dec(32, &ra, &dec, &npix, lc->fov, comm);
+    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &npix, mesh->lc->fov, comm);
 
-    fastpm_smesh_init_sphere(mesh, lc, np_upper, ra, dec, npix, a, Na);
+    fastpm_smesh_add_layer_sphere(mesh, ra, dec, npix, a, Na);
 
     free(ra);
     free(dec);
@@ -119,24 +122,30 @@ fastpm_smesh_init_healpix(FastPMSMesh * mesh,
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh)
 {
-    switch(mesh->type) {
-        case FASTPM_SMESH_PLANE:
-            free(mesh->xy);
+    int i;
+    for(i = 0; i < mesh->n_layers; i ++) {
+        struct FastPMSMeshLayer * layer = &mesh->layers[i];
+        switch(layer->type) {
+            case FASTPM_SMESH_PLANE:
+                free(layer->xy);
+                break;
+            case FASTPM_SMESH_SPHERE:
+                free(layer->ra);
+                free(layer->dec);
+                free(layer->vec);
             break;
-        case FASTPM_SMESH_SPHERE:
-            free(mesh->ra);
-            free(mesh->dec);
-            free(mesh->vec);
-        break;
+        }
+        free(layer->a);
+        free(layer->z);
     }
-    free(mesh->a);
-    free(mesh->z);
     fastpm_destroy_event_handlers(&mesh->event_handlers);
     fastpm_store_destroy(mesh->last.p);
 }
 
-void
-fastpm_smesh_select_active(FastPMSMesh * mesh,
+static void
+fastpm_smesh_layer_select_active(
+        FastPMSMesh * mesh,
+        struct FastPMSMeshLayer * layer,
         double a0, double a1,
         FastPMStore * q
     )
@@ -144,14 +153,14 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     size_t Na = 0;
 
     size_t i;
-    for (i = 0; i < mesh->Na; i ++) {
-        if(mesh->a[i] >= a0 && mesh->a[i] < a1) {
+    for (i = 0; i < layer->Na; i ++) {
+        if(layer->a[i] >= a0 && layer->a[i] < a1) {
             Na ++;
         }
     }
 
-    if((size_t) Na * (size_t) mesh->Nxy >= q->np_upper) {
-        fastpm_raise(0, "More mesh points requested than np_upper (%d * %d > %td)\n", Na, mesh->Nxy, q->np_upper);
+    if((size_t) Na * (size_t) layer->Nxy + q->np >= q->np_upper) {
+        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td)\n", Na, layer->Nxy, q->np_upper);
     }
 
     size_t j = 0;
@@ -160,21 +169,21 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     size_t n=0;
     double x_temp[4];
     x_temp[3]=1;
-    for(j = 0; j < mesh->Nxy; j ++) {
-        for(k = 0; k < mesh->Na; k ++) {
+    for(j = 0; j < layer->Nxy; j ++) {
+        for(k = 0; k < layer->Na; k ++) {
             /* cast to float because aemit is float */
-            float aemit = mesh->a[k];
+            float aemit = layer->a[k];
             if(aemit >= a0 && aemit < a1) {
-                switch(mesh->type) {
+                switch(layer->type) {
                     case FASTPM_SMESH_PLANE:
-                        x_temp[0]=mesh->xy[j][0];
-                        x_temp[1]=mesh->xy[j][1];
-                        x_temp[2]=mesh->z[k];
+                        x_temp[0]=layer->xy[j][0];
+                        x_temp[1]=layer->xy[j][1];
+                        x_temp[2]=layer->z[k];
                         break;
                     case FASTPM_SMESH_SPHERE:
-                        x_temp[0] = mesh->vec[j][0] * mesh->z[k];
-                        x_temp[1] = mesh->vec[j][1] * mesh->z[k];
-                        x_temp[2] = mesh->vec[j][2] * mesh->z[k];
+                        x_temp[0] = layer->vec[j][0] * layer->z[k];
+                        x_temp[1] = layer->vec[j][1] * layer->z[k];
+                        x_temp[2] = layer->vec[j][2] * layer->z[k];
                         break;
                 }
                 /* transform to simulation coordinates */
@@ -185,8 +194,23 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
                 }
                 q->aemit[q->np] = aemit;
                 q->np++;
+                if(q->np > q->np_upper) {
+                    fastpm_raise(-1, "too many particles are created, increase np_upper!");
+                }
             }
         }
+    }
+}
+
+void
+fastpm_smesh_select_active(FastPMSMesh * mesh,
+        double a0, double a1,
+        FastPMStore * q
+    )
+{
+    int i;
+    for(i = 0; i < mesh->n_layers; i ++) {
+        fastpm_smesh_layer_select_active(mesh, &mesh->layers[i], a0, a1, q);
     }
 }
 

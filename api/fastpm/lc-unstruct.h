@@ -29,28 +29,33 @@ typedef struct FastPMUSMesh {
 typedef struct FastPMSMesh {
     FastPMLightCone * lc;
 
-    enum {
-        FASTPM_SMESH_SPHERE,
-        FASTPM_SMESH_PLANE,
-    } type;
+    struct FastPMSMeshLayer {
+        enum {
+            FASTPM_SMESH_SPHERE,
+            FASTPM_SMESH_PLANE,
+        } type;
 
-    union {
-        struct {
-            double * ra;
-            double * dec;
-            double (* vec)[3];
+        union {
+            struct {
+                double * ra;
+                double * dec;
+                double (* vec)[3];
+            };
+            struct {
+                double (* xy)[2];
+            };
         };
-        struct {
-            double (* xy)[2];
-        };
-    };
 
-    int Nxy;
+        int Nxy;
+
+        double * a;
+        double * z;
+        int Na;
+    } layers[8]; /* at most 8 for now. */
+
+    size_t n_layers;
+
     size_t np_upper;
-
-    double * a;
-    double * z;
-    int Na;
 
     /* state about the last time range */
     struct {
@@ -91,26 +96,25 @@ void
 fastpm_lc_destroy(FastPMLightCone * lc);
 
 void
-fastpm_smesh_init_plane(FastPMSMesh * mesh, FastPMLightCone * lc,
-        size_t np_upper,
+fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper);
+
+void
+fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
         double * a, size_t Na);
 
 void
-fastpm_smesh_init_sphere(FastPMSMesh * mesh, FastPMLightCone * lc,
-        size_t np_upper,
+fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, size_t Npix,
         double * a, size_t Na);
 
 void
-fastpm_smesh_init_healpix(FastPMSMesh * mesh,
-        FastPMLightCone * lc,
-        size_t np_upper,
+fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
         int nside,
         double * a, size_t Na, MPI_Comm comm);
 
 void
-fastpm_smesh_select_active(FastPMSMesh * mesh,
+fastpm_smesh_select_active(FastPMSMesh * layer,
         double a0, double a1,
         FastPMStore * q
     );
