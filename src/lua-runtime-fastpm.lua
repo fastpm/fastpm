@@ -222,7 +222,7 @@ function fastpm.translation(dx, dy, dz)
         {1, 0, 0, dx},
         {0, 1, 0, dy},
         {0, 0, 1, dz},
-        {0, 0, 0, 0 },
+        {0, 0, 0, 1 },
         }
 end
 
@@ -239,17 +239,30 @@ function fastpm.outerproduct(a, b, c)
     return r
 end
 
-function fastpm.linspace(a, e, N)
+function fastpm.linspace(a, e, N, endpoint)
 -- Similar to numpy.linspace, but always append the end
 -- point to the result, returning N + 1 elements.
 --
 -- https://mail.scipy.org/pipermail/numpy-discussion/2016-February/075065.html
+    if endpoint == nil then
+        endpoint = true
+    end
+
     local r = {}
-    N1 = N + 1
+
+    if endpoint then
+        N1 = N + 1
+    else
+        N1 = N
+    end
+
     for i=1,N1 do
         r[i] = 1.0 * (e - a) * (i - 1) / N + a
     end
-    r[N1] = e
+
+    if endpoint then
+        r[N1] = e
+    end
     return r
 end
 
