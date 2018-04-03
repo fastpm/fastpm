@@ -31,9 +31,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
-// #ifdef ENABLE_FITSIO
-// #include "fitsio.h"
-// #endif
+#ifdef ENABLE_FITSIO
+#include "fitsio.h"
+#endif
 #include "chealpix.h"
 
 static const double twothird=2.0/3.0;
@@ -42,6 +42,7 @@ static const double twopi=6.283185307179586476925286766559005768394;
 static const double halfpi=1.570796326794896619231321691639751442099;
 static const double inv_halfpi=0.6366197723675813430755350534900574;
 
+#ifdef ENABLE_FITSIO
 static void util_fail_ (const char *file, int line, const char *func,
   const char *msg)
   {
@@ -73,6 +74,8 @@ static void *util_malloc_ (size_t sz)
   }
 static void util_free_ (void *ptr)
   { if ((ptr)!=NULL) free(ptr); }
+
+#endif
 
 /*! Returns the remainder of the division \a v1/v2.
     The result is non-negative.
