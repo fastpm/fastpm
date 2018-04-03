@@ -150,15 +150,6 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
         }
     }
 
-    fastpm_store_init(q, mesh->np_upper,
-              PACK_POS
-            | PACK_POTENTIAL
-            | PACK_DENSITY
-            | PACK_TIDAL
-            | PACK_AEMIT,
-            FASTPM_MEMORY_HEAP
-    );
-
     if((size_t) Na * (size_t) mesh->Nxy >= q->np_upper) {
         fastpm_raise(0, "More mesh points requested than np_upper (%d * %d > %td)\n", Na, mesh->Nxy, q->np_upper);
     }
@@ -212,6 +203,15 @@ fastpm_smesh_compute_potential(
 
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
+
+    fastpm_store_init(p_new_now, mesh->np_upper,
+              PACK_POS
+            | PACK_POTENTIAL
+            | PACK_DENSITY
+            | PACK_TIDAL
+            | PACK_AEMIT,
+            FASTPM_MEMORY_HEAP
+    );
 
     fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
 
