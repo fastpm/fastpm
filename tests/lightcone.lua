@@ -54,4 +54,12 @@ lc_glmatrix = fastpm.translation(-512, -512, 1000)
 
 lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
 lc_write_usmesh = "lightcone/usmesh"
+lc_write_smesh = "lightcone/smesh"
+
+lc_smesh1_nside = 32
+lc_smesh2_nside = 8
+
+lc_smesh1_a = linspace(0.4, 0.8, 32, false)
+lc_smesh2_a = linspace(0.8, 1.0, 4, true)
+
 
