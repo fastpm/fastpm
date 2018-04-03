@@ -156,7 +156,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 static void
 prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh,
-        FastPMSMesh ** smesh, int * n_smesh);
+        FastPMSMesh ** smesh);
 
 static int 
 print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr);
@@ -213,9 +213,8 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     FastPMUSMesh * usmesh = NULL;
     FastPMSMesh * smesh = NULL;
-    int n_smesh = 0;
 
-    prepare_lc(fastpm, prr, lc, &usmesh, &smesh, &n_smesh);
+    prepare_lc(fastpm, prr, lc, &usmesh, &smesh);
 
     MPI_Barrier(comm);
     ENTER(ic);
@@ -241,10 +240,8 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
 
-    int i;
-    for(i = n_smesh - 1; i >=0 ; i --) {
-        fastpm_smesh_destroy(&smesh[i]);
-    }
+    if(smesh)
+        fastpm_smesh_destroy(smesh);
 
     if(usmesh)
         fastpm_usmesh_destroy(usmesh);
@@ -456,7 +453,7 @@ produce:
 static void
 prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh,
-        FastPMSMesh ** smesh, int * n_smesh)
+        FastPMSMesh ** smesh)
 {
     {
         if(CONF(prr, ndim_lc_glmatrix) != 2 ||
@@ -481,6 +478,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
     fastpm_lc_init(lc);
 
+    *usmesh = NULL;
     if(CONF(prr, lc_write_usmesh)) {
         *usmesh = malloc(sizeof(FastPMUSMesh));
 
@@ -524,9 +522,9 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         free(tiles);
     }
 
-    *n_smesh = 0;
+    *smesh = NULL;
     if(CONF(prr, lc_write_smesh)) {
-        *smesh = malloc(sizeof(FastPMUSMesh));
+        *smesh = malloc(sizeof(FastPMSMesh));
 
         fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper);
 
@@ -539,10 +537,8 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         int nside1 = CONF(prr, lc_smesh1_nside);
         int nside2 = CONF(prr, lc_smesh2_nside);
 
-        fastpm_smesh_add_layer_healpix(&(*smesh)[0], nside1, a1, n_a1, fastpm->comm);
-        fastpm_smesh_add_layer_healpix(&(*smesh)[1], nside2, a2, n_a2, fastpm->comm);
-
-        *n_smesh = 2;
+        fastpm_smesh_add_layer_healpix(*smesh, nside1, a1, n_a1, fastpm->comm);
+        fastpm_smesh_add_layer_healpix(*smesh, nside2, a2, n_a2, fastpm->comm);
     }
 }
 static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr) {
