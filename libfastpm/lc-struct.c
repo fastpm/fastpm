@@ -166,7 +166,6 @@ fastpm_smesh_layer_select_active(
     size_t j = 0;
     size_t k = 0;
     size_t m=0;
-    size_t n=0;
     double x_temp[4];
     x_temp[3]=1;
     for(j = 0; j < layer->Nxy; j ++) {
@@ -223,8 +222,6 @@ fastpm_smesh_compute_potential(
         double a_f,
         double a_n)
 {
-    double z1, z2; /* z in xyz */
-
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 

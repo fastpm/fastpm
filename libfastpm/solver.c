@@ -274,7 +274,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     if(!fastpm_tevo_transition_find_next(trans, next)) {
         event->a_n = -1;
     } else {
-        if(! next->a.i == trans->a.f) {
+        if(next->a.i != trans->a.f) {
             fastpm_raise(-1, "Failed to find next Force calculation\n");
         }
         event->a_n = next->a.f;
