@@ -19,6 +19,7 @@ struct FastPMEventHandler {
     FastPMEventHandlerFunction function; /* The function signature must match the types above */
     void * userdata;
     struct FastPMEventHandler * next;
+    void (*free) (void*);
 };
 
 void
@@ -27,6 +28,14 @@ fastpm_add_event_handler(FastPMEventHandler ** handlers,
     enum FastPMEventStage stage,
     FastPMEventHandlerFunction function,
     void * userdata);
+
+/** add a event handler that frees the userdata upon removal **/
+void
+fastpm_add_event_handler_free(FastPMEventHandler ** handlers,
+    const char * where,
+    enum FastPMEventStage stage,
+    FastPMEventHandlerFunction function,
+    void * userdata, void (*free)(void * ptr));
 
 void
 fastpm_remove_event_handler(FastPMEventHandler ** handlers,

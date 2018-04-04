@@ -17,11 +17,26 @@ fastpm_add_event_handler(FastPMEventHandler ** handlers,
     FastPMEventHandlerFunction function,
     void * userdata)
 {
+    fastpm_add_event_handler_free(handlers,
+            where,
+            stage,
+            function,
+            userdata, NULL);
+}
+
+void
+fastpm_add_event_handler_free(FastPMEventHandler ** handlers,
+    const char * where,
+    enum FastPMEventStage stage,
+    FastPMEventHandlerFunction function,
+    void * userdata, void (*free)(void * ptr))
+{
     FastPMEventHandler * nh = malloc(sizeof(FastPMEventHandler));
     strncpy(nh->type, where, 32);
     nh->stage = stage;
     nh->function = function;
     nh->userdata = userdata;
+    nh->free = free;
     nh->next = *handlers;
     *handlers = nh;
 }
@@ -45,6 +60,10 @@ fastpm_remove_event_handler(FastPMEventHandler ** handlers,
         if(0 != strcmp(h1->type, where)) continue;
         if(h1->function != function) continue;
         if(h1->userdata != userdata) continue;
+
+        if(h1->free) {
+            h1->free(h1->userdata);
+        }
 
         free(h1);
 
