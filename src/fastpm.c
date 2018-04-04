@@ -46,6 +46,12 @@ parse_args(int * argc, char *** argv, Parameters * prr);
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
 
+static void
+smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh);
+
+static void
+smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata);
+
 int 
 read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename);
 
@@ -539,9 +545,53 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
         fastpm_smesh_add_layer_healpix(*smesh, nside1, a1, n_a1, fastpm->comm);
         fastpm_smesh_add_layer_healpix(*smesh, nside2, a2, n_a2, fastpm->comm);
+
+        fastpm_add_event_handler(&fastpm->event_handlers,
+                FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_force_handler,
+                *smesh);
+
+        void ** data = malloc(sizeof(void*) * 2);
+        data[0] = fastpm;
+        data[1] = prr;
+
+        fastpm_add_event_handler_free(&(*smesh)->event_handlers,
+                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_ready_handler,
+                data, free);
     }
 }
-static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr) {
+
+static void
+smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata)
+{
+    FastPMSolver * solver = userdata[0];
+    Parameters * prr = userdata[1];
+
+    fastpm_info("Structured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, lcevent->p->np);
+
+    char * fn = fastpm_strdup_printf(CONF(prr, lc_write_smesh));
+
+    if(lcevent->is_first) {
+        fastpm_info("Creating smesh catalog in %s\n", fn);
+        write_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+    } else {
+        fastpm_info("Appending smesh catalog to %s\n", fn);
+        append_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+    }
+    free(fn);
+}
+
+/* bridging force event to smesh interpolation */
+static void
+smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
+{
+    fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+}
+
+static int
+check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr)
+{
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
         event->a1, event->a2,
         event->kick->af, event->kick->ai, event->kick->ac,

@@ -41,25 +41,27 @@ np_alloc_factor= 8.0      -- Amount of memory allocated for particle
 write_snapshot= "lightcone/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
 
-dh_factor = 1.0
-lc_fov = 20.
+dh_factor = 0.05
+lc_fov = 360
+
 s =[[glmatrix = { 
         {1, 0, 0, -512},
         {0, 1, 0, -512},
-        {0, 0, 1, 1000},
-        {0, 0, 0, 0},
+        {0, 0, 1, -512},
+        {0, 0, 0, 1},
         }
 ]]
-lc_glmatrix = fastpm.translation(-512, -512, 1000)
 
-lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
+lc_glmatrix = fastpm.translation(-512, -512, -512)
+
+-- lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
 lc_write_usmesh = "lightcone/usmesh"
 lc_write_smesh = "lightcone/smesh"
 
 lc_smesh1_nside = 32
-lc_smesh2_nside = 8
+lc_smesh2_nside = 16
 
-lc_smesh1_a = linspace(0.4, 0.8, 32, false)
-lc_smesh2_a = linspace(0.8, 1.0, 4, true)
+lc_smesh1_a = linspace(0.4, 0.8, 64, false)
+lc_smesh2_a = linspace(0.8, 1.0, 128, true)
 
 
