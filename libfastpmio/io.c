@@ -457,9 +457,9 @@ read_angular_grid(FastPMStore * store,
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
 
-    BigFile bf = {0};
-    BigBlock bb = {0};
-    BigArray array = {0};
+    BigFile bf;
+    BigBlock bb;
+    BigArray array;
     BigBlockPtr ptr;
 
     if(0 != big_file_mpi_open(&bf, filename, comm)) {
