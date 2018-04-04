@@ -204,7 +204,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         params.tileshift[d] = tileshift[d];
     }
 
-    fastpm_info("tileshift = %g %g %g\n",
+    fastpm_info("Considering Tile %g %g %g\n",
         params.tileshift[0],
         params.tileshift[1],
         params.tileshift[2]);
@@ -288,6 +288,9 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         }
         pout->np ++;
     }
+
+    fastpm_info("Total number of particles in light cone: %td\n", pout->np);
+
     return 0;
 }
 
