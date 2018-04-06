@@ -484,6 +484,13 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
     fastpm_lc_init(lc);
 
+
+    double lc_amin = HAS(prr, lc_amin)?CONF(prr, lc_amin):CONF(prr, time_step)[0];
+
+    double lc_amax = HAS(prr, lc_amax)?CONF(prr, lc_amax):CONF(prr, time_step)[CONF(prr, n_time_step) - 1];
+
+    fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", lc_amin, lc_amax);
+
     *usmesh = NULL;
     if(CONF(prr, lc_write_usmesh)) {
         *usmesh = malloc(sizeof(FastPMUSMesh));
@@ -510,14 +517,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
-
-        double amin = HAS(prr, lc_usmesh_amin)?CONF(prr, lc_usmesh_amin):CONF(prr, time_step)[0];
-
-        double amax = HAS(prr, lc_usmesh_amax)?CONF(prr, lc_usmesh_amax):CONF(prr, time_step)[CONF(prr, n_time_step) - 1];
-
-        fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", amin, amax);
-
-        fastpm_usmesh_init(*usmesh, lc, fastpm->p->np_upper, tiles, ntiles, amin, amax);
+        fastpm_usmesh_init(*usmesh, lc, fastpm->p->np_upper, tiles, ntiles, lc_amin, lc_amax);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION,
@@ -534,25 +534,15 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
         fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper);
 
-        double * a1 = CONF(prr, lc_smesh1_a);
-        double * a2 = CONF(prr, lc_smesh2_a);
-
-        int n_a1 = CONF(prr, n_lc_smesh1_a);
-        int n_a2 = CONF(prr, n_lc_smesh2_a);
-
-        int nside1 = CONF(prr, lc_smesh1_nside);
-        int nside2 = CONF(prr, lc_smesh2_nside);
-
         if(lc->fov > 0) {
             fastpm_info("Creating healpix structured meshes for FOV=%g\n", lc->fov);
-            fastpm_smesh_add_layer_healpix(*smesh, nside1, a1, n_a1, fastpm->comm);
-            fastpm_smesh_add_layer_healpix(*smesh, nside2, a2, n_a2, fastpm->comm);
+            double n = CONF(prr, nc) / CONF(prr, boxsize);
+            fastpm_smesh_add_layers_healpix(*smesh,
+                    n * n, n * n * n,
+                    lc_amin, lc_amax, fastpm->comm);
         } else {
-            fastpm_info("Creating plane structured meshes for the full box Nc1 = %d Nc2 = %d.\n", nside1 * 2, nside2 * 2);
-            ptrdiff_t Nc1[2] = {nside1 * 2, nside1 * 2};
-            ptrdiff_t Nc2[2] = {nside2 * 2, nside2 * 2};
-            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, a1, n_a1);
-            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc2, a2, n_a2);
+            ptrdiff_t Nc1[3] = {CONF(prr, nc), CONF(prr, nc), CONF(prr, nc)};
+            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, lc_amin, lc_amax);
         }
 
         fastpm_add_event_handler(&fastpm->event_handlers,

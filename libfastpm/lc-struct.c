@@ -16,6 +16,10 @@
 
 double rad_to_degree=180./M_PI;
 
+static void
+fill_a(FastPMSMesh * mesh, double * a, int Na,
+       double zmin, double zmax);
+
 void
 fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper)
 {
@@ -81,8 +85,7 @@ fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
 
 void
 fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
-        PM * pm, double * shift, ptrdiff_t * Nc,
-        double * a, size_t Na)
+        PM * pm, double * shift, ptrdiff_t * Nc, double amin, double amax)
 {
     double * BoxSize = pm_boxsize(pm);
     /* creat a mesh with a uniform xy grid, respecting domain given by pm.
@@ -91,7 +94,7 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
     if(Nc == NULL) {
         Nc = pm_nmesh(pm);
     }
-    double noshift[] = {0, 0};
+    double noshift[] = {0, 0, 0};
     if(shift == NULL) {
         shift = noshift;
     }
@@ -102,13 +105,22 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
     int i, j;
 
     Nxy = 1;
+
     for(d = 0; d < 2; d++) {
         start[d] = pm->IRegion.start[d] * Nc[d] / pm->Nmesh[d];
         end[d] = (pm->IRegion.start[d] + pm->IRegion.size[d]) * Nc[d] / pm->Nmesh[d];
         Nxy *= end[d] - start[d];
     }
 
+    double zmin = mesh->lc->speedfactor * HorizonDistance(amax, mesh->lc->horizon);
+    double zmax = mesh->lc->speedfactor * HorizonDistance(amin, mesh->lc->horizon);
+
+    int Na = ceil(Nc[2] / BoxSize[2] * (zmax - zmin)) + 1;
+
+    if (Na < 0) Na = 1;
+
     double (*xy)[2] = malloc(sizeof(double) * 2 * Nxy);
+    double (*a) = malloc(sizeof(double) * Na);
 
     ptrdiff_t ptr = 0;
     for(i = start[0] ; i < end[0]; i ++) {
@@ -120,10 +132,13 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
         }
     }
 
-    fastpm_smesh_add_layer_plane(mesh,
-        xy, Nxy, a, Na);
+
+    fill_a(mesh, a, Na, zmin, zmax);
+
+    fastpm_smesh_add_layer_plane(mesh, xy, Nxy, a, Na);
 
     free(xy);
+    free(a);
 }
 
 void
@@ -167,15 +182,6 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
     free(dec);
 }
 
-static double
-_a_to_distance(double a, void * data)
-{
-    void ** p = (void**) data;
-    FastPMSMesh * mesh = p[0];
-    double * z = p[1];
-    return HorizonDistance(a, mesh->lc->horizon) * mesh->lc->speedfactor - *z;
-}
-
 /* automatically add healpix layers with roughly the correct
  * surface number density of mesh points */
 void
@@ -197,16 +203,13 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
     double * a = malloc(sizeof(double) * Na);
     size_t * nside = malloc(sizeof(size_t) * Na);
 
+    fill_a(mesh, a, Na, zmin, zmax);
+
     int i;
+
     for(i = 0; i < Na; i ++) {
         double z = zmin + (zmax - zmin) / (Na - 1) * i;
         if(i == Na - 1) z = zmax;
-
-        void * data[2] = {mesh, &z};
-        fastpm_horizon_solve(mesh->lc->horizon,
-            &a[i],
-            amin, amax,
-            _a_to_distance, data);
 
         double v = sqrt(4 * M_PI / 12 * surface_density) * z;
 
@@ -492,3 +495,31 @@ fastpm_smesh_compute_potential(
     return 0;
 }
 
+static double
+_a_to_distance(double a, void * data)
+{
+    void ** p = (void**) data;
+    FastPMSMesh * mesh = p[0];
+    double * z = p[1];
+    return HorizonDistance(a, mesh->lc->horizon) * mesh->lc->speedfactor - *z;
+}
+
+static void
+fill_a(FastPMSMesh * mesh, double * a, int Na,
+       double zmin, double zmax)
+{
+
+    int i;
+    for(i = 0; i < Na; i ++) {
+        double z = zmin + (zmax - zmin) / (Na - 1) * i;
+        if(i == Na - 1) z = zmax;
+
+        void * data[2] = {mesh, &z};
+
+        fastpm_horizon_solve(mesh->lc->horizon,
+            &a[i],
+            1e-7, 1,
+            _a_to_distance, data);
+    }
+
+}

@@ -42,8 +42,8 @@ write_snapshot= "lightcone/fastpm"
 -- 1d power spectrum (raw), without shotnoise correction
 
 dh_factor = 0.01
--- lc_fov = 360
 lc_fov = 0
+--lc_fov = 0
 
 --s =[[glmatrix = { 
 --        {1, 0, 0, -128},
@@ -53,8 +53,11 @@ lc_fov = 0
 --        }
 --]]
 
-lc_glmatrix = fastpm.translation(-128, -128, 0)
+lc_glmatrix = fastpm.translation(-128, -128, -128)
 
+lc_amin = 0.1
+lc_amax = 1.0
+--
 -- lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
 lc_write_usmesh = "lightcone/usmesh"
 lc_write_smesh = "lightcone/smesh"

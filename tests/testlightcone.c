@@ -55,7 +55,6 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_smesh_init(smesh, lc, solver->p->np_upper);
     fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
     fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
-    fastpm_smesh_add_layer_pm(smesh, solver->basepm, NULL, NULL, a + 64, 64);
 
     fastpm_add_event_handler(&smesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,

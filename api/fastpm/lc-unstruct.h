@@ -106,7 +106,7 @@ fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
 void
 fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
         PM * pm, double * shift, ptrdiff_t * Nc,
-        double * a, size_t Na);
+        double amin, double amax);
 void
 fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, size_t Npix,

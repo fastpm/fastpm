@@ -121,11 +121,12 @@ schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
 
 
+schema.declare{name='lc_amin',
+            type='number', help='min scale factor for truncation of lightcone.'}
+schema.declare{name='lc_amax',
+            type='number', help='max scale factor for truncation of lightcone.'}
+
 schema.declare{name='lc_write_usmesh',         type='string', help='file name base for writing the particle lightcone'}
-schema.declare{name='lc_usmesh_amin',
-            type='number', help='min scale factor for truncation of particle lightcone.'}
-schema.declare{name='lc_usmesh_amax',
-            type='number', help='max scale factor for truncation of particle lightcone.'}
 
 schema.declare{name='lc_usmesh_tiles',     type='array:number',
         default={
@@ -138,22 +139,6 @@ schema.declare{name='lc_usmesh_tiles',     type='array:number',
 
 schema.declare{name='lc_write_smesh',
              type='string', help='file name base for writing the structured mesh. Two meshes are written to the same file.'}
-
-schema.declare{name='lc_smesh1_nside',
-              type='number', help='nside of first structured mesh;'}
-
-schema.declare{name='lc_smesh1_a',         type='array:number', help='list of scale factors for the first structred mesh'}
-schema.declare{name='lc_smesh2_nside',         type='number', help='nside of second structured mesh; usually the second mesh shall be behind the first mesh.'}
-schema.declare{name='lc_smesh2_a',         type='array:number', help='list of scale factors for the second structured mesh; if empty, disabled.'}
-
-function schema.lc_write_smesh.action (value)
-    if value ~= nil then
-        schema.lc_smesh1_nside.required = true
-        schema.lc_smesh1_a.required = true
-        schema.lc_smesh2_nside.required = true
-        schema.lc_smesh2_a.required = true
-    end
-end
 
 schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
 schema.declare{name='lc_fov',     type='number', default=0.0, help=' field of view of the sky in degrees. 0 for flat sky and 360 for full sky. The beam is along the z-direction after glmatrix.'}
