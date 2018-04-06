@@ -167,6 +167,74 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
     free(dec);
 }
 
+static double
+_a_to_distance(double a, void * data)
+{
+    void ** p = (void**) data;
+    FastPMSMesh * mesh = p[0];
+    double * z = p[1];
+    return HorizonDistance(a, mesh->lc->horizon) * mesh->lc->speedfactor - *z;
+}
+
+/* automatically add healpix layers with roughly the correct
+ * surface number density of mesh points */
+void
+fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
+        double surface_density, double volume_density,
+        double amin, double amax,
+        MPI_Comm comm)
+{
+
+    double zmin = mesh->lc->speedfactor * HorizonDistance(amax, mesh->lc->horizon);
+    double zmax = mesh->lc->speedfactor * HorizonDistance(amin, mesh->lc->horizon);
+
+    double line_density = volume_density / surface_density;
+
+    int Na = ceil((zmax - zmin) / line_density) + 1;
+    
+    if(Na < 1) Na = 1; /* at least one layer */
+
+    double * a = malloc(sizeof(double) * Na);
+    size_t * nside = malloc(sizeof(size_t) * Na);
+
+    int i;
+    for(i = 0; i < Na; i ++) {
+        double z = zmin + (zmax - zmin) / (Na - 1) * i;
+        if(i == Na - 1) z = zmax;
+
+        void * data[2] = {mesh, &z};
+        fastpm_horizon_solve(mesh->lc->horizon,
+            &a[i],
+            amin, amax,
+            _a_to_distance, data);
+
+        double v = sqrt(4 * M_PI / 12 * surface_density) * z;
+
+        /* round to nearest power of 2 */
+        nside[i] = 1L << (int64_t) (log2(v) + 0.5);
+    }
+
+    int j = 0;
+    for(i = 1; i <= Na; i ++) {
+        if(nside[i] == nside[j] && i != Na) continue;
+        /* nside[i] != nside[j]; j ... i - 1 (inclusive) has the same nside */
+
+        double *ra, *dec;
+        size_t npix;
+
+        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &npix, mesh->lc->fov, comm);
+
+        fastpm_smesh_add_layer_sphere(mesh, ra, dec, npix, &a[j], i - j);
+
+        free(ra);
+        free(dec);
+        j = i;
+    }
+
+    free(a);
+    free(nside);
+}
+
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh)
 {
