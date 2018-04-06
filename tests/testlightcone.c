@@ -262,4 +262,6 @@ int main(int argc, char * argv[]) {
 
     libfastpm_cleanup();
     MPI_Finalize();
+
+    return 0;
 }
