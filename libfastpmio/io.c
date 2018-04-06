@@ -482,17 +482,10 @@ read_angular_grid(FastPMStore * store,
 
     if (store==NULL){
       if(0 != big_file_mpi_close(&bf, comm)) {
-          goto exc_close;
+          goto exc_open;
       }
       return localsize*Nr/sampling_factor+1;//XXX check for proper rounding off factor
     }
-
-    double * RA = malloc(localsize * sizeof(double));
-    double * DEC = malloc(localsize * sizeof(double));
-
-    double * x = malloc(localsize * sizeof(double));
-    double * y = malloc(localsize * sizeof(double));
-    double * z = malloc(localsize * sizeof(double));
 
 
     if(0 != big_file_mpi_open_block(&bf, &bb, "RA", comm)) {
@@ -501,6 +494,10 @@ read_angular_grid(FastPMStore * store,
     if(0 != big_block_seek(&bb, &ptr, 0)) {
         goto exc_seek;
     }
+
+    double * RA = malloc(localsize * sizeof(double));
+    double * DEC = malloc(localsize * sizeof(double));
+
     if(0 != big_array_init(&array, RA, "f8", 1, (size_t[]) {localsize, }, NULL)) {
         goto exc_arr;
     }
@@ -530,6 +527,13 @@ read_angular_grid(FastPMStore * store,
     if(0 != big_file_mpi_close(&bf, comm)) {
         goto exc_close;
     }
+
+
+    double * x = malloc(localsize * sizeof(double));
+    double * y = malloc(localsize * sizeof(double));
+    double * z = malloc(localsize * sizeof(double));
+
+
 
     ptrdiff_t i;
     ptrdiff_t j;
@@ -575,11 +579,12 @@ read_angular_grid(FastPMStore * store,
     exc_close_blk:
     exc_read:
     exc_arr:
+        free(DEC);
+        free(RA);
     exc_seek:
     exc_open_blk:
-    free(DEC);
-    free(RA);
     exc_open:
+
         fastpm_raise(-1, "Failed to read angular file %s, for %s\n", filename, big_file_get_error_message());
 
     return 0;
