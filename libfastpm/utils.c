@@ -47,7 +47,7 @@ fastpm_utils_paint(PM * pm, FastPMStore * p,
     FastPMFloat * delta_x, 
     FastPMFloat * delta_k,
     fastpm_posfunc get_position,
-    int attribute)
+    enum FastPMPackFields attribute)
 {
     /* This paints count per cell */
     FastPMPainter painter;
@@ -79,7 +79,7 @@ void
 fastpm_utils_readout(PM * pm, FastPMStore * p,
     FastPMFloat * delta_x,
     fastpm_posfunc get_position,
-    int attribute
+    enum FastPMPackFields attribute
     )
 {
     FastPMPainter painter;

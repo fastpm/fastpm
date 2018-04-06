@@ -20,7 +20,7 @@ typedef struct PMGhostData {
     int * ighost_to_ipar;
     int rank;
     ptrdiff_t * reason; /* relative offset causing the ghost */
-    int ReductionAttributes;
+    enum FastPMPackFields ReductionAttributes;
     size_t elsize;
 } PMGhostData;
 
