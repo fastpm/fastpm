@@ -61,10 +61,10 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #define fastpm_pkfunc fastpm_fkfunc
 
 #include "events.h"
-#include "painter.h"
 #include "memory.h"
 #include "pmapi.h"
 #include "store.h"
+#include "painter.h"
 
 #include "cosmology.h"
 #include "transfer.h"

@@ -318,7 +318,7 @@ outside:
 void
 fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
-    fastpm_posfunc get_position, int attribute)
+    fastpm_posfunc get_position, enum FastPMPackFields attribute)
 {
     ptrdiff_t i;
 
@@ -339,7 +339,7 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
 
 void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
-    FastPMStore * p, fastpm_posfunc get_position, int attribute)
+    FastPMStore * p, fastpm_posfunc get_position, enum FastPMPackFields attribute)
 {
     if(get_position == NULL) {
         get_position = p->get_position;
@@ -355,7 +355,7 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
 void
 fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
-    fastpm_posfunc get_position, int attribute)
+    fastpm_posfunc get_position, enum FastPMPackFields attribute)
 {
 
     ptrdiff_t i;
@@ -373,7 +373,7 @@ fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
 
 void
 fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
-    FastPMStore * p, fastpm_posfunc get_position, int attribute)
+    FastPMStore * p, fastpm_posfunc get_position, enum FastPMPackFields attribute)
 {
     if(get_position == NULL) {
         get_position = p->get_position;
