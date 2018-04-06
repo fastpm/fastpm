@@ -72,10 +72,56 @@ fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
     size_t i;
 
     for(i = 0; i < Nxy; i ++) {
-        fastpm_info("init plane %ld %g %g \n",i,xy[i][0],xy[i][1]);
         layer->xy[i][0] = xy[i][0];
         layer->xy[i][1] = xy[i][1];
     }
+}
+
+void
+fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
+        PM * pm, double * shift, ptrdiff_t * Nc,
+        double * a, size_t Na)
+{
+    double * BoxSize = pm_boxsize(pm);
+    /* creat a mesh with a uniform xy grid, respecting domain given by pm.
+     * use a subsample ratio. 
+     * (every subsample grid points) */
+    if(Nc == NULL) {
+        Nc = pm_nmesh(pm);
+    }
+    double noshift[] = {0, 0};
+    if(shift == NULL) {
+        shift = noshift;
+    }
+    size_t Nxy;
+    int start[2];
+    int end[2];
+    int d;
+    int i, j;
+
+    Nxy = 1;
+    for(d = 0; d < 2; d++) {
+        start[d] = pm->IRegion.start[d] * Nc[d] / pm->Nmesh[d];
+        end[d] = (pm->IRegion.start[d] + pm->IRegion.size[d]) * Nc[d] / pm->Nmesh[d];
+        Nxy *= end[d] - start[d];
+    }
+
+    double (*xy)[2] = malloc(sizeof(double) * 2 * Nxy);
+
+    ptrdiff_t ptr = 0;
+    for(i = start[0] ; i < end[0]; i ++) {
+        for(j = start[1] ; j < end[1]; j ++) {
+            /* remember the observer shall be looking at the center of the mesh. */
+            xy[ptr][0] = (i + shift[0]) * BoxSize[0] / Nc[0] - 0.5 * BoxSize[0];
+            xy[ptr][1] = (j + shift[0]) * BoxSize[1] / Nc[1] - 0.5 * BoxSize[1];
+            ptr++;
+        }
+    }
+
+    fastpm_smesh_add_layer_plane(mesh,
+        xy, Nxy, a, Na);
+
+    free(xy);
 }
 
 void

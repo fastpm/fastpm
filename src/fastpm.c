@@ -543,8 +543,17 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         int nside1 = CONF(prr, lc_smesh1_nside);
         int nside2 = CONF(prr, lc_smesh2_nside);
 
-        fastpm_smesh_add_layer_healpix(*smesh, nside1, a1, n_a1, fastpm->comm);
-        fastpm_smesh_add_layer_healpix(*smesh, nside2, a2, n_a2, fastpm->comm);
+        if(lc->fov > 0) {
+            fastpm_info("Creating healpix structured meshes for FOV=%g\n", lc->fov);
+            fastpm_smesh_add_layer_healpix(*smesh, nside1, a1, n_a1, fastpm->comm);
+            fastpm_smesh_add_layer_healpix(*smesh, nside2, a2, n_a2, fastpm->comm);
+        } else {
+            fastpm_info("Creating plane structured meshes for the full box Nc1 = %d Nc2 = %d.\n", nside1 * 2, nside2 * 2);
+            ptrdiff_t Nc1[2] = {nside1 * 2, nside1 * 2};
+            ptrdiff_t Nc2[2] = {nside2 * 2, nside2 * 2};
+            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, a1, n_a1);
+            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc2, a2, n_a2);
+        }
 
         fastpm_add_event_handler(&fastpm->event_handlers,
                 FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
