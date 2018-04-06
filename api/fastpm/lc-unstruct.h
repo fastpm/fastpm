@@ -51,9 +51,9 @@ typedef struct FastPMSMesh {
         double * a;
         double * z;
         int Na;
-    } layers[8]; /* at most 8 for now. */
 
-    size_t n_layers;
+        struct FastPMSMeshLayer * next;
+    } * layers;
 
     size_t np_upper;
 

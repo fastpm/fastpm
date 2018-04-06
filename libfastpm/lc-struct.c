@@ -22,8 +22,7 @@ fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper)
     mesh->event_handlers = NULL;
     mesh->lc = lc;
     mesh->np_upper = np_upper;
-    mesh->n_layers = 0;
-
+    mesh->layers = NULL;
     fastpm_store_init(mesh->last.p, 0,
               PACK_POS
             | PACK_POTENTIAL
@@ -40,10 +39,13 @@ struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_common(FastPMSMesh * mesh,
         double * a, double Na)
 {
-    int il = mesh->n_layers;
+    struct FastPMSMeshLayer * h;
+    struct FastPMSMeshLayer * layer = malloc(sizeof(struct FastPMSMeshLayer));
 
-    mesh->n_layers ++;
-    struct FastPMSMeshLayer * layer = &mesh->layers[il];
+    h = mesh->layers;
+    mesh->layers = layer;
+    layer->next = h;
+
     layer->a = malloc(sizeof(double) * Na);
     layer->z = malloc(sizeof(double) * Na);
     layer->Na = Na;
@@ -168,9 +170,8 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh)
 {
-    int i;
-    for(i = 0; i < mesh->n_layers; i ++) {
-        struct FastPMSMeshLayer * layer = &mesh->layers[i];
+    struct FastPMSMeshLayer * layer, *next;
+    for(layer = mesh->layers; layer; layer = next) {
         switch(layer->type) {
             case FASTPM_SMESH_PLANE:
                 free(layer->xy);
@@ -183,6 +184,8 @@ fastpm_smesh_destroy(FastPMSMesh * mesh)
         }
         free(layer->a);
         free(layer->z);
+        next = layer->next;
+        free(layer);
     }
     fastpm_destroy_event_handlers(&mesh->event_handlers);
     fastpm_store_destroy(mesh->last.p);
@@ -253,9 +256,9 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
         FastPMStore * q
     )
 {
-    int i;
-    for(i = 0; i < mesh->n_layers; i ++) {
-        fastpm_smesh_layer_select_active(mesh, &mesh->layers[i], a0, a1, q);
+    struct FastPMSMeshLayer * layer;
+    for(layer = mesh->layers; layer; layer = layer->next) {
+        fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q);
     }
 }
 
