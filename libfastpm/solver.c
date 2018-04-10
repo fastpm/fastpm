@@ -4,6 +4,7 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
+#include <gsl/gsl_rng.h>
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
@@ -383,6 +384,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
+                double particle_fraction,
                 double aout)
 {
     FastPMStore * p = fastpm->p;
@@ -394,12 +396,32 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
 
     fastpm_drift_store(drift, p, po, aout);
 
-    int i;
+    gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+
+    /* set uncorrelated seeds */
+    double seed=1231584; //FIXME: set this properly.
+    gsl_rng_set(random_generator, seed);
+    int d;
+    for(d = 0; d < pm->ThisTask * 8; d++) {
+        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
+    }
+
+    gsl_rng_set(random_generator, seed);
+
+
+    int i,npo=0;
+    double rand_i;
     /* potfactor converts fastpm Phi to dimensionless */
     double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
 #pragma omp parallel for
     for(i=0; i<np; i++) {
-        int d;
+        if (particle_fraction<1)
+        {
+            rand_i=gsl_rng_uniform(random_generator);
+            if (rand_i>particle_fraction)
+            continue;
+        }
+        //int d;
         for(d = 0; d < 3; d ++) {
             /* convert the unit from a**2 dx/dt / H0 in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= HubbleConstant / aout;
@@ -413,9 +435,10 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 po->tidal[i][d] = p->tidal[i][d] / aout * potfactor;
             }
         }
+        npo++;
     }
 
-    po->np = np;
+    po->np = npo;
     po->a_x = po->a_v = aout;
 
     fastpm_store_wrap(po, pm->BoxSize);

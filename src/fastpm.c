@@ -602,6 +602,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
     FastPMStore * p = fastpm->p;
     int nout = CONF(prr, n_aout);
     double * aout= CONF(prr, aout);
+    double particle_fraction= CONF(prr, particle_fraction);
     int iout;
     for(iout = 0; iout < nout; iout ++) {
         if(event->a1 == event->a2) {
@@ -623,7 +624,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
 
-        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
+        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, particle_fraction, aout[iout]);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
