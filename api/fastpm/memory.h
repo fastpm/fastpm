@@ -50,7 +50,9 @@ void
 fastpm_memory_free(FastPMMemory * m, void * p);
 
 void *
-fastpm_memory_alloc(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc);
+fastpm_memory_alloc_details(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc, const char * file, const int line);
+
+#define fastpm_memory_alloc(m, s, loc) fastpm_memory_alloc_details(m, s, loc, __FILE__, __LINE__)
 
 FASTPM_END_DECLS
 

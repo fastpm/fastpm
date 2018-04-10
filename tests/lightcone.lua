@@ -3,7 +3,7 @@
 
 -- For Testing
 nc = 128
-boxsize = 384.0
+boxsize = 256
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -14,6 +14,7 @@ time_step = linspace(0.1, 1, 10)
 
 output_redshifts= {9.0, 0.0}  -- redshifts of output
 compute_potential = true
+compute_tidal = true
 
 -- Cosmology --
 omega_m = 0.307494
@@ -31,7 +32,7 @@ force_mode = "fastpm"
 
 pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
-np_alloc_factor= 4.0      -- Amount of memory allocated for particle
+np_alloc_factor= 8.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
@@ -39,7 +40,32 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 -- write_runpb_snapshot= "nbodykit/tpm"
 write_snapshot= "lightcone/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
--- write_powerspectrum = "pm/powerspec"
-write_lightcone = "lightcone/lightcone"
-dh_factor = 0.1
+
+dh_factor = 0.01
+lc_fov = 0
+--lc_fov = 0
+
+--s =[[glmatrix = { 
+--        {1, 0, 0, -128},
+--        {0, 1, 0, -128},
+--        {0, 0, 1, -128},
+--        {0, 0, 0, 1},
+--        }
+--]]
+
+lc_glmatrix = fastpm.translation(-128, -128, -128)
+
+lc_amin = 0.1
+lc_amax = 1.0
+--
+-- lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
+lc_write_usmesh = "lightcone/usmesh"
+lc_write_smesh = "lightcone/smesh"
+
+lc_smesh1_nside = 32
+lc_smesh2_nside = 32
+
+lc_smesh1_a = linspace(0.4, 0.8, 64, false)
+lc_smesh2_a = linspace(0.8, 1.0, 128, true)
+
 

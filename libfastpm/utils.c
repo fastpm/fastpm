@@ -7,6 +7,8 @@
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
 #include <fastpm/transfer.h>
+#include "chealpix.h"
+#include <mpsort.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
@@ -46,7 +48,7 @@ fastpm_utils_paint(PM * pm, FastPMStore * p,
     FastPMFloat * delta_x, 
     FastPMFloat * delta_k,
     fastpm_posfunc get_position,
-    int attribute)
+    enum FastPMPackFields attribute)
 {
     /* This paints count per cell */
     FastPMPainter painter;
@@ -78,7 +80,7 @@ void
 fastpm_utils_readout(PM * pm, FastPMStore * p,
     FastPMFloat * delta_x,
     fastpm_posfunc get_position,
-    int attribute
+    enum FastPMPackFields attribute
     )
 {
     FastPMPainter painter;
@@ -207,5 +209,135 @@ double
 fastpm_utils_powerspec_white(double k, double * amplitude) 	/* White Noise*/
 {
     return *amplitude;
+}
+
+static double
+zangle(double * x) {
+    double dxy = 0;
+    double dz = x[2];
+    dxy = x[0] * x[0] + x[1] * x[1];
+
+    double rt = atan2(sqrt(dxy), dz) / M_PI * 180.;
+    if (rt < 0) rt += 360.;
+    return rt;
+}
+
+static void
+_sort_pix(const void * ptr, void * radix, void * arg)
+{
+    memcpy(radix, ptr, 8);
+}
+
+void
+fastpm_utils_healpix_ra_dec (
+                int nside,
+                double **ra,
+                double **dec,
+                size_t * n,
+                double fov,
+                MPI_Comm comm
+            )
+{
+    const double rad_to_degree = 180./M_PI;
+
+    size_t npix = nside2npix (nside);
+    int ThisTask, NTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
+
+    //fastpm_info("healpix npix %ld \n",*npix);
+    size_t i = 0;
+
+    size_t pix_start = ThisTask * npix / NTask;
+    size_t pix_end = (ThisTask + 1) * npix / NTask;
+
+    uint64_t local_npix = 0;
+
+    uint64_t * pixels = NULL;
+
+    /* two iterations; estimate and fill */
+    while(1) {
+        size_t j = 0;
+
+        for (i = pix_start; i < pix_end; i++)
+        {
+            double vec[3];
+
+            pix2vec_ring(nside, i, vec);
+
+            if(zangle(vec) > fov * 0.5) continue;
+
+            if(pixels != NULL) {
+                pixels[j] = i;
+            }
+
+            j ++;
+        }
+        if(pixels == NULL) {
+            local_npix = j;
+            pixels = malloc(sizeof(uint64_t) * local_npix);
+
+        } else {
+            break;
+        }
+    }
+
+    /* count total */
+    uint64_t valid_npix = local_npix;
+    MPI_Allreduce(MPI_IN_PLACE, &valid_npix, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+    /* redistribute / balance */
+
+    size_t localsize =
+        (ThisTask + 1) * valid_npix / NTask
+    -
+        (ThisTask    ) * valid_npix / NTask;
+
+    uint64_t * recv_buffer = malloc(sizeof(uint64_t) * localsize);
+
+    mpsort_mpi_newarray(pixels, local_npix, recv_buffer, localsize, sizeof(uint64_t), _sort_pix, 8, NULL, comm);
+
+    free(pixels);
+
+    *ra = malloc(sizeof(double) * localsize);
+    *dec = malloc(sizeof(double) * localsize);
+
+    for(i = 0; i < localsize; i ++) {
+        double phi, theta;
+
+        pix2ang_ring(nside, recv_buffer[i], &theta, &phi);
+
+        phi *= rad_to_degree;
+        theta*= rad_to_degree;
+        (*ra)[i] = phi;
+        (*dec)[i]= 90 - theta;
+    }
+    *n = localsize;
+    free(recv_buffer);
+}
+
+void
+fastpm_gldot(double glmatrix[4][4], double xi[4], double xo[4])
+{
+    int i, j;
+    for(i = 0; i < 4; i ++) {
+        xo[i] = 0;
+        for(j = 0; j < 4; j ++) {
+            xo[i] += glmatrix[i][j] * xi[j];
+        }
+    }
+}
+
+void
+fastpm_gldotf(double glmatrix[4][4], float vi[4], float vo[4])
+{
+    int i, j;
+    for(i = 0; i < 4; i ++) {
+        vo[i] = 0;
+        for(j = 0; j < 4; j ++) {
+            vo[i] += glmatrix[i][j] * vi[j];
+        }
+    }
 }
 

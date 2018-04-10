@@ -14,8 +14,9 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
-#include <fastpm/lightcone.h>
+#include <fastpm/lc-unstruct.h>
 #include <fastpm/constrainedgaussian.h>
+#include <fastpm/io.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -39,6 +40,7 @@ extern char *
 lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
 
 #define CONF(prr, name) lua_config_get_ ## name (prr->config)
+#define HAS(prr, name) lua_config_has_ ## name (prr->config)
 
 /* command-line arguments */
 static char * ParamFileName;
@@ -48,6 +50,12 @@ parse_args(int * argc, char *** argv, Parameters * prr);
 
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
+
+static void
+smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh);
+
+static void
+smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata);
 
 int 
 read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename);
@@ -59,16 +67,7 @@ int
 write_runpb_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase, char * parameters, int Nwriters);
-
-int
-write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
-
-int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
-
-int
-read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
 read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
@@ -134,7 +133,6 @@ int main(int argc, char ** argv) {
         .hubble_param = CONF(prr, h),
         .USE_DX1_ONLY = CONF(prr, za),
         .nLPT = -2.5f,
-        .K_LINEAR = CONF(prr, enforce_broadband_kmax),
         .USE_SHIFT = CONF(prr, shift),
         .FORCE_TYPE = CONF(prr, force_mode),
         .KERNEL_TYPE = CONF(prr, kernel_type),
@@ -158,13 +156,18 @@ static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr);
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc);
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * lc);
 
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
 
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+
+static void
+prepare_lc(FastPMSolver * fastpm, Parameters * prr,
+        FastPMLightCone * lc, FastPMUSMesh ** usmesh,
+        FastPMSMesh ** smesh);
 
 static int 
 print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr);
@@ -194,35 +197,35 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     LEAVE(init);
 
-    fastpm_solver_add_event_handler(fastpm,
+    fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_FORCE,
         FASTPM_EVENT_STAGE_AFTER,
         (FastPMEventHandlerFunction) write_powerspectrum,
         prr);
 
-    fastpm_solver_add_event_handler(fastpm,
+    fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) check_snapshots,
         prr);
 
-    fastpm_solver_add_event_handler(fastpm,
+    fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_TRANSITION,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) print_transition,
         prr);
 
-    FastPMLightCone lc[1];
-    if(CONF(prr, write_lightcone)) {
-        double HubbleDistanceFactor = CONF(prr, dh_factor);
-        fastpm_lc_init(lc, HubbleDistanceFactor, fastpm->cosmology, fastpm->p);
+    /* initialize the lightcone */
+    FastPMLightCone lc[1] = {{
+        .speedfactor = CONF(prr, dh_factor),
+        .cosmology = fastpm->cosmology,
+        .fov = CONF(prr, lc_fov),
+    }};
 
-        fastpm_solver_add_event_handler(fastpm,
-            FASTPM_EVENT_INTERPOLATION,
-            FASTPM_EVENT_STAGE_BEFORE,
-            (FastPMEventHandlerFunction) check_lightcone,
-            lc);
-    }
+    FastPMUSMesh * usmesh = NULL;
+    FastPMSMesh * smesh = NULL;
+
+    prepare_lc(fastpm, prr, lc, &usmesh, &smesh);
 
     MPI_Barrier(comm);
     ENTER(ic);
@@ -241,13 +244,24 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     fastpm_solver_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
     LEAVE(evolve);
 
-    if(CONF(prr, write_lightcone)) {
-        write_snapshot(fastpm, lc->p, CONF(prr, write_lightcone), prr->string, prr->Nwriters);
-        long long np = lc->p->np;
+    if(CONF(prr, lc_write_usmesh)) {
+        long long np = usmesh->p->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
-        fastpm_lc_destroy(lc);
+        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
+
+    if(smesh)
+        fastpm_smesh_destroy(smesh);
+
+    if(usmesh)
+        fastpm_usmesh_destroy(usmesh);
+
+    free(smesh);
+    free(usmesh);
+
+    fastpm_lc_destroy(lc);
+
     fastpm_solver_destroy(fastpm);
 
     fastpm_clock_stat(comm);
@@ -462,7 +476,142 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
-static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr) {
+
+static void
+prepare_lc(FastPMSolver * fastpm, Parameters * prr,
+        FastPMLightCone * lc, FastPMUSMesh ** usmesh,
+        FastPMSMesh ** smesh)
+{
+    {
+        if(CONF(prr, ndim_lc_glmatrix) != 2 ||
+           CONF(prr, shape_lc_glmatrix)[0] != 4 ||
+           CONF(prr, shape_lc_glmatrix)[1] != 4
+        ) {
+            fastpm_raise(-1, "GL Matrix must be a 4x4 matrix\n");
+        }
+
+        int i, j;
+        double * c = CONF(prr, lc_glmatrix);
+
+        for (i = 0; i < 4; i ++) {
+            for (j = 0; j < 4; j ++) {
+                lc->glmatrix[i][j] = *c;
+                c ++;
+            }
+            fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
+                lc->glmatrix[i][0], lc->glmatrix[i][1], lc->glmatrix[i][2], lc->glmatrix[i][3]);
+        }
+    }
+
+    fastpm_lc_init(lc);
+
+
+    double lc_amin = HAS(prr, lc_amin)?CONF(prr, lc_amin):CONF(prr, time_step)[0];
+
+    double lc_amax = HAS(prr, lc_amax)?CONF(prr, lc_amax):CONF(prr, time_step)[CONF(prr, n_time_step) - 1];
+
+    fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", lc_amin, lc_amax);
+
+    *usmesh = NULL;
+    if(CONF(prr, lc_write_usmesh)) {
+        *usmesh = malloc(sizeof(FastPMUSMesh));
+
+        double (*tiles)[3];
+        int ntiles;
+
+        if(CONF(prr, ndim_lc_usmesh_tiles) != 2 ||
+           CONF(prr, shape_lc_usmesh_tiles)[1] != 3
+        ) {
+            fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
+        }
+
+        ntiles = CONF(prr, shape_lc_usmesh_tiles)[0];
+        tiles = malloc(sizeof(tiles[0]) * ntiles);
+        int i, j;
+        double * c = CONF(prr, lc_usmesh_tiles);
+
+        for (i = 0; i < ntiles; i ++) {
+            for (j = 0; j < 3; j ++) {
+                tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
+                c ++;
+            }
+            fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
+                tiles[i][0], tiles[i][1], tiles[i][2]);
+        }
+        fastpm_usmesh_init(*usmesh, lc, fastpm->p->np_upper, tiles, ntiles, lc_amin, lc_amax);
+
+        fastpm_add_event_handler(&fastpm->event_handlers,
+            FASTPM_EVENT_INTERPOLATION,
+            FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEventHandlerFunction) check_lightcone,
+            *usmesh);
+
+        free(tiles);
+    }
+
+    *smesh = NULL;
+    if(CONF(prr, lc_write_smesh)) {
+        *smesh = malloc(sizeof(FastPMSMesh));
+
+        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper);
+
+        if(lc->fov > 0) {
+            fastpm_info("Creating healpix structured meshes for FOV=%g\n", lc->fov);
+            double n = CONF(prr, nc) / CONF(prr, boxsize);
+            fastpm_smesh_add_layers_healpix(*smesh,
+                    n * n, n * n * n,
+                    lc_amin, lc_amax, fastpm->comm);
+        } else {
+            ptrdiff_t Nc1[3] = {CONF(prr, nc), CONF(prr, nc), CONF(prr, nc)};
+            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, lc_amin, lc_amax);
+        }
+
+        fastpm_add_event_handler(&fastpm->event_handlers,
+                FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_force_handler,
+                *smesh);
+
+        void ** data = malloc(sizeof(void*) * 2);
+        data[0] = fastpm;
+        data[1] = prr;
+
+        fastpm_add_event_handler_free(&(*smesh)->event_handlers,
+                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_ready_handler,
+                data, free);
+    }
+}
+
+static void
+smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata)
+{
+    FastPMSolver * solver = userdata[0];
+    Parameters * prr = userdata[1];
+
+    fastpm_info("Structured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, lcevent->p->np);
+
+    char * fn = fastpm_strdup_printf(CONF(prr, lc_write_smesh));
+
+    if(lcevent->is_first) {
+        fastpm_info("Creating smesh catalog in %s\n", fn);
+        write_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+    } else {
+        fastpm_info("Appending smesh catalog to %s\n", fn);
+        append_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+    }
+    free(fn);
+}
+
+/* bridging force event to smesh interpolation */
+static void
+smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
+{
+    fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+}
+
+static int
+check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr)
+{
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
         event->a1, event->a2,
         event->kick->af, event->kick->ai, event->kick->ac,
@@ -474,6 +623,7 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
     FastPMStore * p = fastpm->p;
     int nout = CONF(prr, n_aout);
     double * aout= CONF(prr, aout);
+    double particle_fraction= CONF(prr, particle_fraction);
     int iout;
     for(iout = 0; iout < nout; iout ++) {
         if(event->a1 == event->a2) {
@@ -487,12 +637,15 @@ static int check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * eve
         FastPMStore snapshot[1];
 
         fastpm_store_init(snapshot, p->np_upper,
-                PACK_ID | PACK_POS | PACK_VEL | (CONF(prr, compute_potential)?PACK_POTENTIAL:0));
+                  PACK_ID | PACK_POS | PACK_VEL
+                | (CONF(prr, compute_potential)?PACK_POTENTIAL:0),
+                FASTPM_MEMORY_STACK
+            );
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
 
-        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
+        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, particle_fraction, aout[iout]);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
@@ -542,7 +695,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters);
+        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters, FastPMSnapshotSortByID);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
@@ -570,9 +723,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 }
 
 static int 
-check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMLightCone * lc)
+check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_lc_intersect(lc, event->drift, event->kick, fastpm->p);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
     return 0;
 }
 
@@ -607,10 +760,13 @@ print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameter
 static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
 {
+
+    int K_LINEAR = CONF(prr, enforce_broadband_kmax);
+
     CLOCK(compute);
     CLOCK(io);
 
-    fastpm_info("Force Calculation Nmesh = %d ====\n", fastpm->info.Nmesh);
+    fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
 
     fastpm_info("Load imbalance is - %g / + %g\n",
         fastpm->info.imbalance.min, fastpm->info.imbalance.max);
@@ -622,16 +778,16 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 
     FastPMPowerSpectrum ps;
     /* calculate the power spectrum */
-    fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, event->delta_k, event->delta_k);
+    fastpm_powerspectrum_init_from_delta(&ps, event->pm, event->delta_k, event->delta_k);
 
-    double Plin = fastpm_powerspectrum_large_scale(&ps, fastpm->config->K_LINEAR);
+    double Plin = fastpm_powerspectrum_large_scale(&ps, K_LINEAR);
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
     Plin /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
     Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
 
-    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, fastpm->config->K_LINEAR * 6.28 / fastpm->config->boxsize, Plin, Sigma8);
+    fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, K_LINEAR * 6.28 / pm_boxsize(event->pm)[0], Plin, Sigma8);
 
     LEAVE(compute);
 
@@ -644,7 +800,7 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
         fastpm_info("writing power spectrum to %s\n", buf);
         if(fastpm->ThisTask == 0) {
             fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
-            fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
+            fastpm_powerspectrum_write(&ps, buf, event->N);
         }
     }
     LEAVE(io);

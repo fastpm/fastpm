@@ -4,9 +4,11 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
+#include <gsl/gsl_rng.h>
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
+#include <fastpm/store.h>
 
 #include "pmpfft.h"
 #include "pm2lpt.h"
@@ -20,10 +22,6 @@ fastpm_decompose(FastPMSolver * fastpm);
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
 
-/* Useful stuff */
-static int 
-to_rank(void * pdata, ptrdiff_t i, void * data);
-
 void fastpm_solver_init(FastPMSolver * fastpm,
     FastPMConfig * config,
     MPI_Comm comm) {
@@ -35,7 +33,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .PainterSupport = config->painter_support,
         .KernelType = config->KERNEL_TYPE,
         .DealiasingType = config->DEALIASING_TYPE,
-        .ComputePotential = config->COMPUTE_POTENTIAL,
     };
 
     fastpm->cosmology[0] = (FastPMCosmology) {
@@ -61,7 +58,10 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->p = malloc(sizeof(FastPMStore));
 
     fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-        PACK_POS | PACK_VEL | PACK_ID | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0) | PACK_DX1 | PACK_DX2 | PACK_ACC | (config->SAVE_Q?PACK_Q:0),
+          PACK_POS | PACK_VEL | PACK_ID
+        | PACK_DX1 | PACK_DX2 | PACK_ACC
+        | (config->SAVE_Q?PACK_Q:0)
+        | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0),
         config->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(config->vpminit,
@@ -96,9 +96,7 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
         }
         double shift[3] = {shift0, shift0, shift0};
 
-        int nc[3] = {config->nc, config->nc, config->nc};
-
-        fastpm_store_set_lagrangian_position(p, basepm, shift, nc);
+        fastpm_store_set_lagrangian_position(p, basepm, shift, NULL);
 
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);
@@ -153,8 +151,8 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
         CLOCK(beforetransit);
         ENTER(beforetransit);
-        fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
-                FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event);
+        fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_TRANSITION,
+                FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
         LEAVE(beforetransit);
 
         switch(transition->action) {
@@ -171,8 +169,8 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
         CLOCK(aftertransit);
         ENTER(aftertransit);
-        fastpm_solver_emit_event(fastpm, FASTPM_EVENT_TRANSITION,
-                FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
+        fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_TRANSITION,
+                FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
         LEAVE(aftertransit);
 
         if(i == 1) {
@@ -204,7 +202,9 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
     event->kick = kick;
     event->a1 = a1;
     event->a2 =a2;
-    fastpm_solver_emit_event(fastpm, FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event);
+    fastpm_emit_event(fastpm->event_handlers,
+            FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
+            (FastPMEvent*) event, fastpm);
 
     LEAVE(interpolation);
 }
@@ -241,8 +241,6 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     PM * pm = fastpm->pm;
 
-    fastpm->info.Nmesh = fastpm->pm->init.Nmesh;
-
     FastPMFloat * delta_k = pm_alloc(pm);
     ENTER(decompose);
     fastpm_decompose(fastpm);
@@ -255,11 +253,32 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     ENTER(afterforce);
 
+    double N = fastpm->p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, fastpm->comm);
+
+
     FastPMForceEvent event[1];
     event->delta_k = delta_k;
     event->a_f = trans->a.f;
+    event->pm = pm;
+    event->N = N;
+    event->gravity = gravity;
 
-    fastpm_solver_emit_event(fastpm, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event);
+    /* find the time stamp of the next force calculation. This will
+     * be useful for interpolating potentials of the structured mesh */
+    FastPMTransition next[1];
+
+    if(!fastpm_tevo_transition_find_next(trans, next)) {
+        event->a_n = -1;
+    } else {
+        if(next->a.i != trans->a.f) {
+            fastpm_raise(-1, "Failed to find next Force calculation\n");
+        }
+        event->a_n = next->a.f;
+    }
+
+    fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
     LEAVE(afterforce);
 
     pm_free(pm, delta_k);
@@ -280,7 +299,9 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
         FastPMDriftFactor drift;
 
         FastPMTransition dual[1];
-        fastpm_tevo_transition_find_dual(trans, dual);
+        if(!fastpm_tevo_transition_find_dual(trans, dual)) {
+            fastpm_raise(-1, "Dual transition not found. The state table is likely wrong. Look at states->table.\n");
+        }
 
         fastpm_drift_init(&drift, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
@@ -307,7 +328,9 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
         FastPMKickFactor kick;
 
         FastPMTransition dual[1];
-        fastpm_tevo_transition_find_dual(trans, dual);
+        if(!fastpm_tevo_transition_find_dual(trans, dual)) {
+            fastpm_raise(-1, "Dual transition not found. The state table is likely wrong. Look at states->table.\n");
+        }
         fastpm_kick_init(&kick, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
         fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
@@ -328,22 +351,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 
     vpm_free(fastpm->vpm_list);
 
-    /* FIXME: free VPM and stuff. */
-    FastPMEventHandler * h, * h2;
-    for(h = fastpm->event_handlers; h; h = h2) {
-        h2 = h->next;
-        free(h);
-    }
-}
-
-static int 
-to_rank(void * pdata, ptrdiff_t i, void * data) 
-{
-    FastPMStore * p = (FastPMStore *) pdata;
-    PM * pm = (PM*) data;
-    double pos[3];
-    p->get_position(p, i, pos);
-    return pm_pos_to_rank(pm, pos);
+    fastpm_destroy_event_handlers(&fastpm->event_handlers);
 }
 
 static void
@@ -356,7 +364,7 @@ fastpm_decompose(FastPMSolver * fastpm) {
 
     /* apply periodic boundary and move particles to the correct rank */
     fastpm_store_wrap(fastpm->p, pm->BoxSize);
-    fastpm_store_decompose(fastpm->p, to_rank, pm, fastpm->comm);
+    fastpm_store_decompose(fastpm->p, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
     size_t np_max;
     size_t np_min;
 
@@ -376,6 +384,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
+                double particle_fraction,
                 double aout)
 {
     FastPMStore * p = fastpm->p;
@@ -387,12 +396,32 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
 
     fastpm_drift_store(drift, p, po, aout);
 
-    int i;
+    gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+
+    /* set uncorrelated seeds */
+    double seed=1231584; //FIXME: set this properly.
+    gsl_rng_set(random_generator, seed);
+    int d;
+    for(d = 0; d < pm->ThisTask * 8; d++) {
+        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
+    }
+
+    gsl_rng_set(random_generator, seed);
+
+
+    int i,npo=0;
+    double rand_i;
     /* potfactor converts fastpm Phi to dimensionless */
     double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
 #pragma omp parallel for
     for(i=0; i<np; i++) {
-        int d;
+        if (particle_fraction<1)
+        {
+            rand_i=gsl_rng_uniform(random_generator);
+            if (rand_i>particle_fraction)
+            continue;
+        }
+        //int d;
         for(d = 0; d < 3; d ++) {
             /* convert the unit from a**2 dx/dt / H0 in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= HubbleConstant / aout;
@@ -401,12 +430,18 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
         /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
         if(po->potential)
             po->potential[i] = p->potential[i] / aout * potfactor;
+        if(po->tidal) {
+            for( d = 0; d < 3; d ++) {
+                po->tidal[i][d] = p->tidal[i][d] / aout * potfactor;
+            }
+        }
+        npo++;
     }
 
-    po->np = np;
+    po->np = npo;
     po->a_x = po->a_v = aout;
 
     fastpm_store_wrap(po, pm->BoxSize);
-    fastpm_store_decompose(po, to_rank, pm, fastpm->comm);
+    fastpm_store_decompose(po, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
 }
 

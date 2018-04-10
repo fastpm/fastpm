@@ -23,4 +23,27 @@ double D2GrowthFactorDa2(double a, FastPMCosmology * c);
 double ComovingDistance(double a, FastPMCosmology * c);
 double OmegaA(double a, FastPMCosmology * c);
 
+
+struct FastPMHorizon {
+    FastPMCosmology * cosmology;
+    size_t size;
+    double da;
+    double xi_a[8192];
+    double growthfactor_a[8192];
+    void * gsl;
+};
+
+void fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology);
+void fastpm_horizon_destroy(FastPMHorizon * horizon);
+
+double HorizonDistance(double a, FastPMHorizon * horizon);
+double HorizonGrowthFactor(double a, FastPMHorizon * horizon);
+
+int
+fastpm_horizon_solve(FastPMHorizon * horizon,
+    double * solution,
+    double a_i, double a_f,
+    double (*func)(double a, void * userdata),
+    void * userdata);
+
 FASTPM_END_DECLS

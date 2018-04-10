@@ -86,7 +86,7 @@ static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
 
 PMGhostData *
 pm_ghosts_create(PM * pm, FastPMStore *p,
-    int attributes,
+    enum FastPMPackFields attributes,
     fastpm_posfunc get_position)
 {
 
@@ -161,7 +161,7 @@ pm_ghosts_create(PM * pm, FastPMStore *p,
     return pgd;
 }
 
-void pm_ghosts_reduce(PMGhostData * pgd, int attributes) {
+void pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes) {
     PM * pm = pgd->pm;
     FastPMStore * p = pgd->p;
 

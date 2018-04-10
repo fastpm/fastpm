@@ -24,7 +24,7 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
     pos[2] = p->q[index][2];
 }
 
-static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
+static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -47,12 +47,14 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
     DISPATCH(PACK_AEMIT, aemit)
     DISPATCH(PACK_ACC, acc)
+    DISPATCH(PACK_TIDAL, tidal)
 
     /* components */
     DISPATCHC(PACK_ACC_X, acc, 0)
@@ -67,15 +69,21 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
 
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown packing field.\n");
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
     }
     return s;
 }
-static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
+static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -98,12 +106,15 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
     DISPATCH(PACK_Q, q)
     DISPATCH(PACK_AEMIT, aemit)
     DISPATCH(PACK_ACC, acc)
+    DISPATCH(PACK_TIDAL, tidal)
+
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
     DISPATCHC(PACK_ACC_Z, acc, 2)
@@ -116,13 +127,19 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCH
     #undef DISPATCHC
     if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %d\n", flags);
+        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
     }
 }
-static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
+static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -142,6 +159,7 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
             flags &= ~f; \
         } \
     }
+    DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
@@ -155,13 +173,19 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCHC
     #undef DISPATCH
     if(flags != 0) {
         fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
     }
 }
-static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
+static double to_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags) {
     double rt = 0.;
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
@@ -179,6 +203,7 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
             goto byebye; \
         } \
     }
+    DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
@@ -192,6 +217,12 @@ static double to_double(FastPMStore * p, ptrdiff_t index, int flags) {
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCH
     #undef DISPATCHC
 byebye:
@@ -202,7 +233,7 @@ byebye:
         return rt;
     }
 }
-static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double value) {
+static void from_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags, double value) {
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -219,6 +250,7 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
             goto byebye; \
         } \
     }
+    DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCHC(PACK_ACC_X, acc, 0);
     DISPATCHC(PACK_ACC_Y, acc, 1);
@@ -232,6 +264,12 @@ static void from_double(FastPMStore * p, ptrdiff_t index, int flags, double valu
     DISPATCHC(PACK_POS_X, x, 0)
     DISPATCHC(PACK_POS_Y, x, 1)
     DISPATCHC(PACK_POS_Z, x, 2)
+    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
+    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
+    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
+    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
+    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
+    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
     #undef DISPATCH
     #undef DISPATCHC
 byebye:
@@ -241,7 +279,7 @@ byebye:
 }
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes) 
+fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc) 
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -257,59 +295,69 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes)
     p->attributes = attributes;
 
     if(attributes & PACK_Q)
-        p->q = fastpm_memory_alloc(p->mem, sizeof(p->q[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->q = fastpm_memory_alloc(p->mem, sizeof(p->q[0]) * np_upper, loc);
     else
         p->q = NULL;
 
     if(attributes & PACK_POS)
-        p->x = fastpm_memory_alloc(p->mem, sizeof(p->x[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->x = fastpm_memory_alloc(p->mem, sizeof(p->x[0]) * np_upper, loc);
     else
         p->x = NULL;
 
 
     if(attributes & PACK_VEL)
-        p->v = fastpm_memory_alloc(p->mem, sizeof(p->v[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->v = fastpm_memory_alloc(p->mem, sizeof(p->v[0]) * np_upper, loc);
     else
         p->v = NULL;
 
     if(attributes & PACK_ID)
-        p->id = fastpm_memory_alloc(p->mem, sizeof(p->id[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->id = fastpm_memory_alloc(p->mem, sizeof(p->id[0]) * np_upper, loc);
     else
         p->id = NULL;
 
     if(attributes & PACK_ACC)
-        p->acc = fastpm_memory_alloc(p->mem, sizeof(p->acc[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->acc = fastpm_memory_alloc(p->mem, sizeof(p->acc[0]) * np_upper, loc);
     else
         p->acc = NULL;
 
     if(attributes & PACK_DX1)
-        p->dx1 = fastpm_memory_alloc(p->mem, sizeof(p->dx1[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->dx1 = fastpm_memory_alloc(p->mem, sizeof(p->dx1[0]) * np_upper, loc);
     else
         p->dx1 = NULL;
 
     if(attributes & PACK_DX2)
-        p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, loc);
     else
         p->dx2 = NULL;
 
     if(attributes & PACK_AEMIT)
-        p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, loc);
     else
         p->aemit = NULL;
 
+    if(attributes & PACK_DENSITY)
+        p->rho = fastpm_memory_alloc(p->mem, sizeof(p->rho[0]) * np_upper, loc);
+    else
+        p->rho = NULL;
+
     if(attributes & PACK_POTENTIAL)
-        p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, FASTPM_MEMORY_HEAP);
+        p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, loc);
     else
         p->potential = NULL;
+
+    if(attributes & PACK_TIDAL)
+        p->tidal = fastpm_memory_alloc(p->mem, sizeof(p->tidal[0]) * np_upper, loc);
+    else
+        p->tidal = NULL;
 };
 
 size_t 
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, int attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes);
+    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes, FASTPM_MEMORY_HEAP);
     return 0;
 }
 
@@ -324,15 +372,28 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
-    if(p->potential) fastpm_memory_free(p->mem, p->potential);
-    if(p->aemit) fastpm_memory_free(p->mem, p->aemit);
-    if(p->dx2) fastpm_memory_free(p->mem, p->dx2);
-    if(p->dx1) fastpm_memory_free(p->mem, p->dx1);
-    if(p->acc) fastpm_memory_free(p->mem, p->acc);
-    if(p->id) fastpm_memory_free(p->mem, p->id);
-    if(p->v) fastpm_memory_free(p->mem, p->v);
-    if(p->x) fastpm_memory_free(p->mem, p->x);
-    if(p->q) fastpm_memory_free(p->mem, p->q);
+    if(p->attributes & PACK_TIDAL)
+        fastpm_memory_free(p->mem, p->tidal);
+    if(p->attributes & PACK_POTENTIAL)
+        fastpm_memory_free(p->mem, p->potential);
+    if(p->attributes & PACK_DENSITY)
+        fastpm_memory_free(p->mem, p->rho);
+    if(p->attributes & PACK_AEMIT)
+        fastpm_memory_free(p->mem, p->aemit);
+    if(p->attributes & PACK_DX2)
+        fastpm_memory_free(p->mem, p->dx2);
+    if(p->attributes & PACK_DX1)
+        fastpm_memory_free(p->mem, p->dx1);
+    if(p->attributes & PACK_ACC)
+        fastpm_memory_free(p->mem, p->acc);
+    if(p->attributes & PACK_ID)
+        fastpm_memory_free(p->mem, p->id);
+    if(p->attributes & PACK_VEL)
+        fastpm_memory_free(p->mem, p->v);
+    if(p->attributes & PACK_POS)
+        fastpm_memory_free(p->mem, p->x);
+    if(p->attributes & PACK_Q)
+        fastpm_memory_free(p->mem, p->q);
 }
 
 void fastpm_store_read(FastPMStore * p, char * datasource) {
@@ -365,6 +426,8 @@ static void fastpm_store_permute(FastPMStore * p, int * ind) {
         permute(p->id, p->np, sizeof(p->id[0]), ind);
     if(p->potential)
         permute(p->potential, p->np, sizeof(p->potential[0]), ind);
+    if(p->tidal)
+        permute(p->tidal, p->np, sizeof(p->tidal[0]), ind);
     if(p->aemit)
         permute(p->aemit, p->np, sizeof(p->aemit[0]), ind);
     if(p->q)
@@ -418,7 +481,20 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
     } 
 }
 
-void fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm) {
+int
+FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm)
+{
+    double pos[3];
+    p->get_position(p, i, pos);
+    return pm_pos_to_rank(pm, pos);
+}
+
+
+void
+fastpm_store_decompose(FastPMStore * p,
+    fastpm_store_target_func target_func,
+    void * data, MPI_Comm comm)
+{
     int * target = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int NTask, ThisTask;
 
@@ -500,11 +576,13 @@ void fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_fun
 }
 
 void 
-fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], int Nc[3])
+fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 {
     /* fill p with a uniform grid, respecting domain given by pm. use a subsample ratio. 
      * (every subsample grid points) */
-
+    if(Nc == NULL) {
+        Nc = pm_nmesh(pm);
+    }
     int d;
     p->np = 1;
     for(d = 0; d < 3; d++) {
@@ -538,9 +616,11 @@ fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], 
             id = ii * Nc[1] * Nc[2] + jj * Nc[2] + kk;
 
             for(d = 0; d < 3; d ++) {
-                p->x[ptr][d] = pabs[d] * (pm->BoxSize[d] / Nc[d]) + shift[d];
+                p->x[ptr][d] = pabs[d] * (pm->BoxSize[d] / Nc[d]);
 
-                p->id[ptr]  = id;
+                if(shift) p->x[ptr][d] += shift[d];
+
+                if(p->id) p->id[ptr]  = id;
 
                 /* set q if it is allocated. */
                 if(p->q) p->q[ptr][d] = p->x[ptr][d];
@@ -609,6 +689,8 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
     if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
     if(po->aemit) memcpy(po->aemit, p->aemit, sizeof(p->aemit[0]) * p->np);
     if(po->potential) memcpy(po->potential, p->potential, sizeof(p->potential[0]) * p->np);
+    if(po->rho) memcpy(po->rho, p->rho, sizeof(p->potential[0]) * p->np);
+    if(po->tidal) memcpy(po->tidal, p->tidal, sizeof(p->tidal[0]) * p->np);
 
     po->np = p->np;
     po->a_x = p->a_x;
@@ -643,6 +725,7 @@ fastpm_store_create_subsample(FastPMStore * po, FastPMStore * p, int mod, int nc
         if(po->id) po->id[j] = p->id[i];
         if(po->aemit) po->aemit[j] = p->aemit[i];
         if(po->potential) po->potential[j] = p->potential[i];
+        if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0][0]) * 6);
         j ++;
     }
     po->np = j; 

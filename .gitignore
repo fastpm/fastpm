@@ -12,3 +12,4 @@ tests/*/*
 .deps
 .objs
 .libs
+*.ipynb

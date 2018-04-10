@@ -5,43 +5,53 @@
 #include <stdint.h>
 
 FASTPM_BEGIN_DECLS
+enum FastPMPackFields {
+    PACK_POS   =  1L << 0,
+    PACK_VEL   =  1L << 1,
+    PACK_DX1   =  1L << 2,
+    PACK_DX2   =  1L << 3,
+    PACK_ACC   =  1L << 4,
+    PACK_ID    =  1L << 5,
+    PACK_Q     =  1L << 6,
+    PACK_AEMIT     =  1L << 7,
+    PACK_DENSITY =  1L << 8,
+    PACK_POTENTIAL =  1L << 9,
+    PACK_TIDAL     =  1L << 10,
 
-#define PACK_POS   (1 << 0)
-#define PACK_VEL   (1 << 1)
-#define PACK_DX1   (1 << 2)
-#define PACK_DX2   (1 << 3)
-#define PACK_ACC   (1 << 4)
-#define PACK_ID    (1 << 5)
-#define PACK_Q     (1 << 6)
-#define PACK_AEMIT     (1 << 7)
-#define PACK_POTENTIAL (1 << 8)
 
+    PACK_ACC_X =  1L << 20,
+    PACK_ACC_Y =  1L << 21,
+    PACK_ACC_Z =  1L << 22,
+    PACK_DX1_X   =  1L << 23,
+    PACK_DX1_Y   =  1L << 24,
+    PACK_DX1_Z   =  1L << 25,
+    PACK_DX2_X   =  1L << 26,
+    PACK_DX2_Y   =  1L << 27,
+    PACK_DX2_Z   =  1L << 28,
+    PACK_POS_X =  1L << 29,
+    PACK_POS_Y =  1L << 30,
+    PACK_POS_Z =  1L << 31,
 
-#define PACK_ACC_X (1 << 10)
-#define PACK_ACC_Y (1 << 11)
-#define PACK_ACC_Z (1 << 12)
-#define PACK_DX1_X   (1 << 13)
-#define PACK_DX1_Y   (1 << 14)
-#define PACK_DX1_Z   (1 << 15)
-#define PACK_DX2_X   (1 << 16)
-#define PACK_DX2_Y   (1 << 17)
-#define PACK_DX2_Z   (1 << 18)
-#define PACK_POS_X (1 << 19)
-#define PACK_POS_Y (1 << 20)
-#define PACK_POS_Z (1 << 21)
+    PACK_TIDAL_XX =  1L << 32,
+    PACK_TIDAL_YY =  1L << 33,
+    PACK_TIDAL_ZZ =  1L << 34,
+    PACK_TIDAL_XY =  1L << 35,
+    PACK_TIDAL_YZ =  1L << 36,
+    PACK_TIDAL_ZX =  1L << 37,
+};
 
 struct FastPMStore {
     fastpm_posfunc get_position;
 
-    size_t (*pack)  (FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
-    void   (*unpack)(FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
-    void   (*reduce)(FastPMStore * p, ptrdiff_t index, void * packed, int attributes);
-    double (*to_double)(FastPMStore * p, ptrdiff_t index, int attribute);
-    void   (*from_double)(FastPMStore * p, ptrdiff_t index, int attribute, double value);
+    size_t (*pack)  (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+    void   (*unpack)(FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+    void   (*reduce)(FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+    double (*to_double)(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute);
+    void   (*from_double)(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute, double value);
 
     FastPMMemory * mem;
 
-    int attributes; /* bit flags of allocated attributes */
+    enum FastPMPackFields attributes; /* bit flags of allocated attributes */
 
     double (* x)[3];
     float (* q)[3];
@@ -50,7 +60,9 @@ struct FastPMStore {
     float (* dx1)[3];
     float (* dx2)[3];
     float (* aemit);
+    float (* rho);
     float (* potential);
+    float (* tidal)[6];
     uint64_t * id;
     size_t np;
     size_t np_upper;
@@ -59,10 +71,10 @@ struct FastPMStore {
 };
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, int attributes);
+fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc);
 
 size_t
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, int attributes,
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes,
     double alloc_factor, MPI_Comm comm);
 
 void
@@ -72,12 +84,12 @@ void
 fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm);
 
 void
-fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], int Nc[3]);
+fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], ptrdiff_t Nc[3]);
 
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
 
-typedef int (fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
+typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
 void
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
@@ -99,6 +111,9 @@ fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
 void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
+
+int
+FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm);
 
 FASTPM_END_DECLS
 

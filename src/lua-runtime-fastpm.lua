@@ -128,11 +128,43 @@ schema.declare{name='write_powerspectrum', type='string'}
 schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
-schema.declare{name='write_lightcone',         type='string'}
-schema.declare{name='dh_factor',    type='number', default=1.0}
+schema.declare{name='particle_fraction',    type='number', default=1.0, help='Fraction of particles to save in the snapshot (sub-sampling)'}
 
-schema.declare{name='za',                      type='boolean', default=false}
-schema.declare{name='kernel_type',             type='enum', default="3_4"}
+schema.declare{name='lc_amin',
+            type='number', help='min scale factor for truncation of lightcone.'}
+schema.declare{name='lc_amax',
+            type='number', help='max scale factor for truncation of lightcone.'}
+
+schema.declare{name='lc_write_usmesh',         type='string', help='file name base for writing the particle lightcone'}
+
+schema.declare{name='lc_usmesh_tiles',     type='array:number',
+        default={
+            {0, 0, 0},
+        },
+        help=[[tiling of the simulation box, in units of box edges.
+              all tiles will be considered during lightcone construction.
+              tiling occurs before the glmatrix.]]
+        }
+
+schema.declare{name='lc_write_smesh',
+             type='string', help='file name base for writing the structured mesh. Two meshes are written to the same file.'}
+
+schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
+schema.declare{name='lc_fov',     type='number', default=0.0, help=' field of view of the sky in degrees. 0 for flat sky and 360 for full sky. The beam is along the z-direction after glmatrix.'}
+schema.declare{name='lc_glmatrix',     type='array:number',
+        default={
+            {1, 0, 0, 0,},
+            {0, 1, 0, 0,},
+            {0, 0, 1, 0,},
+            {0, 0, 0, 0,},
+        },
+        help=[[transformation matrix to move simulation coordinate (x, y, z, 1) to the observer coordinate with a left dot product.
+               The observer is sitting at z=0 in the observer coordinate. The last column of the matrix is the translation in Mpc/h.
+               use the translation and rotation methods provide in the intepreter to build the matrix. ]]}
+
+schema.declare{name='za',                      type='boolean', default=false, help='use ZA initial condition not 2LPT'}
+
+schema.declare{name='kernel_type',             type='enum', default="3_4", help='Force kernel; very little effect.'}
 schema.kernel_type.choices = {
     ['3_4'] = 'FASTPM_KERNEL_3_4',
     ['5_4'] = 'FASTPM_KERNEL_5_4',
@@ -141,7 +173,7 @@ schema.kernel_type.choices = {
     ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }
-schema.declare{name='dealiasing_type',             type='enum', default="none"}
+schema.declare{name='dealiasing_type',             type='enum', default="none", help='Dealiasing kernel (wipes out small scale force), very litle effect)'}
 schema.dealiasing_type.choices = {
     none = 'FASTPM_DEALIASING_NONE',
     gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
@@ -178,18 +210,53 @@ function schema.set_mode.action (set_mode)
     end
 end
 
+function fastpm.translation(dx, dy, dz)
+-- generate a translation gl matrix that shifts the coordinates
+    return {
+        {1, 0, 0, dx},
+        {0, 1, 0, dy},
+        {0, 0, 1, dz},
+        {0, 0, 0, 1 },
+        }
+end
 
-function fastpm.linspace(a, e, N)
+function fastpm.outerproduct(a, b, c)
+-- generate a list that is outer product of elements of a, b, c
+    local r = {}
+    for i=1, #a do
+        for j=1, #b do
+            for k=1, #c do
+                r[#r + 1] = {a[i], b[j], c[k]}
+            end
+        end
+    end
+    return r
+end
+
+function fastpm.linspace(a, e, N, endpoint)
 -- Similar to numpy.linspace, but always append the end
 -- point to the result, returning N + 1 elements.
 --
 -- https://mail.scipy.org/pipermail/numpy-discussion/2016-February/075065.html
+    if endpoint == nil then
+        endpoint = true
+    end
+
     local r = {}
-    N1 = N + 1
+
+    if endpoint then
+        N1 = N + 1
+    else
+        N1 = N
+    end
+
     for i=1,N1 do
         r[i] = 1.0 * (e - a) * (i - 1) / N + a
     end
-    r[N1] = e
+
+    if endpoint then
+        r[N1] = e
+    end
     return r
 end
 
@@ -282,10 +349,13 @@ function _parse_runmain(filename, ...)
     local fastpm = require('lua-runtime-fastpm')
     local config = require('lua-runtime-config')
 
-    logspace = fastpm.logspace
-    linspace = fastpm.linspace
+    local globals = setmetatable({}, {__index=_G})
 
-    return config.parse(fastpm.schema, filename, true, {...})
+    globals.fastpm = fastpm
+    globals.logspace = fastpm.logspace
+    globals.linspace = fastpm.linspace
+
+    return config.parse(fastpm.schema, filename, true, globals, {...})
 end
 
 function _parse(filename, ...)
@@ -293,10 +363,12 @@ function _parse(filename, ...)
     local fastpm = require('lua-runtime-fastpm')
     local config = require('lua-runtime-config')
 
-    logspace = fastpm.logspace
-    linspace = fastpm.linspace
+    local globals = setmetatable({}, {__index=_G})
+    globals.fastpm = fastpm
+    globals.logspace = fastpm.logspace
+    globals.linspace = fastpm.linspace
 
-    return config.parse(fastpm.schema, filename, false, {...})
+    return config.parse(fastpm.schema, filename, false, globals, {...})
 end
 
 function _help(filename, ...)

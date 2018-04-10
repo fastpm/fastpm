@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
 #include <bigfile.h>
 #include <bigfile-mpi.h>
 #include <mpsort.h>
@@ -13,8 +15,8 @@
 #include <fastpm/io.h>
 
 /*
-static void 
-cumsum(int64_t offsets[], int N) 
+static void
+cumsum(int64_t offsets[], int N)
 {
     int i;
     int64_t tmp[N];
@@ -28,8 +30,9 @@ cumsum(int64_t offsets[], int N)
     }
 }
 */
-static void
-_radix_unpack_id(const void * ptr, void * radix, void * arg)
+
+void
+FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
@@ -38,8 +41,19 @@ _radix_unpack_id(const void * ptr, void * radix, void * arg)
     *((uint64_t*) radix) = p->id[0];
 }
 
+void
+FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
+{
+    FastPMStore * p = (FastPMStore *) arg;
+
+    p->unpack(p, 0, (void*) ptr, p->attributes);
+
+    /* larger than 53 is probably good enough but perhaps should have used ldexp (>GLIBC 2.19)*/
+    *((uint64_t*) radix) = p->aemit[0] * (1L << 60L);
+}
+
 static void
-sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
+sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
 {
     int64_t size = p->np;
     int NTask;
@@ -57,12 +71,12 @@ sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
     ptrdiff_t i;
 
     FastPMStore ptmp[1];
-    fastpm_store_init(ptmp, 1, p->attributes);
+    fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
 
     for(i = 0; i < p->np; i ++) {
         p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
     }
-    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, _radix_unpack_id, 8, ptmp, comm);
+    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, ptmp, comm);
 
     for(i = 0; i < localsize; i ++) {
         p->unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
@@ -73,8 +87,14 @@ sort_snapshot_by_id(FastPMStore * p, MPI_Comm comm)
     free(send_buffer);
 }
 
-int 
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * parameters, int Nwriters) 
+static int
+write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
+        char * filebase,
+        char * parameters,
+        int Nwriters,
+        FastPMSnapshotSorter sorter,
+        int append
+)
 {
 
     int NTask = fastpm->NTask;
@@ -95,7 +115,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    sort_snapshot_by_id(p, comm);
+    if(sorter)
+        sort_snapshot(p, comm, sorter);
 
     BigFile bf;
     if(0 != big_file_mpi_create(&bf, filebase, comm)) {
@@ -156,6 +177,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         {"1/ID", p->id, "i8", 1, "i8"},
         {"1/Aemit", p->aemit, "f4", 1, "f4"},
         {"1/Potential", p->potential, "f4", 1, "f4"},
+        {"1/Density", p->rho, "f4", 1, "f4"},
+        {"1/Tidal", p->tidal, "f4", 6, "f4"},
         {NULL, },
     };
 
@@ -166,13 +189,26 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
-                    Nfile, size, comm)) {
-            fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+        if(!append) {
+            if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                        Nfile, size, comm)) {
+                fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+            }
+            big_block_seek(&bb, &ptr, 0);
+        } else {
+            if(0 != big_file_mpi_open_block(&bf, &bb, bdesc->name, comm)) {
+                /* if open failed, create an empty block instead.*/
+                if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                            0, 0, comm)) {
+                    fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+                }
+            }
+            size_t oldsize = bb.size;
+            /* FIXME : check the dtype and nmemb are consistent */
+            big_file_mpi_grow_block(&bf, &bb, Nfile, size, comm);
+            big_block_seek(&bb, &ptr, oldsize);
         }
-
         big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
-        big_block_seek(&bb, &ptr, 0);
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);
     }
@@ -181,7 +217,27 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase, char * p
     return 0;
 }
 
-int 
+int
+write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
+        char * filebase,
+        char * parameters,
+        int Nwriters,
+        FastPMSnapshotSorter sorter)
+{
+    return write_snapshot_internal(fastpm, p, filebase, parameters, Nwriters, sorter, 0);
+}
+
+int
+append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
+        char * filebase,
+        char * parameters,
+        int Nwriters,
+        FastPMSnapshotSorter sorter)
+{
+    return write_snapshot_internal(fastpm, p, filebase, parameters, Nwriters, sorter, 1);
+}
+
+int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase)
 {
     return 0;
@@ -366,5 +422,171 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
     }
 
     free(buf);
+    return 0;
+}
+
+/**
+ *
+ * This routine creates an angular mesh from a data file that stores RA, DEC in degrees
+ *
+ * store : particle storage for the file; must be preallocated large enough to handle the file.
+ * filename : location of bigfile data repository, must contain RA and DEC columns
+ * r : an array of radial distance to place the mesh
+ * aemit : an array of emission redshift; that is also stored in the mesh; This shall be solved from r
+ * before the function is called.
+ * Nr : number of entries in aemit / r
+ * comm : MPI Communicator.
+ *
+ * The ->x and ->aemit elements are updated.
+ * np is also updated.
+ * XXX There may be issues at low-z as RA-DEC grid is concentrated around the observer. In that
+ * case may need to downsample the RA-DEC grid points
+ */
+size_t
+read_angular_grid(FastPMStore * store,
+        const char * filename,
+        const double * r,
+        const double * aemit,
+        const size_t Nr,
+        int sampling_factor,
+        MPI_Comm comm)
+{
+
+    int NTask;
+    int ThisTask;
+
+    MPI_Comm_size(comm, &NTask);
+    MPI_Comm_rank(comm, &ThisTask);
+
+    BigFile bf;
+    BigBlock bb;
+    BigArray array;
+    BigBlockPtr ptr;
+
+    if(0 != big_file_mpi_open(&bf, filename, comm)) {
+        goto exc_open;
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, "RA", comm)) {
+        goto exc_open;
+    }
+    size_t localstart = bb.size * ThisTask / NTask;
+    size_t localend = bb.size * (ThisTask + 1) / NTask;
+    size_t localsize = localend - localstart;
+
+    fastpm_info("Reading %td ra dec coordinates with sampling of %td; localsize = %td\n",
+                bb.size, sampling_factor, localsize);
+
+    if(0 != big_block_mpi_close(&bb, comm)) {
+        goto exc_open;
+    }
+
+    if (store==NULL){
+      if(0 != big_file_mpi_close(&bf, comm)) {
+          goto exc_open;
+      }
+      return localsize*Nr/sampling_factor+1;//XXX check for proper rounding off factor
+    }
+
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, "RA", comm)) {
+        goto exc_open_blk;
+    }
+    if(0 != big_block_seek(&bb, &ptr, 0)) {
+        goto exc_seek;
+    }
+
+    double * RA = malloc(localsize * sizeof(double));
+    double * DEC = malloc(localsize * sizeof(double));
+
+    if(0 != big_array_init(&array, RA, "f8", 1, (size_t[]) {localsize, }, NULL)) {
+        goto exc_arr;
+    }
+    if(0 != big_block_mpi_read(&bb, &ptr, &array, NTask, comm)) {
+        goto exc_read;
+    }
+    if(0 != big_block_mpi_close(&bb, comm)) {
+        goto exc_close_blk;
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, "DEC", comm)) {
+        goto exc_open_blk;
+    }
+    if(0 != big_block_seek(&bb, &ptr, 0)) {
+        goto exc_seek;
+    }
+    if(0 != big_array_init(&array, DEC, "f8", 1, (size_t[]) {localsize, }, NULL)) {
+        goto exc_arr;
+    }
+    if(0 != big_block_mpi_read(&bb, &ptr, &array, NTask, comm)) {
+        goto exc_read;
+    }
+    if(0 != big_block_mpi_close(&bb, comm)) {
+        goto exc_close_blk;
+    }
+
+    if(0 != big_file_mpi_close(&bf, comm)) {
+        goto exc_close;
+    }
+
+
+    double * x = malloc(localsize * sizeof(double));
+    double * y = malloc(localsize * sizeof(double));
+    double * z = malloc(localsize * sizeof(double));
+
+
+
+    ptrdiff_t i;
+    ptrdiff_t j;
+    ptrdiff_t n;
+    n = store->np;
+    double d2r=180./M_PI;
+    for(i = 0; i < localsize; i ++) {
+        RA[i] /= d2r;
+        //DEC[i] /= d2r;
+        DEC[i]=M_PI/2.-DEC[i]/d2r;
+        /* FIXME conversion is likely wrong. */
+        x[i] = sin(DEC[i]) * cos(RA[i]);
+        y[i] = sin(DEC[i]) * sin(RA[i]);
+        z[i] = cos(DEC[i]);
+    }
+
+    for(j = 0; j < Nr; j ++) {
+      for(i = 0; i < localsize; i+=sampling_factor) {
+            store->x[n][0] = x[i] * r[j];
+            store->x[n][1] = y[i] * r[j];
+            store->x[n][2] = z[i] * r[j];
+            store->aemit[n] = aemit[j];
+            n++;
+        }
+        if(n == store->np_upper) {
+            fastpm_raise(-1, "Too many grid points on the grid, the limit is %td with %td r bins, i=%td  j=%td n=%td \n", store->np_upper,Nr,i,j,n);
+        }
+    }
+
+    store->np = n;
+
+    fastpm_info("Generated %td x, y, z coordinates locally\n", n);
+
+    free(DEC);
+    free(RA);
+    free(x);
+    free(y);
+    free(z);
+
+    return n;
+
+    exc_close:
+    exc_close_blk:
+    exc_read:
+    exc_arr:
+        free(DEC);
+        free(RA);
+    exc_seek:
+    exc_open_blk:
+    exc_open:
+
+        fastpm_raise(-1, "Failed to read angular file %s, for %s\n", filename, big_file_get_error_message());
+
     return 0;
 }

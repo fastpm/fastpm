@@ -22,6 +22,7 @@ typedef struct FastPMStore FastPMStore;
 typedef struct FastPMPainter FastPMPainter;
 typedef struct FastPMTransition FastPMTransition;
 typedef struct FastPMCosmology FastPMCosmology;
+typedef struct FastPMHorizon FastPMHorizon;
 
 #ifndef FASTPM_FFT_PRECISION
 #define FASTPM_FFT_PRECISION 32
@@ -59,10 +60,11 @@ typedef void   (*fastpm_posfunc)(FastPMStore * p, ptrdiff_t index, double pos[3]
 typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #define fastpm_pkfunc fastpm_fkfunc
 
-#include "painter.h"
+#include "events.h"
 #include "memory.h"
 #include "pmapi.h"
 #include "store.h"
+#include "painter.h"
 
 #include "cosmology.h"
 #include "transfer.h"
@@ -72,7 +74,6 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "powerspectrum.h"
 #include "gravity.h"
 #include "solver.h"
-#include "events.h"
 #include "timemachine.h"
 
 /* Following functions are internal API */

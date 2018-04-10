@@ -12,7 +12,10 @@ typedef struct {
  * Allocate memory for FFT/painting in PM. 
  * */
 
-FastPMFloat * pm_alloc(PM * pm);
+FastPMFloat * pm_alloc_details(PM * pm, const char * file, const int line);
+
+#define pm_alloc(pm) pm_alloc_details(pm, __FILE__, __LINE__)
+
 void pm_free(PM * pm, FastPMFloat * buf);
 void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
 

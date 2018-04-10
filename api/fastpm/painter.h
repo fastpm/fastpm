@@ -25,19 +25,19 @@ void fastpm_painter_init(FastPMPainter * painter, PM * pm,
 void
 fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, size_t size,
-        fastpm_posfunc get_position, int attribute);
+        fastpm_posfunc get_position, enum FastPMPackFields attribute);
 
 void
 fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, size_t size,
-        fastpm_posfunc get_position, int attribute);
+        fastpm_posfunc get_position, enum FastPMPackFields attribute);
 
 void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
-        FastPMStore * p, fastpm_posfunc get_position, int attribute);
+        FastPMStore * p, fastpm_posfunc get_position, enum FastPMPackFields attribute);
 
 void
 fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
-        FastPMStore * p, fastpm_posfunc get_position, int attribute);
+        FastPMStore * p, fastpm_posfunc get_position, enum FastPMPackFields attribute);
 
 FASTPM_END_DECLS

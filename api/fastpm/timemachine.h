@@ -37,7 +37,10 @@ void fastpm_tevo_destroy_states(FastPMStates *states);
 void
 fastpm_tevo_transition_init(FastPMTransition * transition, FastPMStates * states, int istart, int iend);
 
-void
+int
 fastpm_tevo_transition_find_dual(FastPMTransition * transition, FastPMTransition * dual);
+
+int
+fastpm_tevo_transition_find_next(FastPMTransition * transition, FastPMTransition * next);
 
 FASTPM_END_DECLS

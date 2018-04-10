@@ -114,14 +114,18 @@ gaussian36(double k, double * knq)
     return exp(- 36 * pow(x, 36));
 }
 
-static void
-apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, int d)
+void
+gravity_apply_kernel_transfer(FastPMGravity * gravity,
+        PM * pm,
+        FastPMFloat * delta_k,
+        FastPMFloat * canvas, enum FastPMPackFields attribute)
 {
+    int potorder = 0;
+    int gradorder = 0;
     switch(gravity->KernelType) {
         case FASTPM_KERNEL_EASTWOOD:
-            apply_pot_transfer(pm, delta_k, canvas, 0);
-            if(d != 3)
-                apply_grad_transfer(pm, canvas, canvas, d, 0);
+            potorder = 0;
+            gradorder = 0;
             /* now sharpen for mass assignment */
             /* L1 */
             fastpm_apply_decic_transfer(pm, canvas, canvas);
@@ -129,32 +133,88 @@ apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, F
             fastpm_apply_decic_transfer(pm, canvas, canvas);
         break;
         case FASTPM_KERNEL_NAIVE:
-            apply_pot_transfer(pm, delta_k, canvas, 0);
-            if(d != 3)
-                apply_grad_transfer(pm, canvas, canvas, d, 0);
+            potorder = 0;
+            gradorder = 0;
         break;
         case FASTPM_KERNEL_GADGET:
-            apply_pot_transfer(pm, delta_k, canvas, 0);
-            if(d != 3)
-                apply_grad_transfer(pm, canvas, canvas, d, 1);
+            potorder = 0;
+            gradorder = 1;
         break;
         case FASTPM_KERNEL_3_4:
-            apply_pot_transfer(pm, delta_k, canvas, 1);
-            if(d != 3)
-                apply_grad_transfer(pm, canvas, canvas, d, 1);
+            potorder = 1;
+            gradorder = 1;
         break;
         case FASTPM_KERNEL_5_4:
-            apply_pot_transfer(pm, delta_k, canvas, 2);
-            if(d != 3)
-                apply_grad_transfer(pm, canvas, canvas, d, 1);
+            potorder = 2;
+            gradorder = 1;
         break;
         case FASTPM_KERNEL_3_2:
-            apply_pot_transfer(pm, delta_k, canvas, 1);
-            if(d != 3)
-                apply_grad_transfer(pm, canvas, canvas, d, 0);
+            potorder = 1;
+            gradorder = 0;
         break;
         default:
             fastpm_raise(-1, "Wrong kernel type\n");
+    }
+
+    int d1, d2;
+
+    switch(attribute) {
+        case PACK_POTENTIAL:
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            break;
+        case PACK_DENSITY:
+            fastpm_apply_multiply_transfer(pm, delta_k, canvas, 1.0);
+            break;
+        case PACK_TIDAL_XX:
+            d1 = 0; d2 = 0;
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+            break;
+        case PACK_TIDAL_YY:
+            d1 = 1; d2 = 1;
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+            break;
+        case PACK_TIDAL_ZZ:
+            d1 = 2; d2 = 2;
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+            break;
+        case PACK_TIDAL_XY:
+            d1 = 0; d2 = 1;
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+            break;
+        case PACK_TIDAL_YZ:
+            d1 = 1; d2 = 2;
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+            break;
+        case PACK_TIDAL_ZX:
+            d1 = 2; d2 = 0;
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+            break;
+        case PACK_ACC_X:
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, 0, gradorder);
+            break;
+        case PACK_ACC_Y:
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, 1, gradorder);
+            break;
+        case PACK_ACC_Z:
+            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_grad_transfer(pm, canvas, canvas, 2, gradorder);
+            break;
+        default:
+            fastpm_raise(-1, "Unknown type for gravity attribute\n");
     }
 }
 static void
@@ -234,10 +294,16 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
 
     int d;
-    int ACC[] = {PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z, PACK_POTENTIAL};
-    for(d = 0; d < (gravity->ComputePotential?4:3); d ++) {
+    enum FastPMPackFields ACC[] = {
+                 PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z,
+                 PACK_POTENTIAL,
+                };
+
+    for(d = 0; d < 3 + 1; d ++) {
+        /* skip potential if not wanted */
+        if(p->potential == NULL && ACC[d] == PACK_POTENTIAL) continue;
         CLOCK(transfer);
-        apply_kernel_transfer(gravity, pm, delta_k, canvas, d);
+        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
         LEAVE(transfer);
 
         CLOCK(c2r);

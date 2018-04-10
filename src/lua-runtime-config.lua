@@ -685,13 +685,13 @@ function config.compile(schema, opt)
     return stream_h, stream_c
 end
 
-function config.parse(schema, filename, runmain, args)
+function config.parse(schema, filename, runmain, globals, args)
 -- Parse(run) a lua file
 --
 -- filename: the filename of the lua file
 -- runmain: if true, the main function in the file is executed
 
-    local namespace = setmetatable({}, {__index=_G})
+    local namespace = setmetatable({}, {__index=globals})
 
     namespace['__file__'] = filename
     namespace['args'] = {}
