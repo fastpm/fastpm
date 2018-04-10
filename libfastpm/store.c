@@ -481,7 +481,20 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
     } 
 }
 
-void fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm) {
+int
+FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm)
+{
+    double pos[3];
+    p->get_position(p, i, pos);
+    return pm_pos_to_rank(pm, pos);
+}
+
+
+void
+fastpm_store_decompose(FastPMStore * p,
+    fastpm_store_target_func target_func,
+    void * data, MPI_Comm comm)
+{
     int * target = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int NTask, ThisTask;
 

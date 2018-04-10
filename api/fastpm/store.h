@@ -89,7 +89,7 @@ fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], 
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
 
-typedef int (fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
+typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
 void
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
@@ -111,6 +111,9 @@ fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
 void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
+
+int
+FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm);
 
 FASTPM_END_DECLS
 

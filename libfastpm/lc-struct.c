@@ -356,6 +356,9 @@ fastpm_smesh_compute_potential(
 
     fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
 
+    fastpm_store_wrap(p_new_now, pm->BoxSize);
+    fastpm_store_decompose(p_new_now, (fastpm_store_target_func) FastPMTargetPM, pm, pm_comm(pm));
+
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
     fastpm_store_init(p_last_now, mesh->np_upper,

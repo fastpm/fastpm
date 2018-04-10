@@ -7,6 +7,7 @@
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
+#include <fastpm/store.h>
 
 #include "pmpfft.h"
 #include "pm2lpt.h"
@@ -19,10 +20,6 @@ fastpm_decompose(FastPMSolver * fastpm);
 
 #define MAX(a, b) (a)>(b)?(a):(b)
 #define BREAKPOINT raise(SIGTRAP);
-
-/* Useful stuff */
-static int 
-to_rank(void * pdata, ptrdiff_t i, void * data);
 
 void fastpm_solver_init(FastPMSolver * fastpm,
     FastPMConfig * config,
@@ -356,16 +353,6 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
 }
 
-static int 
-to_rank(void * pdata, ptrdiff_t i, void * data) 
-{
-    FastPMStore * p = (FastPMStore *) pdata;
-    PM * pm = (PM*) data;
-    double pos[3];
-    p->get_position(p, i, pos);
-    return pm_pos_to_rank(pm, pos);
-}
-
 static void
 fastpm_decompose(FastPMSolver * fastpm) {
     PM * pm = fastpm->pm;
@@ -376,7 +363,7 @@ fastpm_decompose(FastPMSolver * fastpm) {
 
     /* apply periodic boundary and move particles to the correct rank */
     fastpm_store_wrap(fastpm->p, pm->BoxSize);
-    fastpm_store_decompose(fastpm->p, to_rank, pm, fastpm->comm);
+    fastpm_store_decompose(fastpm->p, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
     size_t np_max;
     size_t np_min;
 
@@ -432,6 +419,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     po->a_x = po->a_v = aout;
 
     fastpm_store_wrap(po, pm->BoxSize);
-    fastpm_store_decompose(po, to_rank, pm, fastpm->comm);
+    fastpm_store_decompose(po, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
 }
 
