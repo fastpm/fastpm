@@ -31,12 +31,14 @@ function push {
         exit 1
     fi
     echo Adding $2 to $1 ...
-    DEST=`mktemp -d XXXXXX`
-    trap "rm -rf $DEST" EXIT
-    BASENAME=`basename $2`
-    cp $2 $DEST || exit 1
-    (cd $DEST; "$AR" x $BASENAME; for i in *.o; do mv $i $BASENAME-$i; done ) || exit 1
-    "$AR" rc $1 $DEST/*.o || exit 1
+    (
+        DEST=`mktemp -d XXXXXX`
+        trap "rm -rf $DEST" EXIT
+        BASENAME=`basename $2`
+        cp $2 $DEST || exit 1
+        (cd $DEST; "$AR" x $BASENAME; for i in *.o; do mv $i $BASENAME-$i; done ) || exit 1
+        "$AR" rc $1 $DEST/*.o || exit 1
+    )
 }
 
 OUTPUT=$1
