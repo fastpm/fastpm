@@ -51,6 +51,18 @@ int big_file_mpi_open_block(BigFile * bf, BigBlock * block, const char * blockna
  * @returns 0 if successful. */
 int big_file_mpi_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, size_t size, MPI_Comm comm);
 
+/** Grow a BigBlock:
+ * Increase the size of a BigBlock. No flushing is implied.
+ * Arguments:
+ * @param BigFile bf - pointer to opened BigFile structure.
+ * @param BigBlock block - pointer to initialised BigBlock to open.
+ * @param Nfile_grow - Number of files to use for this block on disc. This is an implementation detail;
+ * you will never need it to read the BigFile.
+ * @param - size_grow Number of rows of type dtype that will be appended in this block.
+ * @param MPI_Comm comm - MPI communicator to use.
+ * @returns 0 if successful, -1 if could not open block. */
+int big_file_mpi_grow_block(BigFile * bf, BigBlock * block, int Nfile_grow, size_t fsize_grow, MPI_Comm comm);
+
 /** Close the BigFile, and free memory associated with it. Once closed, it should not be re-used.*/
 int big_file_mpi_close(BigFile * bf, MPI_Comm comm);
 
@@ -62,6 +74,9 @@ int big_block_mpi_close(BigBlock * block, MPI_Comm comm);
 
 /** Helper function for big_file_mpi_open_block, above*/
 int big_block_mpi_open(BigBlock * bb, const char * basename, MPI_Comm comm);
+
+/** Helper function for big_file_mpi_grow_block, above*/
+int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_Comm comm);
 
 /** Set the threshold that enables the aggregated IO.
  *

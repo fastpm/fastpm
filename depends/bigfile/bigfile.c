@@ -400,6 +400,67 @@ ex_readattr:
 }
 
 int
+_big_block_grow_internal(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[])
+{
+    int Nfile = Nfile_grow + bb->Nfile;
+
+    size_t * fsize = calloc(Nfile, sizeof(size_t));
+    size_t * foffset = calloc(Nfile + 1, sizeof(size_t));
+    unsigned int * fchecksum = calloc(Nfile, sizeof(unsigned int));
+
+    int i;
+    for(i = 0; i < bb->Nfile; i ++) {
+        fsize[i] = bb->fsize[i];
+        fchecksum[i] = bb->fchecksum[i];
+    }
+
+    for(i = bb->Nfile; i < Nfile; i ++) {
+        fsize[i] = fsize_grow[i - bb->Nfile];
+        fchecksum[i] = 0;
+    }
+
+    foffset[0] = 0;
+    for(i = 0; i < Nfile; i ++) {
+        foffset[i + 1] = foffset[i] + fsize[i];
+    }
+
+    free(bb->fsize);
+    free(bb->foffset);
+    free(bb->fchecksum);
+
+    bb->fsize = fsize;
+    bb->foffset = foffset;
+    bb->fchecksum = fchecksum;
+    bb->Nfile = Nfile;
+    bb->size = bb->foffset[Nfile];
+
+    return 0;
+}
+
+int
+big_block_grow(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[])
+{
+    int oldNfile = bb->Nfile;
+
+    _big_block_grow_internal(bb, Nfile_grow, fsize_grow);
+
+    int i;
+
+    /* now truncate the new files */
+    for(i = oldNfile; i < bb->Nfile; i ++) {
+        FILE * fp = _big_file_open_a_file(bb->basename, i, "w");
+        RAISEIF(fp == NULL, 
+                ex_fileio, 
+                NULL);
+        fclose(fp);
+    }
+    return 0;
+
+ex_fileio:
+    return -1;
+}
+
+int
 _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[])
 {
     memset(bb, 0, sizeof(bb[0]));

@@ -60,6 +60,7 @@ int big_file_mpi_create(BigFile * bf, const char * basename, MPI_Comm comm) {
     }
     return rt;
 }
+
 int big_file_mpi_open_block(BigFile * bf, BigBlock * block, const char * blockname, MPI_Comm comm) {
     if(comm == MPI_COMM_NULL) return 0;
     if(!bf || !bf->basename || !blockname) return 1;
@@ -92,6 +93,21 @@ int big_file_mpi_create_block(BigFile * bf, BigBlock * block, const char * block
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
     sprintf(basename, "%s/%s/", bf->basename, blockname);
     return big_block_mpi_create(block, basename, dtype, nmemb, Nfile, fsize, comm);
+}
+
+int
+big_file_mpi_grow_block(BigFile * bf, BigBlock * bb, int Nfile_grow, size_t size_grow, MPI_Comm comm)
+{
+    size_t fsize[Nfile_grow];
+    int i;
+    for(i = 0; i < Nfile_grow; i ++) {
+        fsize[i] = size_grow * (i + 1) / Nfile_grow
+                 - size_grow * (i) / Nfile_grow;
+    }
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    return big_block_mpi_grow(bb, Nfile_grow, fsize, comm);
 }
 
 int big_file_mpi_close(BigFile * bf, MPI_Comm comm) {
@@ -141,6 +157,45 @@ int big_block_mpi_create(BigBlock * bb, const char * basename, const char * dtyp
     int i;
     for(i = (size_t) bb->Nfile * rank / NTask; i < (size_t) bb->Nfile * (rank + 1) / NTask; i ++) {
         FILE * fp = _big_file_open_a_file(bb->basename, i, "w");
+        if(fp == NULL) {
+            rt = -1;
+            break;
+        }
+        fclose(fp);
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &rt, 1, MPI_INT, MPI_LOR, comm);
+    if(rt != 0) {
+        big_file_mpi_broadcast_error(0, comm);
+        return -1;
+    }
+    return 0;
+}
+
+int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_Comm comm) {
+    int rank;
+    int NTask;
+    int rt;
+
+    if(comm == MPI_COMM_NULL) return 0;
+
+    MPI_Comm_size(comm, &NTask);
+    MPI_Comm_rank(comm, &rank);
+
+    int oldNfile = bb->Nfile;
+
+    if(rank == 0) {
+        rt = _big_block_grow_internal(bb, Nfile_grow, fsize_grow);
+    }
+    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
+    if(rt) {
+        big_file_mpi_broadcast_error(0, comm);
+        return rt;
+    }
+    big_block_mpi_broadcast(bb, 0, comm);
+
+    int i;
+    for(i = (size_t) Nfile_grow * rank / NTask; i < (size_t) Nfile_grow * (rank + 1) / NTask; i ++) {
+        FILE * fp = _big_file_open_a_file(bb->basename, i + oldNfile, "w");
         if(fp == NULL) {
             rt = -1;
             break;

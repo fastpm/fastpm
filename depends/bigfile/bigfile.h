@@ -96,9 +96,14 @@ int big_block_open(BigBlock * bb, const char * basename);
 int big_block_clear_checksum(BigBlock * bb);
 int big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
 int big_block_close(BigBlock * block);
+int big_block_grow(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]);
 
 /* The internal version of the code creates the meta data but not the physical back-end storage files */
 int _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
+
+/* The internal version that grows the internal meta data but not the physical back-end stroage files */
+int _big_block_grow_internal(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]);
+
 /* The internal routine to open a physical file */
 FILE * _big_file_open_a_file(const char * basename, int fileid, char * mode);
 
