@@ -4,6 +4,8 @@
 .PHONY: all clean
 BIGFILE_LIBS = libbigfile.a libbigfile-mpi.a
 MPSORT_LIBS = libradixsort.a libmpsort-mpi.a
+KDCOUNT_LIBS = libkdcount.a
+
 ifdef OPENMP
 PFFT_LIBS = libfftw3.a \
 			libfftw3_mpi.a \
@@ -30,10 +32,11 @@ all : libfastpm-dep.a
 
 libfastpm-dep.a: $(BIGFILE_LIBS:%.a=install/lib/%.a) \
 	  $(MPSORT_LIBS:%.a=install/lib/%.a) \
-	  $(PFFT_LIBS:%.a=install/lib/%.a)
+	  $(PFFT_LIBS:%.a=install/lib/%.a) \
+	  $(KDCOUNT_LIBS:%.a=install/lib/%.a)
 	../ar-join $@ $^
 
-.INTERMEDIATE: .pfft .bigfile .mpsort
+.INTERMEDIATE: .pfft .bigfile .mpsort . kcount
 
 $(BIGFILE_LIBS:%.a=install/lib/%.a): .bigfile
 
@@ -44,6 +47,11 @@ $(MPSORT_LIBS:%.a=install/lib/%.a): .mpsort
 
 .mpsort:
 	(cd mpsort; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC) $(OPTIMIZE) $(CFLAGS)" "MPICC=$(CC) $(OPTIMIZE) $(CFLAGS)")
+
+$(KDCOUNT_LIBS:%.a=install/lib/%.a): .kdcount
+
+.kdcount:
+	(cd kdcount; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "CFLAGS=$(OPTIMIZE) $(CFLAGS)")
 
 $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
