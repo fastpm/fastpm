@@ -695,7 +695,15 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         MPI_Barrier(fastpm->comm);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters, FastPMSnapshotSortByID);
+        void * sorter = NULL;
+        if(CONF(prr, sort_snapshot)) {
+            fastpm_info("Snapshot is sorted by ID.\n");
+            sorter = FastPMSnapshotSortByID;
+        } else {
+            fastpm_info("Snapshot is not sorted by ID.\n");
+            sorter = NULL;
+        }
+        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters, sorter);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);

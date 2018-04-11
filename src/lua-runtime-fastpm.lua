@@ -129,6 +129,7 @@ schema.declare{name='write_snapshot',      type='string'}
 schema.declare{name='write_nonlineark',      type='string'}
 schema.declare{name='write_runpb_snapshot', type='string'}
 schema.declare{name='particle_fraction',    type='number', default=1.0, help='Fraction of particles to save in the snapshot (sub-sampling)'}
+schema.declare{name='sort_snapshot',    type='boolean', default=true, help='sort snapshots by ID; very large communication is incurred during snapshots.'}
 
 schema.declare{name='lc_amin',
             type='number', help='min scale factor for truncation of lightcone.'}
