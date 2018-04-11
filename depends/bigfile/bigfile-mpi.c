@@ -381,7 +381,10 @@ _throttle_plan_execute_agg(ThrottlePlan * plan,
             BigBlockPtr * ptr, BigArray * array)
 {
     /* This will aggregate to the root and write */
-    BigBlockPtr ptr1[1] = {*ptr};
+    BigBlockPtr ptr1[1];
+    /* use memcpy because older compilers doesn't like *ptr assignments */
+    memcpy(ptr1, ptr, sizeof(BigBlockPtr));
+
     int i;
     int e = 0;
     BigArray garray[1], larray[1];
@@ -439,7 +442,11 @@ _throttle_plan_execute_turns(ThrottlePlan * plan,
 {
     int i;
     int e = 0;
-    BigBlockPtr ptr1[1] = {*ptr};
+
+    BigBlockPtr ptr1[1];
+    /* use memcpy because older compilers doesn't like *ptr assignments */
+    memcpy(ptr1, ptr, sizeof(BigBlockPtr));
+
     for(i = 0; i < plan->GroupSize; i ++) {
         MPI_Allreduce(MPI_IN_PLACE, &e, 1, MPI_INT, MPI_LOR, plan->group);
         if (e) continue;
