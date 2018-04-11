@@ -853,7 +853,7 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
 static void 
 parse_args(int * argc, char *** argv, Parameters * prr) 
 {
-    char opt;
+    int opt;
     extern int optind;
     extern char * optarg;
     prr->UseFFTW = 0;
