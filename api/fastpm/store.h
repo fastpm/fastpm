@@ -17,6 +17,7 @@ enum FastPMPackFields {
     PACK_DENSITY =  1L << 8,
     PACK_POTENTIAL =  1L << 9,
     PACK_TIDAL     =  1L << 10,
+    PACK_FOF_MINID    =  1L << 11,
 
 
     PACK_ACC_X =  1L << 20,
@@ -64,6 +65,7 @@ struct FastPMStore {
     float (* potential);
     float (* tidal)[6];
     uint64_t * id;
+    uint64_t * fof_minid;
     size_t np;
     size_t np_upper;
     double a_x;
