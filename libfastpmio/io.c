@@ -93,8 +93,8 @@ sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
 
 static int
 write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
-        char * filebase,
-        char * parameters,
+        const char * filebase,
+        const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter,
         int append
@@ -223,8 +223,8 @@ write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
 
 int
 write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
-        char * filebase,
-        char * parameters,
+        const char * filebase,
+        const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter)
 {
@@ -233,8 +233,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
 int
 append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
-        char * filebase,
-        char * parameters,
+        const char * filebase,
+        const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter)
 {
@@ -242,7 +242,7 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 }
 
 int
-read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase)
+read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase)
 {
     return 0;
 }

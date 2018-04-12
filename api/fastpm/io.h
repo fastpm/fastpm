@@ -13,8 +13,8 @@ FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg);
 int
 write_snapshot(FastPMSolver * fastpm,
         FastPMStore * p,
-        char * filebase,
-        char * parameters,
+        const char * filebase,
+        const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter
     );
@@ -22,15 +22,15 @@ write_snapshot(FastPMSolver * fastpm,
 int
 append_snapshot(FastPMSolver * fastpm,
         FastPMStore * p,
-        char * filebase,
-        char * parameters,
+        const char * filebase,
+        const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter
     );
 
 
 int
-read_snapshot(FastPMSolver * fastpm, FastPMStore * p, char * filebase);
+read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
 int
 write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
