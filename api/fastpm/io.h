@@ -16,7 +16,7 @@ write_snapshot(FastPMSolver * fastpm,
         char * filebase,
         char * parameters,
         int Nwriters,
-        FastPMSnapshotSorter sorter;
+        FastPMSnapshotSorter sorter
     );
 
 int
@@ -25,7 +25,7 @@ append_snapshot(FastPMSolver * fastpm,
         char * filebase,
         char * parameters,
         int Nwriters,
-        FastPMSnapshotSorter sorter;
+        FastPMSnapshotSorter sorter
     );
 
 
