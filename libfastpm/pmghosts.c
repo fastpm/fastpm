@@ -161,7 +161,30 @@ pm_ghosts_create(PM * pm, FastPMStore *p,
     return pgd;
 }
 
-void pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes) {
+static
+void
+_reduce_any_field(PMGhostData * pgd,
+    enum FastPMPackFields attributes,
+    ptrdiff_t index, void * buf,
+    void * userdata)
+{
+    pgd->p->reduce(pgd->p, index, buf, attributes);
+}
+
+void
+pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes)
+{
+    pm_ghosts_reduce_any(pgd, attributes,
+        (pm_ghosts_reduce_func) _reduce_any_field,
+        NULL);
+}
+
+void
+pm_ghosts_reduce_any(PMGhostData * pgd, 
+        enum FastPMPackFields attributes,
+        pm_ghosts_reduce_func func,
+        void * userdata)
+{
     PM * pm = pgd->pm;
     FastPMStore * p = pgd->p;
 
@@ -172,13 +195,12 @@ void pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes) {
     pgd->elsize = p->pack(pgd->p, 0, NULL, attributes);
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
-    pgd->ReductionAttributes = attributes;
 
 #pragma omp parallel for
     for(i = 0; i < pgd->nghosts; i ++) {
         p->pack(p, i + pgd->np,
             (char*) pgd->recv_buffer + i * pgd->elsize, 
-            pgd->ReductionAttributes);
+            attributes);
     }
 
     MPI_Datatype GHOST_TYPE;
@@ -193,9 +215,10 @@ void pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes) {
     int ighost;
 #pragma omp parallel for
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        p->reduce(p, pgd->ighost_to_ipar[ighost],
-            (char*) pgd->send_buffer + ighost * pgd->elsize,
-            pgd->ReductionAttributes);
+        func(pgd, attributes, 
+            pgd->ighost_to_ipar[ighost],
+            pgd->send_buffer + ighost * pgd->elsize,
+            userdata);
     }
     fastpm_memory_free(pm->mem, pgd->send_buffer);
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
