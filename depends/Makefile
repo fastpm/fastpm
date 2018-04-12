@@ -36,7 +36,7 @@ libfastpm-dep.a: $(BIGFILE_LIBS:%.a=install/lib/%.a) \
 	  $(KDCOUNT_LIBS:%.a=install/lib/%.a)
 	../ar-join $@ $^
 
-.INTERMEDIATE: .pfft .bigfile .mpsort . kcount
+.INTERMEDIATE: .pfft .bigfile .mpsort .kcount
 
 $(BIGFILE_LIBS:%.a=install/lib/%.a): .bigfile
 
