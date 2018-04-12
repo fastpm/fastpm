@@ -38,6 +38,7 @@ LIBSOURCES = libfastpm.c \
     pm2lpt.c \
     pmapi.c \
     string.c \
+    fof.c \
     version.c \
     chealpix.c
 
