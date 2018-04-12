@@ -20,7 +20,7 @@ int main(int argc, char * argv[]) {
 
     FastPMConfig * config = & (FastPMConfig) {
         .nc = 32,
-        .boxsize = 32.,
+        .boxsize = 20.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
@@ -40,7 +40,7 @@ int main(int argc, char * argv[]) {
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
-        .Norm = 10000.0, /* FIXME: this is not any particular sigma8. */
+        .Norm = 1e7, /* FIXME: this is not any particular sigma8. */
         .hubble_param = 0.7,
         .omegam = 0.260,
         .omegab = 0.044,
@@ -51,10 +51,13 @@ int main(int argc, char * argv[]) {
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
+    fastpm_info("dx1  : %g %g %g %g\n",
+            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
+            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
+    fastpm_info("dx2  : %g %g %g %g\n",
+            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
+            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
-
-    FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->basepm, config->PAINTER_TYPE, config->painter_support);
 
 
     FastPMFOFFinder fof = {
