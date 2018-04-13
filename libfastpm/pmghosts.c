@@ -7,6 +7,8 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 
+typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd, void * userdata);
+
 void pm_ghosts_free(PMGhostData * pgd) {
     fastpm_memory_free(pgd->pm->mem, pgd->ighost_to_ipar);
     free(pgd->Nsend);
@@ -16,8 +18,10 @@ void pm_ghosts_free(PMGhostData * pgd) {
     free(pgd);
 }
 
-static void pm_iter_ghosts(PM * pm, PMGhostData * pgd, 
-    pm_iter_ghosts_func iter_func) {
+static void
+pm_iter_ghosts(PM * pm, PMGhostData * pgd, 
+    pm_iter_ghosts_func iter_func, void * userdata)
+{
 
     ptrdiff_t i;
     for (i = 0; i < pgd->np; i ++) {
@@ -53,18 +57,24 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * pgd,
                 ranks[used++] = rank;
                 localppd.rank = rank;
                 localppd.reason = j;
-                iter_func(pm, &localppd);
+                iter_func(pm, &localppd, userdata);
             } 
         }
     }
 }
 
-static void count_ghosts(PM * pm, PMGhostData * pgd) {
+static void
+count_ghosts(PM * pm, PMGhostData * pgd, void * userdata)
+{
 //#pragma omp atomic
     pgd->Nsend[pgd->rank] ++;
 }
 
-static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
+static void
+build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
+{
+    enum FastPMPackFields * attributes = userdata;
+
     FastPMStore * p = pgd->p;
     double pos[3];
     pgd->get_position(pgd->p, pgd->ipar, pos);
@@ -78,7 +88,7 @@ static void build_ghost_buffer(PM * pm, PMGhostData * pgd) {
     ighost = pgd->Osend[pgd->rank] + offset;
 
     p->pack(p, pgd->ipar,
-        (char*) pgd->send_buffer + ighost * pgd->elsize, pgd->attributes);
+        (char*) pgd->send_buffer + ighost * pgd->elsize, *attributes);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
 }
@@ -107,7 +117,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
     pgd->p = p;
     pgd->np = p->np;
     pgd->np_upper = p->np_upper;
-    pgd->attributes = attributes;
+
     if(get_position == NULL)
         pgd->get_position = p->get_position;
     else
@@ -122,13 +132,13 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     pgd->ighost_to_ipar = NULL;
 
-    pm_ghosts_send(pgd);
+    pm_ghosts_send(pgd, attributes);
 
     return pgd;
 }
 
 void
-pm_ghosts_send(PMGhostData * pgd)
+pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 {
     PM * pm = pgd->pm;
     FastPMStore * p = pgd->p;
@@ -136,7 +146,7 @@ pm_ghosts_send(PMGhostData * pgd)
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = p->pack(pgd->p, 0, NULL, pgd->attributes);
+    size_t elsize = p->pack(pgd->p, 0, NULL, attributes);
 
     pgd->Nsend = calloc(pm->NTask, sizeof(int));
     pgd->Osend = calloc(pm->NTask, sizeof(int));
@@ -147,7 +157,7 @@ pm_ghosts_send(PMGhostData * pgd)
 
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    pm_iter_ghosts(pm, pgd, count_ghosts);
+    pm_iter_ghosts(pm, pgd, count_ghosts, NULL);
 
     Nsend = cumsum(pgd->Osend, pgd->Nsend, pm->NTask);
 
@@ -163,7 +173,7 @@ pm_ghosts_send(PMGhostData * pgd)
 
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    pm_iter_ghosts(pm, pgd, build_ghost_buffer);
+    pm_iter_ghosts(pm, pgd, build_ghost_buffer, &attributes);
 
     /* exchange */
 
@@ -185,7 +195,7 @@ pm_ghosts_send(PMGhostData * pgd)
     for(i = 0; i < Nrecv; i ++) {
         p->unpack(pgd->p, pgd->np + i,
                 (char*) pgd->recv_buffer + i * pgd->elsize,
-                        pgd->attributes);
+                        attributes);
     }
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
     fastpm_memory_free(pm->mem, pgd->send_buffer);

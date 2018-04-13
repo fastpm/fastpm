@@ -4,7 +4,6 @@ typedef struct PMGhostData {
     size_t np;
     size_t np_upper;
     size_t nghosts;
-    enum FastPMPackFields attributes;
     fastpm_posfunc get_position;
     double Below[3];
     double Above[3];
@@ -25,8 +24,6 @@ typedef struct PMGhostData {
     size_t elsize;
 } PMGhostData;
 
-typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd);
-
 PMGhostData * 
 pm_ghosts_create(PM * pm, FastPMStore * p, enum FastPMPackFields attributes, fastpm_posfunc get_position);
 
@@ -38,7 +35,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
         double above[]
         );
 void
-pm_ghosts_send(PMGhostData * pgd);
+pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes);
 
 void pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes);
 
