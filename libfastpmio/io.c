@@ -46,6 +46,16 @@ FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 }
 
 void
+FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg)
+{
+    FastPMStore * p = (FastPMStore *) arg;
+
+    p->unpack(p, 0, (void*) ptr, p->attributes);
+
+    *((uint64_t*) radix) = -p->length[0];
+}
+
+void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
@@ -188,6 +198,7 @@ write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
         {"1/Potential", p->potential, "f4", 1, "f4"},
         {"1/Density", p->rho, "f4", 1, "f4"},
         {"1/Tidal", p->tidal, "f4", 6, "f4"},
+        {"1/Length", p->length, "i4", 1, "i4"},
         {NULL, },
     };
 

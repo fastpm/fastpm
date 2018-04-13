@@ -7,6 +7,7 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 #include <fastpm/fof.h>
+#include <fastpm/io.h>
 
 int main(int argc, char * argv[]) {
 
@@ -62,17 +63,23 @@ int main(int argc, char * argv[]) {
 
     FastPMFOFFinder fof = {
         .linkinglength = 0.2,
-        .nmin = 1,
+        .nmin = 2,
     };
 
     fastpm_fof_init(&fof, solver->p, solver->basepm);
 
-    fastpm_fof_execute(&fof);
+    FastPMStore halos[1];
 
-    /* fof->p; */
+    fastpm_fof_execute(&fof, halos);
 
+    write_snapshot(solver, halos, "halos", "", 1, FastPMSnapshotSortByLength);
+
+    int i;
+    for(i = 0; i < 8; i ++) {
+        fastpm_info("Length of halo %d: %d\n", i, halos->length[i]);
+    }
+    fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);
-
 
     pm_free(solver->basepm, rho_final_xtruth);
     pm_free(solver->basepm, rho_final_ktruth);

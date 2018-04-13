@@ -47,6 +47,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_LENGTH, length)
     DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_DX1, dx1)
@@ -107,6 +108,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_LENGTH, length)
     DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_DX1, dx1)
@@ -317,6 +319,11 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attrib
     else
         p->id = NULL;
 
+    if(attributes & PACK_LENGTH)
+        p->length = fastpm_memory_alloc(p->mem, sizeof(p->length[0]) * np_upper, loc);
+    else
+        p->length = NULL;
+
     if(attributes & PACK_FOF)
         p->fof = fastpm_memory_alloc(p->mem, sizeof(p->fof[0]) * np_upper, loc);
     else
@@ -395,6 +402,8 @@ fastpm_store_destroy(FastPMStore * p)
         fastpm_memory_free(p->mem, p->acc);
     if(p->attributes & PACK_FOF)
         fastpm_memory_free(p->mem, p->fof);
+    if(p->attributes & PACK_LENGTH)
+        fastpm_memory_free(p->mem, p->length);
     if(p->attributes & PACK_ID)
         fastpm_memory_free(p->mem, p->id);
     if(p->attributes & PACK_VEL)

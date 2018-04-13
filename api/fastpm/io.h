@@ -8,6 +8,9 @@ void
 FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg);
 
 void
+FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg);
+
+void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg);
 
 int
