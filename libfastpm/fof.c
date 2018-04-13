@@ -62,7 +62,7 @@ _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, 
 }
 static void
 _update_local_minid(FastPMFOFFinder * finder, 
-    struct FastPMFOFData * fof, uint64_t * id, ptrdiff_t * head, size_t np)
+    struct FastPMFOFData * fof, uint64_t * id, ptrdiff_t * head, size_t np, size_t nghosts)
 {
     /* update min id like a hash table */
     ptrdiff_t i;
@@ -72,20 +72,27 @@ _update_local_minid(FastPMFOFFinder * finder,
         fof[i].task = finder->priv->ThisTask;
     }
 
+    for(i = np; i < np + nghosts; i ++) {
+        fof[i].minid = id[i];
+        fof[i].task = -1;
+    }
+
     /* all of the unique heads are updated. first */
-    for(i = 0; i < np; i ++) {
+    for(i = 0; i < np + nghosts; i ++) {
         if(id[i] < fof[head[i]].minid) {
             fof[head[i]].minid = id[i];
+            /* if minid is a ghost the hosting rank is undetermined. */
+            fof[head[i]].task = (i < np) ? finder->priv->ThisTask : -1;
         }
     }
 }
 
 static void
-_sync_local_minid(struct FastPMFOFData * fof, ptrdiff_t * head, size_t np)
+_sync_local_minid(struct FastPMFOFData * fof, ptrdiff_t * head, size_t np, size_t np_ghosts)
 {
     ptrdiff_t i;
     /* then sync the non head items */
-    for(i = 0; i < np; i++) {
+    for(i = 0; i < np + np_ghosts; i++) {
         fof[i].minid = fof[head[i]].minid;
         fof[i].task = fof[head[i]].task;
     }
@@ -114,22 +121,89 @@ _reduce_minid(PMGhostData * pgd, enum FastPMPackFields attributes,
     void ** data = (void**) userdata;
     ptrdiff_t * head = data[0];
     ptrdiff_t * merged = data[1];
-    
+    int * iter = data[2];
+
+    int ThisTask;
+    MPI_Comm_rank(pm_comm(pgd->pm), &ThisTask);
+
     FastPMStore * p = pgd->p;
     struct FastPMFOFData * remote = buffer;
 
-    if(remote->minid < p->fof[head[i]].minid) {
+    int merge = 0;
+
+    {
+        ptrdiff_t i;
+        for(i = 0; i < p->np; i ++) {
+            if(p->fof[head[i]].minid > p->id[i]) {
+                fastpm_raise(-1, "raise = %d %d merge %d id = %03d minid %03td -> %03td task %03d -> %03d merge = %d nmerged = %d\n", i, head[i], ThisTask, p->id[i], remote->minid, p->fof[head[i]].minid, remote->task, p->fof[head[i]].task, merge, *merged);
+
+            }
+        }
+    }
+
+    if(remote->task >= 0) {
+        /* minid is on that processor */
+        if(p->fof[head[i]].task == -1
+        /* but not on this processor */
+        ) {
+             merge = 1;
+        }
+        /* or min id reduces */
+        if(remote->minid < p->fof[head[i]].minid) {
+            merge = 1;
+        }
+    }
+
+    if(p->id[i] == 198) {
+        fastpm_ilog(INFO, "iter = %d merge %d id = %03d minid %03td -> %03td task %03d -> %03d merge = %d nmerged = %d\n", *iter, ThisTask, p->id[i], remote->minid, p->fof[head[i]].minid, remote->task, p->fof[head[i]].task, merge, *merged);
+    }
+
+    if(merge) {
         p->fof[head[i]].minid = remote->minid;
         p->fof[head[i]].task = remote->task;
+
         (*merged) ++;
     }
 }
+
+
 static int
 FastPMTargetFOF(FastPMStore * store, ptrdiff_t i, void ** userdata)
 {
     struct FastPMFOFData * fof = userdata[0];
     ptrdiff_t * head = userdata[1];
     return fof[head[i]].task;
+}
+
+static void
+_send(PMGhostData * pgd, struct FastPMFOFData * fof, ptrdiff_t *head)
+{
+    FastPMStore * p = pgd->p;
+
+    struct FastPMFOFData * fof_ghosts = malloc(sizeof(fof[0]) * pgd->nghosts);
+
+    memcpy(fof_ghosts, &fof[p->np], sizeof(fof[0]) * pgd->nghosts);
+
+    pm_ghosts_send(pgd);
+
+    ptrdiff_t i;
+    for(i = p->np; i < p->np + pgd->nghosts; i ++) {
+        int restore = 0;
+        if(fof_ghosts[i - p->np].minid < fof[head[i]].minid ) {
+            restore = 1;
+        }
+
+        if(fof[i].task == -1){
+            restore = 1;
+        }
+
+        if (restore) {
+            fof[head[i]].minid = fof_ghosts[i - p->np].minid;
+            fof[head[i]].task = fof_ghosts[i - p->np].task;
+        }
+    }
+
+    free(fof_ghosts);
 }
 
 static void
@@ -148,38 +222,64 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
                 pm, pm_comm(pm));
     
     /* create ghosts mesh size is usually > ll so we are OK here. */
-    PMGhostData * pgd = pm_ghosts_create(pm, p,
-            PACK_POS | PACK_ID | PACK_FOF, NULL);
+    double below[3], above[3];
 
-    KDTree tree, tree_ghosts;
+    int d;
+    for(d = 0; d < 3; d ++) {
+        /* bigger padding reduces number of iterations */
+        below[d] = -finder->linkinglength;
+        above[d] = finder->linkinglength;
+    }
+
+    /* merge */
+    PMGhostData * pgd = pm_ghosts_create_full(pm, p,
+            PACK_POS | PACK_ID | PACK_FOF, NULL,
+            below, above
+        );
+
+
+    KDTree tree;
 
     KDNode * root = _create_kdtree(&tree, p, 0, p->np + pgd->nghosts, pm_boxsize(pm));
-    KDNode * root_ghosts = _create_kdtree(&tree_ghosts, p, p->np, pgd->nghosts, pm_boxsize(pm));
 
     /* local find */
 
     kd_fof(root, finder->linkinglength, head);
 
-    _update_local_minid(finder, fof, id, head, p->np + pgd->nghosts);
-    _sync_local_minid(fof, head, p->np + pgd->nghosts);
+    _update_local_minid(finder, fof, id, head, p->np, pgd->nghosts);
 
-    /* merge */
     {
-        int i = 0;
+        int iter = 0;
         while(1) {
             size_t nmerged = 0;
-            void * userdata[2] = {head, &nmerged};
+            void * userdata[3] = {head, &nmerged, &iter};
+
+            _sync_local_minid(fof, head, p->np, pgd->nghosts);
+
+            _send(pgd, fof, head);
+
+            for(i = 0; i < p->np + pgd->nghosts; i ++) {
+                if(p->id[i] == 198)
+                fastpm_ilog(INFO, "iter%d %d id = %03td head=%d, head[%03d/%03d] : id = %03td task = %03d\n", iter, finder->priv->ThisTask, p->id[i], i, p->id[head[i]], p->np, fof[i].minid, fof[i].task);
+            }
+
+            _sync_local_minid(fof, head, p->np, pgd->nghosts);
 
             pm_ghosts_reduce_any(pgd, PACK_FOF, _reduce_minid, userdata);
 
+            for(i = 0; i < p->np + pgd->nghosts; i ++) {
+                if(p->id[i] == 198)
+                fastpm_ilog(INFO, "iter%d %d id = %03td head=%d, head[%03d/%03d] : id = %03td task = %03d\n", iter, finder->priv->ThisTask, p->id[i], i, p->id[head[i]], p->np, fof[i].minid, fof[i].task);
+            }
+
             MPI_Allreduce(MPI_IN_PLACE, &nmerged, 1, MPI_LONG, MPI_SUM, pm_comm(pm));
 
-            _sync_local_minid(fof, head, p->np + pgd->nghosts);
+            MPI_Barrier(pm_comm(pm));
 
-            fastpm_info("FOF reduction iteration %d : merged %td crosslinks\n", i, nmerged);
+            fastpm_info("FOF reduction iteration %d : merged %td crosslinks\n", iter, nmerged);
 
             if(nmerged == 0) break;
-            i++;
+            iter++;
         }
     }
 
@@ -189,6 +289,9 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
 
     size_t n_nonlocal = 0;
     for(i = 0; i < p->np; i ++) {
+        if(fof[i].task == -1) {
+            printf("check %d id = %03td head = %03td head[%03d/%03d] : id = %03td task = %03d\n", finder->priv->ThisTask, p->id[i], p->id[head[i]], i, p->np, fof[i].minid, fof[head[i]].task);
+        }
         if(fof[i].task != finder->priv->ThisTask) {
             n_nonlocal ++;
         }
@@ -208,10 +311,8 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     free(head);
     free(fof);
     kd_free(root);
-    kd_free(root_ghosts);
 
     free(tree.ind);
-    free(tree_ghosts.ind);
 }
 
 static size_t

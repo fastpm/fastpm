@@ -149,13 +149,14 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
         pm->Nmesh[d] = init->Nmesh;
         pm->BoxSize[d] = init->BoxSize;
 
-        pm->Below[d] = 0;
-        pm->Above[d] = 1;
-
         pm->CellSize[d] = pm->BoxSize[d] / pm->Nmesh[d];
         pm->InvCellSize[d] = 1.0 / pm->CellSize[d]; 
         pm->Norm *= pm->Nmesh[d];
         pm->Volume *= pm->BoxSize[d];
+
+        pm->Below[d] = 0;
+        pm->Above[d] = 1.001 * pm->CellSize[d];
+
     }
 
 

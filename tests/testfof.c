@@ -20,9 +20,9 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 32,
-        .boxsize = 20.,
-        .alloc_factor = 2.0,
+        .nc = 8,
+        .boxsize = 8.,
+        .alloc_factor = 4.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
@@ -49,7 +49,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
+    double time_step[] = {0.01};
     fastpm_solver_setup_ic(solver, rho_init_ktruth);
 
     fastpm_info("dx1  : %g %g %g %g\n",
@@ -62,7 +62,7 @@ int main(int argc, char * argv[]) {
 
 
     FastPMFOFFinder fof = {
-        .linkinglength = 0.2,
+        .linkinglength = 1.,
         .nmin = 2,
     };
 
@@ -75,8 +75,8 @@ int main(int argc, char * argv[]) {
     write_snapshot(solver, halos, "halos", "", 1, FastPMSnapshotSortByLength);
 
     int i;
-    for(i = 0; i < 8; i ++) {
-        fastpm_info("Length of halo %d: %d\n", i, halos->length[i]);
+    for(i = 0; i < halos->np; i ++) {
+        fastpm_ilog(INFO, "Length of halo %d: %d\n", i, halos->length[i]);
     }
     fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);

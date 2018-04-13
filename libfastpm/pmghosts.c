@@ -26,25 +26,24 @@ static void pm_iter_ghosts(PM * pm, PMGhostData * pgd,
         int rank;
         pgd->get_position(pgd->p, i, pos);
         int d;
-        int ipos[3];
+
+        /* how far the window expands. */
+        int left[3];
+        int right[3];
         for(d = 0; d < 3; d ++) {
-            ipos[d] = floor(pos[d] * pm->InvCellSize[d]);
+            left[d] = ceil(pos[d] * pm->InvCellSize[d] + pgd->Below[d]);
+            right[d] = floor(pos[d] * pm->InvCellSize[d] + pgd->Above[d]);
         }
 
         /* probe neighbours */
-        ptrdiff_t j[3];
+        int j[3];
         int ranks[1000];
         int used = 0;
         localppd.ipar = i;
-        for(j[2] = pm->Below[2]; j[2] <= pm->Above[2]; j[2] ++)
-        for(j[0] = pm->Below[0]; j[0] <= pm->Above[0]; j[0] ++)
-        for(j[1] = pm->Below[1]; j[1] <= pm->Above[1]; j[1] ++) {
-            int npos[3];
-            int d;
-            for(d = 0; d < 3; d ++) {
-                npos[d] = ipos[d] + j[d];
-            }
-            rank = pm_ipos_to_rank(pm, npos);
+        for(j[2] = left[2]; j[2] <= right[2]; j[2] ++)
+        for(j[0] = left[0]; j[0] <= right[0]; j[0] ++)
+        for(j[1] = left[1]; j[1] <= right[1]; j[1] ++) {
+            rank = pm_ipos_to_rank(pm, j);
             if(LIKELY(rank == pm->ThisTask))  continue;
             int ptr;
             for(ptr = 0; ptr < used; ptr++) {
@@ -89,8 +88,21 @@ pm_ghosts_create(PM * pm, FastPMStore *p,
     enum FastPMPackFields attributes,
     fastpm_posfunc get_position)
 {
+    return
+    pm_ghosts_create_full(pm, p, attributes,
+            get_position, pm->Below, pm->Above);
+}
 
+PMGhostData * 
+pm_ghosts_create_full(PM * pm, FastPMStore * p,
+        enum FastPMPackFields attributes,
+        fastpm_posfunc get_position,
+        double below[],
+        double above[]
+        )
+{
     PMGhostData * pgd = malloc(sizeof(pgd[0]));
+
     pgd->pm = pm;
     pgd->p = p;
     pgd->np = p->np;
@@ -101,6 +113,25 @@ pm_ghosts_create(PM * pm, FastPMStore *p,
     else
         pgd->get_position = get_position;
     pgd->nghosts = 0;
+
+    int d;
+    for(d = 0; d < 3; d++) {
+        pgd->Below[d] = below[d] * pm->InvCellSize[d];
+        pgd->Above[d] = above[d] * pm->InvCellSize[d];
+    }
+
+    pgd->ighost_to_ipar = NULL;
+
+    pm_ghosts_send(pgd);
+
+    return pgd;
+}
+
+void
+pm_ghosts_send(PMGhostData * pgd)
+{
+    PM * pm = pgd->pm;
+    FastPMStore * p = pgd->p;
 
     ptrdiff_t i;
     size_t Nsend;
@@ -123,9 +154,10 @@ pm_ghosts_create(PM * pm, FastPMStore *p,
     MPI_Alltoall(pgd->Nsend, 1, MPI_INT, pgd->Nrecv, 1, MPI_INT, pm->Comm2D);
 
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
-    
 
-    pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
+    if(pgd->ighost_to_ipar == NULL)
+        pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
+
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
 
@@ -157,8 +189,6 @@ pm_ghosts_create(PM * pm, FastPMStore *p,
     }
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
     fastpm_memory_free(pm->mem, pgd->send_buffer);
-
-    return pgd;
 }
 
 static
