@@ -20,9 +20,9 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 8,
-        .boxsize = 8.,
-        .alloc_factor = 4.0,
+        .nc = 16,
+        .boxsize = 16.,
+        .alloc_factor = 18.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
