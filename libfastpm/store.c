@@ -577,6 +577,9 @@ fastpm_store_decompose(FastPMStore * p,
             comm);
     MPI_Type_free(&PTYPE);
 
+    if(p->np + Nrecv > p->np_upper) {
+        fastpm_raise(-1, "Need %td particles; %td allocated\n", p->np + Nrecv, p->np_upper);
+    }
     for(i = 0; i < Nrecv; i ++) {
         p->unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
