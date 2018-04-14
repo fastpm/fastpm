@@ -35,7 +35,11 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
         int left[3];
         int right[3];
         for(d = 0; d < 3; d ++) {
-            left[d] = ceil(pos[d] * pm->InvCellSize[d] + pgd->Below[d]);
+            /* this condition is not tightest for CIC painting, because
+             * a particle touches a cell doesn't mean cic touches the left edge
+             * of the cell.
+             * */
+            left[d] = floor(pos[d] * pm->InvCellSize[d] + pgd->Below[d]);
             right[d] = floor(pos[d] * pm->InvCellSize[d] + pgd->Above[d]);
         }
 
@@ -44,9 +48,11 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
         int ranks[1000];
         int used = 0;
         localppd.ipar = i;
+        /* no need to run the z loop because the decomposition is in xy */
         for(j[2] = left[2]; j[2] <= right[2]; j[2] ++)
         for(j[0] = left[0]; j[0] <= right[0]; j[0] ++)
-        for(j[1] = left[1]; j[1] <= right[1]; j[1] ++) {
+        for(j[1] = left[1]; j[1] <= right[1]; j[1] ++)
+        {
             rank = pm_ipos_to_rank(pm, j);
             if(LIKELY(rank == pm->ThisTask))  continue;
             int ptr;
@@ -58,7 +64,7 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
                 localppd.rank = rank;
                 localppd.reason = j;
                 iter_func(pm, &localppd, userdata);
-            } 
+            }
         }
     }
 }

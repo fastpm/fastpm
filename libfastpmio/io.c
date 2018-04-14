@@ -106,24 +106,14 @@ sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
     free(send_buffer);
 }
 
-static int
-write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
-        const char * filebase,
-        const char * parameters,
-        int Nwriters,
-        FastPMSnapshotSorter sorter,
-        int append
-)
+void
+write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
+    const char * parameters, BigFile * bf, MPI_Comm comm)
 {
-
-    int NTask = fastpm->NTask;
-    MPI_Comm comm = fastpm->comm;
-
-    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
-
-    int Nfile = NTask / 8;
-    if (Nfile == 0) Nfile = 1;
-    int64_t size = p->np;
+    BigBlock bb;
+    if(0 != big_file_mpi_create_block(bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
+        fastpm_raise(-1, "Failed to create the header block: %s\n", big_file_get_error_message());
+    }
 
     double H0 = 100.;
     /* Conversion from peculiar velocity to RSD,
@@ -132,73 +122,81 @@ write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
 
     fastpm_info("RSD factor %e\n", RSD);
 
+    double ScalingFactor = p->a_x;
+    double OmegaM = fastpm->cosmology->OmegaM;
+    double OmegaLambda = fastpm->cosmology->OmegaLambda;
+    double HubbleParam = fastpm->config->hubble_param;
+    double BoxSize = fastpm->config->boxsize;
+    uint64_t NC = fastpm->config->nc;
+    double rho_crit = 27.7455; /* 1e10 Msun /h*/
+    double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+    double MassTable[6] = {0, M0, 0, 0, 0, 0};
+    uint64_t TotNumPart[6] = {0, NC * NC * NC, 0, 0, 0, 0};
+
+    big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
+    big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
+    big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
+    big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
+    big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
+    big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
+    big_block_set_attr(&bb, "NC", &NC, "i8", 1);
+    big_block_set_attr(&bb, "M0", &M0, "f8", 1);
+    big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
+    big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
+
+    /* Compatibility with MP-Gadget */
+    double UnitVelocity_in_cm_per_s = 1e5; /* 1 km/sec */
+    double UnitLength_in_cm = 3.085678e21 * 1e3; /* 1.0 Mpc /h */
+    double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
+    int UsePeculiarVelocity = 1;
+
+    big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
+    big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 6);
+    big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
+    big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);
+    big_block_set_attr(&bb, "UsePeculiarVelocity", &UsePeculiarVelocity, "i4", 1);
+    big_block_set_attr(&bb, "UnitLength_in_cm", &UnitLength_in_cm, "f8", 1);
+    big_block_set_attr(&bb, "UnitMass_in_g", &UnitMass_in_g, "f8", 1);
+    big_block_set_attr(&bb, "UnitVelocity_in_cm_per_s", &UnitVelocity_in_cm_per_s, "f8", 1);
+    big_block_mpi_close(&bb, comm);
+}
+
+int
+write_snapshot_data(FastPMStore * p,
+        int Nfile,
+        int Nwriters,
+        FastPMSnapshotSorter sorter,
+        int append,
+        BigFile * bf,
+        MPI_Comm comm
+)
+{
+
+    int64_t size = p->np;
+
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
     if(sorter)
         sort_snapshot(p, comm, sorter);
 
-    BigFile bf;
-    if(0 != big_file_mpi_create(&bf, filebase, comm)) {
-        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
-    }
-    {
-        BigBlock bb;
-        if(0 != big_file_mpi_create_block(&bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
-            fastpm_raise(-1, "Failed to create the header block: %s\n", big_file_get_error_message());
-        }
-        double ScalingFactor = p->a_x;
-        double OmegaM = fastpm->cosmology->OmegaM;
-        double OmegaLambda = fastpm->cosmology->OmegaLambda;
-        double HubbleParam = fastpm->config->hubble_param;
-        double BoxSize = fastpm->config->boxsize;
-        uint64_t NC = fastpm->config->nc;
-        double rho_crit = 27.7455; /* 1e10 Msun /h*/
-        double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
-        double MassTable[6] = {0, M0, 0, 0, 0, 0};
-        uint64_t TotNumPart[6] = {0, NC * NC * NC, 0, 0, 0, 0};
-
-        big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
-        big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
-        big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
-        big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
-        big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
-        big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
-        big_block_set_attr(&bb, "NC", &NC, "i8", 1);
-        big_block_set_attr(&bb, "M0", &M0, "f8", 1);
-        big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
-        big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
-
-        /* Compatibility with MP-Gadget */
-        double UnitVelocity_in_cm_per_s = 1e5; /* 1 km/sec */
-        double UnitLength_in_cm = 3.085678e21 * 1e3; /* 1.0 Mpc /h */
-        double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
-        int UsePeculiarVelocity = 1;
-
-        big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
-        big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 6);
-        big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
-        big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);
-        big_block_set_attr(&bb, "UsePeculiarVelocity", &UsePeculiarVelocity, "i4", 1);
-        big_block_set_attr(&bb, "UnitLength_in_cm", &UnitLength_in_cm, "f8", 1);
-        big_block_set_attr(&bb, "UnitMass_in_g", &UnitMass_in_g, "f8", 1);
-        big_block_set_attr(&bb, "UnitVelocity_in_cm_per_s", &UnitVelocity_in_cm_per_s, "f8", 1);
-        big_block_mpi_close(&bb, comm);
-    }
     struct {
         char * name;
         void * fastpm;
         char * dtype;
+        int stride;
         int nmemb;
         char * dtype_out;
     } * bdesc, BLOCKS[] = {
-        {"1/Position", p->x, "f8", 3, "f4"},
-        {"1/Velocity", p->v, "f4", 3, "f4"},
-        {"1/ID", p->id, "i8", 1, "i8"},
-        {"1/Aemit", p->aemit, "f4", 1, "f4"},
-        {"1/Potential", p->potential, "f4", 1, "f4"},
-        {"1/Density", p->rho, "f4", 1, "f4"},
-        {"1/Tidal", p->tidal, "f4", 6, "f4"},
-        {"1/Length", p->length, "i4", 1, "i4"},
+        {"1/Position", p->x, "f8", 8, 3, "f4"},
+        {"1/Velocity", p->v, "f4", 4, 3, "f4"},
+        {"1/ID", p->id, "i8", 8, 1, "i8"},
+        {"1/Aemit", p->aemit, "f4", 4, 1, "f4"},
+        {"1/Potential", p->potential, "f4", 4, 1, "f4"},
+        {"1/Density", p->rho, "f4", 4, 1, "f4"},
+        {"1/Tidal", p->tidal, "f4", 4, 6, "f4"},
+        {"1/Length", p->length, "i4", 4, 1, "i4"},
+        {"1/MinID",p->fof?&(p->fof[0].minid):NULL, "i8", sizeof(p->fof[0]), 1, "i8"},
+        {"1/Task", p->fof?&(p->fof[0].task):NULL, "i4", sizeof(p->fof[0]), 1, "i4"},
         {NULL, },
     };
 
@@ -210,30 +208,29 @@ write_snapshot_internal(FastPMSolver * fastpm, FastPMStore * p,
         BigArray array;
         BigBlockPtr ptr;
         if(!append) {
-            if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+            if(0 != big_file_mpi_create_block(bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
                         Nfile, size, comm)) {
                 fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
             }
             big_block_seek(&bb, &ptr, 0);
         } else {
-            if(0 != big_file_mpi_open_block(&bf, &bb, bdesc->name, comm)) {
+            if(0 != big_file_mpi_open_block(bf, &bb, bdesc->name, comm)) {
                 /* if open failed, create an empty block instead.*/
-                if(0 != big_file_mpi_create_block(&bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                if(0 != big_file_mpi_create_block(bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
                             0, 0, comm)) {
                     fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
                 }
             }
             size_t oldsize = bb.size;
             /* FIXME : check the dtype and nmemb are consistent */
-            big_file_mpi_grow_block(&bf, &bb, Nfile, size, comm);
+            big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
             big_block_seek(&bb, &ptr, oldsize);
         }
-        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL);
+        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, (ptrdiff_t[]) {bdesc->stride * bdesc->nmemb, bdesc->stride} );
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);
     }
 
-    big_file_mpi_close(&bf, comm);
     return 0;
 }
 
@@ -244,7 +241,26 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         int Nwriters,
         FastPMSnapshotSorter sorter)
 {
-    return write_snapshot_internal(fastpm, p, filebase, parameters, Nwriters, sorter, 0);
+    int NTask = fastpm->NTask;
+    MPI_Comm comm = fastpm->comm;
+
+    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
+
+    int Nfile = NTask / 8;
+    if (Nfile == 0) Nfile = 1;
+
+    BigFile bf;
+    if(0 != big_file_mpi_create(&bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
+    }
+
+    write_snapshot_header(fastpm, p, parameters, &bf, comm);
+
+    write_snapshot_data(p, Nfile, Nwriters, sorter, 0, &bf, comm);
+
+    big_file_mpi_close(&bf, comm);
+
+    return 0;
 }
 
 int
@@ -254,7 +270,26 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         int Nwriters,
         FastPMSnapshotSorter sorter)
 {
-    return write_snapshot_internal(fastpm, p, filebase, parameters, Nwriters, sorter, 1);
+    int NTask = fastpm->NTask;
+    MPI_Comm comm = fastpm->comm;
+
+    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
+
+    int Nfile = NTask / 8;
+    if (Nfile == 0) Nfile = 1;
+
+    BigFile bf;
+    if(0 != big_file_mpi_create(&bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
+    }
+
+    write_snapshot_header(fastpm, p, parameters, &bf, comm);
+
+    write_snapshot_data(p, Nfile, Nwriters, sorter, 1, &bf, comm);
+
+    big_file_mpi_close(&bf, comm);
+
+    return 0;
 }
 
 int

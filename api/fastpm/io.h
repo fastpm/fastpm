@@ -1,5 +1,6 @@
 #ifndef __FASTPM_IO_H__
 #define __FASTPM_IO_H__
+#include <bigfile.h>
 FASTPM_BEGIN_DECLS
 
 typedef void (*FastPMSnapshotSorter)(const void * ptr, void * radix, void * arg);
@@ -31,6 +32,19 @@ append_snapshot(FastPMSolver * fastpm,
         FastPMSnapshotSorter sorter
     );
 
+int
+write_snapshot_data(FastPMStore * p,
+        int Nfile,
+        int Nwriters,
+        FastPMSnapshotSorter sorter,
+        int append,
+        BigFile * bf,
+        MPI_Comm comm
+);
+
+void
+write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
+    const char * parameters, BigFile * bf, MPI_Comm comm);
 
 int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);

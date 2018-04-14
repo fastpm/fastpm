@@ -19,6 +19,10 @@
 #include "pmghosts.h"
 #include "vpm.h"
 
+#include <fastpm/io.h>
+#include <fastpm/string.h>
+#include <bigfile-mpi.h>
+
 struct FastPMFOFFinderPrivate {
     int ThisTask;
     int NTask;
@@ -156,6 +160,7 @@ _fof_global_merge(
 
         p->fof = fofcomm;
         pm_ghosts_send(pgd, PACK_FOF);
+
         p->fof = NULL;
 
         size_t nmerged = 0;
@@ -188,6 +193,7 @@ _fof_global_merge(
                 finder->priv->ThisTask, p->id[i], p->id[head[i]], i, p->np, fofcomm[i].minid, fofcomm[i].task);
         }
     }
+
 }
 
 static void
@@ -206,8 +212,8 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     int d;
     for(d = 0; d < 3; d ++) {
         /* bigger padding reduces number of iterations */
-        below[d] = -finder->linkinglength * 2;
-        above[d] = finder->linkinglength * 2;
+        below[d] = -finder->linkinglength * 1;
+        above[d] = finder->linkinglength * 1;
     }
 
     PMGhostData * pgd = pm_ghosts_create_full(pm, p,
@@ -215,8 +221,10 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
             below, above
         );
 
+    printf("nbhosts = %d\n", pgd->nghosts);
+
     struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem,
-                    sizeof(fofcomm[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_HEAP);
+                    sizeof(fofcomm[0]) * (p->np_upper + 0 * p->np + 0 * pgd->nghosts), FASTPM_MEMORY_HEAP);
 
     struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem,
                     sizeof(fofsave[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_HEAP);
@@ -243,6 +251,20 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     fastpm_memory_free(p->mem, head);
     fastpm_memory_free(p->mem, fofsave);
 
+    for(i = 0; i < p->np; i ++) {
+        fofcomm[i].task = finder->priv->ThisTask;
+    }
+    BigFile bf = {0};
+    p->attributes |= PACK_FOF;
+    p->fof = fofcomm;
+    big_file_mpi_create(&bf, fastpm_strdup_printf("dump-fof-%d", pm->NTask), pm_comm(pm));
+    write_snapshot_data(p, 1, 1, FastPMSnapshotSortByID, 0, &bf, pm_comm(pm));
+    p->attributes &= ~PACK_FOF;
+    p->fof = NULL;
+    big_file_mpi_close(&bf, pm_comm(pm));
+
+    MPI_Finalize();
+    exit(1);
     /* real decompose, move particles of the same halo to the same rank */
     {
         void * userdata[1] = {fofcomm};
