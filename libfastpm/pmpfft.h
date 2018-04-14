@@ -6,6 +6,14 @@
 #include <math.h>
 #include <mpi.h>
 
+#ifdef ENABLE_VALGRIND
+#include </usr/include/valgrind/memcheck.h>
+#else
+#define VALGRIND_MAKE_MEM_DEFINED(a, b) do {} while(0);
+#define VALGRIND_CHECK_MEM_IS_DEFINED(a, b) do {} while(0);
+#endif
+
+
 #ifndef M_PI
 #define M_PI (3.14159265358979323846264338327950288)
 #endif

@@ -5,7 +5,6 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-
 #include "pmpfft.h"
 
 #define HAS(a, b) ((a & b) != 0)
@@ -28,6 +27,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
+            VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index], sizeof(p->field[0])); \
             if(ptr) memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
             s += sizeof(p->field[0]); \
             flags &= ~f; \
@@ -36,6 +36,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     #define DISPATCHC(f, field, c) \
     if(HAS(flags, f)) { \
         if(p->field) { \
+            VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index][c], sizeof(p->field[0][0])); \
             if(ptr) memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
             s += sizeof(p->field[0][0]); \
             flags &= ~f; \
@@ -92,6 +93,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
+            VALGRIND_CHECK_MEM_IS_DEFINED(&ptr[s], sizeof(p->field[0])); \
             memcpy(&p->field[index], &ptr[s], sizeof(p->field[0])); \
             s += sizeof(p->field[0]); \
             flags &= ~f; \
@@ -100,6 +102,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     #define DISPATCHC(f, field, c) \
     if(HAS(flags, f)) { \
         if(p->field) { \
+            VALGRIND_CHECK_MEM_IS_DEFINED(&ptr[s], sizeof(p->field[0][0])); \
             memcpy(&p->field[index][c], &ptr[s], sizeof(p->field[0][0])); \
             s += sizeof(p->field[0][0]); \
             flags &= ~f; \
@@ -442,6 +445,8 @@ static void fastpm_store_permute(FastPMStore * p, int * ind) {
         permute(p->v, p->np, sizeof(p->v[0]), ind);
     if(p->id)
         permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->fof)
+        permute(p->fof, p->np, sizeof(p->fof[0]), ind);
     if(p->potential)
         permute(p->potential, p->np, sizeof(p->potential[0]), ind);
     if(p->tidal)
@@ -507,12 +512,36 @@ FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm)
     return pm_pos_to_rank(pm, pos);
 }
 
+/*
+static void
+checkx(FastPMStore * p)
+{
+    ptrdiff_t i;
+
+    int j = 0;
+    for(i = 0; i < p->np; i ++) {
+        if(p->x[i][0] > 0) {
+            j = 1;
+        }
+        if(p->x[i][1] > 0) {
+            j = 1;
+        }
+        if(p->x[i][2] > 0) {
+            j = 1;
+        }
+    }
+    printf("%d\n", j);
+}
+*/
 
 void
 fastpm_store_decompose(FastPMStore * p,
     fastpm_store_target_func target_func,
     void * data, MPI_Comm comm)
 {
+
+    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
+
     int * target = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int NTask, ThisTask;
 
@@ -546,7 +575,10 @@ fastpm_store_decompose(FastPMStore * p,
         int offset = offsets[target[i]] ++;
         arg[offset] = i;
     }
+
     fastpm_store_permute(p, arg);
+
+    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
 
     fastpm_memory_free(p->mem, arg);
     fastpm_memory_free(p->mem, target);

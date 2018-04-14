@@ -281,11 +281,15 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
      * we paint rho V / (B N_g^3) * B = rho / rhobar. The last B is the extra density factor.
      * */
     CLOCK(paint);
+
+    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np + pgd->nghosts);
+
     fastpm_paint_local(painter, canvas,
                 p, p->np + pgd->nghosts, NULL, 0);
-    fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
-    LEAVE(paint);
 
+    fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
+
+    LEAVE(paint);
     CLOCK(r2c);
     pm_r2c(pm, canvas, delta_k);
     LEAVE(r2c);

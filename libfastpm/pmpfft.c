@@ -365,6 +365,8 @@ int pm_ipos_to_rank(PM * pm, int i[3]) {
 }
 
 void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
+    VALGRIND_CHECK_MEM_IS_DEFINED(from, sizeof(from[0]) * pm->allocsize);
+
     /* A gaussian of variance 1 becomes a complex gausian of variance 1/2 * (1 / Norm) in real and imag */
 
     /* workspace to canvas*/
@@ -378,15 +380,19 @@ void pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to) {
     for(i = 0; i < pm->allocsize; i ++) {
         to[i] *= 1 / pm->Norm;
     }
+
+    VALGRIND_MAKE_MEM_DEFINED(to, sizeof(to[0]) * pm->allocsize);
 }
 
 void pm_c2r(PM * pm, FastPMFloat * inplace) {
     /* r2c and c2r round trip is unitary */
+    VALGRIND_CHECK_MEM_IS_DEFINED(inplace, sizeof(inplace[0]) * pm->allocsize);
     if(pm->init.use_fftw) {
         execute_dft_c2r_fftw(pm->c2r, (void*) inplace, inplace);
     } else {
         execute_dft_c2r(pm->c2r, (void*) inplace, inplace);
     }
+    VALGRIND_MAKE_MEM_DEFINED(inplace, sizeof(inplace[0]) * pm->allocsize);
 }
 
 #define unravel(ind, i, d0, d1, d2, strides) \
@@ -525,6 +531,9 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
         int target = ThisTask ^ ngrp;
         if(target >= NTask) continue;
         if(sendcnts[target] == 0) continue;
+
+        VALGRIND_CHECK_MEM_IS_DEFINED(sendbuf, send_elsize * sdispls[target]);
+
         MPI_Isend(((char*) sendbuf) + send_elsize * sdispls[target], 
                 sendcnts[target],
                 sendtype, target, 101934, comm, &requests[n_requests++]);
@@ -532,6 +541,13 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
 
     MPI_Waitall(n_requests, requests, MPI_STATUSES_IGNORE);
 
+    for(ngrp = 0; ngrp < (1 << PTask); ngrp++) {
+        int target = ThisTask ^ ngrp;
+        if(target >= NTask) continue;
+        if(recvcnts[target] == 0) continue;
+
+        VALGRIND_MAKE_MEM_DEFINED(recvbuf, recv_elsize * rdispls[target]);
+    }
 #else
     for(ngrp = 0; ngrp < (1 << PTask); ngrp++)
     {
@@ -539,6 +555,9 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
 
         if(target >= NTask) continue;
         if(sendcnts[target] == 0 && recvcnts[target] == 0) continue;
+
+        VALGRIND_CHECK_MEM_IS_DEFINED(sendbuf, send_elsize * sdispls[target]);
+
         MPI_Sendrecv(((char*)sendbuf) + send_elsize * sdispls[target], 
                 sendcnts[target], sendtype, 
                 target, 101934,
@@ -547,6 +566,7 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
                 target, 101934, 
                 comm, MPI_STATUS_IGNORE);
 
+        VALGRIND_MAKE_MEM_DEFINED(recvbuf, recv_elsize * rdispls[target]);
     }
 #endif
     /* ensure the collective-ness */

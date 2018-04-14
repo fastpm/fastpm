@@ -7,6 +7,10 @@
 #include "pmpfft.h"
 #include "pmghosts.h"
 
+#ifdef ENABLE_VALGRIND
+#include </usr/include/valgrind/memcheck.h>
+#endif
+
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd, void * userdata);
 
 void pm_ghosts_free(PMGhostData * pgd) {

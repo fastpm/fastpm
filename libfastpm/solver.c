@@ -218,6 +218,9 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
 
     pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
 
+    /* set acc to zero or we see valgrind errors */
+    memset(fastpm->p->acc, 0, sizeof(fastpm->p->acc[0]) * fastpm->p->np);
+
     LEAVE(warmup);
 }
 
@@ -364,7 +367,9 @@ fastpm_decompose(FastPMSolver * fastpm) {
 
     /* apply periodic boundary and move particles to the correct rank */
     fastpm_store_wrap(fastpm->p, pm->BoxSize);
+
     fastpm_store_decompose(fastpm->p, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
+
     size_t np_max;
     size_t np_min;
 

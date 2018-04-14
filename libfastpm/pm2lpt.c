@@ -36,12 +36,14 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
     FastPMFloat * workspace = pm_alloc(pm);
     FastPMFloat * source =  pm_alloc(pm);
     memset(source, 0, sizeof(source[0]) * pm->allocsize);
+    memset(workspace, 0, sizeof(workspace[0]) * pm->allocsize);
 
     FastPMFloat * field[3];
 
-    for(d = 0; d < 3; d++ )
+    for(d = 0; d < 3; d++ ) {
         field[d] = pm_alloc(pm);
-
+        memset(field[d], 0, sizeof(field[d][0]) * pm->allocsize);
+    }
     int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
     int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
     int D1[] = {1, 2, 0};
