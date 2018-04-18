@@ -76,6 +76,9 @@ read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI
 int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
+static void
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr);
+
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
@@ -249,7 +252,12 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         long long np = usmesh->p->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
+
         write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+
+        char filebase[4096];
+        sprintf(filebase, "%s_lightcone", CONF(prr, write_fof));
+        write_fof(fastpm, usmesh->p, filebase, prr);
     }
 
     if(smesh)
@@ -656,42 +664,55 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
             /* now take a full snapshot, and run fof on it */
             fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, 1.0, aout[iout]);
 
-            FastPMFOFFinder fof = {
-                .linkinglength = CONF(prr, fof_linkinglength),
-                .nmin = CONF(prr, fof_nmin),
-            };
-
-            fastpm_fof_init(&fof, snapshot, fastpm->basepm);
-
-            FastPMStore halos[1];
-
-            fastpm_fof_execute(&fof, halos);
-
-            fastpm_store_destroy(halos);
-
             char filebase[1024];
 
             sprintf(filebase, "%s_%0.04f", CONF(prr, write_fof), aout[iout]);
 
-            fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
-
-            ENTER(io);
-
-            char * dataset = fastpm_strdup_printf("LL-%05.3f", fof.linkinglength);
-            write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters, FastPMSnapshotSortByLength);
-
-            free(dataset);
-            LEAVE(io);
-
-            fastpm_info("FOF Catalog %s written\n", filebase);
-
-            fastpm_fof_destroy(&fof);
+            write_fof(fastpm, snapshot, filebase, prr);
         }
 
         fastpm_store_destroy(snapshot);
 
     }
     return 0;
+}
+
+static void
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr)
+{
+    CLOCK(fof);
+    CLOCK(io);
+    ENTER(fof);
+    FastPMFOFFinder fof = {
+        .linkinglength = CONF(prr, fof_linkinglength),
+        .nmin = CONF(prr, fof_nmin),
+    };
+
+    fastpm_fof_init(&fof, snapshot, fastpm->basepm);
+
+    FastPMStore halos[1];
+
+    ENTER(fof);
+
+    fastpm_fof_execute(&fof, halos);
+
+    LEAVE(fof);
+
+
+    fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
+
+    ENTER(io);
+
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", fof.linkinglength);
+    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters, FastPMSnapshotSortByLength);
+
+    free(dataset);
+    LEAVE(io);
+
+    fastpm_info("FOF Catalog %s written\n", filebase);
+
+    fastpm_store_destroy(halos);
+    fastpm_fof_destroy(&fof);
 }
 
 static int 
