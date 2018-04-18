@@ -1,3 +1,4 @@
+#include <alloca.h>
 #include "kdtree.h"
 
 /* Friend of Friend:
