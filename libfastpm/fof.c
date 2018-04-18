@@ -222,8 +222,6 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
             below, above
         );
 
-    printf("nbhosts = %d\n", pgd->nghosts);
-
     struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem,
                     sizeof(fofcomm[0]) * (p->np_upper + 0 * p->np + 0 * pgd->nghosts), FASTPM_MEMORY_HEAP);
 
