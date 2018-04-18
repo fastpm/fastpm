@@ -56,7 +56,7 @@ _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, 
     tree->free = NULL;
 
 
-    tree->thresh = 8;
+    tree->thresh = 1;
 
     tree->boxsize = boxsize;
 
@@ -202,6 +202,7 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     ptrdiff_t i;
 
     /* initial decompose -- reduce number of ghosts */
+    fastpm_store_wrap(p, pm_boxsize(pm));
     fastpm_store_decompose(p,
                 (fastpm_store_target_func) FastPMTargetPM,
                 pm, pm_comm(pm));
@@ -225,6 +226,8 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
 
     struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem,
                     sizeof(fofcomm[0]) * (p->np_upper + 0 * p->np + 0 * pgd->nghosts), FASTPM_MEMORY_HEAP);
+
+    memset(fofcomm, 0, sizeof(fofcomm[0]) * p->np_upper + 0 * p->np + 0 * pgd->nghosts);
 
     struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem,
                     sizeof(fofsave[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_HEAP);
@@ -251,20 +254,19 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     fastpm_memory_free(p->mem, head);
     fastpm_memory_free(p->mem, fofsave);
 
-    for(i = 0; i < p->np; i ++) {
-        fofcomm[i].task = finder->priv->ThisTask;
-    }
-    BigFile bf = {0};
-    p->attributes |= PACK_FOF;
-    p->fof = fofcomm;
-    big_file_mpi_create(&bf, fastpm_strdup_printf("dump-fof-%d", pm->NTask), pm_comm(pm));
-    write_snapshot_data(p, 1, 1, FastPMSnapshotSortByID, 0, &bf, pm_comm(pm));
-    p->attributes &= ~PACK_FOF;
-    p->fof = NULL;
-    big_file_mpi_close(&bf, pm_comm(pm));
 
-    MPI_Finalize();
-    exit(1);
+    /* for the assertion below only.*/
+    p->fof = fofcomm;
+    p->attributes |= PACK_FOF;
+
+
+#if 0
+    BigFile bf = {0};
+    big_file_mpi_create(&bf, fastpm_strdup_printf("dump-fof-%d", pm->NTask), pm_comm(pm));
+    write_snapshot_data(p, 1, 1, FastPMSnapshotSortByID, 0, &bf, "1", pm_comm(pm));
+    big_file_mpi_close(&bf, pm_comm(pm));
+#endif
+
     /* real decompose, move particles of the same halo to the same rank */
     {
         void * userdata[1] = {fofcomm};
@@ -273,6 +275,13 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
                     (fastpm_store_target_func) FastPMTargetFOF,
                     userdata, pm_comm(pm));
     }
+
+    for(i = 0; i < p->np; i ++) {
+        if(p->fof[i].task != finder->priv->ThisTask) abort();
+    }
+
+    p->attributes &= ~PACK_FOF;
+    p->fof = NULL;
 
     fastpm_memory_free(p->mem, fofcomm);
 
@@ -294,8 +303,12 @@ _assign_halo_attr(ptrdiff_t * head, ptrdiff_t * offset, size_t np, int nmin)
 
     size_t it = 0;
     
+    ptrdiff_t max = 0;
     /* assign attr index */
     for(i = 0; i < np; i ++) {
+        if(offset[i] > max) {
+            max = offset[i];
+        }
         if(offset[i] >= nmin) {
             offset[i] = it;
             it ++;
@@ -304,6 +317,18 @@ _assign_halo_attr(ptrdiff_t * head, ptrdiff_t * offset, size_t np, int nmin)
         }
     }
     return it;
+}
+static double
+periodic_add(double x, double wx, double y, double wy, double L)
+{
+    if(wx > 0) {
+        while(y - x > L / 2) y -= L;
+        while(y - x < -L / 2) y += L;
+
+        return wx * x + wy * y;
+    } else {
+        return wy * y;
+    }
 }
 
 void
@@ -333,7 +358,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(head[i] >= finder->p->np) abort();
         }
 */
-        fastpm_store_init(halos, nhalos, (finder->p->attributes | PACK_LENGTH) & ~PACK_ID
+        fastpm_store_init(halos, nhalos, (finder->p->attributes | PACK_LENGTH | PACK_FOF) & ~PACK_ID
                 , FASTPM_MEMORY_HEAP);
         halos->np = nhalos;
 
@@ -362,7 +387,11 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(halos->q)
                 halos->q[i][d] = 0;
         }
+        halos->fof[i].minid = (uint64_t) -1;
+
     }
+    double * boxsize = pm_boxsize(finder->pm);
+
     for(i = 0; i < finder->p->np; i++) {
         ptrdiff_t hid = offset[head[i]];
         if(hid < 0) continue;
@@ -370,14 +399,22 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         if(hid >= halos->np) {
             abort();
         }
-        halos->length[hid] += 1;
 
         if(halos->aemit)
             halos->aemit[hid] += finder->p->aemit[i];
+
+        
+        if(halos->fof[hid].minid > finder->p->id[i]) {
+            halos->fof[hid].minid = finder->p->id[i];
+        }
+
         int d;
+
         for(d = 0; d < 3; d++) {
             if(halos->x)
-                halos->x[hid][d] += finder->p->x[i][d];
+                halos->x[hid][d] = periodic_add(
+                    halos->x[hid][d] / halos->length[hid], halos->length[hid],
+                    finder->p->x[i][d], 1, boxsize[d]);
             if(halos->v)
                 halos->v[hid][d] += finder->p->v[i][d];
             if(halos->dx1)
@@ -387,6 +424,9 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(halos->q)
                 halos->q[hid][d] += finder->p->q[i][d];
         }
+
+        /* do this after the loop because x depends on the old length. */
+        halos->length[hid] += 1;
     }
 
     for(i = 0; i < halos->np; i++) {

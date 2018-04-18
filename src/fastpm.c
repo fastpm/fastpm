@@ -17,6 +17,7 @@
 #include <fastpm/lc-unstruct.h>
 #include <fastpm/constrainedgaussian.h>
 #include <fastpm/io.h>
+#include <fastpm/fof.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -248,7 +249,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         long long np = usmesh->p->np;
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
-        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
     }
 
     if(smesh)
@@ -594,10 +595,10 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
 
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+        write_snapshot(solver, lcevent->p, fn, "1", "", 1, FastPMSnapshotSortByAEmit);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "", 1, FastPMSnapshotSortByAEmit);
+        append_snapshot(solver, lcevent->p, fn, "1", "", 1, FastPMSnapshotSortByAEmit);
     }
     free(fn);
 }
@@ -612,6 +613,8 @@ smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh
 static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr)
 {
+    CLOCK(io);
+
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
         event->a1, event->a2,
         event->kick->af, event->kick->ai, event->kick->ac,
@@ -649,6 +652,42 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
+        if(CONF(prr, write_fof)) {
+            /* now take a full snapshot, and run fof on it */
+            fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, 1.0, aout[iout]);
+
+            FastPMFOFFinder fof = {
+                .linkinglength = CONF(prr, fof_linkinglength),
+                .nmin = CONF(prr, fof_nmin),
+            };
+
+            fastpm_fof_init(&fof, snapshot, fastpm->basepm);
+
+            FastPMStore halos[1];
+
+            fastpm_fof_execute(&fof, halos);
+
+            fastpm_store_destroy(halos);
+
+            char filebase[1024];
+
+            sprintf(filebase, "%s_%0.04f", CONF(prr, write_fof), aout[iout]);
+
+            fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
+
+            ENTER(io);
+
+            char * dataset = fastpm_strdup_printf("LL-%05.3f", fof.linkinglength);
+            write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters, FastPMSnapshotSortByLength);
+
+            free(dataset);
+            LEAVE(io);
+
+            fastpm_info("FOF Catalog %s written\n", filebase);
+
+            fastpm_fof_destroy(&fof);
+        }
+
         fastpm_store_destroy(snapshot);
 
     }
@@ -659,7 +698,6 @@ static int
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr) 
 {
     CLOCK(io);
-    CLOCK(meta);
 
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
     if(CONF(prr, write_nonlineark)) {
@@ -689,11 +727,6 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
                 filebase, z_out, aout, prr->Nwriters);
 
-        ENTER(meta);
-        fastpm_path_ensure_dirname(filebase);
-        LEAVE(meta);
-
-        MPI_Barrier(fastpm->comm);
         ENTER(io);
         void * sorter = NULL;
         if(CONF(prr, sort_snapshot)) {
@@ -703,7 +736,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
             fastpm_info("Snapshot is not sorted by ID.\n");
             sorter = NULL;
         }
-        write_snapshot(fastpm, snapshot, filebase, prr->string, prr->Nwriters, sorter);
+        write_snapshot(fastpm, snapshot, filebase, "1", prr->string, prr->Nwriters, sorter);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
@@ -713,11 +746,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         double z_out= 1.0/aout - 1.0;
 
         sprintf(filebase, "%s_%0.04f.bin", CONF(prr, write_runpb_snapshot), aout);
-        ENTER(meta);
-        fastpm_path_ensure_dirname(filebase);
-        LEAVE(meta);
 
-        MPI_Barrier(fastpm->comm);
         ENTER(io);
         write_runpb_snapshot(fastpm, snapshot, filebase);
 

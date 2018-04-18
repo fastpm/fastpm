@@ -6,6 +6,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/string.h>
 #include <fastpm/fof.h>
 #include <fastpm/io.h>
 
@@ -20,8 +21,8 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 32,
-        .boxsize = 32.,
+        .nc = 64,
+        .boxsize = 64.,
         .alloc_factor = 10.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
@@ -72,7 +73,8 @@ int main(int argc, char * argv[]) {
 
     fastpm_fof_execute(&fof, halos);
 
-    write_snapshot(solver, halos, "halos", "", 1, FastPMSnapshotSortByLength);
+    char * snapshot = fastpm_strdup_printf("fof-%d", solver->NTask);
+    write_snapshot(solver, halos, "halos", snapshot, "", 1, FastPMSnapshotSortByLength);
 
     int task;
     int ntask;
@@ -83,7 +85,7 @@ int main(int argc, char * argv[]) {
         MPI_Barrier(MPI_COMM_WORLD);
         if(j != task) continue;
         int i;
-        for(i = 0; i < halos->np; i ++) {
+        for(i = 0; i < 10 && i < halos->np; i ++) {
             fastpm_ilog(INFO, "Length of halo %d: %d\n", i, halos->length[i]);
         }
     }

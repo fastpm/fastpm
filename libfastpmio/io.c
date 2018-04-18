@@ -10,6 +10,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
+#include <fastpm/string.h>
 #include <fastpm/logging.h>
 
 #include <fastpm/io.h>
@@ -168,6 +169,7 @@ write_snapshot_data(FastPMStore * p,
         FastPMSnapshotSorter sorter,
         int append,
         BigFile * bf,
+        const char * dataset,
         MPI_Comm comm
 )
 {
@@ -187,16 +189,16 @@ write_snapshot_data(FastPMStore * p,
         int nmemb;
         char * dtype_out;
     } * bdesc, BLOCKS[] = {
-        {"1/Position", p->x, "f8", 8, 3, "f4"},
-        {"1/Velocity", p->v, "f4", 4, 3, "f4"},
-        {"1/ID", p->id, "i8", 8, 1, "i8"},
-        {"1/Aemit", p->aemit, "f4", 4, 1, "f4"},
-        {"1/Potential", p->potential, "f4", 4, 1, "f4"},
-        {"1/Density", p->rho, "f4", 4, 1, "f4"},
-        {"1/Tidal", p->tidal, "f4", 4, 6, "f4"},
-        {"1/Length", p->length, "i4", 4, 1, "i4"},
-        {"1/MinID",p->fof?&(p->fof[0].minid):NULL, "i8", sizeof(p->fof[0]), 1, "i8"},
-        {"1/Task", p->fof?&(p->fof[0].task):NULL, "i4", sizeof(p->fof[0]), 1, "i4"},
+        {"Position", p->x, "f8", 8, 3, "f4"},
+        {"Velocity", p->v, "f4", 4, 3, "f4"},
+        {"ID", p->id, "i8", 8, 1, "i8"},
+        {"Aemit", p->aemit, "f4", 4, 1, "f4"},
+        {"Potential", p->potential, "f4", 4, 1, "f4"},
+        {"Density", p->rho, "f4", 4, 1, "f4"},
+        {"Tidal", p->tidal, "f4", 4, 6, "f4"},
+        {"Length", p->length, "i4", 4, 1, "i4"},
+        {"MinID",p->fof?&(p->fof[0].minid):NULL, "i8", sizeof(p->fof[0]), 1, "i8"},
+        {"Task", p->fof?&(p->fof[0].task):NULL, "i4", sizeof(p->fof[0]), 1, "i4"},
         {NULL, },
     };
 
@@ -207,16 +209,17 @@ write_snapshot_data(FastPMStore * p,
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
+        char * blockname = fastpm_strdup_printf("%s/%s", dataset, bdesc->name);
         if(!append) {
-            if(0 != big_file_mpi_create_block(bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+            if(0 != big_file_mpi_create_block(bf, &bb, blockname, bdesc->dtype_out, bdesc->nmemb,
                         Nfile, size, comm)) {
                 fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
             }
             big_block_seek(&bb, &ptr, 0);
         } else {
-            if(0 != big_file_mpi_open_block(bf, &bb, bdesc->name, comm)) {
+            if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
                 /* if open failed, create an empty block instead.*/
-                if(0 != big_file_mpi_create_block(bf, &bb, bdesc->name, bdesc->dtype_out, bdesc->nmemb,
+                if(0 != big_file_mpi_create_block(bf, &bb, blockname, bdesc->dtype_out, bdesc->nmemb,
                             0, 0, comm)) {
                     fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
                 }
@@ -229,6 +232,7 @@ write_snapshot_data(FastPMStore * p,
         big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, (ptrdiff_t[]) {bdesc->stride * bdesc->nmemb, bdesc->stride} );
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);
+        free(blockname);
     }
 
     return 0;
@@ -237,12 +241,21 @@ write_snapshot_data(FastPMStore * p,
 int
 write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * filebase,
+        const char * dataset,
         const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter)
 {
+    CLOCK(meta);
+
     int NTask = fastpm->NTask;
     MPI_Comm comm = fastpm->comm;
+
+    ENTER(meta);
+    fastpm_path_ensure_dirname(filebase);
+    LEAVE(meta);
+
+    MPI_Barrier(comm);
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
@@ -256,7 +269,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     write_snapshot_header(fastpm, p, parameters, &bf, comm);
 
-    write_snapshot_data(p, Nfile, Nwriters, sorter, 0, &bf, comm);
+    write_snapshot_data(p, Nfile, Nwriters, sorter, 0, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
 
@@ -266,12 +279,21 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 int
 append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * filebase,
+        const char * dataset,
         const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter)
 {
+    CLOCK(meta);
+
     int NTask = fastpm->NTask;
     MPI_Comm comm = fastpm->comm;
+
+    ENTER(meta);
+    fastpm_path_ensure_dirname(filebase);
+    MPI_Barrier(comm);
+    LEAVE(meta);
+
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
@@ -285,7 +307,7 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     write_snapshot_header(fastpm, p, parameters, &bf, comm);
 
-    write_snapshot_data(p, Nfile, Nwriters, sorter, 1, &bf, comm);
+    write_snapshot_data(p, Nfile, Nwriters, sorter, 1, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
 
@@ -323,6 +345,8 @@ _radix2(const void * ptr, void * radix, void * arg)
 int
 write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters)
 {
+    CLOCK(meta);
+
     MPI_Comm comm = pm_comm(pm);
     BigFile bf;
     PMKIter kiter;
@@ -331,6 +355,12 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
     }
     int ThisTask;
     int NTask;
+
+    ENTER(meta);
+    fastpm_path_ensure_dirname(filename);
+
+    MPI_Barrier(comm);
+    LEAVE(meta);
 
     MPI_Comm_rank(comm, &ThisTask);
     MPI_Comm_size(comm, &NTask);

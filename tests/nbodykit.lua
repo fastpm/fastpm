@@ -3,7 +3,7 @@
 
 -- For Testing
 nc = 128
-boxsize = 384.0
+boxsize = 128.0
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -39,4 +39,5 @@ write_runpb_snapshot= "nbodykit/tpm"
 write_snapshot= "nbodykit/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "pm/powerspec"
+write_fof = "nbodykit/fof"
 

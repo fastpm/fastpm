@@ -46,7 +46,7 @@ int main(int argc, char * argv[]) {
 
     read_angular_grid(store, "healpix64", r, a, 8, 1, MPI_COMM_WORLD);
 
-    write_snapshot(solver, store, "angulargrid", "", 1, NULL);
+    write_snapshot(solver, store, "angulargrid", "1", "", 1, NULL);
 
     fastpm_store_destroy(store);
     fastpm_solver_destroy(solver);

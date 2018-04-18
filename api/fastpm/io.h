@@ -18,6 +18,7 @@ int
 write_snapshot(FastPMSolver * fastpm,
         FastPMStore * p,
         const char * filebase,
+        const char * dataset,
         const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter
@@ -27,6 +28,7 @@ int
 append_snapshot(FastPMSolver * fastpm,
         FastPMStore * p,
         const char * filebase,
+        const char * dataset,
         const char * parameters,
         int Nwriters,
         FastPMSnapshotSorter sorter
@@ -39,6 +41,7 @@ write_snapshot_data(FastPMStore * p,
         FastPMSnapshotSorter sorter,
         int append,
         BigFile * bf,
+        const char * dataset,
         MPI_Comm comm
 );
 

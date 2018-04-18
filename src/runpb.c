@@ -14,6 +14,8 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/prof.h>
+#include <fastpm/string.h>
 
 #define FILENAME  "%s.%02d"
 
@@ -404,9 +406,16 @@ static void write_mine(const char * filebase,
 int 
 write_runpb_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase)
 {
+    CLOCK(meta);
+
     int ThisTask = fastpm->ThisTask;
     int NTask = fastpm->NTask;
     MPI_Comm comm = fastpm->comm;
+
+    ENTER(meta);
+    fastpm_path_ensure_dirname(filebase);
+    MPI_Barrier(fastpm->comm);
+    LEAVE(meta);
 
     double aa = p->a_x;
 
