@@ -684,7 +684,8 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     CLOCK(io);
     ENTER(fof);
     FastPMFOFFinder fof = {
-        .linkinglength = CONF(prr, fof_linkinglength),
+        /* convert from fraction of mean separation to simulation distance units. */
+        .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
         .nmin = CONF(prr, fof_nmin),
     };
 

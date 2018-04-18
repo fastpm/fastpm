@@ -132,7 +132,7 @@ schema.declare{name='particle_fraction',    type='number', default=1.0, help='Fr
 schema.declare{name='sort_snapshot',    type='boolean', default=true, help='sort snapshots by ID; very large communication is incurred during snapshots.'}
 
 schema.declare{name='write_fof',      type='string', help='Path to save the fof catalog, will be in the FOF-0.200 dataset. (or other linking length).'}
-schema.declare{name='fof_linkinglength',      type='number', default=0.2, help='linking length of FOF'}
+schema.declare{name='fof_linkinglength',      type='number', default=0.2, help='linking length of FOF; in units of particle mean separation.'}
 schema.declare{name='fof_nmin',      type='number', default=20, help='threshold for making into the FOF catalog.'}
 
 schema.declare{name='lc_amin',
