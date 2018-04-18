@@ -131,6 +131,10 @@ schema.declare{name='write_runpb_snapshot', type='string'}
 schema.declare{name='particle_fraction',    type='number', default=1.0, help='Fraction of particles to save in the snapshot (sub-sampling)'}
 schema.declare{name='sort_snapshot',    type='boolean', default=true, help='sort snapshots by ID; very large communication is incurred during snapshots.'}
 
+schema.declare{name='write_fof',      type='string', help='Path to save the fof catalog, will be in the FOF-0.200 dataset. (or other linking length).'}
+schema.declare{name='fof_linkinglength',      type='number', default=0.2, help='linking length of FOF'}
+schema.declare{name='fof_nmin',      type='number', default=20, help='threshold for making into the FOF catalog.'}
+
 schema.declare{name='lc_amin',
             type='number', help='min scale factor for truncation of lightcone.'}
 schema.declare{name='lc_amax',
@@ -157,7 +161,7 @@ schema.declare{name='lc_glmatrix',     type='array:number',
             {1, 0, 0, 0,},
             {0, 1, 0, 0,},
             {0, 0, 1, 0,},
-            {0, 0, 0, 0,},
+            {0, 0, 0, 1,},
         },
         help=[[transformation matrix to move simulation coordinate (x, y, z, 1) to the observer coordinate with a left dot product.
                The observer is sitting at z=0 in the observer coordinate. The last column of the matrix is the translation in Mpc/h.
