@@ -1,7 +1,8 @@
 # bash
 
 produce_source () {
-    xxd -i $1
+    # if xxd is not found, die; most sane systems have xxd.
+    xxd -i $1 || exit 1
 }
 produce_open () {
     local fn=$1
