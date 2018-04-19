@@ -67,8 +67,8 @@ FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
     *((uint64_t*) radix) = p->aemit[0] * (1L << 60L);
 }
 
-static void
-sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
+void
+fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
 {
     int64_t size = p->np;
     int NTask;
@@ -166,7 +166,6 @@ int
 write_snapshot_data(FastPMStore * p,
         int Nfile,
         int Nwriters,
-        FastPMSnapshotSorter sorter,
         int append,
         BigFile * bf,
         const char * dataset,
@@ -177,13 +176,6 @@ write_snapshot_data(FastPMStore * p,
     int64_t size = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
-
-    CLOCK(sort);
-
-    ENTER(sort);
-    if(sorter)
-        sort_snapshot(p, comm, sorter);
-    LEAVE(sort);
 
     struct {
         char * name;
@@ -247,8 +239,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * filebase,
         const char * dataset,
         const char * parameters,
-        int Nwriters,
-        FastPMSnapshotSorter sorter)
+        int Nwriters)
 {
     CLOCK(meta);
 
@@ -273,7 +264,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     write_snapshot_header(fastpm, p, parameters, &bf, comm);
 
-    write_snapshot_data(p, Nfile, Nwriters, sorter, 0, &bf, dataset, comm);
+    write_snapshot_data(p, Nfile, Nwriters, 0, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
 
@@ -285,8 +276,7 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * filebase,
         const char * dataset,
         const char * parameters,
-        int Nwriters,
-        FastPMSnapshotSorter sorter)
+        int Nwriters)
 {
     CLOCK(meta);
 
@@ -311,7 +301,7 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     write_snapshot_header(fastpm, p, parameters, &bf, comm);
 
-    write_snapshot_data(p, Nfile, Nwriters, sorter, 1, &bf, dataset, comm);
+    write_snapshot_data(p, Nfile, Nwriters, 1, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
 

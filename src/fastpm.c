@@ -182,6 +182,8 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     CLOCK(init);
     CLOCK(ic);
     CLOCK(evolve);
+    CLOCK(io);
+    CLOCK(sort);
 
     const double rho_crit = 27.7455;
     const double M0 = CONF(prr, omega_m) * rho_crit
@@ -253,7 +255,13 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
         fastpm_info("%td particles are in the lightcone\n", np);
 
-        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
+        ENTER(sort);
+        fastpm_sort_snapshot(usmesh->p, fastpm->comm, FastPMSnapshotSortByAEmit);
+        LEAVE(sort);
+
+        ENTER(io);
+        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters);
+        LEAVE(io);
 
         /* disable running fof of lc because the lc is not in the periodic box of PM.
          * we'll need a different domain decomposition and that's too much work for now.
@@ -594,6 +602,8 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 static void
 smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata)
 {
+    CLOCK(io);
+    CLOCK(sort);
     FastPMSolver * solver = userdata[0];
     Parameters * prr = userdata[1];
 
@@ -601,13 +611,19 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
 
     char * fn = fastpm_strdup_printf(CONF(prr, lc_write_smesh));
 
+    ENTER(sort);
+    fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit);
+    LEAVE(sort);
+
+    ENTER(io);
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "1", "", 1, FastPMSnapshotSortByAEmit);
+        write_snapshot(solver, lcevent->p, fn, "1", "", 1);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", "", 1, FastPMSnapshotSortByAEmit);
+        append_snapshot(solver, lcevent->p, fn, "1", "", 1);
     }
+    LEAVE(io);
     free(fn);
 }
 
@@ -682,6 +698,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 {
     CLOCK(fof);
     CLOCK(io);
+    CLOCK(sort);
     ENTER(fof);
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
@@ -703,10 +720,14 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
 
+    ENTER(sort);
+    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength);
+    LEAVE(sort);
+
     ENTER(io);
 
     char * dataset = fastpm_strdup_printf("LL-%05.3f", fof.linkinglength);
-    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters, FastPMSnapshotSortByLength);
+    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
 
     free(dataset);
     LEAVE(io);
@@ -721,6 +742,7 @@ static int
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr) 
 {
     CLOCK(io);
+    CLOCK(sort);
 
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
     if(CONF(prr, write_nonlineark)) {
@@ -750,16 +772,17 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
                 filebase, z_out, aout, prr->Nwriters);
 
-        ENTER(io);
-        void * sorter = NULL;
+        ENTER(sort);
         if(CONF(prr, sort_snapshot)) {
             fastpm_info("Snapshot is sorted by ID.\n");
-            sorter = FastPMSnapshotSortByID;
+            fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID);
         } else {
             fastpm_info("Snapshot is not sorted by ID.\n");
-            sorter = NULL;
         }
-        write_snapshot(fastpm, snapshot, filebase, "1", prr->string, prr->Nwriters, sorter);
+        LEAVE(sort);
+
+        ENTER(io);
+        write_snapshot(fastpm, snapshot, filebase, "1", prr->string, prr->Nwriters);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);

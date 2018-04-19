@@ -14,14 +14,16 @@ FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg);
 void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg);
 
+void
+fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter);
+
 int
 write_snapshot(FastPMSolver * fastpm,
         FastPMStore * p,
         const char * filebase,
         const char * dataset,
         const char * parameters,
-        int Nwriters,
-        FastPMSnapshotSorter sorter
+        int Nwriters
     );
 
 int
@@ -30,15 +32,13 @@ append_snapshot(FastPMSolver * fastpm,
         const char * filebase,
         const char * dataset,
         const char * parameters,
-        int Nwriters,
-        FastPMSnapshotSorter sorter
+        int Nwriters
     );
 
 int
 write_snapshot_data(FastPMStore * p,
         int Nfile,
         int Nwriters,
-        FastPMSnapshotSorter sorter,
         int append,
         BigFile * bf,
         const char * dataset,

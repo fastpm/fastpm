@@ -17,10 +17,10 @@ smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver
     char * fn = fastpm_strdup_printf("lightcone_struct");
     if(lcevent->is_first) {
         fastpm_info("First iteration\n");
-        write_snapshot(solver, lcevent->p, fn, "1", "", 1, FastPMSnapshotSortByAEmit);
+        write_snapshot(solver, lcevent->p, fn, "1", "", 1);
     } else {
         fastpm_info("not first iteration\n");
-        append_snapshot(solver, lcevent->p, fn, "1", "", 1, FastPMSnapshotSortByAEmit);
+        append_snapshot(solver, lcevent->p, fn, "1", "", 1);
     }
     free(fn);
 }
@@ -83,7 +83,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_usmesh_intersect(usmesh, &drift, &kick, solver);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
-    write_snapshot(solver, usmesh->p, "lightconeresult-p", "1", "", 1, NULL);
+    write_snapshot(solver, usmesh->p, "lightconeresult-p", "1", "", 1);
 
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
@@ -136,7 +136,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
 
     //write_snapshot(solver, solver->p, "nonlightconeresultZ=0", "", 1, NULL);
-    write_snapshot(solver, usmesh->p, "lightcone-unstruct", "1", "", 1, NULL);
+    write_snapshot(solver, usmesh->p, "lightcone-unstruct", "1", "", 1);
 
     fastpm_remove_event_handler(&solver->event_handlers,
             FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
@@ -162,7 +162,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     double time_step3[] = {0.1};
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
 
-    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "1", "", 1, NULL);
+    write_snapshot(solver, solver->p, "nonlightconeresultZ=9", "1", "", 1);
 
 }
 
