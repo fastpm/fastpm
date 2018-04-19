@@ -142,6 +142,11 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     pgd->ighost_to_ipar = NULL;
 
+    pgd->Nsend = calloc(pm->NTask, sizeof(int));
+    pgd->Osend = calloc(pm->NTask, sizeof(int));
+    pgd->Nrecv = calloc(pm->NTask, sizeof(int));
+    pgd->Orecv = calloc(pm->NTask, sizeof(int));
+
     pm_ghosts_send(pgd, attributes);
 
     return pgd;
@@ -157,11 +162,6 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
     size_t Nsend;
     size_t Nrecv;
     size_t elsize = p->pack(pgd->p, 0, NULL, attributes);
-
-    pgd->Nsend = calloc(pm->NTask, sizeof(int));
-    pgd->Osend = calloc(pm->NTask, sizeof(int));
-    pgd->Nrecv = calloc(pm->NTask, sizeof(int));
-    pgd->Orecv = calloc(pm->NTask, sizeof(int));
 
     pgd->elsize = elsize;
 

@@ -131,6 +131,7 @@ _free_kdtree (KDTree * tree, KDNode * root)
         q = buffer->prev;
         free(buffer);
     }
+    free(pbuffer);
 }
 
 void
