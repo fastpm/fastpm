@@ -255,9 +255,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
         write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters, FastPMSnapshotSortByAEmit);
 
-        char filebase[4096];
-        sprintf(filebase, "%s_lightcone", CONF(prr, write_fof));
-        write_fof(fastpm, usmesh->p, filebase, prr);
+        /* disable running fof of lc because the lc is not in the periodic box of PM.
+         * we'll need a different domain decomposition and that's too much work for now.
+         */
     }
 
     if(smesh)
