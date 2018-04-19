@@ -369,8 +369,7 @@ fastpm_smesh_compute_potential(
     p_last_now->np = mesh->last.p->np;
     p_last_now->x = mesh->last.p->x;
     p_last_now->aemit = mesh->last.p->aemit;
-    fastpm_info("p_last_now->np = %td\n", p_last_now->np);
-
+    
     FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
 
     FastPMPainter reader[1];
@@ -487,8 +486,6 @@ fastpm_smesh_compute_potential(
                     p_new_now->np_upper,
                     p_new_now->attributes,
                     FASTPM_MEMORY_STACK);
-
-    fastpm_info("p_new_now->np = %td\n", p_new_now->np);
 
     fastpm_store_copy(p_new_now, mesh->last.p);
 

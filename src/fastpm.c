@@ -607,7 +607,10 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
     FastPMSolver * solver = userdata[0];
     Parameters * prr = userdata[1];
 
-    fastpm_info("Structured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, lcevent->p->np);
+    int64_t np = lcevent->p->np;
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
+
+    fastpm_info("Structured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
 
     char * fn = fastpm_strdup_printf(CONF(prr, lc_write_smesh));
 
