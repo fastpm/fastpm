@@ -340,8 +340,13 @@ pm_destroy(PM * pm)
     for(d = 0; d < 3; d++) {
         free(pm->MeshtoK[d]);
     }
-}   
 
+    for(d = 0; d < 2; d++) {
+        free(pm->Grid.MeshtoCart[d]);
+        free(pm->Grid.edges_int[d]);
+        free(pm->Grid.edges_float[d]);
+    }
+}
 
 int pm_pos_to_rank(PM * pm, double pos[3]) {
     int d;

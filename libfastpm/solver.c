@@ -187,6 +187,7 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
         }
     }
     fastpm_tevo_destroy_states(states);
+    free(states);
 }
 
 static void
