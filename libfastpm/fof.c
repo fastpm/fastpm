@@ -35,7 +35,7 @@ static
 KDNode *
 _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, double boxsize[])
 {
-    ptrdiff_t * ind = malloc(sizeof(ind[0]) * np);
+    ptrdiff_t * ind = fastpm_memory_alloc(store->mem, sizeof(ind[0]) * np, FASTPM_MEMORY_STACK);
     ptrdiff_t i;
 
     for(i = 0; i < np; i ++) {
@@ -54,7 +54,8 @@ _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, 
     tree->ind_size = np;
     tree->malloc = NULL;
     tree->free = NULL;
-
+    /* the allocator*/
+    tree->userdata = store->mem;
 
     tree->thresh = 1;
 
@@ -63,6 +64,13 @@ _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, 
     KDNode * root = kd_build(tree);
     fastpm_info("Creating KDTree with %td nodes for %td particles\n", tree->size, np);
     return root;
+}
+
+void 
+_free_kdtree (KDTree * tree, KDNode * root)
+{
+    kd_free(root);
+    fastpm_memory_free(tree->userdata, tree->ind);
 }
 
 void
@@ -96,9 +104,7 @@ _fof_local_find(FastPMStore * p, size_t np,
 
     kd_fof(root, linkinglength, head);
 
-    kd_free(root);
-
-    free(tree.ind);
+    _free_kdtree(&tree, root);
 }
 
 static int
@@ -223,15 +229,15 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         );
 
     struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem,
-                    sizeof(fofcomm[0]) * (p->np_upper + 0 * p->np + 0 * pgd->nghosts), FASTPM_MEMORY_HEAP);
+                    sizeof(fofcomm[0]) * (p->np_upper + 0 * p->np + 0 * pgd->nghosts), FASTPM_MEMORY_STACK);
 
     memset(fofcomm, 0, sizeof(fofcomm[0]) * p->np_upper + 0 * p->np + 0 * pgd->nghosts);
 
     struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem,
-                    sizeof(fofsave[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_HEAP);
+                    sizeof(fofsave[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_STACK);
 
     ptrdiff_t * head = fastpm_memory_alloc(p->mem,
-                    sizeof(head[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_HEAP);
+                    sizeof(head[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_STACK);
 
     _fof_local_find(p, p->np + pgd->nghosts, pm_boxsize(pm), head, finder->linkinglength);
 
@@ -339,8 +345,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* redo fof on the new decomposition -- no halo cross two ranks */
     KDNode * root = _create_kdtree(&tree, finder->p, 0, finder->p->np, pm_boxsize(finder->pm));
 
-    ptrdiff_t * head = malloc(sizeof(head[0]) * finder->p->np);
-    ptrdiff_t * offset = malloc(sizeof(offset[0]) * finder->p->np);
+    ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
+    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);
 
     kd_fof(root, finder->linkinglength, head);
 
@@ -448,9 +454,10 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     }
 
-    free(head);
-    kd_free(root);
-    free(tree.ind);
+    fastpm_memory_free(finder->p->mem, offset);
+    fastpm_memory_free(finder->p->mem, head);
+
+    _free_kdtree(&tree, root);
 }
 
 void
