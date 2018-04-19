@@ -70,7 +70,7 @@ struct FastPMStore {
     /* for fof */
     struct FastPMFOFData {
         uint64_t minid;
-        int task;
+        int64_t task; /* to fill up the 8 bytes alignment */
      } * fof;
     int32_t * length;
 

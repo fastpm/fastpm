@@ -81,7 +81,7 @@ _create_kdtree (KDTree * tree, int thresh,
 {
     /* the allocator; started empty. */
     struct KDTreeNodeBuffer ** pbuffer = malloc(sizeof(void*));
-    struct KDTreeNodeBuffer * headbuffer = malloc(sizeof(headbuffer));
+    struct KDTreeNodeBuffer * headbuffer = malloc(sizeof(headbuffer[0]));
     *pbuffer = headbuffer;
     headbuffer->mem = store->mem;
     headbuffer->base = NULL;
@@ -128,8 +128,8 @@ _free_kdtree (KDTree * tree, KDNode * root)
     for(buffer = *pbuffer; buffer; buffer = q) {
         if(buffer->base)
             fastpm_memory_free(buffer->mem, buffer->base);
-        free(buffer);
         q = buffer->prev;
+        free(buffer);
     }
 }
 
@@ -422,7 +422,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(head[i] >= finder->p->np) abort();
         }
 */
-        fastpm_store_init(halos, nhalos, (finder->p->attributes | PACK_LENGTH | PACK_FOF) & ~PACK_ID
+        fastpm_store_init(halos, nhalos, (finder->p->attributes | PACK_LENGTH | PACK_FOF)
+                & ~PACK_ID & ~PACK_ACC
                 , FASTPM_MEMORY_HEAP);
         halos->np = nhalos;
 
@@ -452,7 +453,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                 halos->q[i][d] = 0;
         }
         halos->fof[i].minid = (uint64_t) -1;
-
+        halos->fof[i].task = finder->priv->ThisTask;
     }
     double * boxsize = pm_boxsize(finder->pm);
 
