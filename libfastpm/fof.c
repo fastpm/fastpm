@@ -31,16 +31,69 @@ struct FastPMFOFFinderPrivate {
 /* creating a kdtree struct
  * for store with np particles starting from start.
  * */
+struct KDTreeNodeBuffer {
+    void * mem;
+    void * base;
+    char * ptr;
+    char * end;
+    struct KDTreeNodeBuffer * prev;
+};
+
+static void *
+_kdtree_buffered_malloc(void * userdata, size_t size)
+{
+    struct KDTreeNodeBuffer ** pbuffer = (struct KDTreeNodeBuffer**) userdata;
+
+    struct KDTreeNodeBuffer * buffer = *pbuffer;
+
+    if(buffer->base == NULL || buffer->ptr + size >= buffer->end) {
+        struct KDTreeNodeBuffer * newbuffer = malloc(sizeof(newbuffer[0]));
+        newbuffer->mem = buffer->mem;
+        size_t newsize = 1024 * 1024 * 32; /* 32 MB for each block */
+        if(newsize < size) {
+            newsize = size;
+        }
+        newbuffer->base = fastpm_memory_alloc(buffer->mem, newsize, FASTPM_MEMORY_STACK);
+        newbuffer->ptr = newbuffer->base;
+        newbuffer->end = newbuffer->base + newsize;
+        newbuffer->prev = buffer;
+
+        *pbuffer = newbuffer;
+        buffer = newbuffer;
+    }
+
+    void * r = buffer->ptr;
+    buffer->ptr += size;
+    return r;
+}
+
+static void
+_kdtree_buffered_free(void * userdata, size_t size, void * ptr)
+{
+    /* do nothing; */
+}
+
 static 
 KDNode *
 _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, double boxsize[])
 {
-    ptrdiff_t * ind = fastpm_memory_alloc(store->mem, sizeof(ind[0]) * np, FASTPM_MEMORY_STACK);
+    /* the allocator; started empty. */
+    struct KDTreeNodeBuffer ** pbuffer = malloc(sizeof(void*));
+    struct KDTreeNodeBuffer * headbuffer = malloc(sizeof(headbuffer));
+    *pbuffer = headbuffer;
+    headbuffer->mem = store->mem;
+    headbuffer->base = NULL;
+    headbuffer->prev = NULL;
+
+    ptrdiff_t * ind = _kdtree_buffered_malloc(pbuffer, sizeof(ind[0]) * np);
+
     ptrdiff_t i;
 
     for(i = 0; i < np; i ++) {
         ind[i] = start + i;
     }
+
+    tree->userdata = pbuffer;
 
     tree->input.buffer = (char*) store->x;
     tree->input.dims[0] = np;
@@ -52,10 +105,8 @@ _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, 
 
     tree->ind = ind;
     tree->ind_size = np;
-    tree->malloc = NULL;
-    tree->free = NULL;
-    /* the allocator*/
-    tree->userdata = store->mem;
+    tree->malloc = _kdtree_buffered_malloc;
+    tree->free = _kdtree_buffered_free;
 
     tree->thresh = 1;
 
@@ -70,7 +121,14 @@ void
 _free_kdtree (KDTree * tree, KDNode * root)
 {
     kd_free(root);
-    fastpm_memory_free(tree->userdata, tree->ind);
+    struct KDTreeNodeBuffer * buffer, *q, **pbuffer = tree->userdata;
+
+    for(buffer = *pbuffer; buffer; buffer = q) {
+        if(buffer->base)
+            fastpm_memory_free(buffer->mem, buffer->base);
+        free(buffer);
+        q = buffer->prev;
+    }
 }
 
 void
