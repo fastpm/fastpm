@@ -178,8 +178,12 @@ write_snapshot_data(FastPMStore * p,
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
+    CLOCK(sort);
+
+    ENTER(sort);
     if(sorter)
         sort_snapshot(p, comm, sorter);
+    LEAVE(sort);
 
     struct {
         char * name;
