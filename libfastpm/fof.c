@@ -229,15 +229,15 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         );
 
     struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem,
-                    sizeof(fofcomm[0]) * (p->np_upper + 0 * p->np + 0 * pgd->nghosts), FASTPM_MEMORY_STACK);
+                    sizeof(fofcomm[0]) * (p->np_upper), FASTPM_MEMORY_STACK);
 
-    memset(fofcomm, 0, sizeof(fofcomm[0]) * p->np_upper + 0 * p->np + 0 * pgd->nghosts);
+    memset(fofcomm, 0, sizeof(fofcomm[0]) * p->np_upper);
 
     struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem,
-                    sizeof(fofsave[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_STACK);
+                    sizeof(fofsave[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
 
     ptrdiff_t * head = fastpm_memory_alloc(p->mem,
-                    sizeof(head[0]) * (p->np_upper + pgd->nghosts), FASTPM_MEMORY_STACK);
+                    sizeof(head[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
 
     _fof_local_find(p, p->np + pgd->nghosts, pm_boxsize(pm), head, finder->linkinglength);
 
@@ -259,7 +259,7 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     fastpm_memory_free(p->mem, fofsave);
 
 
-    /* for the assertion below only.*/
+    /* for the assertion below only. need fofcomm to be as long as np_upper. */
     p->fof = fofcomm;
     p->attributes |= PACK_FOF;
 
