@@ -6,6 +6,7 @@ typedef struct {
     int nmin;
     double linkinglength; /* absolute */
     FastPMStore halos[1];
+    int kdtree_thresh;
 
     FastPMStore * p;
     PM * pm;

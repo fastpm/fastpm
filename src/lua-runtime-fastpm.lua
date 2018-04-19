@@ -134,6 +134,7 @@ schema.declare{name='sort_snapshot',    type='boolean', default=true, help='sort
 schema.declare{name='write_fof',      type='string', help='Path to save the fof catalog, will be in the FOF-0.200 dataset. (or other linking length).'}
 schema.declare{name='fof_linkinglength',      type='number', default=0.2, help='linking length of FOF; in units of particle mean separation.'}
 schema.declare{name='fof_nmin',      type='number', default=20, help='threshold for making into the FOF catalog.'}
+schema.declare{name='fof_kdtree_thresh',      type='number', default=8, help='threshold for spliting a kdtree node. KDTree is used in fof. smaller uses more memory but fof runs faster.'}
 
 schema.declare{name='lc_amin',
             type='number', help='min scale factor for truncation of lightcone.'}

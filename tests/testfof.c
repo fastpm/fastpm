@@ -65,6 +65,7 @@ int main(int argc, char * argv[]) {
     FastPMFOFFinder fof = {
         .linkinglength = 0.2,
         .nmin = 32,
+        .kdtree_thresh = 8,
     };
 
     fastpm_fof_init(&fof, solver->p, solver->basepm);

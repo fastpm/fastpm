@@ -687,6 +687,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
         /* convert from fraction of mean separation to simulation distance units. */
         .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
         .nmin = CONF(prr, fof_nmin),
+        .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
     };
 
     fastpm_fof_init(&fof, snapshot, fastpm->basepm);

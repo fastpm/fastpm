@@ -75,7 +75,9 @@ _kdtree_buffered_free(void * userdata, size_t size, void * ptr)
 
 static 
 KDNode *
-_create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, double boxsize[])
+_create_kdtree (KDTree * tree, int thresh,
+     FastPMStore * store, ptrdiff_t start, size_t np,
+    double boxsize[])
 {
     /* the allocator; started empty. */
     struct KDTreeNodeBuffer ** pbuffer = malloc(sizeof(void*));
@@ -108,7 +110,7 @@ _create_kdtree (KDTree * tree, FastPMStore * store, ptrdiff_t start, size_t np, 
     tree->malloc = _kdtree_buffered_malloc;
     tree->free = _kdtree_buffered_free;
 
-    tree->thresh = 1;
+    tree->thresh = thresh;
 
     tree->boxsize = boxsize;
 
@@ -150,13 +152,13 @@ _visit_edge(void * userdata, KDEnumPair * pair)
 */
 
 static void
-_fof_local_find(FastPMStore * p, size_t np,
+_fof_local_find(FastPMFOFFinder * finder, FastPMStore * p, size_t np,
             double boxsize[],
             ptrdiff_t * head, double linkinglength)
 {
     KDTree tree;
 
-    KDNode * root = _create_kdtree(&tree, p, 0, np, boxsize);
+    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, p, 0, np, boxsize);
 
     /* local find */
 
@@ -297,7 +299,7 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     ptrdiff_t * head = fastpm_memory_alloc(p->mem,
                     sizeof(head[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
 
-    _fof_local_find(p, p->np + pgd->nghosts, pm_boxsize(pm), head, finder->linkinglength);
+    _fof_local_find(finder, p, p->np + pgd->nghosts, pm_boxsize(pm), head, finder->linkinglength);
 
     /* initialize minid, used as a global tag of groups as we merge */
     for(i = 0; i < p->np + pgd->nghosts; i ++) {
@@ -401,7 +403,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     KDTree tree;
 
     /* redo fof on the new decomposition -- no halo cross two ranks */
-    KDNode * root = _create_kdtree(&tree, finder->p, 0, finder->p->np, pm_boxsize(finder->pm));
+    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, finder->p, 0, finder->p->np, pm_boxsize(finder->pm));
 
     ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
     ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);
