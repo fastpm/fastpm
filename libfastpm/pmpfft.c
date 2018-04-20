@@ -497,6 +497,29 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
     int NTask;
     MPI_Comm_rank(comm, &ThisTask);
     MPI_Comm_size(comm, &NTask);
+
+    {
+        /* if the send is dense, use MPI_Alltoallv directly. */
+        int i;
+
+        size_t send_requests = 0;
+
+        for(i = 0; i < NTask; i ++) {
+            if(sendcnts[i] > 0) {
+                send_requests ++;
+            }
+        }
+        int dense = send_requests * send_requests > NTask;
+        MPI_Allreduce(MPI_IN_PLACE, &dense, 1, MPI_INT, MPI_SUM, comm);
+        /* dense is number of ranks does a lot of sends. */
+        if (dense * 10 > NTask) {
+            return MPI_Alltoallv(
+                sendbuf, sendcnts, sdispls, sendtype,
+                recvbuf, recvcnts, rdispls, recvtype,
+                comm);
+        } /* else */
+    }
+
     int PTask;
     int ngrp;
 

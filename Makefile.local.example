@@ -23,6 +23,10 @@
 # 
 # CPPFLAGS = -DFASTPM_FFT_PRECISION=32
 
+# on some platforms the domain decomposition
+# can be faster with (craympi adding the flag makes it slower)
+# CPPFLAGS = -DSPARSE_MPI_ALLTOALLV
+
 #
 # Set special LDFLAGS, 
 # e.g if mpicc cannot find MPI libraries
@@ -32,7 +36,7 @@
 
 #
 # Use -O3 for faster code
-#
+
 OPTIMIZE = -O3 -g
 
 GSL_LIBS = -lgsl -lgslcblas
