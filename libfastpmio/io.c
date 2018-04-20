@@ -68,7 +68,7 @@ FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
 }
 
 void
-fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter)
+fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter, int redistribute)
 {
     int64_t size = p->np;
     int NTask;
@@ -81,11 +81,15 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     size_t elsize = p->pack(p, 0, NULL, p->attributes);
     size_t localsize = size * (ThisTask + 1) / NTask - size * ThisTask / NTask;
 
-    int broken = localsize > p->np_upper;
-    MPI_Allreduce(MPI_IN_PLACE, &broken, 1, MPI_INT, MPI_LOR, comm);
-    /* fall back to the original decomposition, because we are oom. */
-    if(broken)
+    if(redistribute) {
+        int broken = localsize > p->np_upper;
+        MPI_Allreduce(MPI_IN_PLACE, &broken, 1, MPI_INT, MPI_LOR, comm);
+        if(broken)
+            fastpm_raise(-1, "redistribution is requested in sorting, but the store is not large enough: %td < %td\n", p->np_upper, localsize);
+    } else {
         localsize = p->np;
+    }
+
     void * send_buffer = malloc(elsize * p->np);
     void * recv_buffer = malloc(elsize * localsize);
     ptrdiff_t i;

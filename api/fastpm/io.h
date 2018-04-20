@@ -15,7 +15,7 @@ void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg);
 
 void
-fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter);
+fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter, int redistribute);
 
 int
 write_snapshot(FastPMSolver * fastpm,

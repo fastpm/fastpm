@@ -256,7 +256,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         fastpm_info("%td particles are in the lightcone\n", np);
 
         ENTER(sort);
-        fastpm_sort_snapshot(usmesh->p, fastpm->comm, FastPMSnapshotSortByAEmit);
+        fastpm_sort_snapshot(usmesh->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
         LEAVE(sort);
 
         ENTER(io);
@@ -616,17 +616,21 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
     char * fn = fastpm_strdup_printf(CONF(prr, lc_write_smesh));
 
     ENTER(sort);
-    fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit);
+    fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
 
     ENTER(io);
+//    char * dataset = fastpm_strdup_printf("%6.4f-%6.4f", lcevent->a0, lcevent->a1);
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "1", "", 1);
+        write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+//        write_snapshot(solver, lcevent->p, fn, dataset, "", 1);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", "", 1);
+        append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+//        write_snapshot(solver, lcevent->p, fn, dataset, "", 1);
     }
+//    free(dataset);
     LEAVE(io);
     free(fn);
 }
@@ -725,7 +729,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
 
     ENTER(sort);
-    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength);
+    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
     LEAVE(sort);
 
     ENTER(io);
@@ -779,7 +783,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         ENTER(sort);
         if(CONF(prr, sort_snapshot)) {
             fastpm_info("Snapshot is sorted by ID.\n");
-            fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID);
+            fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 1);
         } else {
             fastpm_info("Snapshot is not sorted by ID.\n");
         }

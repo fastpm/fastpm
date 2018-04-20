@@ -595,18 +595,21 @@ fastpm_store_decompose(FastPMStore * p,
     void * recv_buffer = fastpm_memory_alloc(p->mem, elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
     p->np -= Nsend;
+
     for(i = 0; i < Nsend; i ++) {
         p->pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
     }
 
-
     MPI_Datatype PTYPE;
     MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
     MPI_Type_commit(&PTYPE);
+
+    
     MPI_Alltoallv_sparse(
             send_buffer, sendcount, sendoffset, PTYPE,
             recv_buffer, recvcount, recvoffset, PTYPE,
             comm);
+
     MPI_Type_free(&PTYPE);
 
     if(p->np + Nrecv > p->np_upper) {
