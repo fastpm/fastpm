@@ -279,12 +279,9 @@ fastpm_smesh_layer_select_active(
         }
     }
 
-    fastpm_info("Points requested np_upper (%d * %d > %td), a0 = %g a1 = %g, layer->vec[0][0] = %g\n",
-                Na, layer->Nxy, q->np_upper, a0, a1, layer->vec[0][0]);
-
     if((size_t) Na * (size_t) layer->Nxy + q->np >= q->np_upper) {
-        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g, layer->vec[0][0] = %g\n",
-                Na, layer->Nxy, q->np_upper, a0, a1, layer->vec[0][0]);
+        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
+                Na, layer->Nxy, q->np_upper, a0, a1);
     }
 
     size_t j = 0;
