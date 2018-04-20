@@ -279,8 +279,12 @@ fastpm_smesh_layer_select_active(
         }
     }
 
+    fastpm_info("Points requested np_upper (%d * %d > %td), a0 = %g a1 = %g, layer->vec[0][0] = %g\n",
+                Na, layer->Nxy, q->np_upper, a0, a1, layer->vec[0][0]);
+
     if((size_t) Na * (size_t) layer->Nxy + q->np >= q->np_upper) {
-        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td)\n", Na, layer->Nxy, q->np_upper);
+        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g, layer->vec[0][0] = %g\n",
+                Na, layer->Nxy, q->np_upper, a0, a1, layer->vec[0][0]);
     }
 
     size_t j = 0;
@@ -370,50 +374,58 @@ fastpm_smesh_compute_potential(
     p_last_now->x = mesh->last.p->x;
     p_last_now->aemit = mesh->last.p->aemit;
     
-    FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
+    int64_t np = p_last_now->np + p_new_now->np;
 
-    FastPMPainter reader[1];
-    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, pm_comm(pm));
+
+    if(np > 0) {
+        fastpm_info("Computing potential for %ld mesh points\n", np);
+        FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
+
+        FastPMPainter reader[1];
+        fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
 
 
-    /*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
+        /*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
 
-    int d;
-    enum FastPMPackFields ACC[] = {
-                 PACK_DENSITY,
-                 PACK_POTENTIAL,
-                 PACK_TIDAL_XX, PACK_TIDAL_YY, PACK_TIDAL_ZZ,
-                 PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
-                };
+        int d;
+        enum FastPMPackFields ACC[] = {
+                     PACK_DENSITY,
+                     PACK_POTENTIAL,
+                     PACK_TIDAL_XX, PACK_TIDAL_YY, PACK_TIDAL_ZZ,
+                     PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
+                    };
 
-    PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, PACK_POS, NULL);
-    PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, PACK_POS, NULL);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, PACK_POS, NULL);
+        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, PACK_POS, NULL);
 
-    for(d = 0; d < 8; d ++) {
-        CLOCK(transfer);
-        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
-        LEAVE(transfer);
+        for(d = 0; d < 8; d ++) {
+            CLOCK(transfer);
+            gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
+            LEAVE(transfer);
 
-        CLOCK(c2r);
-        pm_c2r(pm, canvas);
-        LEAVE(c2r);
+            CLOCK(c2r);
+            pm_c2r(pm, canvas);
+            LEAVE(c2r);
 
-        CLOCK(readout);
-        fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np + pgd_last_now->nghosts, NULL, ACC[d]);
-        fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np + pgd_new_now->nghosts, NULL, ACC[d]);
-        LEAVE(readout);
+            CLOCK(readout);
+            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np + pgd_last_now->nghosts, NULL, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np + pgd_new_now->nghosts, NULL, ACC[d]);
+            LEAVE(readout);
 
-        CLOCK(reduce);
-        pm_ghosts_reduce(pgd_last_now, ACC[d]);
-        pm_ghosts_reduce(pgd_new_now, ACC[d]);
-        LEAVE(reduce);
+            CLOCK(reduce);
+            pm_ghosts_reduce(pgd_last_now, ACC[d]);
+            pm_ghosts_reduce(pgd_new_now, ACC[d]);
+            LEAVE(reduce);
+
+        }
+
+        pm_ghosts_free(pgd_new_now);
+        pm_ghosts_free(pgd_last_now);
+
+        pm_free(pm, canvas);
 
     }
-
-    pm_ghosts_free(pgd_new_now);
-    pm_ghosts_free(pgd_last_now);
-
-    pm_free(pm, canvas);
 
     /* last.a_f is when the potential is last updated */
     double G_then = HorizonGrowthFactor(mesh->last.a_f, mesh->lc->horizon);
