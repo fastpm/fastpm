@@ -216,7 +216,7 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
 
         /* round to nearest power of 2 */
         nside[i] = 1L << (int64_t) (log2(v) + 0.5);
-        if(nside[i] > maxnside) {
+        if(maxnside > 0 && nside[i] > maxnside) {
             nside[i] = maxnside;
         }
     }
