@@ -107,7 +107,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_smesh_add_layers_healpix(smesh, 
             pow(solver->config->nc / solver->config->boxsize, 2),
             pow(solver->config->nc / solver->config->boxsize, 3),
-            0.4, 0.8,
+            0.4, 0.8, 128,
             solver->comm);
 //    fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
 //    fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);

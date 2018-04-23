@@ -187,7 +187,7 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
 void
 fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
         double surface_density, double volume_density,
-        double amin, double amax,
+        double amin, double amax, int maxnside,
         MPI_Comm comm)
 {
 
@@ -215,6 +215,9 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
 
         /* round to nearest power of 2 */
         nside[i] = 1L << (int64_t) (log2(v) + 0.5);
+        if(nside[i] > maxnside) {
+            nside[i] = maxnside;
+        }
     }
 
     int j = 0;

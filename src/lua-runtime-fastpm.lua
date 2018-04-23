@@ -158,6 +158,9 @@ schema.declare{name='lc_write_smesh',
 schema.declare{name='lc_smesh_fraction', default=1.0,
              type='number', help='subsampling factor of the structured mesh. The number density of smesh points is kept to factor**3 times particle number density.'}
 
+schema.declare{name='lc_smesh_max_nside', default=0,
+             type='number', help='max nside to use in spherical mode. '}
+
 schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
 schema.declare{name='lc_fov',     type='number', default=0.0, help=' field of view of the sky in degrees. 0 for flat sky and 360 for full sky. The beam is along the z-direction after glmatrix.'}
 schema.declare{name='lc_glmatrix',     type='array:number',

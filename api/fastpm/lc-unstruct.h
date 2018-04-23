@@ -120,7 +120,7 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
 void
 fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
         double surface_density, double volume_density,
-        double amin, double amax,
+        double amin, double amax, int maxnside,
         MPI_Comm comm);
 
 void
