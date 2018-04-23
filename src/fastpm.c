@@ -734,7 +734,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     ENTER(io);
 
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", fof.linkinglength);
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
     write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
 
     free(dataset);
