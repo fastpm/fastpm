@@ -29,6 +29,8 @@ typedef struct FastPMUSMesh {
 typedef struct FastPMSMesh {
     FastPMLightCone * lc;
 
+    double smoothing;
+
     struct FastPMSMeshLayer {
         enum {
             FASTPM_SMESH_SPHERE,
@@ -96,7 +98,7 @@ void
 fastpm_lc_destroy(FastPMLightCone * lc);
 
 void
-fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper);
+fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, double smoothing);
 
 void
 fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,

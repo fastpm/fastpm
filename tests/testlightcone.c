@@ -52,7 +52,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init(smesh, lc, solver->p->np_upper);
+    fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
     fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
     fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
 
@@ -103,7 +103,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init(smesh, lc, solver->p->np_upper);
+    fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
     fastpm_smesh_add_layers_healpix(smesh, 
             pow(solver->config->nc / solver->config->boxsize, 2),
             pow(solver->config->nc / solver->config->boxsize, 3),

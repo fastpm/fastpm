@@ -21,12 +21,13 @@ fill_a(FastPMSMesh * mesh, double * a, int Na,
        double zmin, double zmax);
 
 void
-fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper)
+fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, double smoothing)
 {
     mesh->event_handlers = NULL;
     mesh->lc = lc;
     mesh->np_upper = np_upper;
     mesh->layers = NULL;
+    mesh->smoothing = smoothing;
     fastpm_store_init(mesh->last.p, 0,
               PACK_POS
             | PACK_POTENTIAL
@@ -344,7 +345,8 @@ fastpm_smesh_compute_potential(
         FastPMGravity * gravity,
         FastPMFloat * delta_k,
         double a_f,
-        double a_n)
+        double a_n
+)
 {
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
@@ -402,6 +404,11 @@ fastpm_smesh_compute_potential(
         for(d = 0; d < 8; d ++) {
             CLOCK(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
+
+            if(ACC[d] == PACK_DENSITY) {
+                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
+            }
+
             LEAVE(transfer);
 
             CLOCK(c2r);
