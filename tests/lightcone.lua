@@ -38,12 +38,13 @@ np_alloc_factor= 8.0      -- Amount of memory allocated for particle
 
 -- Dark matter particle outputs (all particles)
 -- write_runpb_snapshot= "nbodykit/tpm"
-write_snapshot= "lightcone/fastpm" 
+write_snapshot = "lightcone/fastpm" 
+write_fof = "lightcone/fof"
 -- 1d power spectrum (raw), without shotnoise correction
 
 dh_factor = 0.01
 lc_fov = 0
---lc_fov = 0
+lc_fov = 361
 
 --s =[[glmatrix = { 
 --        {1, 0, 0, -128},
@@ -61,11 +62,3 @@ lc_amax = 1.0
 -- lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
 lc_write_usmesh = "lightcone/usmesh"
 lc_write_smesh = "lightcone/smesh"
-
-lc_smesh1_nside = 32
-lc_smesh2_nside = 32
-
-lc_smesh1_a = linspace(0.4, 0.8, 64, false)
-lc_smesh2_a = linspace(0.8, 1.0, 128, true)
-
-

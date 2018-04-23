@@ -3,14 +3,14 @@
 
 -- For Testing
 nc = 128
-boxsize = 128.0
+boxsize = 384.0
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.1, 1, 10)
+time_step = linspace(0.1, 1, 2)
 
 output_redshifts= {0.0}  -- redshifts of output
 
@@ -24,7 +24,8 @@ h       = 0.6774
 read_powerspectrum= "powerspec.txt"
 linear_density_redshift = 0.0 -- the redshift of the linear density field.
 random_seed= 100
-
+particle_fraction = 0.1
+--
 -------- Approximation Method ---------------
 force_mode = "fastpm"
 
