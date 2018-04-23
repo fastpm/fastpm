@@ -139,4 +139,3 @@ _mkdir(const char *dir)
     mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
 }
 
-

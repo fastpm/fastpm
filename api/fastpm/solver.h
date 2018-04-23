@@ -167,7 +167,6 @@ void
 fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * po,
-                double particle_fraction,
                 double aout);
 
 FASTPM_END_DECLS

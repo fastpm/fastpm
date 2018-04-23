@@ -19,6 +19,7 @@ enum FastPMPackFields {
     PACK_TIDAL     =  1L << 10,
     PACK_FOF =  1L << 11,
     PACK_LENGTH =  1L << 12,
+    PACK_MASK    =  1L << 13,
 
 
     PACK_ACC_X =  1L << 20,
@@ -66,6 +67,7 @@ struct FastPMStore {
     float (* potential);
     float (* tidal)[6];
     uint64_t * id;
+    uint8_t * mask;
 
     /* for fof */
     struct FastPMFOFData {
@@ -114,7 +116,12 @@ void fastpm_store_read(FastPMStore * p, char * datasource);
 void fastpm_store_write(FastPMStore * p, char * datasource);
 
 void
-fastpm_store_create_subsample(FastPMStore * out, FastPMStore * in, int mod, int nc);
+fastpm_store_fill_subsample_mask(FastPMStore * p,
+        double fraction,
+        MPI_Comm comm);
+
+void
+fastpm_store_subsample(FastPMStore * in, FastPMStore * out);
 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);

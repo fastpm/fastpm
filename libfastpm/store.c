@@ -2,6 +2,7 @@
 
 #include <mpi.h>
 #include <pfft.h>
+#include <gsl/gsl_rng.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
@@ -48,6 +49,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_MASK, mask)
     DISPATCH(PACK_LENGTH, length)
     DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
@@ -111,6 +113,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_POS, x)
     DISPATCH(PACK_VEL, v)
     DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_MASK, mask)
     DISPATCH(PACK_LENGTH, length)
     DISPATCH(PACK_DENSITY, rho)
     DISPATCH(PACK_POTENTIAL, potential)
@@ -322,6 +325,11 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attrib
     else
         p->id = NULL;
 
+    if(attributes & PACK_MASK)
+        p->mask = fastpm_memory_alloc(p->mem, sizeof(p->mask[0]) * np_upper, loc);
+    else
+        p->mask = NULL;
+
     if(attributes & PACK_LENGTH)
         p->length = fastpm_memory_alloc(p->mem, sizeof(p->length[0]) * np_upper, loc);
     else
@@ -407,6 +415,8 @@ fastpm_store_destroy(FastPMStore * p)
         fastpm_memory_free(p->mem, p->fof);
     if(p->attributes & PACK_LENGTH)
         fastpm_memory_free(p->mem, p->length);
+    if(p->attributes & PACK_MASK)
+        fastpm_memory_free(p->mem, p->mask);
     if(p->attributes & PACK_ID)
         fastpm_memory_free(p->mem, p->id);
     if(p->attributes & PACK_VEL)
@@ -445,6 +455,8 @@ static void fastpm_store_permute(FastPMStore * p, int * ind) {
         permute(p->v, p->np, sizeof(p->v[0]), ind);
     if(p->id)
         permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->mask)
+        permute(p->mask, p->np, sizeof(p->mask[0]), ind);
     if(p->fof)
         permute(p->fof, p->np, sizeof(p->fof[0]), ind);
     if(p->potential)
@@ -678,6 +690,8 @@ fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double * shift, p
 
                 if(p->id) p->id[ptr]  = id;
 
+                if(p->mask) p->mask[ptr] = 0;
+
                 /* set q if it is allocated. */
                 if(p->q) p->q[ptr][d] = p->x[ptr][d];
             }
@@ -743,6 +757,7 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
     if(po->dx1) memcpy(po->dx1, p->dx1, sizeof(p->dx1[0][0]) * 3 * p->np);
     if(po->dx2) memcpy(po->dx2, p->dx2, sizeof(p->dx2[0][0]) * 3 * p->np);
     if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
+    if(po->mask) memcpy(po->mask, p->mask, sizeof(p->mask[0]) * p->np);
     if(po->aemit) memcpy(po->aemit, p->aemit, sizeof(p->aemit[0]) * p->np);
     if(po->potential) memcpy(po->potential, p->potential, sizeof(p->potential[0]) * p->np);
     if(po->rho) memcpy(po->rho, p->rho, sizeof(p->potential[0]) * p->np);
@@ -755,36 +770,63 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
 }
 
 void
-fastpm_store_create_subsample(FastPMStore * po, FastPMStore * p, int mod, int nc)
+fastpm_store_fill_subsample_mask(FastPMStore * p,
+        double fraction,
+        MPI_Comm comm)
+{
+    gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
+
+    /* set uncorrelated seeds */
+    double seed=1231584; //FIXME: set this properly.
+    gsl_rng_set(random_generator, seed);
+    int d;
+
+    for(d = 0; d < ThisTask * 8; d++) {
+        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
+    }
+
+    gsl_rng_set(random_generator, seed);
+
+    memset(p->mask, 0, p->np);
+
+    ptrdiff_t i;
+    for(i=0; i < p->np; i++) {
+        double rand_i = gsl_rng_uniform(random_generator);
+        int flag = fraction > 1 || rand_i <= fraction;
+        p->mask[i] = flag;
+    }
+
+    gsl_rng_free(random_generator);
+}
+
+void
+fastpm_store_subsample(FastPMStore * p, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;
     j = 0;
 
     for(i = 0; i < p->np; i ++) {
-        uint64_t id = p->id[i];
-//        double r = fastpm_utils_get_random(id);
-//        if(id % mod != 0) continue;
-//        if(r * mod > 1) continue;
-        if((id % nc) % mod != 0) continue;
-        id /= nc;
-        if((id % nc) % mod != 0) continue;
-        id /= nc;
-        if((id % nc) % mod != 0) continue;
-
-        if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);
-        if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0][0]) * 3);
-        if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0][0]) * 3);
-        if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0][0]) * 3);
-        if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0][0]) * 3);
-        if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0][0]) * 3);
-        if(po->id) po->id[j] = p->id[i];
-        if(po->aemit) po->aemit[j] = p->aemit[i];
-        if(po->potential) po->potential[j] = p->potential[i];
-        if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0][0]) * 6);
+        if(!p->mask[i]) continue;
+        /* avoid memcpy of same address if we are doing subsample inplace */
+        if(p != po || j != i) {
+            if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);
+            if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0][0]) * 3);
+            if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0][0]) * 3);
+            if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0][0]) * 3);
+            if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0][0]) * 3);
+            if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0][0]) * 3);
+            if(po->id) po->id[j] = p->id[i];
+            if(po->mask) po->mask[j] = p->mask[i];
+            if(po->aemit) po->aemit[j] = p->aemit[i];
+            if(po->potential) po->potential[j] = p->potential[i];
+            if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0][0]) * 6);
+        }
         j ++;
     }
-    po->np = j; 
+    po->np = j;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
 }

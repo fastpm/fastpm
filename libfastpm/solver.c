@@ -4,7 +4,6 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
-#include <gsl/gsl_rng.h>
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
@@ -58,7 +57,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->p = malloc(sizeof(FastPMStore));
 
     fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-          PACK_POS | PACK_VEL | PACK_ID
+          PACK_POS | PACK_VEL | PACK_ID | PACK_MASK
         | PACK_DX1 | PACK_DX2 | PACK_ACC
         | (config->SAVE_Q?PACK_Q:0)
         | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0),
@@ -390,7 +389,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
-                double particle_fraction,
                 double aout)
 {
     FastPMStore * p = fastpm->p;
@@ -402,37 +400,23 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
 
     fastpm_drift_store(drift, p, po, aout);
 
-    gsl_rng* random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+    ptrdiff_t i;
 
-    /* set uncorrelated seeds */
-    double seed=1231584; //FIXME: set this properly.
-    gsl_rng_set(random_generator, seed);
-    int d;
-    for(d = 0; d < pm->ThisTask * 8; d++) {
-        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
-    }
-
-    gsl_rng_set(random_generator, seed);
-
-
-    int i,npo=0;
-    double rand_i;
     /* potfactor converts fastpm Phi to dimensionless */
     double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
+
 #pragma omp parallel for
     for(i=0; i<np; i++) {
-        if (particle_fraction<1)
-        {
-            rand_i=gsl_rng_uniform(random_generator);
-            if (rand_i>particle_fraction)
-            continue;
-        }
-        //int d;
+
+        int d;
         for(d = 0; d < 3; d ++) {
             /* convert the unit from a**2 dx/dt / H0 in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= HubbleConstant / aout;
         }
+
         po->id[i] = p->id[i];
+        po->mask[i] = p->mask[i];
+
         /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
         if(po->potential)
             po->potential[i] = p->potential[i] / aout * potfactor;
@@ -441,10 +425,9 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 po->tidal[i][d] = p->tidal[i][d] / aout * potfactor;
             }
         }
-        npo++;
     }
 
-    po->np = npo;
+    po->np = p->np;
     po->a_x = po->a_v = aout;
 
     fastpm_store_wrap(po, pm->BoxSize);
