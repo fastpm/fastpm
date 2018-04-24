@@ -29,7 +29,8 @@ fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, dou
     mesh->layers = NULL;
     mesh->smoothing = smoothing;
     fastpm_store_init(mesh->last.p, 0,
-              PACK_POS
+              PACK_ID
+            | PACK_POS
             | PACK_POTENTIAL
             | PACK_DENSITY
             | PACK_TIDAL

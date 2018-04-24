@@ -313,6 +313,7 @@ fastpm_utils_healpix_ra_dec (
         theta*= rad_to_degree;
         (*ra)[i] = phi;
         (*dec)[i]= 90 - theta;
+        recv_buffer[i] += (((uint64_t)nside) << 48);
     }
     *n = localsize;
     *pix = recv_buffer;
