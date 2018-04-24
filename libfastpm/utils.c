@@ -233,6 +233,7 @@ fastpm_utils_healpix_ra_dec (
                 int nside,
                 double **ra,
                 double **dec,
+                uint64_t **pix,
                 size_t * n,
                 double fov,
                 MPI_Comm comm
@@ -314,7 +315,7 @@ fastpm_utils_healpix_ra_dec (
         (*dec)[i]= 90 - theta;
     }
     *n = localsize;
-    free(recv_buffer);
+    *pix = recv_buffer;
 }
 
 void

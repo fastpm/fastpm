@@ -144,7 +144,7 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
 
 void
 fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
-        double * ra, double * dec, size_t Nxy,
+        double * ra, double * dec, uint64_t * pix, size_t Nxy,
         double * a, size_t Na)
 {
     struct FastPMSMeshLayer * layer = fastpm_smesh_add_layer_common(mesh, a, Na);
@@ -157,6 +157,7 @@ fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
     layer->vec = malloc(sizeof(double) * Nxy * 3);
     layer->ra = malloc(sizeof(double) * Nxy);
     layer->dec = malloc(sizeof(double) * Nxy);
+    layer->pix = malloc(sizeof(uint64_t) * Nxy);
 
     for(i = 0; i < Nxy; i ++) {
         layer->vec[i][0] = cos(dec[i] / rad_to_degree) * cos(ra[i] / rad_to_degree);
@@ -164,6 +165,7 @@ fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         layer->vec[i][2] = sin(dec[i] / rad_to_degree);
         layer->ra[i] = ra[i];
         layer->dec[i] = dec[i];
+        layer->pix[i] = pix[i];
     }
 }
 
@@ -173,14 +175,16 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
         double * a, size_t Na, MPI_Comm comm)
 {
     double *ra, *dec;
+    uint64_t * pix;
     size_t npix;
 
-    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &npix, mesh->lc->fov, comm);
+    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &pix, &npix, mesh->lc->fov, comm);
 
-    fastpm_smesh_add_layer_sphere(mesh, ra, dec, npix, a, Na);
+    fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, npix, a, Na);
 
     free(ra);
     free(dec);
+    free(pix);
 }
 
 /* automatically add healpix layers with roughly the correct
@@ -230,12 +234,14 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
         /* nside[i] != nside[j]; j ... i - 1 (inclusive) has the same nside */
         fastpm_info("Creating smesh for Nside = %04td arange %6.4f - %6.4f\n", nside[j], a[j], a[i - 1]);
         double *ra, *dec;
+        uint64_t * pix;
         size_t npix;
 
-        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &npix, mesh->lc->fov, comm);
+        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &pix, &npix, mesh->lc->fov, comm);
 
-        fastpm_smesh_add_layer_sphere(mesh, ra, dec, npix, &a[j], i - j);
+        fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, npix, &a[j], i - j);
 
+        free(pix);
         free(ra);
         free(dec);
         j = i;
@@ -311,6 +317,7 @@ fastpm_smesh_layer_select_active(
                         x_temp[0] = layer->vec[j][0] * layer->z[k];
                         x_temp[1] = layer->vec[j][1] * layer->z[k];
                         x_temp[2] = layer->vec[j][2] * layer->z[k];
+                        q->id[q->np] = layer->pix[j];
                         break;
                 }
                 /* transform to simulation coordinates */
@@ -355,7 +362,8 @@ fastpm_smesh_compute_potential(
     FastPMStore p_last_now[1];
 
     fastpm_store_init(p_new_now, mesh->np_upper,
-              PACK_POS
+              PACK_ID
+            | PACK_POS
             | PACK_POTENTIAL
             | PACK_DENSITY
             | PACK_TIDAL
@@ -371,11 +379,12 @@ fastpm_smesh_compute_potential(
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
     fastpm_store_init(p_last_now, mesh->np_upper,
-                    mesh->last.p->attributes & ~ PACK_POS & ~ PACK_AEMIT,
+                    mesh->last.p->attributes & ~ PACK_POS & ~ PACK_AEMIT & ~ PACK_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
                     );
     p_last_now->np = mesh->last.p->np;
+    p_last_now->id = mesh->last.p->id;
     p_last_now->x = mesh->last.p->x;
     p_last_now->aemit = mesh->last.p->aemit;
     

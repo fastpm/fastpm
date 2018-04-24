@@ -41,6 +41,7 @@ typedef struct FastPMSMesh {
             struct {
                 double * ra;
                 double * dec;
+                uint64_t * pix;
                 double (* vec)[3];
             };
             struct {
@@ -111,7 +112,7 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
         double amin, double amax);
 void
 fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
-        double * ra, double * dec, size_t Npix,
+        double * ra, double * dec, uint64_t * pix, size_t Npix,
         double * a, size_t Na);
 
 void
