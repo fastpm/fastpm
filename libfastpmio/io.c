@@ -719,8 +719,16 @@ write_aemit_hist(const char * filebase, const char * dataset,
     for(i = 0; i < nbins + 2; i ++) {
         hist[i] += oldhist[i];
     }
+
+    oldhist[0] = hist[0];
+    for(i = 1; i < nbins + 2; i ++) {
+        oldhist[i] = oldhist[i - 1] + hist[i];
+    }
     big_block_remove_attr(&bb, "aemitIndex.N");
     big_block_set_attr(&bb, "aemitIndex.N", hist, "i8", nbins + 2);
+
+    big_block_remove_attr(&bb, "aemitIndex.offset");
+    big_block_set_attr(&bb, "aemitIndex.offset", oldhist, "i8", nbins + 2);
 
     /* make sure no one is flushing attr before any other tries to read */
     MPI_Barrier(comm);
