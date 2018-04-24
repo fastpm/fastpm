@@ -214,8 +214,11 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
 
         double v = sqrt(4 * M_PI / 12 * surface_density) * z;
 
+        if(v < 1.0) v = 1.0;
+
         /* round to nearest power of 2 */
         nside[i] = 1L << (int64_t) (log2(v) + 0.5);
+
         if(maxnside > 0 && nside[i] > maxnside) {
             nside[i] = maxnside;
         }
@@ -225,7 +228,7 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
     for(i = 1; i <= Na; i ++) {
         if(nside[i] == nside[j] && i != Na) continue;
         /* nside[i] != nside[j]; j ... i - 1 (inclusive) has the same nside */
-
+        fastpm_info("Creating smesh for Nside = %04td arange %6.4f - %6.4f\n", nside[j], a[j], a[i - 1]);
         double *ra, *dec;
         size_t npix;
 

@@ -67,5 +67,11 @@ read_angular_grid(FastPMStore * store,
         int sampling_factor,
         MPI_Comm comm);
 
+void
+write_aemit_hist(const char * fn, const char * ds,
+            FastPMStore * p,
+            double amin, double amax, size_t nbins,
+            MPI_Comm comm);
+
 FASTPM_END_DECLS
 #endif

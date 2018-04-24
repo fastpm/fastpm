@@ -124,6 +124,13 @@ void
 fastpm_store_subsample(FastPMStore * in, FastPMStore * out);
 
 void
+fastpm_store_histogram_aemit(FastPMStore * store,
+        ptrdiff_t * hist,
+        double * edges,
+        size_t nbins,
+        MPI_Comm comm);
+
+void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);

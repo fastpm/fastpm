@@ -831,3 +831,46 @@ fastpm_store_subsample(FastPMStore * p, FastPMStore * po)
     po->a_v = p->a_v;
 }
 
+
+static ptrdiff_t
+binary_search(double foo, double a[], size_t n) {
+    ptrdiff_t left = 0, right = n;
+    ptrdiff_t mid;
+    /* find the right side, because hist would count the number < edge, not <= edge */
+    if(a[left] > foo) {
+        return 0;
+    }
+    if(a[right - 1] <= foo) {
+        return n;
+    }
+    while(right - left > 1) {
+        mid = left + ((right - left - 1) >> 1);
+        double pivot = a[mid];
+        if(pivot > foo) {
+            right = mid + 1;
+            /* a[right - 1] > foo; */
+        } else {
+            left = mid + 1;
+            /* a[left] <= foo; */
+        }
+    }
+    return left;
+}
+
+void
+fastpm_store_histogram_aemit(FastPMStore * store,
+        ptrdiff_t * hist,
+        double * edges,
+        size_t nbins,
+        MPI_Comm comm)
+{
+    ptrdiff_t i;
+
+    memset(hist, 0, sizeof(ptrdiff_t) * (nbins + 2));
+
+    for(i = 0; i < store->np; i ++) {
+        int ibin = binary_search(store->aemit[i], edges, nbins + 1);
+        hist[ibin] ++;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, hist, nbins + 2, MPI_LONG, MPI_SUM, comm);
+}

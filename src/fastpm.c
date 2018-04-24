@@ -614,6 +614,8 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
 {
     CLOCK(io);
     CLOCK(sort);
+    CLOCK(indexing);
+
     FastPMSolver * solver = userdata[0];
     Parameters * prr = userdata[1];
 
@@ -629,18 +631,22 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
     LEAVE(sort);
 
     ENTER(io);
-//    char * dataset = fastpm_strdup_printf("%6.4f-%6.4f", lcevent->a0, lcevent->a1);
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
-//        write_snapshot(solver, lcevent->p, fn, dataset, "", 1);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
-//        write_snapshot(solver, lcevent->p, fn, dataset, "", 1);
     }
-//    free(dataset);
+
     LEAVE(io);
+    ENTER(indexing);
+    double amin = CONF(prr, lc_amin);
+    double amax = CONF(prr, lc_amax);
+
+    write_aemit_hist(fn, "Header", lcevent->p, amin, amax, 128, solver->comm);
+    LEAVE(indexing);
+
     free(fn);
 }
 

@@ -299,11 +299,9 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
     if (Nfile == 0) Nfile = 1;
 
     BigFile bf;
-    if(0 != big_file_mpi_create(&bf, filebase, comm)) {
+    if(0 != big_file_mpi_open(&bf, filebase, comm)) {
         fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
     }
-
-    write_snapshot_header(fastpm, p, parameters, &bf, comm);
 
     write_snapshot_data(p, Nfile, Nwriters, 1, &bf, dataset, comm);
 
@@ -673,3 +671,65 @@ read_angular_grid(FastPMStore * store,
 
     return 0;
 }
+
+void
+write_aemit_hist(const char * filebase, const char * dataset,
+            FastPMStore * p,
+            double amin, double amax, size_t nbins,
+            MPI_Comm comm)
+{
+    BigFile bf;
+    BigBlock bb;
+
+    if(0 != big_file_mpi_open(&bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to open the file: %s\n", big_file_get_error_message());
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, dataset, comm)) {
+        fastpm_raise(-1, "Failed to open the dataset : %s\n", big_file_get_error_message());
+    }
+
+    double * edges = malloc(sizeof(double) * (nbins + 2));
+    int64_t * hist = malloc(sizeof(int64_t) * (nbins + 2));
+    int64_t * oldhist = malloc(sizeof(int64_t) * (nbins + 2));
+
+    int i;
+    if(0 != big_block_get_attr(&bb, "aemitIndex.aemit", edges, "f8", nbins + 1)) {
+        for(i = 0; i < nbins + 1; i ++) {
+            edges[i] = (amax - amin) * i / nbins + amin;
+        }
+        edges[nbins] = amax;
+        /* make sure no one is setting attr before any other tries to read */
+        MPI_Barrier(comm);
+        big_block_set_attr(&bb, "aemitIndex.aemit", edges, "f8", nbins + 1);
+    }
+
+    if(0 != big_block_get_attr(&bb, "aemitIndex.N", oldhist, "i8", nbins + 2)) {
+        for(i = 0; i < nbins + 2; i ++) {
+            oldhist[i] = 0;
+        }
+    }
+
+    /* make sure no one is setting attr before any other tries to read */
+    MPI_Barrier(comm);
+
+    /* add to the histogram */
+    fastpm_store_histogram_aemit(p, hist, edges, nbins, comm);
+
+    for(i = 0; i < nbins + 2; i ++) {
+        hist[i] += oldhist[i];
+    }
+    big_block_remove_attr(&bb, "aemitIndex.N");
+    big_block_set_attr(&bb, "aemitIndex.N", hist, "i8", nbins + 2);
+
+    /* make sure no one is flushing attr before any other tries to read */
+    MPI_Barrier(comm);
+
+    big_block_mpi_close(&bb, comm);
+    big_file_mpi_close(&bf, comm);
+
+    free(oldhist);
+    free(hist);
+    free(edges);
+}
+
