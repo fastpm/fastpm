@@ -583,7 +583,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
         double n = CONF(prr, nc) / CONF(prr, boxsize) * CONF(prr, lc_smesh_fraction);
 
-        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, CONF(prr, boxsize) / n);
+        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, 1 / n);
 
         if(lc->fov > 0) {
             fastpm_info("Creating healpix structured meshes for FOV=%g, with number density %g per (Mpc/h)**3. \n",
