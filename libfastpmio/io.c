@@ -678,6 +678,8 @@ write_aemit_hist(const char * filebase, const char * dataset,
             double amin, double amax, size_t nbins,
             MPI_Comm comm)
 {
+    /* write an index to the dataset (usually Header block) */
+    /* offset[i]: offset[i] + size[i] contains all particles from aemit[i]: aemit[i+1] */
     BigFile bf;
     BigBlock bb;
 
@@ -701,6 +703,7 @@ write_aemit_hist(const char * filebase, const char * dataset,
         edges[nbins] = amax;
         /* make sure no one is setting attr before any other tries to read */
         MPI_Barrier(comm);
+        /* starting edges of the bins */
         big_block_set_attr(&bb, "aemitIndex.aemit", edges, "f8", nbins + 1);
     }
 
@@ -720,15 +723,24 @@ write_aemit_hist(const char * filebase, const char * dataset,
         hist[i] += oldhist[i];
     }
 
+    /* histogram (for diagnostics) */
+    big_block_remove_attr(&bb, "aemitIndex.N");
+    big_block_set_attr(&bb, "aemitIndex.N", hist, "i8", nbins + 2);
+
+    /* the starting particles for this bin */
     oldhist[0] = hist[0];
     for(i = 1; i < nbins + 2; i ++) {
         oldhist[i] = oldhist[i - 1] + hist[i];
     }
-    big_block_remove_attr(&bb, "aemitIndex.N");
-    big_block_set_attr(&bb, "aemitIndex.N", hist, "i8", nbins + 2);
-
     big_block_remove_attr(&bb, "aemitIndex.offset");
     big_block_set_attr(&bb, "aemitIndex.offset", oldhist, "i8", nbins + 2);
+
+    /* the number of particles for this bin */
+    for(i = 1; i < nbins + 2; i ++) {
+        oldhist[i - 1] = hist[i];
+    }
+    big_block_remove_attr(&bb, "aemitIndex.size");
+    big_block_set_attr(&bb, "aemitIndex.size", oldhist, "i8", nbins + 1);
 
     /* make sure no one is flushing attr before any other tries to read */
     MPI_Barrier(comm);

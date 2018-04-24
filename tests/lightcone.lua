@@ -55,7 +55,7 @@ lc_fov = 361
 --]]
 
 lc_glmatrix = fastpm.translation(-128, -128, -128)
-
+lc_smesh_max_nside=512
 lc_amin = 0.1
 lc_amax = 1.0
 --
