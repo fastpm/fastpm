@@ -184,6 +184,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     CLOCK(evolve);
     CLOCK(io);
     CLOCK(sort);
+    CLOCK(indexing);
 
     const double rho_crit = 27.7455;
     const double M0 = CONF(prr, omega_m) * rho_crit
@@ -268,6 +269,11 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters);
         LEAVE(io);
 
+        ENTER(indexing);
+        double amin = CONF(prr, lc_amin);
+        double amax = CONF(prr, lc_amax);
+        write_aemit_hist(CONF(prr, lc_write_usmesh), "Header", usmesh->p, amin, amax, 128, fastpm->comm);
+        LEAVE(indexing);
         /* disable running fof of lc because the lc is not in the periodic box of PM.
          * we'll need a different domain decomposition and that's too much work for now.
          */
