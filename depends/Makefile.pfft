@@ -27,7 +27,7 @@ $(PFFTLIB): $(PFFT_CONFIGURE)
 	mkdir -p double;
 	(cd double; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath install) --disable-shared --enable-static  \
-	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) $(OPENMP_FLAGS) "MPICC=$(CC)" \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS) $(OPENMP_FLAGS) "CFLAGS=$(PFFT_CFLAGS)" "CC=$(CC)" "MPICC=$(CC)" \
 	2>&1 ; \
 	make -j 4 2>&1 ; \
 	make install 2>&1; \
@@ -37,7 +37,7 @@ $(PFFTFLIB): $(PFFT_CONFIGURE)
 	mkdir -p single;
 	(cd single; \
 	$(PFFT_CONFIGURE) --prefix=$(abspath install) --enable-single --disable-shared --enable-static  \
-	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) $(OPENMP_FLAGS) "MPICC=$(CC)" \
+	--disable-fortran --disable-doc --enable-mpi $(PFFT_CONFIGURE_FLAGS_SINGLE) $(OPENMP_FLAGS) "CFLAGS=$(PFFT_CFLAGS)" "CC=$(CC)" "MPICC=$(CC)" \
 	2>&1 ; \
        	make -j 4 2>&1 ; \
 	make install 2>&1; \
