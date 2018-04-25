@@ -191,7 +191,6 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         .a1 = drift->ai > drift->af ? drift->af: drift->ai,
         .a2 = drift->ai > drift->af ? drift->ai: drift->af,
     };
-    int d;
 
     int a1_is_outside = (params.a1 > mesh->amax) || (params.a1 < mesh->amin);
     int a2_is_outside = (params.a2 > mesh->amax) || (params.a2 < mesh->amin);
@@ -200,8 +199,11 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         return 0;
     }
 
-    for(d = 0; d < 3; d ++) {
-        params.tileshift[d] = tileshift[d];
+    {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            params.tileshift[d] = tileshift[d];
+        }
     }
 
     fastpm_info("Considering Tile %g %g %g\n",
@@ -213,6 +215,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 
     ptrdiff_t i;
 
+    #pragma omp parallel for copyin(params)
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
         if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
@@ -220,12 +223,6 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         /* the event is outside the region we care, skip */
         if(a_emit > mesh->amax || a_emit < mesh->amin) continue;
 
-        /* A solution is found */
-        /* move the particle and store it. */
-        ptrdiff_t next = pout->np;
-        if(next == pout->np_upper) {
-            fastpm_raise(-1, "Too many particles in the light cone");
-        }
         double xi[4];
         double xo[4];
         int d;
@@ -247,6 +244,16 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 
         /* does it fall into the field of view? */
         if(lc->fov > 0 && zangle(xo) > lc->fov * 0.5) continue;
+
+        /* A solution is found */
+        /* move the particle and store it. */
+        ptrdiff_t next;
+        #pragma omp atomic capture
+            next = pout->np++;
+
+        if(next == pout->np_upper) {
+            fastpm_raise(-1, "Too many particles in the light cone");
+        }
 
         /* copy the position if desired */
         if(pout->x) {
@@ -286,7 +293,6 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
                 pout->tidal[next][d] = p->tidal[i][d] / a_emit * potfactor;
             }
         }
-        pout->np ++;
     }
 
     fastpm_info("Total number of particles in light cone: %td\n", pout->np);
