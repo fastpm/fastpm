@@ -76,7 +76,7 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
 static void
 count_ghosts(PM * pm, PMGhostData * pgd, void * userdata)
 {
-//#pragma omp atomic
+#pragma omp atomic
     pgd->Nsend[pgd->rank] ++;
 }
 
@@ -92,7 +92,7 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
     int ighost;
     int offset; 
 
-//#pragma omp atomic capture
+#pragma omp atomic capture
     offset = pgd->Nsend[pgd->rank] ++;
 
     ighost = pgd->Osend[pgd->rank] + offset;

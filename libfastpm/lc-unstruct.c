@@ -97,6 +97,7 @@ struct funct_params {
     double tileshift[4];
     double a1;
     double a2;
+    void * context;
 };
 
 static double
@@ -150,6 +151,7 @@ _fastpm_usmesh_intersect_one(FastPMUSMesh * mesh,
     params->i = i;
 
     return fastpm_horizon_solve(mesh->lc->horizon,
+        params->context,
         solution,
         params->a1, params->a2,
         funct, params);
@@ -215,87 +217,90 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 
     ptrdiff_t i;
 
-    #pragma omp parallel for firstprivate(params)
-    for(i = 0; i < p->np; i ++) {
-        double a_emit = 0;
-        if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
-        
-        /* the event is outside the region we care, skip */
-        if(a_emit > mesh->amax || a_emit < mesh->amin) continue;
+    #pragma omp parallel firstprivate(params)
+    {
+        params.context = fastpm_horizon_solve_start();
+        #pragma omp for
+        for(i = 0; i < p->np; i ++) {
+            double a_emit = 0;
+            if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
+            
+            /* the event is outside the region we care, skip */
+            if(a_emit > mesh->amax || a_emit < mesh->amin) continue;
 
-        double xi[4];
-        double xo[4];
-        int d;
+            double xi[4];
+            double xo[4];
+            int d;
 
-        xi[3] = 1;
-        if(p->v) {
-            /* can we drift? if we are using a fixed grid there is no v. */
-            fastpm_drift_one(drift, p, i, xi, a_emit);
-        } else {
-            for(d = 0; d < 3; d ++) {
-                xi[d] = p->x[i][d];
-            }
-        }
-        for(d = 0; d < 4; d ++) {
-            xi[d] += params.tileshift[d];
-        }
-        /* transform the coordinate */
-        fastpm_gldot(lc->glmatrix, xi, xo);
-
-        /* does it fall into the field of view? */
-        if(lc->fov > 0 && zangle(xo) > lc->fov * 0.5) continue;
-
-        /* A solution is found */
-        /* move the particle and store it. */
-        ptrdiff_t next;
-        #pragma omp atomic capture
-            next = pout->np++;
-
-        if(next == pout->np_upper) {
-            fastpm_raise(-1, "Too many particles in the light cone");
-        }
-
-        /* copy the position if desired */
-        if(pout->x) {
-            for(d = 0; d < 3; d ++) {
-                pout->x[next][d] = xo[d];
-            }
-        }
-
-        float vo[4];
-        float vi[4];
-        if(p->v) {
-            /* can we kick? if we are using a fixed grid there is no v */
-            fastpm_kick_one(kick, p, i, vi, a_emit);
-            vi[3] = 0;
-            /* transform the coordinate */
-            fastpm_gldotf(lc->glmatrix, vi, vo);
-
-            if(pout->v) {
+            xi[3] = 1;
+            if(p->v) {
+                /* can we drift? if we are using a fixed grid there is no v. */
+                fastpm_drift_one(drift, p, i, xi, a_emit);
+            } else {
                 for(d = 0; d < 3; d ++) {
-                    /* convert to peculiar velocity a dx / dt in kms */
-                    pout->v[next][d] = vo[d] * HubbleConstant / a_emit;
+                    xi[d] = p->x[i][d];
+                }
+            }
+            for(d = 0; d < 4; d ++) {
+                xi[d] += params.tileshift[d];
+            }
+            /* transform the coordinate */
+            fastpm_gldot(lc->glmatrix, xi, xo);
+
+            /* does it fall into the field of view? */
+            if(lc->fov > 0 && zangle(xo) > lc->fov * 0.5) continue;
+
+            /* A solution is found */
+            /* move the particle and store it. */
+            ptrdiff_t next;
+            #pragma omp atomic capture
+                next = pout->np++;
+
+            if(next == pout->np_upper) {
+                fastpm_raise(-1, "Too many particles in the light cone");
+            }
+
+            /* copy the position if desired */
+            if(pout->x) {
+                for(d = 0; d < 3; d ++) {
+                    pout->x[next][d] = xo[d];
+                }
+            }
+
+            float vo[4];
+            float vi[4];
+            if(p->v) {
+                /* can we kick? if we are using a fixed grid there is no v */
+                fastpm_kick_one(kick, p, i, vi, a_emit);
+                vi[3] = 0;
+                /* transform the coordinate */
+                fastpm_gldotf(lc->glmatrix, vi, vo);
+
+                if(pout->v) {
+                    for(d = 0; d < 3; d ++) {
+                        /* convert to peculiar velocity a dx / dt in kms */
+                        pout->v[next][d] = vo[d] * HubbleConstant / a_emit;
+                    }
+                }
+            }
+            if(pout->id)
+                pout->id[next] = p->id[i];
+            if(pout->aemit)
+                pout->aemit[next] = a_emit;
+
+            double potfactor = 1.5 * lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
+            /* convert to dimensionless potential */
+            if(pout->potential)
+                pout->potential[next] = p->potential[i] / a_emit * potfactor;
+
+            if(pout->tidal) {
+                for(d = 0; d < 6; d++) {
+                    pout->tidal[next][d] = p->tidal[i][d] / a_emit * potfactor;
                 }
             }
         }
-        if(pout->id)
-            pout->id[next] = p->id[i];
-        if(pout->aemit)
-            pout->aemit[next] = a_emit;
-
-        double potfactor = 1.5 * lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
-        /* convert to dimensionless potential */
-        if(pout->potential)
-            pout->potential[next] = p->potential[i] / a_emit * potfactor;
-
-        if(pout->tidal) {
-            for(d = 0; d < 6; d++) {
-                pout->tidal[next][d] = p->tidal[i][d] / a_emit * potfactor;
-            }
-        }
+        fastpm_horizon_solve_end(params.context);
     }
-
-    fastpm_info("Total number of particles in light cone: %td\n", pout->np);
 
     return 0;
 }
@@ -312,5 +317,6 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
                 mesh->p); /*Store particle to get density*/
 
     }
+
     return 0;
 }

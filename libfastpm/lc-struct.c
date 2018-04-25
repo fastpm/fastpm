@@ -541,6 +541,7 @@ fill_a(FastPMSMesh * mesh, double * a, int Na,
        double zmin, double zmax)
 {
 
+    void * context = fastpm_horizon_solve_start();
     int i;
     for(i = 0; i < Na; i ++) {
         double z = zmin + (zmax - zmin) / (Na - 1) * i;
@@ -549,9 +550,11 @@ fill_a(FastPMSMesh * mesh, double * a, int Na,
         void * data[2] = {mesh, &z};
 
         fastpm_horizon_solve(mesh->lc->horizon,
+            context,
             &a[i],
             1e-7, 1,
             _a_to_distance, data);
     }
+    fastpm_horizon_solve_end(context);
 
 }

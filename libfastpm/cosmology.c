@@ -146,14 +146,11 @@ fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology)
         horizon->xi_a[i] = HubbleDistance * ComovingDistance(a, horizon->cosmology);
         horizon->growthfactor_a[i] = GrowthFactor(a, horizon->cosmology);
     }
-    const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
-    horizon->gsl = gsl_root_fsolver_alloc(T);
 }
 
 void
 fastpm_horizon_destroy(FastPMHorizon * horizon)
 {
-    gsl_root_fsolver_free(horizon->gsl);
 }
 
 double
@@ -188,8 +185,22 @@ HorizonGrowthFactor(double a, FastPMHorizon * horizon)
          + horizon->growthfactor_a[r] * (x - l);
 }
 
+void *
+fastpm_horizon_solve_start()
+{
+    const gsl_root_fsolver_type *T = gsl_root_fsolver_brent;
+    return gsl_root_fsolver_alloc(T);
+}
+
+void
+fastpm_horizon_solve_end(void * context)
+{
+    gsl_root_fsolver_free(context);
+}
+
 int
 fastpm_horizon_solve(FastPMHorizon * horizon,
+    void * context,
     double * solution,
     double a_i, double a_f,
     double (*func)(double a, void * userdata),
@@ -209,7 +220,7 @@ fastpm_horizon_solve(FastPMHorizon * horizon,
     F.function = func;
     F.params = userdata;
 
-    status = gsl_root_fsolver_set(horizon->gsl, &F, x_lo, x_hi);
+    status = gsl_root_fsolver_set(context, &F, x_lo, x_hi);
 
     if(status == GSL_EINVAL || status == GSL_EDOM) {
         /** Error in value or out of range **/
@@ -226,11 +237,11 @@ fastpm_horizon_solve(FastPMHorizon * horizon,
         //}
         //
 
-        status = gsl_root_fsolver_iterate(horizon->gsl);
-        r = gsl_root_fsolver_root(horizon->gsl);
+        status = gsl_root_fsolver_iterate(context);
+        r = gsl_root_fsolver_root(context);
 
-        x_lo = gsl_root_fsolver_x_lower(horizon->gsl);
-        x_hi = gsl_root_fsolver_x_upper(horizon->gsl);
+        x_lo = gsl_root_fsolver_x_lower(context);
+        x_hi = gsl_root_fsolver_x_upper(context);
 
         status = gsl_root_test_interval(x_lo, x_hi, eps, 0.0);
         //
