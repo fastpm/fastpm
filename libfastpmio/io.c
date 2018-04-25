@@ -258,7 +258,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
-    int Nfile = NTask / 8;
+    int Nfile = Nwriters / 8;
     if (Nfile == 0) Nfile = 1;
 
     BigFile bf;
