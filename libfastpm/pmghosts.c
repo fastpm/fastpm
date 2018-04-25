@@ -263,7 +263,12 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
 
     /* now reduce the attributes. */
     int ighost;
-#pragma omp parallel for
+
+    /* this loop is not parallel because multiple ghosts can be for the same ipar,
+     * in which case we have a race condition.
+     * we can fix this by carefully working with ipar (it should / could be made sorted)
+     * but unlikly worth the effort.
+     * */
     for(ighost = 0; ighost < Nsend; ighost ++) {
         func(pgd, attributes, 
             pgd->ighost_to_ipar[ighost],
