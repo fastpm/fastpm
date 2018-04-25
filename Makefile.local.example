@@ -44,6 +44,9 @@ GSL_LIBS = -lgsl -lgslcblas
 # flags to configure pfft. --enable-avx512 for knl!
 
 PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx
+
+# cflags for configuring pfft.
+PFFT_CFLAGS = 
 #
 #
 # On some systems, DEPCMD has to be modified to include MPI headers
