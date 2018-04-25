@@ -215,7 +215,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 
     ptrdiff_t i;
 
-    #pragma omp parallel for copyin(params)
+    #pragma omp parallel for firstprivate(params)
     for(i = 0; i < p->np; i ++) {
         double a_emit = 0;
         if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
