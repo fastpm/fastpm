@@ -839,6 +839,13 @@ static int
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
+
+    int64_t np = usmesh->p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+
+    fastpm_info("Total number of particles in light cone: %ld\n", np);
+
     return 0;
 }
 
