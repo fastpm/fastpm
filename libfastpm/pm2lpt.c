@@ -44,8 +44,8 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         field[d] = pm_alloc(pm);
         memset(field[d], 0, sizeof(field[d][0]) * pm->allocsize);
     }
-    int DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
-    int DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
+    enum FastPMPackFields DX1[] = {PACK_DX1_X, PACK_DX1_Y, PACK_DX1_Z};
+    enum FastPMPackFields DX2[] = {PACK_DX2_X, PACK_DX2_Y, PACK_DX2_Z};
     int D1[] = {1, 2, 0};
     int D2[] = {2, 0, 1};
 
