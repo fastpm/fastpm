@@ -19,6 +19,10 @@ pmic_fill_gaussian_slow(PM * pm, FastPMFloat * delta_k, int seed);
 void
 fastpm_ic_fill_gaussiank(PM * pm, FastPMFloat * delta_k, int seed, enum FastPMFillDeltaKScheme scheme)
 {
+
+    /* clear the memory to avoid any modes that we forget to set. */
+    memset(delta_k, 0, pm_allocsize(pm) * sizeof(delta_k[0]));
+
     switch(scheme) {
         case FASTPM_DELTAK_GADGET:
             pmic_fill_gaussian_gadget(pm, delta_k, seed);
