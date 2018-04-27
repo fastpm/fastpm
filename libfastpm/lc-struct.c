@@ -127,9 +127,8 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
     ptrdiff_t ptr = 0;
     for(i = start[0] ; i < end[0]; i ++) {
         for(j = start[1] ; j < end[1]; j ++) {
-            /* remember the observer shall be looking at the center of the mesh. */
-            xy[ptr][0] = (i + shift[0]) * BoxSize[0] / Nc[0] - 0.5 * BoxSize[0];
-            xy[ptr][1] = (j + shift[0]) * BoxSize[1] / Nc[1] - 0.5 * BoxSize[1];
+            xy[ptr][0] = (i + shift[0]) * BoxSize[0] / Nc[0];
+            xy[ptr][1] = (j + shift[0]) * BoxSize[1] / Nc[1];
             ptr++;
         }
     }
@@ -179,7 +178,7 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
     uint64_t * pix;
     size_t npix;
 
-    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &pix, &npix, mesh->lc->fov, comm);
+    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &pix, &npix, mesh->lc, comm);
 
     fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, npix, a, Na);
 
@@ -238,7 +237,7 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
         uint64_t * pix;
         size_t npix;
 
-        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &pix, &npix, mesh->lc->fov, comm);
+        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &pix, &npix, mesh->lc, comm);
 
         fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, npix, &a[j], i - j);
 
@@ -558,3 +557,5 @@ fill_a(FastPMSMesh * mesh, double * a, int Na,
     fastpm_horizon_solve_end(context);
 
 }
+
+

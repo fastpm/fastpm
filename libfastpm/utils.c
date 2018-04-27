@@ -211,17 +211,6 @@ fastpm_utils_powerspec_white(double k, double * amplitude) 	/* White Noise*/
     return *amplitude;
 }
 
-static double
-zangle(double * x) {
-    double dxy = 0;
-    double dz = x[2];
-    dxy = x[0] * x[0] + x[1] * x[1];
-
-    double rt = atan2(sqrt(dxy), dz) / M_PI * 180.;
-    if (rt < 0) rt += 360.;
-    return rt;
-}
-
 static void
 _sort_pix(const void * ptr, void * radix, void * arg)
 {
@@ -235,7 +224,7 @@ fastpm_utils_healpix_ra_dec (
                 double **dec,
                 uint64_t **pix,
                 size_t * n,
-                double fov,
+                FastPMLightCone * lc,
                 MPI_Comm comm
             )
 {
@@ -267,7 +256,7 @@ fastpm_utils_healpix_ra_dec (
 
             pix2vec_ring(nside, i, vec);
 
-            if(zangle(vec) > fov * 0.5) continue;
+            if(!fastpm_lc_inside(lc, vec)) continue;
 
             if(pixels != NULL) {
                 pixels[j] = i;

@@ -227,6 +227,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .speedfactor = CONF(prr, dh_factor),
         .cosmology = fastpm->cosmology,
         .fov = CONF(prr, lc_fov),
+        .octants = {0, 0, 0, 0, 0, 0, 0, 0},
     }};
 
     FastPMUSMesh * usmesh = NULL;
@@ -528,6 +529,15 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             }
             fastpm_info("GLTransformation [%d] : %g %g %g %g\n", i,
                 lc->glmatrix[i][0], lc->glmatrix[i][1], lc->glmatrix[i][2], lc->glmatrix[i][3]);
+        }
+    }
+
+    {
+        int i;
+        for(i = 0; i < CONF(prr, n_lc_octants); i ++) {
+            int oct = CONF(prr, lc_octants)[i];
+            lc->octants[oct % 8] = 1;
+            fastpm_info("Using Octant %d\n", oct);
         }
     }
 

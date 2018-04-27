@@ -163,6 +163,9 @@ schema.declare{name='lc_smesh_max_nside', default=0,
 
 schema.declare{name='dh_factor',    type='number', default=1.0, help='Scale Hubble distance to amplify the lightcone effect'}
 schema.declare{name='lc_fov',     type='number', default=0.0, help=' field of view of the sky in degrees. 0 for flat sky and 360 for full sky. The beam is along the z-direction after glmatrix.'}
+schema.declare{name='lc_octants',     type='array:number', default={0, 1, 2, 3, 4, 5, 6, 7},
+            help='list of octants to include when fov>=360 degrees.'}
+
 schema.declare{name='lc_glmatrix',     type='array:number',
         default={
             {1, 0, 0, 0,},

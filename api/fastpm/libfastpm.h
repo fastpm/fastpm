@@ -68,13 +68,14 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 
 #include "cosmology.h"
 #include "transfer.h"
-#include "utils.h"
 #include "initialcondition.h"
 #include "pngaussian.h"
 #include "powerspectrum.h"
 #include "gravity.h"
 #include "solver.h"
 #include "timemachine.h"
+#include "lc-unstruct.h"
+#include "utils.h"
 
 /* Following functions are internal API */
 

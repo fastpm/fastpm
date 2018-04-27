@@ -1,3 +1,7 @@
+#ifndef FASTPM_LC_USTRUCT
+
+#define FASTPM_LC_USTRUCT
+
 FASTPM_BEGIN_DECLS
 
 #define FASTPM_EVENT_LC_READY "LIGHTCONEREADY"
@@ -12,6 +16,7 @@ typedef struct {
     double fov; /* field of view angle. <=0 for flatsky.
                     Remember the lightcone is always along z-direction.*/
 
+    int octants[8]; /* 1 if the octants is to be included, enabled when fov >= 360.*/
 } FastPMLightCone;
 
 typedef struct FastPMUSMesh {
@@ -83,6 +88,9 @@ typedef struct FastPMLCEvent {
 void
 fastpm_lc_init(FastPMLightCone * lc);
 
+int
+fastpm_lc_inside(FastPMLightCone * lc, double vec[3]);
+
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh,
                 FastPMLightCone * lc, size_t np_upper,
@@ -145,3 +153,5 @@ void
 fastpm_smesh_destroy(FastPMSMesh * mesh);
 
 FASTPM_END_DECLS
+
+#endif

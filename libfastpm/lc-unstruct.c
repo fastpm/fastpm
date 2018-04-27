@@ -45,7 +45,6 @@ fastpm_lc_init(FastPMLightCone * lc)
     /* Allocation */
     lc->horizon = malloc(sizeof(FastPMHorizon));
     fastpm_horizon_init(lc->horizon, lc->cosmology);
-
     _matrix_invert(lc->glmatrix,lc->glmatrix_inv,4);
 }
 
@@ -168,6 +167,55 @@ zangle(double * x) {
     return rt;
 }
 
+int
+fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
+{
+    static const int sign[][3] = {
+        {1, 1, 1},
+        {1, 1, -1},
+        {1, -1, 1},
+        {1, -1, -1},
+        {-1, 1, 1},
+        {-1, 1, -1},
+        {-1, -1, 1},
+        {-1, -1, -1},
+    };
+    if(lc->fov > 0) {
+        int r;
+        if(lc->fov < 360) {
+            r = zangle(vec) <= lc->fov * 0.5;
+        } else {
+            r = 1;
+        }
+        if(r) {
+            int i;
+            for(i = 0; i < 8; i ++) {
+                if(lc->octants[i]) continue;
+                /* hiding the octant? */
+                int d;
+                int s = 1;
+                for(d = 0; d < 3; d ++) {
+                    if(sign[i][d] > 0)
+                        s = s && vec[d] >= 0;
+                    else
+                        s = s && vec[d] < 0;
+                }
+                /* all directions are inside the octant */
+                if(s) {
+                    printf("hiding vec = %g %g %g %d\n", vec[0], vec[1], vec[2], i);
+                    return 0;
+                }
+            }
+            return 1;
+        } else {
+            return 0;
+        }
+    } else {
+        /* smesh takes care of this */
+        return 1;
+    }
+}
+
 /* FIXME:
  * the function shall take ai, af as input,
  *
@@ -248,7 +296,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
             fastpm_gldot(lc->glmatrix, xi, xo);
 
             /* does it fall into the field of view? */
-            if(lc->fov > 0 && zangle(xo) > lc->fov * 0.5) continue;
+            if(!fastpm_lc_inside(lc, xo)) continue;
 
             /* A solution is found */
             /* move the particle and store it. */

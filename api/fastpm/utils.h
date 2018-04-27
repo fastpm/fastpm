@@ -32,7 +32,7 @@ fastpm_utils_healpix_ra_dec (
                 double **dec,
                 uint64_t **pix,
                 size_t * n,
-                double fov,
+                FastPMLightCone * lc,
                 MPI_Comm comm
                 );
 
