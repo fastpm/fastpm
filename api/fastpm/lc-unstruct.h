@@ -28,6 +28,10 @@ typedef struct FastPMUSMesh {
     /* we need to apply a cut in time, because at early time we tend to write too many particles. */
     double amax; /* range for largest a; above which no particles will be written */
     double amin; /* range for smallest a; below which no particles will be written */
+
+    int is_first; /* is this the first time an event is emitted. */
+    /* Extensions */
+    FastPMEventHandler * event_handlers;
 } FastPMUSMesh;
 
 

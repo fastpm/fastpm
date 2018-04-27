@@ -58,6 +58,9 @@ smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh
 static void
 smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata);
 
+static void
+usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata);
+
 int 
 read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename);
 
@@ -256,29 +259,6 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     ENTER(evolve);
     fastpm_solver_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
     LEAVE(evolve);
-
-    if(CONF(prr, lc_write_usmesh)) {
-        long long np = usmesh->p->np;
-        MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
-        fastpm_info("%td particles are in the lightcone\n", np);
-
-        ENTER(sort);
-        fastpm_sort_snapshot(usmesh->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
-        LEAVE(sort);
-
-        ENTER(io);
-        write_snapshot(fastpm, usmesh->p, CONF(prr, lc_write_usmesh), "1", prr->string, prr->Nwriters);
-        LEAVE(io);
-
-        ENTER(indexing);
-        double amin = CONF(prr, lc_amin);
-        double amax = CONF(prr, lc_amax);
-        write_aemit_hist(CONF(prr, lc_write_usmesh), "Header", usmesh->p, amin, amax, 128, fastpm->comm);
-        LEAVE(indexing);
-        /* disable running fof of lc because the lc is not in the periodic box of PM.
-         * we'll need a different domain decomposition and that's too much work for now.
-         */
-    }
 
     if(smesh)
         fastpm_smesh_destroy(smesh);
@@ -585,6 +565,15 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             *usmesh);
 
         free(tiles);
+
+        void ** data = malloc(sizeof(void*) * 2);
+        data[0] = fastpm;
+        data[1] = prr;
+
+        fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
+                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) usmesh_ready_handler,
+                data, free);
     }
 
     *smesh = NULL;
@@ -622,6 +611,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
                 (FastPMEventHandlerFunction) smesh_ready_handler,
                 data, free);
+
     }
 }
 
@@ -652,6 +642,47 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
         write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
+        append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+    }
+
+    LEAVE(io);
+    ENTER(indexing);
+    double amin = CONF(prr, lc_amin);
+    double amax = CONF(prr, lc_amax);
+
+    write_aemit_hist(fn, "Header", lcevent->p, amin, amax, 128, solver->comm);
+    LEAVE(indexing);
+
+    free(fn);
+}
+
+static void
+usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata)
+{
+    CLOCK(io);
+    CLOCK(sort);
+    CLOCK(indexing);
+
+    FastPMSolver * solver = userdata[0];
+    Parameters * prr = userdata[1];
+
+    int64_t np = lcevent->p->np;
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
+
+    fastpm_info("Unstructured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
+
+    char * fn = fastpm_strdup_printf(CONF(prr, lc_write_usmesh));
+
+    ENTER(sort);
+    fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
+    LEAVE(sort);
+
+    ENTER(io);
+    if(lcevent->is_first) {
+        fastpm_info("Creating usmesh catalog in %s\n", fn);
+        write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+    } else {
+        fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
     }
 

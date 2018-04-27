@@ -46,6 +46,7 @@ fastpm_lc_init(FastPMLightCone * lc)
     lc->horizon = malloc(sizeof(FastPMHorizon));
     fastpm_horizon_init(lc->horizon, lc->cosmology);
     _matrix_invert(lc->glmatrix,lc->glmatrix_inv,4);
+
 }
 
 void
@@ -69,9 +70,11 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->lc = lc;
     mesh->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     mesh->ntiles = ntiles;
+    mesh->is_first = 1;
 
     memcpy(mesh->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
 
+    mesh->event_handlers = NULL;
     mesh->p = malloc(sizeof(FastPMStore));
     /* for saving the density with particles */
     fastpm_store_init(mesh->p, np_upper,
@@ -83,6 +86,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
 
 void fastpm_usmesh_destroy(FastPMUSMesh * mesh)
 {
+    fastpm_destroy_event_handlers(&mesh->event_handlers);
     fastpm_store_destroy(mesh->p);
     free(mesh->tileshifts);
     free(mesh->p);
@@ -202,7 +206,7 @@ fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
                 }
                 /* all directions are inside the octant */
                 if(s) {
-                    printf("hiding vec = %g %g %g %d\n", vec[0], vec[1], vec[2], i);
+                    /* printf("hiding vec = %g %g %g %d\n", vec[0], vec[1], vec[2], i); */
                     return 0;
                 }
             }
@@ -226,6 +230,8 @@ fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
  * */
 static int
 fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
+        double a1,
+        double a2,
         FastPMDriftFactor * drift,
         FastPMKickFactor * kick,
         FastPMStore * p,
@@ -238,8 +244,8 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         .drift = drift,
         .p = p,
         .i = 0,
-        .a1 = drift->ai > drift->af ? drift->af: drift->ai,
-        .a2 = drift->ai > drift->af ? drift->ai: drift->af,
+        .a1 = a1, 
+        .a2 = a2,
     };
 
     int a1_is_outside = (params.a1 > mesh->amax) || (params.a1 < mesh->amin);
@@ -356,15 +362,35 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 int
 fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm)
 {
+    double a1 = drift->ai > drift->af ? drift->af: drift->ai;
+    double a2 = drift->ai > drift->af ? drift->ai: drift->af;
+
     /* for each tile */
     int t;
     for(t = 0; t < mesh->ntiles; t ++) {
         fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
+                a1, a2,
                 drift, kick,
                 fastpm->p,
                 mesh->p); /*Store particle to get density*/
 
     }
+
+    /* a portion of light cone is ready between a0 and a1 */
+    FastPMLCEvent lcevent[1];
+
+    lcevent->p = mesh->p;
+    lcevent->a0 = a1;
+    lcevent->a1 = a2;
+    lcevent->is_first = mesh->is_first;
+
+    fastpm_emit_event(mesh->event_handlers,
+            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+            (FastPMEvent*) lcevent, mesh);
+
+    /* now purge the store. */
+    mesh->p->np = 0;
+    mesh->is_first = 0;
 
     return 0;
 }

@@ -485,8 +485,15 @@ fastpm_smesh_compute_potential(
         }
         double G_emit = HorizonGrowthFactor(a_emit, mesh->lc->horizon);
 
+/*
+        G_now = a_f;
+        G_then = mesh->last.a_f;
+        G_emit = a_emit;
+*/
+
         INTERP(potential[i]);
         p_last_then->potential[i] *= potfactor / a_emit;
+
         INTERP(rho[i]);
         int j;
         for(j = 0; j < 6; j ++) {
