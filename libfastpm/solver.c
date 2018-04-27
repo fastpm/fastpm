@@ -256,9 +256,9 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     ENTER(afterforce);
 
-    double N = fastpm->p->np;
+    int64_t N = fastpm->p->np;
 
-    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_DOUBLE, MPI_SUM, fastpm->comm);
+    MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
 
     FastPMForceEvent event[1];
