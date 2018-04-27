@@ -37,7 +37,6 @@ append_snapshot(FastPMSolver * fastpm,
 
 int
 write_snapshot_data(FastPMStore * p,
-        int Nfile,
         int Nwriters,
         int append,
         BigFile * bf,

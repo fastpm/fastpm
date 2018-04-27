@@ -168,7 +168,6 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
 
 int
 write_snapshot_data(FastPMStore * p,
-        int Nfile,
         int Nwriters,
         int append,
         BigFile * bf,
@@ -176,10 +175,23 @@ write_snapshot_data(FastPMStore * p,
         MPI_Comm comm
 )
 {
+    /* for smaller data sets, aggregate and write. (way faster) */
+    big_file_mpi_set_aggregated_threshold(1024 * 1024 * 64);
 
     int64_t size = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
+
+    int Nfile = size / (32 * 1024 * 1024);
+
+    if(Nfile < 1) Nfile = 1;
+
+    /* at most 16 writers per file;
+     * this would mean each writer writes about 2 M items and would trigger
+     * aggregated IO when Nfile is very small. (items are typically less than 12 byes each.
+     * */
+
+    if(Nwriters > Nfile * 8) Nwriters = Nfile * 8;
 
     struct {
         char * name;
@@ -258,9 +270,6 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
-    int Nfile = Nwriters / 8;
-    if (Nfile == 0) Nfile = 1;
-
     BigFile bf;
     if(0 != big_file_mpi_create(&bf, filebase, comm)) {
         fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
@@ -268,7 +277,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     write_snapshot_header(fastpm, p, parameters, &bf, comm);
 
-    write_snapshot_data(p, Nfile, Nwriters, 0, &bf, dataset, comm);
+    write_snapshot_data(p,  Nwriters, 0, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
 
@@ -295,15 +304,12 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
-    int Nfile = NTask / 8;
-    if (Nfile == 0) Nfile = 1;
-
     BigFile bf;
     if(0 != big_file_mpi_open(&bf, filebase, comm)) {
         fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
     }
 
-    write_snapshot_data(p, Nfile, Nwriters, 1, &bf, dataset, comm);
+    write_snapshot_data(p, Nwriters, 1, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
 
