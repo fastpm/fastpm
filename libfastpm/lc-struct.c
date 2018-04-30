@@ -418,7 +418,7 @@ fastpm_smesh_compute_potential(
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
             if(ACC[d] == PACK_DENSITY) {
-                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
+//                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
             }
 
             LEAVE(transfer);
