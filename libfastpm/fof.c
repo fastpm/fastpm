@@ -427,6 +427,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                 & ~PACK_ID & ~PACK_ACC
                 , FASTPM_MEMORY_HEAP);
         halos->np = nhalos;
+        halos->a_x = finder->p->a_x;
+        halos->a_v = finder->p->a_v;
 
         MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, pm_comm(finder->pm));
 
