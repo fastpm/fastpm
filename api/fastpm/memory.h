@@ -15,6 +15,7 @@ FASTPM_BEGIN_DECLS
 
 typedef struct MemoryBlock MemoryBlock;
 typedef struct FastPMMemory FastPMMemory;
+typedef void (*fastpm_memory_func)(FastPMMemory * m, void * userdata);
 
 struct FastPMMemory {
     size_t alignment;
@@ -30,6 +31,10 @@ struct FastPMMemory {
     char * base0;
     char * top;
     char * base;
+
+    void * userdata;
+    fastpm_memory_func abortfunc;
+    fastpm_memory_func peakfunc;
 };
 
 enum FastPMMemoryLocation {
@@ -41,6 +46,9 @@ void
 fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered);
 
 void
+fastpm_memory_set_handlers(FastPMMemory * m, fastpm_memory_func abortfunc, fastpm_memory_func peakfunc, void * userdata);
+
+void
 fastpm_memory_tag(FastPMMemory * m, void * p, const char * tag);
 
 void
@@ -50,9 +58,12 @@ void
 fastpm_memory_free(FastPMMemory * m, void * p);
 
 void *
-fastpm_memory_alloc_details(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc, const char * file, const int line);
+fastpm_memory_alloc_details(FastPMMemory * m, const char * name, size_t s, enum FastPMMemoryLocation loc, const char * file, const int line);
 
-#define fastpm_memory_alloc(m, s, loc) fastpm_memory_alloc_details(m, s, loc, __FILE__, __LINE__)
+void
+fastpm_memory_dump_status(FastPMMemory * m, int fd);
+
+#define fastpm_memory_alloc(m, name, s, loc) fastpm_memory_alloc_details(m, name, s, loc, __FILE__, __LINE__)
 
 FASTPM_END_DECLS
 

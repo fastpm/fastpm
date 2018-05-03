@@ -46,6 +46,9 @@ lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, cha
 /* command-line arguments */
 static char * ParamFileName;
 
+static void
+_memory_peak_handler(FastPMMemory * mem, void * userdata);
+
 static void 
 parse_args(int * argc, char *** argv, Parameters * prr);
 
@@ -102,10 +105,11 @@ int main(int argc, char ** argv) {
     libfastpm_init();
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
-
     fastpm_info("This is FastPM, with libfastpm version %s.\n", LIBFASTPM_VERSION);
 
     libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024, 0);
+    fastpm_memory_set_handlers(_libfastpm_get_gmem(), NULL, _memory_peak_handler, &comm);
+
     read_parameters(ParamFileName, prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
@@ -918,6 +922,21 @@ print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameter
     return 0;
 }
 
+static void
+_memory_peak_handler(FastPMMemory * mem, void * userdata)
+{
+    MPI_Comm comm = *(MPI_Comm*) userdata;
+
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
+
+    if(ThisTask == 0) {
+        fastpm_ilog(INFO, "Peak memory usage on rank %d: %g MB\n", ThisTask, mem->peak_bytes / 1024. / 1024);
+        fastpm_ilog(INFO, "Allocation Table\n");
+        fastpm_memory_dump_status(mem, 1);
+    }
+}
+
 static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
 {
@@ -931,8 +950,6 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 
     fastpm_info("Load imbalance is - %g / + %g\n",
         fastpm->info.imbalance.min, fastpm->info.imbalance.max);
-
-    fastpm_report_memory(fastpm->comm);
 
     MPI_Barrier(fastpm->comm);
     ENTER(compute);

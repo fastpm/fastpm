@@ -141,20 +141,6 @@ next:
     head = h;
 }
 
-void fastpm_report_memory(MPI_Comm comm) 
-{
-    FastPMMemory * g = _libfastpm_get_gmem();
-
-    size_t max_used_bytes = 0;
-    size_t used_bytes = g->peak_bytes;
-
-    MPI_Allreduce(&used_bytes,
-            &max_used_bytes, 1, MPI_LONG, MPI_MAX,
-            comm);
-
-    fastpm_log(INFO, "Peak memory usage on rank 0: %g MB\n", max_used_bytes / 1024. / 1024);
-
-}
 void fastpm_clock_stat(MPI_Comm comm)
 {
     FastPMClock * p;
@@ -163,10 +149,9 @@ void fastpm_clock_stat(MPI_Comm comm)
     FastPMClock foo = {0};
     
     FastPMMemory * g = _libfastpm_get_gmem();
-    size_t max_used_bytes = 0;
-    size_t used_bytes = g->peak_bytes;
+    size_t max_used_bytes = g->peak_bytes;
 
-    MPI_Allreduce(&used_bytes,
+    MPI_Allreduce(MPI_IN_PLACE,
             &max_used_bytes, 1, MPI_LONG, MPI_MAX,
             comm);
 

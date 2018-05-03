@@ -176,10 +176,10 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
 
     if(pgd->ighost_to_ipar == NULL)
-        pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
+        pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, "Ghost2Par", Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
 
-    pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
-    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
 
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
@@ -243,8 +243,8 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
     ptrdiff_t i;
 
     pgd->elsize = p->pack(pgd->p, 0, NULL, attributes);
-    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
-    pgd->send_buffer = fastpm_memory_alloc(pm->mem, Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
 
 #pragma omp parallel for
     for(i = 0; i < pgd->nghosts; i ++) {

@@ -53,7 +53,7 @@ _kdtree_buffered_malloc(void * userdata, size_t size)
         if(newsize < size) {
             newsize = size;
         }
-        newbuffer->base = fastpm_memory_alloc(buffer->mem, newsize, FASTPM_MEMORY_STACK);
+        newbuffer->base = fastpm_memory_alloc(buffer->mem, "KDTreeBase", newsize, FASTPM_MEMORY_STACK);
         newbuffer->ptr = newbuffer->base;
         newbuffer->end = newbuffer->base + newsize;
         newbuffer->prev = buffer;
@@ -289,15 +289,15 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
             below, above
         );
 
-    struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem,
+    struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem, "FOFComm",
                     sizeof(fofcomm[0]) * (p->np_upper), FASTPM_MEMORY_STACK);
 
     memset(fofcomm, 0, sizeof(fofcomm[0]) * p->np_upper);
 
-    struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem,
+    struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem, "FOFSave",
                     sizeof(fofsave[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
 
-    ptrdiff_t * head = fastpm_memory_alloc(p->mem,
+    ptrdiff_t * head = fastpm_memory_alloc(p->mem, "FOFHead",
                     sizeof(head[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
 
     _fof_local_find(finder, p, p->np + pgd->nghosts, pm_boxsize(pm), head, finder->linkinglength);
@@ -406,8 +406,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* redo fof on the new decomposition -- no halo cross two ranks */
     KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, finder->p, 0, finder->p->np, pm_boxsize(finder->pm));
 
-    ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
-    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);
+    ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, "FOFHead", sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
+    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);
 
     kd_fof(root, finder->linkinglength, head);
 

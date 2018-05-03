@@ -305,73 +305,73 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attrib
     p->attributes = attributes;
 
     if(attributes & PACK_Q)
-        p->q = fastpm_memory_alloc(p->mem, sizeof(p->q[0]) * np_upper, loc);
+        p->q = fastpm_memory_alloc(p->mem, "Q", sizeof(p->q[0]) * np_upper, loc);
     else
         p->q = NULL;
 
     if(attributes & PACK_POS)
-        p->x = fastpm_memory_alloc(p->mem, sizeof(p->x[0]) * np_upper, loc);
+        p->x = fastpm_memory_alloc(p->mem, "X", sizeof(p->x[0]) * np_upper, loc);
     else
         p->x = NULL;
 
 
     if(attributes & PACK_VEL)
-        p->v = fastpm_memory_alloc(p->mem, sizeof(p->v[0]) * np_upper, loc);
+        p->v = fastpm_memory_alloc(p->mem, "V", sizeof(p->v[0]) * np_upper, loc);
     else
         p->v = NULL;
 
     if(attributes & PACK_ID)
-        p->id = fastpm_memory_alloc(p->mem, sizeof(p->id[0]) * np_upper, loc);
+        p->id = fastpm_memory_alloc(p->mem, "ID", sizeof(p->id[0]) * np_upper, loc);
     else
         p->id = NULL;
 
     if(attributes & PACK_MASK)
-        p->mask = fastpm_memory_alloc(p->mem, sizeof(p->mask[0]) * np_upper, loc);
+        p->mask = fastpm_memory_alloc(p->mem, "Mask", sizeof(p->mask[0]) * np_upper, loc);
     else
         p->mask = NULL;
 
     if(attributes & PACK_LENGTH)
-        p->length = fastpm_memory_alloc(p->mem, sizeof(p->length[0]) * np_upper, loc);
+        p->length = fastpm_memory_alloc(p->mem, "Length", sizeof(p->length[0]) * np_upper, loc);
     else
         p->length = NULL;
 
     if(attributes & PACK_FOF)
-        p->fof = fastpm_memory_alloc(p->mem, sizeof(p->fof[0]) * np_upper, loc);
+        p->fof = fastpm_memory_alloc(p->mem, "FOF", sizeof(p->fof[0]) * np_upper, loc);
     else
         p->fof = NULL;
 
     if(attributes & PACK_ACC)
-        p->acc = fastpm_memory_alloc(p->mem, sizeof(p->acc[0]) * np_upper, loc);
+        p->acc = fastpm_memory_alloc(p->mem, "Acc", sizeof(p->acc[0]) * np_upper, loc);
     else
         p->acc = NULL;
 
     if(attributes & PACK_DX1)
-        p->dx1 = fastpm_memory_alloc(p->mem, sizeof(p->dx1[0]) * np_upper, loc);
+        p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * np_upper, loc);
     else
         p->dx1 = NULL;
 
     if(attributes & PACK_DX2)
-        p->dx2 = fastpm_memory_alloc(p->mem, sizeof(p->dx2[0]) * np_upper, loc);
+        p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * np_upper, loc);
     else
         p->dx2 = NULL;
 
     if(attributes & PACK_AEMIT)
-        p->aemit = fastpm_memory_alloc(p->mem, sizeof(p->aemit[0]) * np_upper, loc);
+        p->aemit = fastpm_memory_alloc(p->mem, "Aemit", sizeof(p->aemit[0]) * np_upper, loc);
     else
         p->aemit = NULL;
 
     if(attributes & PACK_DENSITY)
-        p->rho = fastpm_memory_alloc(p->mem, sizeof(p->rho[0]) * np_upper, loc);
+        p->rho = fastpm_memory_alloc(p->mem, "Density", sizeof(p->rho[0]) * np_upper, loc);
     else
         p->rho = NULL;
 
     if(attributes & PACK_POTENTIAL)
-        p->potential = fastpm_memory_alloc(p->mem, sizeof(p->potential[0]) * np_upper, loc);
+        p->potential = fastpm_memory_alloc(p->mem, "Potential", sizeof(p->potential[0]) * np_upper, loc);
     else
         p->potential = NULL;
 
     if(attributes & PACK_TIDAL)
-        p->tidal = fastpm_memory_alloc(p->mem, sizeof(p->tidal[0]) * np_upper, loc);
+        p->tidal = fastpm_memory_alloc(p->mem, "Tidal", sizeof(p->tidal[0]) * np_upper, loc);
     else
         p->tidal = NULL;
 };
@@ -490,7 +490,7 @@ int _sort_by_id_cmpfunc(const void * p1, const void * p2)
 
 void fastpm_store_sort_by_id(FastPMStore * p)
 {
-    int * arg = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+    int * arg = fastpm_memory_alloc(p->mem, "Temp", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int i;
     for(i = 0; i < p->np; i ++) {
         arg[i] = i;
@@ -554,7 +554,7 @@ fastpm_store_decompose(FastPMStore * p,
 
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
 
-    int * target = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+    int * target = fastpm_memory_alloc(p->mem, "Target", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int NTask, ThisTask;
 
     MPI_Comm_rank(comm, &ThisTask);
@@ -582,7 +582,7 @@ fastpm_store_decompose(FastPMStore * p,
     }
     cumsum(offsets, count, NTask + 1);
 
-    int * arg = fastpm_memory_alloc(p->mem, sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+    int * arg = fastpm_memory_alloc(p->mem, "PermArg", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     for(i = 0; i < p->np; i ++) {
         int offset = offsets[target[i]] ++;
         arg[offset] = i;
@@ -603,8 +603,8 @@ fastpm_store_decompose(FastPMStore * p,
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
     size_t elsize = p->pack(p, 0, NULL, p->attributes);
 
-    void * send_buffer = fastpm_memory_alloc(p->mem, elsize * Nsend, FASTPM_MEMORY_HEAP);
-    void * recv_buffer = fastpm_memory_alloc(p->mem, elsize * Nrecv, FASTPM_MEMORY_HEAP);
+    void * send_buffer = fastpm_memory_alloc(p->mem, "SendBuf", elsize * Nsend, FASTPM_MEMORY_HEAP);
+    void * recv_buffer = fastpm_memory_alloc(p->mem, "RecvBuf", elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
     p->np -= Nsend;
 
