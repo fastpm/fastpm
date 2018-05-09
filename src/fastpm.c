@@ -287,7 +287,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     /* we may need a read gadget ic here too */
     if(CONF(prr, read_runpbic)) {
         read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
-        fastpm_solver_setup_ic(fastpm, NULL);
+        fastpm_solver_setup_ic(fastpm, NULL, CONF(prr, time_step)[0]);
         return;
     } 
 
@@ -484,7 +484,7 @@ produce:
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    fastpm_solver_setup_ic(fastpm, delta_k);
+    fastpm_solver_setup_ic(fastpm, delta_k, CONF(prr, time_step)[0]);
 
     pm_free(fastpm->basepm, delta_k);
 }

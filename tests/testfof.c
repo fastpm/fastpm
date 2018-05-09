@@ -51,7 +51,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
 
     fastpm_info("dx1  : %g %g %g %g\n",
             solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],

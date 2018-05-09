@@ -79,12 +79,15 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 }
 
 void
-fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
+fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a0)
 {
 
     PM * basepm = fastpm->basepm;
     FastPMConfig * config = fastpm->config;
     FastPMStore * p = fastpm->p;
+
+    p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+    p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
 
     if(delta_k_ic) {
         double shift0;
@@ -95,7 +98,7 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
         }
         double shift[3] = {shift0, shift0, shift0};
 
-        fastpm_store_set_lagrangian_position(p, basepm, shift, NULL);
+        fastpm_store_fill(p, basepm, shift, NULL);
 
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);
@@ -105,7 +108,16 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic)
         memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
     fastpm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
+
+    pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
+
+    fastpm_memory_free(p->mem, p->dx2);
+    fastpm_memory_free(p->mem, p->dx1);
+
+    p->dx1 = NULL;
+    p->dx2 = NULL;
 }
+
 static void
 fastpm_do_warmup(FastPMSolver * fastpm, double a0);
 static void
@@ -212,11 +224,8 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
 static void
 fastpm_do_warmup(FastPMSolver * fastpm, double a0)
 {
-    FastPMConfig * config = fastpm->config;
     CLOCK(warmup);
     ENTER(warmup);
-
-    pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
 
     /* set acc to zero or we see valgrind errors */
     memset(fastpm->p->acc, 0, sizeof(fastpm->p->acc[0]) * fastpm->p->np);
