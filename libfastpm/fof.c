@@ -423,7 +423,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(head[i] >= finder->p->np) abort();
         }
 */
-        fastpm_store_init(halos, nhalos, (finder->p->attributes | PACK_LENGTH | PACK_FOF)
+        fastpm_store_init(halos, nhalos,
+                (finder->p->attributes | PACK_LENGTH | PACK_FOF | PACK_Q)
                 & ~PACK_ID & ~PACK_ACC
                 , FASTPM_MEMORY_HEAP);
         halos->np = nhalos;
@@ -489,10 +490,15 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                 halos->dx1[hid][d] += finder->p->dx1[i][d];
             if(halos->dx2)
                 halos->dx2[hid][d] += finder->p->dx2[i][d];
-            if(halos->q)
-                halos->q[hid][d] += finder->p->q[i][d];
         }
 
+        if(halos->q) {
+            double q[3];
+            fastpm_store_get_q_from_id(finder->p, finder->p->id[i], q);
+            for(d = 0; d < 3; d ++) {
+                halos->q[hid][d] += q[d];
+            }
+        }
         /* do this after the loop because x depends on the old length. */
         halos->length[hid] += 1;
     }

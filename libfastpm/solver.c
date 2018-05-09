@@ -57,10 +57,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->p = malloc(sizeof(FastPMStore));
 
     fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-          PACK_POS | PACK_VEL | PACK_ID | PACK_MASK
-        | PACK_DX1 | PACK_DX2 | PACK_ACC
-        | (config->SAVE_Q?PACK_Q:0)
-        | (config->COMPUTE_POTENTIAL?PACK_POTENTIAL:0),
+          PACK_POS | PACK_VEL | PACK_ID | PACK_MASK | PACK_ACC
+        | config->ExtraAttributes,
         config->alloc_factor, comm);
 
     fastpm->vpm_list = vpm_create(config->vpminit,
@@ -405,11 +403,18 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     PM * pm = fastpm->basepm;
     int np = p->np;
 
+    /* first copy, then overwrite a few columns*/
+    fastpm_store_copy(fastpm->p, po);
+
+    /* update velocity */
     fastpm_kick_store(kick, p, po, aout);
 
+    /* update position */
     fastpm_drift_store(drift, p, po, aout);
 
     ptrdiff_t i;
+
+    /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
     double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
@@ -422,9 +427,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
             /* convert the unit from a**2 dx/dt / H0 in Mpc/h to a dx/dt km/s */
             po->v[i][d] *= HubbleConstant / aout;
         }
-
-        po->id[i] = p->id[i];
-        po->mask[i] = p->mask[i];
 
         /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
         if(po->potential)

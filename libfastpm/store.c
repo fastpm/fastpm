@@ -643,8 +643,25 @@ fastpm_store_decompose(FastPMStore * p,
     free(count);
 }
 
-void 
-fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
+void
+fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
+{
+    ptrdiff_t pabs[3];
+
+    int d;
+    for(d = 0; d < 3; d++) {
+        pabs[d] = id / p->q_strides[d];
+        id -= pabs[d] * p->q_strides[d];
+    }
+
+    for(d = 0; d < 3; d++) {
+        q[d] = pabs[d] * p->q_scale[d];
+        q[d] += p->q_shift[d];
+    }
+}
+
+void
+fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 {
     /* fill p with a uniform grid, respecting domain given by pm. use a subsample ratio. 
      * (every subsample grid points) */
@@ -663,11 +680,23 @@ fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double * shift, p
     }
     ptrdiff_t ptr = 0;
 
+    for(d = 0; d < 3; d ++) {
+        if(shift) 
+            p->q_shift[d] = shift[d];
+        else
+            p->q_shift[d] = 0;
+
+        p->q_scale[d] = pm->BoxSize[d] / Nc[d];
+    }
+
+    p->q_strides[0] = Nc[1] * Nc[2];
+    p->q_strides[1] = Nc[2];
+    p->q_strides[2] = 1;
+
     PMXIter iter;
     for(pm_xiter_init(pm, &iter);
        !pm_xiter_stop(&iter);
         pm_xiter_next(&iter)){
-        uint64_t id;
         ptrdiff_t pabs_start[3];
         ptrdiff_t pabs_end[3];
         ptrdiff_t ii, jj, kk;
@@ -681,19 +710,20 @@ fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double * shift, p
         for(kk = pabs_start[2]; kk < pabs_end[2]; kk ++) {
             ptrdiff_t pabs[3] = {ii, jj, kk};
 
-            id = ii * Nc[1] * Nc[2] + jj * Nc[2] + kk;
+            uint64_t id = pabs[2] * p->q_strides[2] +
+                         pabs[1] * p->q_strides[1] +
+                         pabs[0] * p->q_strides[0] ;
 
-            for(d = 0; d < 3; d ++) {
-                p->x[ptr][d] = pabs[d] * (pm->BoxSize[d] / Nc[d]);
+            if(p->id) p->id[ptr] = id;
+            if(p->mask) p->mask[ptr] = 0;
 
-                if(shift) p->x[ptr][d] += shift[d];
+            fastpm_store_get_q_from_id(p, id, &p->x[ptr][0]);
 
-                if(p->id) p->id[ptr]  = id;
-
-                if(p->mask) p->mask[ptr] = 0;
-
+            if(p->q) {
                 /* set q if it is allocated. */
-                if(p->q) p->q[ptr][d] = p->x[ptr][d];
+                for(d = 0; d < 3; d ++) {
+                    p->q[ptr][d] = p->x[ptr][d];
+                }
             }
             ptr ++;
         }
@@ -766,7 +796,11 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
     po->np = p->np;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
-
+    if(po != p) {
+        memcpy(po->q_strides, p->q_strides, 3 * sizeof(p->q_strides[0]));
+        memcpy(po->q_scale, p->q_scale, 3 * sizeof(p->q_scale[0]));
+        memcpy(po->q_shift, p->q_shift, 3 * sizeof(p->q_shift[0]));
+    }
 }
 
 void
@@ -829,6 +863,12 @@ fastpm_store_subsample(FastPMStore * p, FastPMStore * po)
     po->np = j;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
+
+    if(po != p) {
+        memcpy(po->q_strides, p->q_strides, 3 * sizeof(p->q_strides[0]));
+        memcpy(po->q_scale, p->q_scale, 3 * sizeof(p->q_scale[0]));
+        memcpy(po->q_shift, p->q_shift, 3 * sizeof(p->q_shift[0]));
+    }
 }
 
 

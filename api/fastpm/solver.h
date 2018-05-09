@@ -46,8 +46,8 @@ typedef struct {
     VPMInit * vpminit;
     int USE_DX1_ONLY;
     int USE_SHIFT;
-    int SAVE_Q;
-    int COMPUTE_POTENTIAL;
+
+    enum FastPMPackFields ExtraAttributes;
 
     double nLPT;
     FastPMPainterType PAINTER_TYPE;

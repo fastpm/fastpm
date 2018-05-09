@@ -202,6 +202,9 @@ write_snapshot_data(FastPMStore * p,
         char * dtype_out;
     } * bdesc, BLOCKS[] = {
         {"Position", p->x, "f8", 8, 3, "f4"},
+        {"InitialPosition", p->q, "f4", 8, 3, "f4"},
+        {"DX1", p->dx1, "f4", 8, 3, "f4"},
+        {"DX2", p->dx2, "f4", 8, 3, "f4"},
         {"Velocity", p->v, "f4", 4, 3, "f4"},
         {"ID", p->id, "i8", 8, 1, "i8"},
         {"Aemit", p->aemit, "f4", 4, 1, "f4"},

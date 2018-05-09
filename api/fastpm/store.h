@@ -80,6 +80,10 @@ struct FastPMStore {
     size_t np_upper;
     double a_x;
     double a_v;
+
+    double q_shift[3];
+    double q_scale[3];
+    ptrdiff_t q_strides[3];
 };
 
 void
@@ -90,13 +94,16 @@ fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields
     double alloc_factor, MPI_Comm comm);
 
 void
+fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);
+
+void 
+fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
+
+void
 fastpm_store_destroy(FastPMStore * p);
 
 void
 fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm);
-
-void
-fastpm_store_set_lagrangian_position(FastPMStore * p, PM * pm, double shift[3], ptrdiff_t Nc[3]);
 
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
