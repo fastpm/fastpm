@@ -480,10 +480,6 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         int d;
 
         for(d = 0; d < 3; d++) {
-            if(halos->x)
-                halos->x[hid][d] = periodic_add(
-                    halos->x[hid][d] / halos->length[hid], halos->length[hid],
-                    finder->p->x[i][d], 1, boxsize[d]);
             if(halos->v)
                 halos->v[hid][d] += finder->p->v[i][d];
             if(halos->dx1)
@@ -491,12 +487,21 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(halos->dx2)
                 halos->dx2[hid][d] += finder->p->dx2[i][d];
         }
+        if(halos->x) {
+            for(d = 0; d < 3; d++) {
+                halos->x[hid][d] = periodic_add(
+                    halos->x[hid][d] / halos->length[hid], halos->length[hid],
+                    finder->p->x[i][d], 1, boxsize[d]);
+            }
+        }
 
         if(halos->q) {
             double q[3];
             fastpm_store_get_q_from_id(finder->p, finder->p->id[i], q);
             for(d = 0; d < 3; d ++) {
-                halos->q[hid][d] += q[d];
+                halos->q[hid][d] = periodic_add(
+                    halos->q[hid][d] / halos->length[hid], halos->length[hid],
+                    q[d], 1, boxsize[d]);
             }
         }
         /* do this after the loop because x depends on the old length. */
