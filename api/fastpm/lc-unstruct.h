@@ -17,6 +17,7 @@ typedef struct {
                     Remember the lightcone is always along z-direction.*/
 
     int octants[8]; /* 1 if the octants is to be included, enabled when fov >= 360.*/
+    double tol;
 } FastPMLightCone;
 
 typedef struct FastPMUSMesh {

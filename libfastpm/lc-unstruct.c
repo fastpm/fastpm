@@ -171,10 +171,10 @@ zangle(double * x) {
     return rt;
 }
 
-int
-fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
+static int
+_in_octant(int i, double vec[3], double tol)
 {
-    static const int sign[][3] = {
+    static const int signs[][3] = {
         {1, 1, 1},
         {1, 1, -1},
         {1, -1, 1},
@@ -184,6 +184,18 @@ fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
         {-1, -1, 1},
         {-1, -1, -1},
     };
+    int d;
+    for(d = 0; d < 3; d ++) {
+        double s = vec[d] * signs[i][d];
+        if(s < -tol) {
+            return 0;
+        }
+    }
+    return 1;
+}
+int
+fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
+{
     if(lc->fov > 0) {
         int r;
         if(lc->fov < 360) {
@@ -192,25 +204,17 @@ fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
             r = 1;
         }
         if(r) {
+            double norm = 0;
+            int d;
+            for(d = 0; d < 3; d ++) {
+                norm += vec[d] * vec[d];
+            }
+            norm = sqrt(norm);
             int i;
             for(i = 0; i < 8; i ++) {
-                if(lc->octants[i]) continue;
-                /* hiding the octant? */
-                int d;
-                int s = 1;
-                for(d = 0; d < 3; d ++) {
-                    if(sign[i][d] > 0)
-                        s = s && vec[d] >= 0;
-                    else
-                        s = s && vec[d] < 0;
-                }
-                /* all directions are inside the octant */
-                if(s) {
-                    /* printf("hiding vec = %g %g %g %d\n", vec[0], vec[1], vec[2], i); */
-                    return 0;
-                }
+                if(lc->octants[i] && _in_octant(i, vec, lc->tol * norm)) return 1;
             }
-            return 1;
+            return 0;
         } else {
             return 0;
         }

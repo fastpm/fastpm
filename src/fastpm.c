@@ -239,6 +239,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .cosmology = fastpm->cosmology,
         .fov = CONF(prr, lc_fov),
         .octants = {0, 0, 0, 0, 0, 0, 0, 0},
+        .tol = 2. / CONF(prr, nc) / CONF(prr, lc_smesh_fraction),
     }};
 
     FastPMUSMesh * usmesh = NULL;
