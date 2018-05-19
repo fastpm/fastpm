@@ -56,6 +56,11 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->p = malloc(sizeof(FastPMStore));
 
+    if(config->FORCE_TYPE == FASTPM_FORCE_COLA) {
+        /* Cola requires DX1 and DX2 to be permantly stored. */
+        config->ExtraAttributes |= PACK_DX1;
+        config->ExtraAttributes |= PACK_DX2;
+    }
     fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
           PACK_POS | PACK_VEL | PACK_ID | PACK_MASK | PACK_ACC
         | config->ExtraAttributes,
@@ -84,8 +89,16 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a
     FastPMConfig * config = fastpm->config;
     FastPMStore * p = fastpm->p;
 
-    p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
-    p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+    int temp_dx1 = 0;
+    int temp_dx2 = 0;
+    if(p->dx1 == NULL) {
+        p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+        temp_dx1 = 1;
+    }
+    if(p->dx2 == NULL) {
+        p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+        temp_dx2 = 1;
+    }
 
     if(delta_k_ic) {
         double shift0;
@@ -109,11 +122,14 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a
 
     pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
 
-    fastpm_memory_free(p->mem, p->dx2);
-    fastpm_memory_free(p->mem, p->dx1);
-
-    p->dx1 = NULL;
-    p->dx2 = NULL;
+    if(temp_dx2) {
+        fastpm_memory_free(p->mem, p->dx2);
+        p->dx2 = NULL;
+    }
+    if(temp_dx1) {
+        fastpm_memory_free(p->mem, p->dx1);
+        p->dx1 = NULL;
+    }
 }
 
 static void
