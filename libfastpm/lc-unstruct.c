@@ -315,7 +315,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
                 next = pout->np++;
 
             if(next == pout->np_upper) {
-                fastpm_raise(-1, "Too many particles in the light cone");
+                fastpm_raise(-1, "Too many particles in the light cone; limit = %td\n", pout->np_upper);
             }
 
             /* copy the position if desired */

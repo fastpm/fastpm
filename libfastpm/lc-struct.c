@@ -332,7 +332,7 @@ fastpm_smesh_layer_select_active(
                 q->aemit[q->np] = aemit;
                 q->np++;
                 if(q->np > q->np_upper) {
-                    fastpm_raise(-1, "too many particles are created, increase np_upper!");
+                    fastpm_raise(-1, "too many particles are created, increase np_upper current=%td!", q->np_upper);
                 }
             }
         }
@@ -466,6 +466,7 @@ fastpm_smesh_compute_potential(
     double potfactor = 1.5 * mesh->lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
     FastPMStore * p_last_then = mesh->last.p;
 
+    #pragma omp parallel for
     for(i = 0; i < p_last_now->np; i ++) {
 
         /* transform back to observer coordinate */
