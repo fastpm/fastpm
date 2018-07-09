@@ -2,17 +2,17 @@
 ------ Size of the simulation -------- 
 
 -- For Testing
-nc = 128
-boxsize = 256
+nc = 64
+boxsize = 512
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.1, 1, 10)
+time_step = linspace(0.5, 1, 3)
 
-output_redshifts= {9.0, 0.0}  -- redshifts of output
+output_redshifts= {1.0, 0.0}  -- redshifts of output
 compute_potential = true
 compute_tidal = true
 
@@ -25,14 +25,13 @@ h       = 0.6774
 -- Must be compatible with the Cosmology parameter
 read_powerspectrum= "powerspec.txt"
 random_seed= 100
-
+remove_cosmic_variance=true
 -------- Approximation Method ---------------
 force_mode = "fastpm"
 -- force_mode = "cola"
-
 pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
-np_alloc_factor= 8.0      -- Amount of memory allocated for particle
+np_alloc_factor= 25.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
@@ -42,9 +41,10 @@ write_snapshot = "lightcone/fastpm"
 write_fof = "lightcone/fof"
 -- 1d power spectrum (raw), without shotnoise correction
 
-dh_factor = 0.01
-lc_fov = 0
-lc_fov = 361
+dh_factor = 0.1
+lc_fov = 360
+lc_octants = {0}
+-- lc_fov = 361
 
 --s =[[glmatrix = { 
 --        {1, 0, 0, -128},
@@ -54,9 +54,9 @@ lc_fov = 361
 --        }
 --]]
 
-lc_glmatrix = fastpm.translation(-128, -128, -128)
+-- lc_glmatrix = fastpm.translation(-128, -128, -128)
 lc_smesh_max_nside=512
-lc_amin = 0.1
+lc_amin = 0.5
 lc_amax = 1.0
 --
 -- lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
