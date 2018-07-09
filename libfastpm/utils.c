@@ -331,4 +331,3 @@ fastpm_gldotf(double glmatrix[4][4], float vi[4], float vo[4])
         }
     }
 }
-

@@ -20,6 +20,9 @@ static void
 fill_a(FastPMSMesh * mesh, double * a, int Na,
        double zmin, double zmax);
 
+static void
+_rotate_tidal(double glmatrix[4][4], float tidal[6]);
+
 void
 fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, double smoothing)
 {
@@ -500,6 +503,9 @@ fastpm_smesh_compute_potential(
             INTERP(tidal[i][j]);
             p_last_then->tidal[i][j] *= potfactor / a_emit;
         }
+
+        _rotate_tidal(mesh->lc->glmatrix, &p_last_then->tidal[i][0]);
+
     }
     /* p_last_now is no longer useful after interpolation */
     fastpm_store_destroy(p_last_now);
@@ -531,6 +537,56 @@ fastpm_smesh_compute_potential(
     fastpm_store_destroy(p_new_now);
 
     return 0;
+}
+
+static void
+_rotate_tidal(double glmatrix[4][4], float tidal[6])
+{
+    /* rotate the tidal tensor, encoded as T00 T11 T22 T01 T12 T20. by
+     * matrix glmatrix */
+
+    double T[3][4] = {
+        { tidal[0],  tidal[3], tidal[4], 0},
+        { tidal[3],  tidal[1], tidal[5], 0},
+        { tidal[4],  tidal[5], tidal[2], 0},
+    };
+
+    double T1[3][4];
+
+    int i, j;
+    /* R dot T */
+    for (i = 0; i < 3; i ++) {
+        fastpm_gldot(glmatrix, &T[i][0], &T1[i][0]);
+    }
+
+    /* transpose (R dot T) */
+    for (i = 0; i < 3; i ++) {
+        for (j = 0; j < 3; j ++) {
+            T[i][j] = T1[j][i];
+        }
+    }
+
+    /* R dot transpose (R dot T) */
+    for (i = 0; i < 3; i ++) {
+        fastpm_gldot(glmatrix, &T[i][0], &T1[i][0]);
+    }
+
+    if(fabs(T1[1][2] - T1[2][1]) > 1e-7) {
+        abort();
+    }
+    if(fabs(T1[0][1] - T1[1][0]) > 1e-7) {
+        abort();
+    }
+    if(fabs(T1[0][2] - T1[2][0]) > 1e-7) {
+        abort();
+    }
+
+    tidal[0] = T1[0][0];
+    tidal[1] = T1[1][1];
+    tidal[2] = T1[2][2];
+    tidal[3] = T1[0][1];
+    tidal[4] = T1[1][2];
+    tidal[5] = T1[2][0];
 }
 
 static double
