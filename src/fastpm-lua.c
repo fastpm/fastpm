@@ -65,6 +65,7 @@ int main(int argc, char * argv[]) {
         if(confstr == NULL) {
             fastpm_raise(-1, "%s\n", error);
         }
+        fastpm_info("Compiled parameters are: \n%s\n", confstr);
         LuaConfig * config;
         config = lua_config_new(confstr);
         lua_config_free(config);
