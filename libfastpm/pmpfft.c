@@ -229,20 +229,35 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
 
         pm->Grid.MeshtoCart[d] = malloc(sizeof(int) * pm->Nmesh[d]);
 
+        /* Here we sum the size instead of using the offset,
+         * because pfft reports local_i_start and local_ni of zero.
+         * if the rank does not contain any blocks. Using the offsets
+         * will cause non-increasing edges.*/
+
         MPI_Cart_sub(pm->Comm2D, remain_dims, &projected);
-        MPI_Allgather(&pm->IRegion.start[d], 1, MPI_PTRDIFF, 
+        MPI_Allgather(&pm->IRegion.size[d], 1, MPI_PTRDIFF, 
             pm->Grid.edges_int[d], 1, MPI_PTRDIFF, projected);
-        int ntask;
-        MPI_Comm_size(projected, &ntask);
 
         MPI_Comm_free(&projected);
         int j;
-        for(j = 0; j < pm->Nproc[d]; j ++) {
+        ptrdiff_t sum = 0;
+        for(j = 0; j <= pm->Nproc[d]; j ++) {
+            ptrdiff_t sum1 = sum + pm->Grid.edges_int[d][j];
+            pm->Grid.edges_int[d][j] = sum;
+            sum = sum1;
+        }
+
+        for(j = 0; j <= pm->Nproc[d]; j ++) {
             pm->Grid.edges_float[d][j] = 1.0 * pm->Grid.edges_int[d][j] / pm->Nmesh[d] * pm->BoxSize[d];
         }
+
         /* Last edge is at the edge of the box */
-        pm->Grid.edges_float[d][j] = pm->BoxSize[d];
-        pm->Grid.edges_int[d][j] = pm->Nmesh[d];
+        int last = pm->Nproc[d];
+        pm->Grid.edges_float[d][last] = pm->BoxSize[d];
+        if (pm->Grid.edges_int[d][last] != pm->Nmesh[d]) {
+            fastpm_raise(-1, "last edge did not match Nmesh. Internal Error.\n");
+
+        };
         /* fill in the look up table */
         for(j = 0; j < pm->Nproc[d]; j ++) {
             int i;
