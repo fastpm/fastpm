@@ -275,7 +275,7 @@ fastpm_utils_healpix_ra_dec (
 
     /* count total */
     uint64_t valid_npix = local_npix;
-    MPI_Allreduce(MPI_IN_PLACE, &valid_npix, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &valid_npix, 1, MPI_LONG, MPI_SUM, comm);
 
     /* redistribute / balance */
 
