@@ -72,9 +72,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     PMInit basepminit = {
             .Nmesh = config->nc,
             .BoxSize = config->boxsize,
-            .NprocY = 0, /* 0 for auto, 1 for slabs */
+            .NprocY = config->NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 1,
-            .use_fftw = 0,
+            .use_fftw = config->UseFFTW,
         };
 
     fastpm->basepm = malloc(sizeof(PM));
