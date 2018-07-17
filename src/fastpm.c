@@ -83,7 +83,7 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr);
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic);
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
@@ -757,7 +757,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
             sprintf(filebase, "%s_%0.04f", CONF(prr, write_fof), aout[iout]);
 
-            write_fof(fastpm, snapshot, filebase, prr);
+            write_fof(fastpm, snapshot, filebase, prr, 1);
         }
 
         /* in place subsampling to avoid creating another store, we trash it immediately anyways. */
@@ -772,7 +772,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 }
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr)
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic)
 {
     CLOCK(fof);
     CLOCK(io);
@@ -781,7 +781,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
         .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
-        .periodic = 1,
+        .periodic = periodic,
         .nmin = CONF(prr, fof_nmin),
         .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
     };
