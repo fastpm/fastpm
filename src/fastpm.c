@@ -781,6 +781,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
         .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
+        .periodic = 1,
         .nmin = CONF(prr, fof_nmin),
         .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
     };
