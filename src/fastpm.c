@@ -83,7 +83,7 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic);
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic, int append);
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
@@ -690,9 +690,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        write_fof(solver, lcevent->p, fn, prr, 0, 0);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        write_fof(solver, lcevent->p, fn, prr, 0, 1);
     }
 
     LEAVE(io);
@@ -757,7 +759,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
             sprintf(filebase, "%s_%0.04f", CONF(prr, write_fof), aout[iout]);
 
-            write_fof(fastpm, snapshot, filebase, prr, 1);
+            write_fof(fastpm, snapshot, filebase, prr, 1, 0);
         }
 
         /* in place subsampling to avoid creating another store, we trash it immediately anyways. */
@@ -772,7 +774,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 }
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic)
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic, int append)
 {
     CLOCK(fof);
     CLOCK(io);
@@ -806,7 +808,10 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     ENTER(io);
 
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
-    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    if (!append)
+        write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    else
+        append_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
 
     free(dataset);
     LEAVE(io);

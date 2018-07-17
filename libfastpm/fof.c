@@ -435,10 +435,21 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             if(head[i] >= finder->p->np) abort();
         }
 */
+        enum FastPMPackFields attributes = finder->p->attributes;
+        attributes |= PACK_LENGTH | PACK_FOF;
+        attributes &= ~PACK_ACC;
+
+        /* store initial position only for periodic case. non-periodic suggests light cone and
+         * we cannot infer q from ID sensibly. (crashes there) */
+        if(finder->priv->boxsize) {
+            attributes |= PACK_Q;
+        } else {
+            attributes &= ~PACK_Q;
+        }
+
         fastpm_store_init(halos, nhalos,
-                (finder->p->attributes | PACK_LENGTH | PACK_FOF | PACK_Q)
-                & ~PACK_ACC
-                , FASTPM_MEMORY_HEAP);
+                attributes,
+                FASTPM_MEMORY_HEAP);
         halos->np = nhalos;
         halos->a_x = finder->p->a_x;
         halos->a_v = finder->p->a_v;
