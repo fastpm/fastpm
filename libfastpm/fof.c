@@ -143,6 +143,8 @@ fastpm_fof_init(FastPMFOFFinder * finder, FastPMStore * store, PM * pm)
     finder->p = store;
     finder->pm = pm;
 
+    finder->event_handlers = NULL;
+
     if (finder->periodic)
         finder->priv->boxsize = pm_boxsize(pm);
     else
@@ -496,7 +498,6 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         if(halos->aemit)
             halos->aemit[hid] += finder->p->aemit[i];
 
-        
         if(halos->fof[hid].minid > finder->p->id[i]) {
             halos->fof[hid].minid = finder->p->id[i];
         }
@@ -563,6 +564,20 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             halos->id[i] = halos->fof[i].minid;
     }
 
+    /* update head to hid, for the event. */
+    for(i = 0; i < finder->p->np; i++) {
+        ptrdiff_t hid = offset[head[i]];
+        head[i] = hid;
+    }
+
+    FastPMHaloEvent event[1];
+    event->halos = halos;
+    event->p = finder->p;
+    event->ihalo = head;
+
+    fastpm_emit_event(finder->event_handlers, FASTPM_EVENT_HALO,
+                    FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, finder);
+
     fastpm_memory_free(finder->p->mem, offset);
     fastpm_memory_free(finder->p->mem, head);
 
@@ -572,6 +587,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder)
 {
+    fastpm_destroy_event_handlers(&finder->event_handlers);
     free(finder->priv);
 }
 

@@ -835,6 +835,9 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
     gsl_rng_free(random_generator);
 }
 
+/*
+ * Create a subsample, keeping only those with mask == True
+ * */
 void
 fastpm_store_subsample(FastPMStore * p, FastPMStore * po)
 {

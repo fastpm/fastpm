@@ -1,6 +1,15 @@
 #ifndef _FASTPM_FOF_H
 #define _FASTPM_FOF_H
+
+#define FASTPM_EVENT_HALO "HALO"
 typedef struct FastPMFOFFinderPrivate FastPMFOFFinderPrivate;
+
+typedef struct {
+    FastPMEvent base;
+    FastPMStore * halos;
+    FastPMStore * p;
+    ptrdiff_t * ihalo; /* halo index in halo per particle. */
+} FastPMHaloEvent;
 
 typedef struct {
     int nmin;
@@ -17,6 +26,7 @@ typedef struct {
 
     FastPMFOFFinderPrivate * priv;
 
+    FastPMEventHandler * event_handlers;
 } FastPMFOFFinder;
 
 void
