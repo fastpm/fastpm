@@ -56,6 +56,7 @@ struct FastPMStore {
 
     enum FastPMPackFields attributes; /* bit flags of allocated attributes */
 
+    void * base; /* base pointer of all memory buffers */
     double (* x)[3];
     float (* q)[3];
     float (* v)[3];
@@ -87,7 +88,9 @@ struct FastPMStore {
 };
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc);
+fastpm_store_init_details(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
+
+#define fastpm_store_init(p, np_upper, attributes, loc) fastpm_store_init_details(p, np_upper, attributes, loc, __FILE__, __LINE__)
 
 size_t
 fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes,

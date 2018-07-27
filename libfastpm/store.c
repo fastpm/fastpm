@@ -288,11 +288,20 @@ byebye:
     }
 }
 
+static ptrdiff_t
+_alignsize(ptrdiff_t size)
+{
+    /* align sizes */
+    return ((size + 1024) / 1024) * 1024;
+}
+
 void
-fastpm_store_init(FastPMStore * p,
+fastpm_store_init_details(FastPMStore * p,
                   size_t np_upper,
                   enum FastPMPackFields attributes,
-                  enum FastPMMemoryLocation loc)
+                  enum FastPMMemoryLocation loc,
+                  const char * file,
+                  const int line)
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -307,77 +316,44 @@ fastpm_store_init(FastPMStore * p,
     p->np_upper = np_upper;
     p->attributes = attributes;
 
-    if(attributes & PACK_Q)
-        p->q = fastpm_memory_alloc(p->mem, "Q", sizeof(p->q[0]) * np_upper, loc);
-    else
-        p->q = NULL;
+    int it;
+    p->base = NULL;
 
-    if(attributes & PACK_POS)
-        p->x = fastpm_memory_alloc(p->mem, "X", sizeof(p->x[0]) * np_upper, loc);
-    else
-        p->x = NULL;
+    #define SIZEIT(column, PACK) \
+        if(it == 0) { \
+            (size += ((attributes & PACK) != 0) * _alignsize(sizeof(p->column[0]) * np_upper)); \
+        } else { \
+            if(attributes & PACK) { \
+                p->column = (void*) (((char*) p->base) + offset); \
+                offset += _alignsize(sizeof(p->column[0]) * np_upper); \
+            } else { \
+                p->column = NULL; \
+            } \
+        }
 
+    ptrdiff_t size = 0;
+    ptrdiff_t offset = 0;
+    for(it = 0; it < 2; it ++) {
+        SIZEIT(q, PACK_Q);
+        SIZEIT(x, PACK_POS);
+        SIZEIT(v, PACK_VEL);
+        SIZEIT(id, PACK_ID);
+        SIZEIT(length, PACK_LENGTH);
+        SIZEIT(fof , PACK_FOF);
+        SIZEIT(acc, PACK_ACC);
+        SIZEIT(dx1, PACK_DX1);
+        SIZEIT(dx2, PACK_DX2);
+        SIZEIT(aemit, PACK_AEMIT);
+        SIZEIT(rho, PACK_DENSITY);
+        SIZEIT(potential, PACK_POTENTIAL);
+        SIZEIT(tidal, PACK_TIDAL);
+        SIZEIT(mask, PACK_MASK);
 
-    if(attributes & PACK_VEL)
-        p->v = fastpm_memory_alloc(p->mem, "V", sizeof(p->v[0]) * np_upper, loc);
-    else
-        p->v = NULL;
-
-    if(attributes & PACK_ID)
-        p->id = fastpm_memory_alloc(p->mem, "ID", sizeof(p->id[0]) * np_upper, loc);
-    else
-        p->id = NULL;
-
-    if(attributes & PACK_MASK)
-        p->mask = fastpm_memory_alloc(p->mem, "Mask", sizeof(p->mask[0]) * np_upper, loc);
-    else
-        p->mask = NULL;
-
-    if(attributes & PACK_LENGTH)
-        p->length = fastpm_memory_alloc(p->mem, "Length", sizeof(p->length[0]) * np_upper, loc);
-    else
-        p->length = NULL;
-
-    if(attributes & PACK_FOF)
-        p->fof = fastpm_memory_alloc(p->mem, "FOF", sizeof(p->fof[0]) * np_upper, loc);
-    else
-        p->fof = NULL;
-
-    if(attributes & PACK_ACC)
-        p->acc = fastpm_memory_alloc(p->mem, "Acc", sizeof(p->acc[0]) * np_upper, loc);
-    else
-        p->acc = NULL;
-
-    if(attributes & PACK_DX1)
-        p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * np_upper, loc);
-    else
-        p->dx1 = NULL;
-
-    if(attributes & PACK_DX2)
-        p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * np_upper, loc);
-    else
-        p->dx2 = NULL;
-
-    if(attributes & PACK_AEMIT)
-        p->aemit = fastpm_memory_alloc(p->mem, "Aemit", sizeof(p->aemit[0]) * np_upper, loc);
-    else
-        p->aemit = NULL;
-
-    if(attributes & PACK_DENSITY)
-        p->rho = fastpm_memory_alloc(p->mem, "Density", sizeof(p->rho[0]) * np_upper, loc);
-    else
-        p->rho = NULL;
-
-    if(attributes & PACK_POTENTIAL)
-        p->potential = fastpm_memory_alloc(p->mem, "Potential", sizeof(p->potential[0]) * np_upper, loc);
-    else
-        p->potential = NULL;
-
-    if(attributes & PACK_TIDAL)
-        p->tidal = fastpm_memory_alloc(p->mem, "Tidal", sizeof(p->tidal[0]) * np_upper, loc);
-    else
-        p->tidal = NULL;
-};
+        if(it == 0) {
+            p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
+        }
+    };
+}
 
 size_t 
 fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes, double alloc_factor, MPI_Comm comm) 
@@ -400,34 +376,7 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
-    if(p->attributes & PACK_TIDAL)
-        fastpm_memory_free(p->mem, p->tidal);
-    if(p->attributes & PACK_POTENTIAL)
-        fastpm_memory_free(p->mem, p->potential);
-    if(p->attributes & PACK_DENSITY)
-        fastpm_memory_free(p->mem, p->rho);
-    if(p->attributes & PACK_AEMIT)
-        fastpm_memory_free(p->mem, p->aemit);
-    if(p->attributes & PACK_DX2)
-        fastpm_memory_free(p->mem, p->dx2);
-    if(p->attributes & PACK_DX1)
-        fastpm_memory_free(p->mem, p->dx1);
-    if(p->attributes & PACK_ACC)
-        fastpm_memory_free(p->mem, p->acc);
-    if(p->attributes & PACK_FOF)
-        fastpm_memory_free(p->mem, p->fof);
-    if(p->attributes & PACK_LENGTH)
-        fastpm_memory_free(p->mem, p->length);
-    if(p->attributes & PACK_MASK)
-        fastpm_memory_free(p->mem, p->mask);
-    if(p->attributes & PACK_ID)
-        fastpm_memory_free(p->mem, p->id);
-    if(p->attributes & PACK_VEL)
-        fastpm_memory_free(p->mem, p->v);
-    if(p->attributes & PACK_POS)
-        fastpm_memory_free(p->mem, p->x);
-    if(p->attributes & PACK_Q)
-        fastpm_memory_free(p->mem, p->q);
+    fastpm_memory_free(p->mem, p->base);
 }
 
 void fastpm_store_read(FastPMStore * p, char * datasource) {
