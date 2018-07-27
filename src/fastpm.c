@@ -83,7 +83,10 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic, int append);
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr);
+
+static void
+write_usmesh_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int append, FastPMStore * tail);
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
@@ -252,8 +255,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
 
-    /* subsampling ratio */
-    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr, particle_fraction), comm);
+    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr, particle_fraction), fastpm->p->mask, comm);
 
     fastpm_info("dx1  : %g %g %g %g\n", 
             fastpm->info.dx1[0], fastpm->info.dx1[1], fastpm->info.dx1[2],
@@ -575,14 +577,19 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
         free(tiles);
 
-        void ** data = malloc(sizeof(void*) * 2);
+        void ** data = malloc(sizeof(void*) * 3);
+        FastPMStore tail[1]; /* used to store the tail particles in the lightcone for FOF */
         data[0] = fastpm;
         data[1] = prr;
+        data[2] = tail;
+        fastpm_store_init(tail, fastpm->p->np_upper * 0.1, fastpm->p->attributes, FASTPM_
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
                 (FastPMEventHandlerFunction) usmesh_ready_handler,
                 data, free);
+
+        fastpm_store_destroy(tail);
     }
 
     *smesh = NULL;
@@ -674,6 +681,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
 
     FastPMSolver * solver = userdata[0];
     Parameters * prr = userdata[1];
+    FastPMStore * tail = userdata[2];
 
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
@@ -690,12 +698,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
-        write_fof(solver, lcevent->p, fn, prr, 0, 0);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
-        write_fof(solver, lcevent->p, fn, prr, 0, 1);
     }
+
+    write_usmesh_fof(solver, lcevent->p, fn, prr, !lcevent->isfirst, tail);
 
     LEAVE(io);
     ENTER(indexing);
@@ -759,11 +767,11 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
             sprintf(filebase, "%s_%0.04f", CONF(prr, write_fof), aout[iout]);
 
-            write_fof(fastpm, snapshot, filebase, prr, 1, 0);
+            write_fof(fastpm, snapshot, filebase, prr);
         }
 
         /* in place subsampling to avoid creating another store, we trash it immediately anyways. */
-        fastpm_store_subsample(snapshot, snapshot);
+        fastpm_store_subsample(snapshot, snapshot->mask, snapshot);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
@@ -774,7 +782,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 }
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int periodic, int append)
+write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr)
 {
     CLOCK(fof);
     CLOCK(io);
@@ -783,7 +791,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
         .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
-        .periodic = periodic,
+        .periodic = 1,
         .nmin = CONF(prr, fof_nmin),
         .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
     };
@@ -798,7 +806,6 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     LEAVE(fof);
 
-
     fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
 
     ENTER(sort);
@@ -808,10 +815,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     ENTER(io);
 
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
-    if (!append)
-        write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
-    else
-        append_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
 
     free(dataset);
     LEAVE(io);
@@ -820,6 +824,131 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);
+}
+
+static void
+_halos_ready (FastPMHaloFinder * finder,
+    FastPMHaloEvent * event, void ** userdata)
+{
+    double rmax = *((double*) userdata[0]);
+    double halosize = *((double*) userdata[1]);
+    FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
+    char * keep_for_tail = (char *) userdata[3];
+
+    double * r = malloc(sizeof(r[0]));
+
+    ptrdiff_t i;
+
+    for(i = 0; i < halos->np; i ++) {
+        r[i] = fastpm_lc_distance(lc, halos->x[i]);
+        /* only keep reliable halos */
+        if(r[i] < rmax - halosize * 0.5) {
+            halos->mask[i] = 1;
+        } else {
+            halos->mask[i] = 0;
+        }
+    }
+
+    for(i = 0; i < p->np; i ++) {
+        ptrdiff_t hid = ihalo[i];
+        double r_p = fastpm_lc_distance(lc, p->x[i]);
+        if (r_p < rmax - halossize) {
+            /* not near the tail of the lightcone, do not keep for tail */
+            keep_for_tail[i] = 0;
+        } else {
+            /* near the tail of the lightcone, do not keep those formed reliable halos */
+            if(hid >= 0) {
+                /* unreliable halos, keep them */
+                keep_for_tail[i] = !halos->mask[hid];
+            } else {
+                /* not in halos, keep them too */
+                keep_for_tail[i] = 1;
+            }
+        }
+    }
+}
+
+static void
+write_usmesh_fof(FastPMSolver * fastpm,
+        FastPMStore * snapshot,
+        char * filebase, Parameters * prr,
+        FastPMLCEvent * lcevent,
+        int append, FastPMStore * tail)
+{
+    CLOCK(fof);
+    CLOCK(io);
+    CLOCK(sort);
+    ENTER(fof);
+
+    double maxhalosize = 10; /* MPC/h, used to cut along z direction. */
+
+    /* not the first segment, add the left over particles to the FOF */
+    if(append) {
+        fastpm_store_append(tail, lcevent->p);
+        fastpm_store_destroy(tail);
+    }
+
+    FastPMFOFFinder fof = {
+        /* convert from fraction of mean separation to simulation distance units. */
+        .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
+        .periodic = 0,
+        .nmin = CONF(prr, fof_nmin),
+        .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
+    };
+
+    fastpm_fof_init(&fof, snapshot, fastpm->basepm);
+
+    /* FIXME: register event to mask out particles*/
+    char * keep_for_tail = malloc(lcevent->p->np);
+
+    r_max = HorizonDistance(lcevent->a1, lcevent->lc->horizon);
+    void * userdata[4];
+    userdata[0] = & rmax;
+    userdata[1] = & maxhalosize;
+    userdata[2] = lc;
+    userdata[3] = keep_for_tail;
+
+    FastPMStore halos[1];
+    fastpm_add_event_handler(&fof->event_handlers,
+        FASTPM_EVENT_HALO,
+        FASTPM_EVENT_STAGE_AFTER,
+        (FastPMEventHandlerFunction) _halos_ready,
+        prr);
+
+    ENTER(fof);
+
+    fastpm_fof_execute(&fof, halos);
+
+    LEAVE(fof);
+
+    fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
+
+    fastpm_store_subsample(halos, halos->mask, halos);
+
+    ENTER(sort);
+    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
+    LEAVE(sort);
+
+    ENTER(io);
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
+    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+
+    free(dataset);
+    LEAVE(io);
+
+    fastpm_info("FOF Catalog %s written\n", filebase);
+
+    fastpm_store_destroy(halos);
+
+    fastpm_fof_destroy(&fof);
+
+    ptrdiff_t ntail = 0;
+    for(i = 0; i < p->np; i ++) {
+        if(keep_for_tail[i]) ntail ++;
+    }
+    fastpm_store_init(tail, ntail, p->attributes, FASTPM_MEMORY_HEAP);
+
+    fastpm_store_subsample(lcevent->p, keep_for_tail, tail);
 }
 
 static int 

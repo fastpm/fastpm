@@ -125,10 +125,11 @@ void fastpm_store_write(FastPMStore * p, char * datasource);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
+        char * mask,
         MPI_Comm comm);
 
 void
-fastpm_store_subsample(FastPMStore * in, FastPMStore * out);
+fastpm_store_subsample(FastPMStore * in, char * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit(FastPMStore * store,
@@ -139,6 +140,9 @@ fastpm_store_histogram_aemit(FastPMStore * store,
 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
+
+void
+fastpm_store_append(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
 void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);

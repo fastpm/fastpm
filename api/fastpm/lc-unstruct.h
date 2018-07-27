@@ -96,6 +96,9 @@ fastpm_lc_init(FastPMLightCone * lc);
 int
 fastpm_lc_inside(FastPMLightCone * lc, double vec[3]);
 
+double
+fastpm_lc_distance(FastPMLightCone * lc, double x[3]);
+
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh,
                 FastPMLightCone * lc, size_t np_upper,

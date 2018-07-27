@@ -130,19 +130,24 @@ funct(double a, void *params)
     /* transform the coordinate */
     fastpm_gldot(lc->glmatrix, xi, xo);
 
+    double distance = fastpm_lc_distance(lc, xo);
+
     /* XXX: may need to worry about periodic boundary */
+    return distance - lc->speedfactor * HorizonDistance(a, lc->horizon);
+}
+
+double
+fastpm_lc_distance(FastPMLightCone * lc, double x[3]){
     double distance;
     if (lc->fov <= 0) {
-        distance = xo[2];
+        distance = x[2];
     } else {
         distance = 0;
         for (d = 0; d < 3; d ++) {
-            distance += xo[d] * xo[d];
+            distance += x[d] * x[d];
         }
         distance = sqrt(distance);
     }
-
-    return distance - lc->speedfactor * HorizonDistance(a, lc->horizon);
 }
 
 static int

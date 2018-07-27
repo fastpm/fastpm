@@ -289,7 +289,10 @@ byebye:
 }
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc) 
+fastpm_store_init(FastPMStore * p,
+                  size_t np_upper,
+                  enum FastPMPackFields attributes,
+                  enum FastPMMemoryLocation loc)
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -774,26 +777,29 @@ fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm com
 
 }
 
-void
-fastpm_store_copy(FastPMStore * p, FastPMStore * po)
+static void
+_fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t offset)
 {
-    if(p->np > po->np_upper) {
+    if(p->np - start + offset > po->np_upper) {
         fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
     }
-    if(po->x) memcpy(po->x, p->x, sizeof(p->x[0][0]) * 3 * p->np);
-    if(po->q) memcpy(po->q, p->q, sizeof(p->q[0][0]) * 3 * p->np);
-    if(po->v) memcpy(po->v, p->v, sizeof(p->v[0][0]) * 3 * p->np);
-    if(po->acc) memcpy(po->acc, p->acc, sizeof(p->acc[0][0]) * 3 * p->np);
-    if(po->dx1) memcpy(po->dx1, p->dx1, sizeof(p->dx1[0][0]) * 3 * p->np);
-    if(po->dx2) memcpy(po->dx2, p->dx2, sizeof(p->dx2[0][0]) * 3 * p->np);
-    if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
-    if(po->mask) memcpy(po->mask, p->mask, sizeof(p->mask[0]) * p->np);
-    if(po->aemit) memcpy(po->aemit, p->aemit, sizeof(p->aemit[0]) * p->np);
-    if(po->potential) memcpy(po->potential, p->potential, sizeof(p->potential[0]) * p->np);
-    if(po->rho) memcpy(po->rho, p->rho, sizeof(p->potential[0]) * p->np);
-    if(po->tidal) memcpy(po->tidal, p->tidal, sizeof(p->tidal[0]) * p->np);
 
-    po->np = p->np;
+    ptrdiff_t ncopy = p->np - nstart;
+
+    if(po->x) memcpy(&po->x[offset], p->x[start], sizeof(p->x[0][0]) * 3 * ncopy);
+    if(po->q) memcpy(&po->q[offset], p->q[start], sizeof(p->q[0][0]) * 3 * ncopy);
+    if(po->v) memcpy(&po->v[offset], p->v[start], sizeof(p->v[0][0]) * 3 * ncopy);
+    if(po->acc) memcpy(&po->acc[offset], p->acc[start], sizeof(p->acc[0][0]) * 3 * ncopy);
+    if(po->dx1) memcpy(&po->dx1[offset], p->dx1[start], sizeof(p->dx1[0][0]) * 3 * ncopy);
+    if(po->dx2) memcpy(&po->dx2[offset], p->dx2[start], sizeof(p->dx2[0][0]) * 3 * ncopy);
+    if(po->id) memcpy(&po->id[offset], p->id[start], sizeof(p->id[0]) * ncopy);
+    if(po->mask) memcpy(&po->mask[offset], p->mask[start], sizeof(p->mask[0]) * ncopy);
+    if(po->aemit) memcpy(&po->aemit[offset], p->aemit[start], sizeof(p->aemit[0]) * ncopy);
+    if(po->potential) memcpy(&po->potential[offset], p->potential[start], sizeof(p->potential[0]) * ncopy);
+    if(po->rho) memcpy(&po->rho[offset], p->rho[start], sizeof(p->potential[0]) * ncopy);
+    if(po->tidal) memcpy(&po->tidal[offset], p->tidal[start], sizeof(p->tidal[0]) * ncopy);
+
+    po->np = offset + ncopy;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
     if(po != p) {
@@ -804,8 +810,21 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
 }
 
 void
+fastpm_store_copy(FastPMStore * p, FastPMStore * po)
+{
+    _fastpm_store_copy(p, 0, po, 0);
+}
+
+void
+fastpm_store_append(FastPMStore * p, FastPMStore * po)
+{
+    _fastpm_store_copy(p, 0, po, po->np);
+}
+
+void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
+        char * mask,
         MPI_Comm comm)
 {
     gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -823,13 +842,13 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 
     gsl_rng_set(random_generator, seed);
 
-    memset(p->mask, 0, p->np);
+    memset(mask, 0, p->np);
 
     ptrdiff_t i;
     for(i=0; i < p->np; i++) {
         double rand_i = gsl_rng_uniform(random_generator);
         int flag = fraction > 1 || rand_i <= fraction;
-        p->mask[i] = flag;
+        mask[i] = flag;
     }
 
     gsl_rng_free(random_generator);
@@ -839,14 +858,14 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
  * Create a subsample, keeping only those with mask == True
  * */
 void
-fastpm_store_subsample(FastPMStore * p, FastPMStore * po)
+fastpm_store_subsample(FastPMStore * p, char * mask, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;
     j = 0;
 
     for(i = 0; i < p->np; i ++) {
-        if(!p->mask[i]) continue;
+        if(!mask[i]) continue;
         /* avoid memcpy of same address if we are doing subsample inplace */
         if(p != po || j != i) {
             if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);
