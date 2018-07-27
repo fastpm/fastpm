@@ -45,8 +45,10 @@ _default_peak(FastPMMemory * m, void * userdata)
 void
 fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered)
 {
-    m->heap = &head;
-    m->stack = &head;
+    int pool;
+    for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
+        m->pools[pool] = &head;
+    }
     m->abortfunc = _default_abort;
     m->peakfunc = _default_peak;
     m->userdata = NULL;
@@ -62,7 +64,6 @@ fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered)
         m->base0 = NULL;
         m->base = NULL;
         m->top = NULL;
-
     }
 
     m->allow_unordered = 0;
@@ -96,17 +97,19 @@ void
 fastpm_memory_tag(FastPMMemory * m, void * p, const char * tag)
 {
     MemoryBlock * entry;
-    for(entry = m->stack; entry != &head; entry = entry->prev) {
-        if(entry->p == p) break;
-    }
-    if(entry == &head)
-        for(entry = m->heap; entry != &head; entry = entry->prev) {
+    int pool = 0; 
+    for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
+        for(entry = m->pools[pool]; entry != &head; entry = entry->prev) {
             if(entry->p == p) break;
         }
-
+        if(entry->p == p) {
+            /* found in this pool */
+            strncpy(entry->tag, tag, 120);
+            return;
+        }
+    }
+    /* not found, die */
     if(entry->p != p) _sys_abort(m);
-
-    strncpy(entry->tag, tag, 120);
 }
 
 void
@@ -114,13 +117,13 @@ fastpm_memory_destroy(FastPMMemory * m)
 {
     if(m->base0)
         free(m->base0);
-    if(m->stack != &head) {
-        /* leak !*/
-        _sys_abort(m);
-    }
-    if(m->heap != &head) {
-        /* leak !*/
-        _sys_abort(m);
+    /* check for unrestored pools */
+    int pool;
+    for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
+        if(m->pools[pool] != &head) {
+            /* leak !*/
+            _sys_abort(m);
+        }
     }
 }
 
@@ -131,13 +134,13 @@ fastpm_memory_dump_status(FastPMMemory * m, int fd)
     MemoryBlock * entry;
     char buf[1024];
 
-    for(entry = m->stack; entry != &head; entry = entry->prev) {
-        sprintf(buf, "S %08p : %09d : %s\n", entry->p, entry->size, entry->tag);
-        write(fd, buf, strlen(buf));
-    }
-    for(entry = m->heap; entry != &head; entry = entry->prev) {
-        sprintf(buf, "H %08p : %09d : %s\n", entry->p, entry->size, entry->tag);
-        write(fd, buf, strlen(buf));
+    const char P[] = "SHF??????";
+    int pool;
+    for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
+        for(entry = m->pools[pool]; entry != &head; entry = entry->prev) {
+            sprintf(buf, "%c %08p : %09d : %s\n", P[pool], entry->p, entry->size, entry->tag);
+            write(fd, buf, strlen(buf));
+        }
     }
 }
 
@@ -153,7 +156,7 @@ _sys_malloc(FastPMMemory *m, size_t s)
 }
 
 static void *
-fastpm_memory_alloc0(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
+fastpm_memory_alloc0(FastPMMemory * m, size_t s, enum FastPMMemoryLocation pool)
 {
     s = _align(s, m->alignment);
     if(m->free_bytes <= s) {
@@ -166,40 +169,41 @@ fastpm_memory_alloc0(FastPMMemory * m, size_t s, enum FastPMMemoryLocation loc)
         m->peakfunc(m, m->userdata);
     }
     MemoryBlock * entry = _sys_malloc(m, sizeof(head));
+
+    int loc = pool;
+    if(m->base0 == NULL) { /* allocate from floating but account in the requested loc */
+        loc = FASTPM_MEMORY_FLOATING;
+    }
+    entry->size = s;
+
     switch(loc) {
         case FASTPM_MEMORY_HEAP:
-            if(m->base) {
-                entry->p = m->base;
-                m->base += s;
-            } else {
-                entry->p = _sys_malloc(m, s);
-            }
-            entry->size = s;
-            entry->prev = m->heap;
-            m->heap = entry;
+            entry->p = m->base;
+            m->base += s;
         break;
         case FASTPM_MEMORY_STACK:
-            if(m->top) {
-                entry->p = m->top - s;
-                m->top -= s;
-            } else {
-                entry->p = _sys_malloc(m, s);
-            }
-            entry->size = s;
-            entry->prev = m->stack;
-            m->stack = entry;
+            entry->p = m->top - s;
+            m->top -= s;
+        break;
+        case FASTPM_MEMORY_FLOATING:
+            entry->p = _sys_malloc(m, s);
         break;
     }
+
+    /* add to the pool */
+    entry->prev = m->pools[pool];
+    m->pools[pool] = entry;
+
     return entry->p;
 }
 
 void *
 fastpm_memory_alloc_details(FastPMMemory * m, const char * name,
-        size_t s, enum FastPMMemoryLocation loc, const char * file, const int line)
+        size_t s, enum FastPMMemoryLocation pool, const char * file, const int line)
 {
     char buf[80];
     sprintf(buf, "%20s: %20s:%d", name, file, line);
-    void * r = fastpm_memory_alloc0(m, s, loc);
+    void * r = fastpm_memory_alloc0(m, s, pool);
     fastpm_memory_tag(m, r, buf);
     return r;
 }
@@ -233,32 +237,32 @@ fastpm_memory_free(FastPMMemory * m, void * p)
 {
     MemoryBlock * entry;
     int isfirst = 0;
-    entry = _delist(&m->stack, p, &isfirst);
-    if(entry) {
-        if(!m->allow_unordered && !isfirst) {
-            _sys_abort(m);
+    int pool;
+    for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
+        entry = _delist(&m->pools[pool], p, &isfirst);
+        if(entry) {
+            if(!m->allow_unordered && !isfirst) {
+                _sys_abort(m);
+            }
+            int loc = pool;
+            /* unbacked */
+            if(m->base0 == NULL) {
+                loc = FASTPM_MEMORY_FLOATING;
+            }
+            switch(loc) {
+                case FASTPM_MEMORY_STACK:
+                    m->top += entry->size;
+                break;
+                case FASTPM_MEMORY_HEAP:
+                    m->base -= entry->size;
+                break;
+                case FASTPM_MEMORY_FLOATING:
+                    free(entry->p);
+                break;
+            }
+            goto exit;
         }
-        if(m->top) {
-            m->top += entry->size;
-        } else {
-            free(entry->p);
-        }
-        goto exit;
     }
-
-    entry = _delist(&m->heap, p, &isfirst);
-    if(entry) {
-        if(!m->allow_unordered && !isfirst) {
-            _sys_abort(m);
-        }
-        if(m->base) {
-            m->base -= entry->size;
-        } else {
-            free(entry->p);
-        }
-        goto exit;
-    }
-
 exit:
     m->used_bytes -= entry->size;
     m->free_bytes += entry->size;

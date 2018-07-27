@@ -23,8 +23,7 @@ struct FastPMMemory {
 
     int allow_unordered;
 
-    MemoryBlock * heap;
-    MemoryBlock * stack;
+    MemoryBlock * pools[8];
     size_t peak_bytes;
     size_t used_bytes;
     size_t free_bytes;
@@ -40,6 +39,8 @@ struct FastPMMemory {
 enum FastPMMemoryLocation {
     FASTPM_MEMORY_HEAP,
     FASTPM_MEMORY_STACK,
+    FASTPM_MEMORY_FLOATING,
+    FASTPM_MEMORY_MAX,
 };
 
 void
