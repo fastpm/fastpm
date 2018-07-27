@@ -137,17 +137,20 @@ funct(double a, void *params)
 }
 
 double
-fastpm_lc_distance(FastPMLightCone * lc, double x[3]){
+fastpm_lc_distance(FastPMLightCone * lc, double x[3])
+{
     double distance;
     if (lc->fov <= 0) {
         distance = x[2];
     } else {
         distance = 0;
+        int d;
         for (d = 0; d < 3; d ++) {
             distance += x[d] * x[d];
         }
         distance = sqrt(distance);
     }
+    return distance;
 }
 
 static int

@@ -10,7 +10,7 @@ boxsize = 512
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.5, 1, 3)
+time_step = linspace(0.5, 1, 8)
 
 output_redshifts= {1.0, 0.0}  -- redshifts of output
 compute_potential = true

@@ -86,7 +86,12 @@ static void
 write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr);
 
 static void
-write_usmesh_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr, int append, FastPMStore * tail);
+write_usmesh_fof(FastPMSolver * fastpm,
+        FastPMStore * snapshot,
+        char * filebase, Parameters * prr,
+        FastPMLCEvent * lcevent,
+        FastPMStore * tail,
+        FastPMLightCone * lc);
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
@@ -496,6 +501,15 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
+static void
+_usmesh_lc_ready_free(void * data) {
+    void ** userdata = data;
+    if(userdata[2]) {
+        fastpm_store_destroy(userdata[2]);
+        free(userdata[2]);
+    }
+    free(userdata);
+}
 
 static void
 prepare_lc(FastPMSolver * fastpm, Parameters * prr,
@@ -578,18 +592,16 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         free(tiles);
 
         void ** data = malloc(sizeof(void*) * 3);
-        FastPMStore tail[1]; /* used to store the tail particles in the lightcone for FOF */
         data[0] = fastpm;
         data[1] = prr;
-        data[2] = tail;
-        fastpm_store_init(tail, fastpm->p->np_upper * 0.1, fastpm->p->attributes, FASTPM_
+        data[2] = malloc(sizeof(FastPMStore));
+
+        fastpm_store_init(data[2], 0, 0, FASTPM_MEMORY_FLOATING);
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
                 (FastPMEventHandlerFunction) usmesh_ready_handler,
-                data, free);
-
-        fastpm_store_destroy(tail);
+                data, _usmesh_lc_ready_free);
     }
 
     *smesh = NULL;
@@ -703,7 +715,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
     }
 
-    write_usmesh_fof(solver, lcevent->p, fn, prr, !lcevent->isfirst, tail);
+    write_usmesh_fof(solver, lcevent->p, fn, prr, lcevent, tail, mesh->lc);
 
     LEAVE(io);
     ENTER(indexing);
@@ -827,7 +839,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 }
 
 static void
-_halos_ready (FastPMHaloFinder * finder,
+_halos_ready (FastPMFOFFinder * finder,
     FastPMHaloEvent * event, void ** userdata)
 {
     double rmax = *((double*) userdata[0]);
@@ -835,6 +847,8 @@ _halos_ready (FastPMHaloFinder * finder,
     FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
     char * keep_for_tail = (char *) userdata[3];
 
+    FastPMStore * halos = event->halos;
+    FastPMStore * p = event->p;
     double * r = malloc(sizeof(r[0]));
 
     ptrdiff_t i;
@@ -850,9 +864,9 @@ _halos_ready (FastPMHaloFinder * finder,
     }
 
     for(i = 0; i < p->np; i ++) {
-        ptrdiff_t hid = ihalo[i];
+        ptrdiff_t hid = event->ihalo[i];
         double r_p = fastpm_lc_distance(lc, p->x[i]);
-        if (r_p < rmax - halossize) {
+        if (r_p < rmax - halosize) {
             /* not near the tail of the lightcone, do not keep for tail */
             keep_for_tail[i] = 0;
         } else {
@@ -873,20 +887,26 @@ write_usmesh_fof(FastPMSolver * fastpm,
         FastPMStore * snapshot,
         char * filebase, Parameters * prr,
         FastPMLCEvent * lcevent,
-        int append, FastPMStore * tail)
+        FastPMStore * tail,
+        FastPMLightCone * lc)
 {
     CLOCK(fof);
     CLOCK(io);
     CLOCK(sort);
     ENTER(fof);
 
+    int append = !lcevent->is_first;
     double maxhalosize = 10; /* MPC/h, used to cut along z direction. */
+    FastPMStore * p = lcevent->p;
 
     /* not the first segment, add the left over particles to the FOF */
     if(append) {
         fastpm_store_append(tail, lcevent->p);
         fastpm_store_destroy(tail);
     }
+
+    /* FIXME: register event to mask out particles*/
+    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np, FASTPM_MEMORY_HEAP);
 
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
@@ -898,10 +918,8 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     fastpm_fof_init(&fof, snapshot, fastpm->basepm);
 
-    /* FIXME: register event to mask out particles*/
-    char * keep_for_tail = malloc(lcevent->p->np);
+    double rmax = HorizonDistance(lcevent->a1, lc->horizon);
 
-    r_max = HorizonDistance(lcevent->a1, lcevent->lc->horizon);
     void * userdata[4];
     userdata[0] = & rmax;
     userdata[1] = & maxhalosize;
@@ -909,11 +927,11 @@ write_usmesh_fof(FastPMSolver * fastpm,
     userdata[3] = keep_for_tail;
 
     FastPMStore halos[1];
-    fastpm_add_event_handler(&fof->event_handlers,
+    fastpm_add_event_handler(&fof.event_handlers,
         FASTPM_EVENT_HALO,
         FASTPM_EVENT_STAGE_AFTER,
         (FastPMEventHandlerFunction) _halos_ready,
-        prr);
+        userdata);
 
     ENTER(fof);
 
@@ -926,13 +944,16 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_store_subsample(halos, halos->mask, halos);
 
     ENTER(sort);
-    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
+    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
 
     ENTER(io);
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
-    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
-
+    if(!append) {
+        write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    } else {
+        append_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    }
     free(dataset);
     LEAVE(io);
 
@@ -943,12 +964,14 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_fof_destroy(&fof);
 
     ptrdiff_t ntail = 0;
+    ptrdiff_t i;
     for(i = 0; i < p->np; i ++) {
         if(keep_for_tail[i]) ntail ++;
     }
-    fastpm_store_init(tail, ntail, p->attributes, FASTPM_MEMORY_HEAP);
 
-    fastpm_store_subsample(lcevent->p, keep_for_tail, tail);
+    fastpm_store_init(tail, ntail, p->attributes, FASTPM_MEMORY_FLOATING);
+    fastpm_store_subsample(p, keep_for_tail, tail);
+    fastpm_memory_free(p->mem, keep_for_tail);
 }
 
 static int 

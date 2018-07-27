@@ -125,11 +125,11 @@ void fastpm_store_write(FastPMStore * p, char * datasource);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        char * mask,
+        uint8_t * mask,
         MPI_Comm comm);
 
 void
-fastpm_store_subsample(FastPMStore * in, char * mask, FastPMStore * out);
+fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit(FastPMStore * store,
