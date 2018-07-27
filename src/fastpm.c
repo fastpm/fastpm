@@ -107,7 +107,7 @@ int main(int argc, char ** argv) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
     fastpm_info("This is FastPM, with libfastpm version %s.\n", LIBFASTPM_VERSION);
 
-    libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024, 0);
+    libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024);
     fastpm_memory_set_handlers(_libfastpm_get_gmem(), NULL, _memory_peak_handler, &comm);
 
     read_parameters(ParamFileName, prr, argc, argv, comm);
@@ -744,7 +744,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
         fastpm_store_init(snapshot, p->np_upper,
                 p->attributes & ~PACK_ACC,
-                FASTPM_MEMORY_STACK
+                FASTPM_MEMORY_FLOATING
             );
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);

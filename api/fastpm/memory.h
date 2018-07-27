@@ -21,8 +21,6 @@ struct FastPMMemory {
     size_t alignment;
     size_t total_bytes;
 
-    int allow_unordered;
-
     MemoryBlock * pools[8];
     size_t peak_bytes;
     size_t used_bytes;
@@ -44,7 +42,7 @@ enum FastPMMemoryLocation {
 };
 
 void
-fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered);
+fastpm_memory_init(FastPMMemory * m, size_t total_bytes);
 
 void
 fastpm_memory_set_handlers(FastPMMemory * m, fastpm_memory_func abortfunc, fastpm_memory_func peakfunc, void * userdata);

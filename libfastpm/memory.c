@@ -43,7 +43,7 @@ _default_peak(FastPMMemory * m, void * userdata)
 }
 
 void
-fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered)
+fastpm_memory_init(FastPMMemory * m, size_t total_bytes)
 {
     int pool;
     for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
@@ -66,7 +66,6 @@ fastpm_memory_init(FastPMMemory * m, size_t total_bytes, int allow_unordered)
         m->top = NULL;
     }
 
-    m->allow_unordered = 0;
     m->free_bytes = total_bytes;
     m->total_bytes = total_bytes;
     m->used_bytes = 0;
@@ -241,7 +240,7 @@ fastpm_memory_free(FastPMMemory * m, void * p)
     for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
         entry = _delist(&m->pools[pool], p, &isfirst);
         if(entry) {
-            if(!m->allow_unordered && !isfirst) {
+            if(pool != FASTPM_MEMORY_FLOATING && !isfirst) {
                 _sys_abort(m);
             }
             int loc = pool;

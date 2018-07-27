@@ -49,7 +49,7 @@ typedef enum { FASTPM_DEALIASING_NONE,
 
 void libfastpm_init();
 void libfastpm_cleanup();
-void libfastpm_set_memory_bound(size_t size, int allow_unordered);
+void libfastpm_set_memory_bound(size_t size);
 
 extern const char * LIBFASTPM_VERSION;
 
