@@ -41,6 +41,7 @@ write_snapshot = "lightcone/fastpm"
 write_fof = "lightcone/fof"
 -- 1d power spectrum (raw), without shotnoise correction
 
+particle_fraction = 0.1
 fof_linkinglength = 0.2
 fof_nmin = 4
 dh_factor = 0.1
@@ -60,6 +61,7 @@ lc_fov = 0
 lc_smesh_max_nside=512
 lc_amin = 0.1
 lc_amax = 1.0
+lc_smesh_fraction = 1.0
 --
 --lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
 lc_write_usmesh = "lightcone/usmesh"
