@@ -842,45 +842,47 @@ static void
 _halos_ready (FastPMFOFFinder * finder,
     FastPMHaloEvent * event, void ** userdata)
 {
-    double rmax = *((double*) userdata[0]);
+    double rmin = *((double*) userdata[0]);
     double halosize = *((double*) userdata[1]);
     FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
     char * keep_for_tail = (char *) userdata[3];
-
     FastPMStore * halos = event->halos;
     FastPMStore * p = event->p;
-    double * r = malloc(sizeof(r[0]));
 
     ptrdiff_t i;
 
+    uint8_t * halos_mask = malloc(halos->np);
+
     for(i = 0; i < halos->np; i ++) {
-        r[i] = fastpm_lc_distance(lc, halos->x[i]);
+        double r = fastpm_lc_distance(lc, halos->x[i]);
         /* only keep reliable halos */
-        if(r[i] < rmax - halosize * 0.5) {
-            halos->mask[i] = 1;
+        if(r > rmin + halosize * 0.5) {
+            halos_mask[i] = 1;
         } else {
-            halos->mask[i] = 0;
+            halos_mask[i] = 0;
         }
     }
 
     for(i = 0; i < p->np; i ++) {
         ptrdiff_t hid = event->ihalo[i];
         double r_p = fastpm_lc_distance(lc, p->x[i]);
-        if (r_p < rmax - halosize) {
+        if (r_p > rmin + halosize) {
             /* not near the tail of the lightcone, do not keep for tail */
             keep_for_tail[i] = 0;
         } else {
             /* near the tail of the lightcone, do not keep those formed reliable halos */
             if(hid >= 0) {
                 /* unreliable halos, keep them */
-                keep_for_tail[i] = !halos->mask[hid];
+                keep_for_tail[i] = !halos_mask[hid];
             } else {
                 /* not in halos, keep them too */
                 keep_for_tail[i] = 1;
             }
         }
     }
+    userdata[4] = halos_mask;
 }
+
 
 static void
 write_usmesh_fof(FastPMSolver * fastpm,
@@ -900,10 +902,8 @@ write_usmesh_fof(FastPMSolver * fastpm,
     FastPMStore * p = lcevent->p;
 
     /* not the first segment, add the left over particles to the FOF */
-    if(append) {
-        fastpm_store_append(tail, lcevent->p);
-        fastpm_store_destroy(tail);
-    }
+    fastpm_store_append(tail, lcevent->p);
+    fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/
     uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np, FASTPM_MEMORY_HEAP);
@@ -918,13 +918,14 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     fastpm_fof_init(&fof, snapshot, fastpm->basepm);
 
-    double rmax = HorizonDistance(lcevent->a1, lc->horizon);
+    double rmin = lc->speedfactor * HorizonDistance(lcevent->a1, lc->horizon);
 
     void * userdata[4];
-    userdata[0] = & rmax;
+    userdata[0] = & rmin;
     userdata[1] = & maxhalosize;
     userdata[2] = lc;
     userdata[3] = keep_for_tail;
+    userdata[4] = NULL; /* halos_mask , return value of the handler */
 
     FastPMStore halos[1];
     fastpm_add_event_handler(&fof.event_handlers,
@@ -941,7 +942,9 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
 
-    fastpm_store_subsample(halos, halos->mask, halos);
+    uint8_t * halos_mask = userdata[4];
+    fastpm_store_subsample(halos, halos_mask, halos);
+    free(halos_mask);
 
     ENTER(sort);
     fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
@@ -957,13 +960,16 @@ write_usmesh_fof(FastPMSolver * fastpm,
     free(dataset);
     LEAVE(io);
 
-    fastpm_info("FOF Catalog %s written\n", filebase);
+    uint64_t nhalos = halos->np;
+    MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+
+    fastpm_info("FOF Catalog %s written with %td halos\n", filebase, nhalos);
 
     fastpm_store_destroy(halos);
 
     fastpm_fof_destroy(&fof);
 
-    ptrdiff_t ntail = 0;
+    uint64_t ntail = 0;
     ptrdiff_t i;
     for(i = 0; i < p->np; i ++) {
         if(keep_for_tail[i]) ntail ++;
@@ -971,6 +977,9 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     fastpm_store_init(tail, ntail, p->attributes, FASTPM_MEMORY_FLOATING);
     fastpm_store_subsample(p, keep_for_tail, tail);
+
+    MPI_Allreduce(MPI_IN_PLACE, &ntail, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+    fastpm_info("%td particles will be reused in next batch\n", ntail);
     fastpm_memory_free(p->mem, keep_for_tail);
 }
 
