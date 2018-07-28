@@ -702,6 +702,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
 
     char * fn = fastpm_strdup_printf(CONF(prr, lc_write_usmesh));
 
+    write_usmesh_fof(solver, lcevent->p, fn, prr, lcevent, tail, mesh->lc);
+
+    /* subsample, this will remove the tail particles that were appended. */
+    fastpm_store_subsample(lcevent->p, lcevent->p->mask, lcevent->p);
+
     ENTER(sort);
     fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
@@ -714,8 +719,6 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
         fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
     }
-
-    write_usmesh_fof(solver, lcevent->p, fn, prr, lcevent, tail, mesh->lc);
 
     LEAVE(io);
     ENTER(indexing);
@@ -900,8 +903,15 @@ write_usmesh_fof(FastPMSolver * fastpm,
     int append = !lcevent->is_first;
     double maxhalosize = 10; /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
+    ptrdiff_t i;
 
     /* not the first segment, add the left over particles to the FOF */
+
+    /* avoid including the tail particles in the subsample;
+     * by clearing their mask */
+    for(i = 0; i < tail->np; i ++) {
+        tail->mask[i] = 0;
+    }
     fastpm_store_append(tail, lcevent->p);
     fastpm_store_destroy(tail);
 
@@ -970,7 +980,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_fof_destroy(&fof);
 
     uint64_t ntail = 0;
-    ptrdiff_t i;
     for(i = 0; i < p->np; i ++) {
         if(keep_for_tail[i]) ntail ++;
     }
