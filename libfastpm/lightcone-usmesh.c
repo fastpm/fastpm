@@ -8,7 +8,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
-#include <fastpm/lc-unstruct.h>
+#include <fastpm/lightcone.h>
 #include <fastpm/logging.h>
 #include <gsl/gsl_linalg.h>
 

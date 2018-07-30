@@ -74,7 +74,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "gravity.h"
 #include "solver.h"
 #include "timemachine.h"
-#include "lc-unstruct.h"
+#include "lightcone.h"
 #include "utils.h"
 
 /* Following functions are internal API */

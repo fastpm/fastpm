@@ -6,7 +6,6 @@
 #include <math.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
-#include <fastpm/lc-unstruct.h>
 #include <fastpm/io.h>
 #include <fastpm/string.h>
 

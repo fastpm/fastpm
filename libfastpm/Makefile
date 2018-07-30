@@ -22,8 +22,8 @@ LIBSOURCES = libfastpm.c \
     initialcondition.c \
     pngaussian.c \
     constrainedgaussian.c \
-    lc-unstruct.c \
-    lc-struct.c \
+    lightcone-usmesh.c \
+    lightcone-smesh.c \
     timemachine.c \
     cosmology.c \
     powerspectrum.c \
