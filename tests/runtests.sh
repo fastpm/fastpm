@@ -9,9 +9,9 @@ FASTPM=`dirname $0`/../src/fastpm
 set -x
 
 mpirun -n 4 $FASTPM standard.lua ic || fail
-
-mpirun -n 4 $FASTPM standard.lua fastpm lineark || fail
-mpirun -n 4 $FASTPM standard.lua fastpm whitenoisek || fail
+#mpirun -n 4 $FASTPM standard.lua fastpm lineark || fail
+#mpirun -n 4 $FASTPM standard.lua fastpm whitenoisek || fail
+#mpirun -n 4 $FASTPM standard.lua fastpm || fail
 
 #mpirun -n 4 $FASTPM standard.lua fastpm lanczos2 || fail
 #mpirun -n 4 $FASTPM standard.lua fastpm lanczos3 || fail
