@@ -278,7 +278,9 @@ fastpm_smesh_destroy(FastPMSMesh * mesh)
     fastpm_store_destroy(mesh->last.p);
 }
 
-static int
+/* select active regions of smesh between two scaling factors.
+ * if q is NULL, return number of mesh points */
+static size_t
 fastpm_smesh_layer_select_active(
         FastPMSMesh * mesh,
         struct FastPMSMeshLayer * layer,
@@ -290,15 +292,24 @@ fastpm_smesh_layer_select_active(
 
     size_t i;
     for (i = 0; i < layer->Na; i ++) {
-        if(layer->a[i] >= a0 && layer->a[i] < a1) {
+        /* cast to float because aemit is float */
+        float aemit = layer->a[i];
+        if(aemit >= a0 && aemit < a1) {
             Na ++;
         }
     }
 
-    if((size_t) Na * (size_t) layer->Nxy + q->np >= q->np_upper) {
-        fastpm_info("More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
+    size_t nactive = (size_t) Na * (size_t) layer->Nxy;
+
+    /* request for size*/
+    if(q == NULL) {
+        return nactive;
+    }
+
+
+    if(nactive + q->np > q->np_upper) {
+        fastpm_raise(-1, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
                 Na, layer->Nxy, q->np_upper, a0, a1);
-        return -1;
     }
 
     size_t j = 0;
@@ -334,13 +345,13 @@ fastpm_smesh_layer_select_active(
                 q->np++;
                 if(q->np > q->np_upper) {
                     fastpm_raise(-1,
-                            "too many particles are created, increase np_upper current=%td; this has been checked and shouldn't happen.",
+                            "too many particles are created, increase np_upper current=%td; this has been checked and shouldn't happen.\n",
                             q->np_upper);
                 }
             }
         }
     }
-    return 0;
+    return nactive;
 }
 
 int
@@ -350,11 +361,25 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     )
 {
     struct FastPMSMeshLayer * layer;
+    size_t nactive = 0;
     for(layer = mesh->layers; layer; layer = layer->next) {
-        if(0 != fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q)) {
-            return -1;
-        }
+        nactive += fastpm_smesh_layer_select_active(mesh, layer, a0, a1, NULL);
     }
+
+    fastpm_store_init(q, nactive,
+              PACK_ID
+            | PACK_POS
+            | PACK_POTENTIAL
+            | PACK_DENSITY
+            | PACK_TIDAL
+            | PACK_AEMIT,
+            FASTPM_MEMORY_HEAP
+    );
+
+    for(layer = mesh->layers; layer; layer = layer->next) {
+        fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q);
+    }
+
     return 0;
 }
 
@@ -371,29 +396,11 @@ fastpm_smesh_compute_potential(
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 
-    size_t np_upper = mesh->np_upper;
-
     while(1) {
-        fastpm_store_init(p_new_now, np_upper,
-                  PACK_ID
-                | PACK_POS
-                | PACK_POTENTIAL
-                | PACK_DENSITY
-                | PACK_TIDAL
-                | PACK_AEMIT,
-                FASTPM_MEMORY_HEAP
-        );
 
-        int r = fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
-        /* any of the rank overflown? */
-        MPI_Allreduce(MPI_IN_PLACE, &r, 1, MPI_INT, MPI_LOR, pm_comm(pm));
-        if(r) {
-            /* need a bigger mesh */
-            fastpm_store_destroy(p_new_now);
-            np_upper = np_upper * 1.1;
-            continue;
-        }
+        fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
 
+#if 0
         /* avoid wrapping because it would mean the coordinates are wrong if the lightcone is beyond box. */
         if (0 != fastpm_store_decompose(p_new_now,
                     (fastpm_store_target_func) FastPMTargetPM, pm,
@@ -404,6 +411,7 @@ fastpm_smesh_compute_potential(
             np_upper = np_upper * 1.1;
             continue;
         }
+#endif
         break;
     }
 
@@ -419,7 +427,7 @@ fastpm_smesh_compute_potential(
     p_last_now->id = mesh->last.p->id;
     p_last_now->x = mesh->last.p->x;
     p_last_now->aemit = mesh->last.p->aemit;
-    
+
     int64_t np = p_last_now->np + p_new_now->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, pm_comm(pm));
@@ -442,8 +450,8 @@ fastpm_smesh_compute_potential(
                      PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
                     };
 
-        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, PACK_POS, NULL);
-        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, PACK_POS, NULL);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | PACK_POS, NULL);
+        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes, NULL);
 
         pm_ghosts_send(pgd_last_now, PACK_POS);
         pm_ghosts_send(pgd_new_now, PACK_POS);
