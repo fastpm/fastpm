@@ -215,8 +215,8 @@ _fof_global_merge(
 )
 {
     ptrdiff_t i;
-    FastPMStore * p = pgd->p;
-    PM * pm = pgd->pm;
+    FastPMStore * p = finder->p;
+    PM * pm = finder->pm;
 
     /* at this point all items with head[i] = i have local minid and task */
 
