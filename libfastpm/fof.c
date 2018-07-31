@@ -425,7 +425,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 */
         fastpm_store_init(halos, nhalos,
                 (finder->p->attributes | PACK_LENGTH | PACK_FOF | PACK_Q)
-                & ~PACK_ID & ~PACK_ACC
+                & ~PACK_ACC
                 , FASTPM_MEMORY_HEAP);
         halos->np = nhalos;
         halos->a_x = finder->p->a_x;
@@ -527,6 +527,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         if(halos->aemit)
             halos->aemit[i] /= n;
 
+        if(halos->id)
+            halos->id[i] = halos->fof[i].minid;
     }
 
     fastpm_memory_free(finder->p->mem, offset);
