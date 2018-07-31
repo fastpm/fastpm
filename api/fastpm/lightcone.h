@@ -142,7 +142,7 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
         double amin, double amax, int maxnside,
         MPI_Comm comm);
 
-void
+int
 fastpm_smesh_select_active(FastPMSMesh * layer,
         double a0, double a1,
         FastPMStore * q

@@ -391,7 +391,12 @@ fastpm_decompose(FastPMSolver * fastpm) {
     /* apply periodic boundary and move particles to the correct rank */
     fastpm_store_wrap(fastpm->p, pm->BoxSize);
 
-    fastpm_store_decompose(fastpm->p, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
+    if(0 != fastpm_store_decompose(fastpm->p,
+            (fastpm_store_target_func) FastPMTargetPM, pm,
+            fastpm->comm))
+    {
+        fastpm_raise(-1, "Out of particle storage space\n");
+    }
 
     size_t np_max;
     size_t np_min;
@@ -458,6 +463,13 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     po->a_x = po->a_v = aout;
 
     fastpm_store_wrap(po, pm->BoxSize);
-    fastpm_store_decompose(po, (fastpm_store_target_func) FastPMTargetPM, pm, fastpm->comm);
+
+    /* FIXME: why do we need to decompose the snapshot like this here? */
+    if(0 != fastpm_store_decompose(po,
+            (fastpm_store_target_func) FastPMTargetPM, pm,
+            fastpm->comm)
+    ) {
+        fastpm_raise(-1, "out of particle storage during snapshot creation.\n");
+    }
 }
 

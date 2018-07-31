@@ -361,7 +361,11 @@ fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes, FASTPM_MEMORY_HEAP);
+
+    size_t np_upper = (size_t)(1.0 * np_total / NTask * alloc_factor);
+
+    MPI_Bcast(&np_upper, 1, MPI_LONG, 0, comm);
+    fastpm_store_init(p, np_upper, attributes, FASTPM_MEMORY_HEAP);
     return 0;
 }
 
@@ -498,7 +502,7 @@ checkx(FastPMStore * p)
 }
 */
 
-void
+int
 fastpm_store_decompose(FastPMStore * p,
     fastpm_store_target_func target_func,
     void * data, MPI_Comm comm)
@@ -555,6 +559,15 @@ fastpm_store_decompose(FastPMStore * p,
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
     size_t elsize = p->pack(p, 0, NULL, p->attributes);
 
+    size_t max_size = p->np + Nrecv - Nsend;
+
+    MPI_Allreduce(MPI_IN_PLACE, &max_size, 1, MPI_LONG, MPI_MAX, comm);
+
+    if(max_size > p->np_upper) {
+        fastpm_info("Need %td particles on most expensive rank; %td allocated\n", max_size, p->np_upper);
+        goto fail_oom;
+    }
+
     void * send_buffer = fastpm_memory_alloc(p->mem, "SendBuf", elsize * Nsend, FASTPM_MEMORY_HEAP);
     void * recv_buffer = fastpm_memory_alloc(p->mem, "RecvBuf", elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
@@ -568,7 +581,6 @@ fastpm_store_decompose(FastPMStore * p,
     MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
     MPI_Type_commit(&PTYPE);
 
-    
     MPI_Alltoallv_sparse(
             send_buffer, sendcount, sendoffset, PTYPE,
             recv_buffer, recvcount, recvoffset, PTYPE,
@@ -576,9 +588,6 @@ fastpm_store_decompose(FastPMStore * p,
 
     MPI_Type_free(&PTYPE);
 
-    if(p->np + Nrecv > p->np_upper) {
-        fastpm_raise(-1, "Need %td particles; %td allocated\n", p->np + Nrecv, p->np_upper);
-    }
     for(i = 0; i < Nrecv; i ++) {
         p->unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
@@ -593,6 +602,15 @@ fastpm_store_decompose(FastPMStore * p,
     free(sendoffset);
     free(offsets);
     free(count);
+    return 0;
+
+    fail_oom:
+        free(recvcount);
+        free(recvoffset);
+        free(sendoffset);
+        free(offsets);
+        free(count);
+    return -1;
 }
 
 void

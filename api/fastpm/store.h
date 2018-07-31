@@ -113,7 +113,7 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
 
 typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
-void
+int
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
 
 void fastpm_store_sort_by_id(FastPMStore * p);

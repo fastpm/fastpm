@@ -278,7 +278,7 @@ fastpm_smesh_destroy(FastPMSMesh * mesh)
     fastpm_store_destroy(mesh->last.p);
 }
 
-static void
+static int
 fastpm_smesh_layer_select_active(
         FastPMSMesh * mesh,
         struct FastPMSMeshLayer * layer,
@@ -296,8 +296,9 @@ fastpm_smesh_layer_select_active(
     }
 
     if((size_t) Na * (size_t) layer->Nxy + q->np >= q->np_upper) {
-        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
+        fastpm_info("More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
                 Na, layer->Nxy, q->np_upper, a0, a1);
+        return -1;
     }
 
     size_t j = 0;
@@ -332,14 +333,17 @@ fastpm_smesh_layer_select_active(
                 q->aemit[q->np] = aemit;
                 q->np++;
                 if(q->np > q->np_upper) {
-                    fastpm_raise(-1, "too many particles are created, increase np_upper current=%td!", q->np_upper);
+                    fastpm_raise(-1,
+                            "too many particles are created, increase np_upper current=%td; this has been checked and shouldn't happen.",
+                            q->np_upper);
                 }
             }
         }
     }
+    return 0;
 }
 
-void
+int
 fastpm_smesh_select_active(FastPMSMesh * mesh,
         double a0, double a1,
         FastPMStore * q
@@ -347,8 +351,11 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
 {
     struct FastPMSMeshLayer * layer;
     for(layer = mesh->layers; layer; layer = layer->next) {
-        fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q);
+        if(0 != fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q)) {
+            return -1;
+        }
     }
+    return 0;
 }
 
 int
@@ -364,28 +371,50 @@ fastpm_smesh_compute_potential(
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 
-    fastpm_store_init(p_new_now, mesh->np_upper,
-              PACK_ID
-            | PACK_POS
-            | PACK_POTENTIAL
-            | PACK_DENSITY
-            | PACK_TIDAL
-            | PACK_AEMIT,
-            FASTPM_MEMORY_HEAP
-    );
+    size_t np_upper = mesh->np_upper;
 
-    fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
+    while(1) {
+        fastpm_store_init(p_new_now, np_upper,
+                  PACK_ID
+                | PACK_POS
+                | PACK_POTENTIAL
+                | PACK_DENSITY
+                | PACK_TIDAL
+                | PACK_AEMIT,
+                FASTPM_MEMORY_HEAP
+        );
 
-    /* avoid wrapping because it would mean the coordinates are wrong if the lightcone is beyond box. */
-    fastpm_store_decompose(p_new_now, (fastpm_store_target_func) FastPMTargetPM, pm, pm_comm(pm));
+        int r = fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
+        /* any of the rank overflown? */
+        MPI_Allreduce(MPI_IN_PLACE, &r, 1, MPI_INT, MPI_LOR, pm_comm(pm));
+        if(r) {
+            /* need a bigger mesh */
+            fastpm_store_destroy(p_new_now);
+            np_upper = np_upper * 1.1;
+            continue;
+        }
+
+        /* avoid wrapping because it would mean the coordinates are wrong if the lightcone is beyond box. */
+        if (0 != fastpm_store_decompose(p_new_now,
+                    (fastpm_store_target_func) FastPMTargetPM, pm,
+                    pm_comm(pm))
+        ) {
+            /* need a bigger mesh */
+            fastpm_store_destroy(p_new_now);
+            np_upper = np_upper * 1.1;
+            continue;
+        }
+        break;
+    }
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
-    fastpm_store_init(p_last_now, mesh->np_upper,
+    fastpm_store_init(p_last_now, np_upper,
                     mesh->last.p->attributes & ~ PACK_POS & ~ PACK_AEMIT & ~ PACK_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
                     );
+
     p_last_now->np = mesh->last.p->np;
     p_last_now->id = mesh->last.p->id;
     p_last_now->x = mesh->last.p->x;

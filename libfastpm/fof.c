@@ -284,9 +284,12 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         fastpm_store_wrap(p, finder->priv->boxsize);
 
     /* still route particles to the pm pencils as if they are periodic. */
-    fastpm_store_decompose(p,
+    if(0 != fastpm_store_decompose(p,
                 (fastpm_store_target_func) FastPMTargetPM,
-                pm, pm_comm(pm));
+                pm, pm_comm(pm))
+    ) {
+        fastpm_raise(-1, "out of storage space decomposing for FOF\n");
+    }
 
     /* create ghosts mesh size is usually > ll so we are OK here. */
     double below[3], above[3];
