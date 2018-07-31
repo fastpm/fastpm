@@ -77,7 +77,7 @@ _kdtree_buffered_free(void * userdata, size_t size, void * ptr)
 static 
 KDNode *
 _create_kdtree (KDTree * tree, int thresh,
-     FastPMStore * store, ptrdiff_t start, size_t np,
+    FastPMStore ** stores, int nstore,
     double boxsize[])
 {
     /* if boxsize is NULL the tree will be non-periodic. */
@@ -85,30 +85,54 @@ _create_kdtree (KDTree * tree, int thresh,
     struct KDTreeNodeBuffer ** pbuffer = malloc(sizeof(void*));
     struct KDTreeNodeBuffer * headbuffer = malloc(sizeof(headbuffer[0]));
     *pbuffer = headbuffer;
-    headbuffer->mem = store->mem;
+
+    headbuffer->mem = stores[0]->mem;
     headbuffer->base = NULL;
     headbuffer->prev = NULL;
 
-    ptrdiff_t * ind = _kdtree_buffered_malloc(pbuffer, sizeof(ind[0]) * np);
-
+    int s;
     ptrdiff_t i;
-
-    for(i = 0; i < np; i ++) {
-        ind[i] = start + i;
-    }
 
     tree->userdata = pbuffer;
 
-    tree->input.buffer = (char*) store->x;
-    tree->input.dims[0] = np;
+    tree->input.dims[0] = 0;
+
+    for(s = 0; s < nstore; s ++) {
+        tree->input.dims[0] += stores[s]->np;
+    }
+
     tree->input.dims[1] = 3;
-    tree->input.strides[0] = sizeof(store->x[0]);
-    tree->input.strides[1] = sizeof(store->x[0][0]);
-    tree->input.elsize = sizeof(store->x[0][0]);
+
+    if(tree->input.dims[0] < stores[0]->np_upper) {
+        /* if the first store is big enough, use it for the tree */
+        tree->input.buffer = (void*) &stores[0]->x[0][0];
+    } else {
+        /* otherwise, allocate a big buffer and make a copy */
+        tree->input.buffer = _kdtree_buffered_malloc(pbuffer,
+                    tree->input.dims[0] * sizeof(stores[0]->x[0]));
+        memcpy(tree->input.buffer, &stores[0]->x[0][0], stores[0]->np * sizeof(stores[0]->x[0]));
+    }
+
+    /* copy the other positions to the base pointer. */
+    for(s = 1; s < nstore; s ++) {
+        memcpy(((char*) tree->input.buffer) + i * sizeof(stores[0]->x[0]),
+                &stores[s]->x[0][0],
+                stores[s]->np * sizeof(stores[0]->x[0]));
+
+        i = i + stores[s]->np * sizeof(stores[0]->x[0]);
+    }
+
+    tree->input.strides[0] = sizeof(stores[0]->x[0]);
+    tree->input.strides[1] = sizeof(stores[0]->x[0][0]);
+    tree->input.elsize = sizeof(stores[0]->x[0][0]);
     tree->input.cast = NULL;
 
-    tree->ind = ind;
-    tree->ind_size = np;
+    tree->ind = _kdtree_buffered_malloc(pbuffer, tree->input.dims[0] * sizeof(tree->ind[0]));
+    for(i = 0; i < tree->input.dims[0]; i ++) {
+        tree->ind[i] = i;
+    }
+    tree->ind_size = tree->input.dims[0];
+
     tree->malloc = _kdtree_buffered_malloc;
     tree->free = _kdtree_buffered_free;
 
@@ -117,7 +141,7 @@ _create_kdtree (KDTree * tree, int thresh,
     tree->boxsize = boxsize;
 
     KDNode * root = kd_build(tree);
-    fastpm_info("Creating KDTree with %td nodes for %td particles\n", tree->size, np);
+    fastpm_info("Creating KDTree with %td nodes for %td particles\n", tree->size, tree->ind_size);
     return root;
 }
 
@@ -154,23 +178,19 @@ fastpm_fof_init(FastPMFOFFinder * finder, FastPMStore * store, PM * pm)
     MPI_Comm_size(pm_comm(pm), &finder->priv->NTask);
 }
 
-/*
-static int
-_visit_edge(void * userdata, KDEnumPair * pair)
-{
-    return 0;
-}
-*/
-
 static void
-_fof_local_find(FastPMFOFFinder * finder, FastPMStore * p, size_t np,
+_fof_local_find(FastPMFOFFinder * finder,
+            FastPMStore * p,
+            PMGhostData * pgd,
             ptrdiff_t * head, double linkinglength)
 {
+    /* local find of p and the the ghosts */
     KDTree tree;
 
-    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, p, 0, np, finder->priv->boxsize);
+    FastPMStore * stores[2] = {p, pgd->p};
 
-    /* local find */
+    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, stores, 2, finder->priv->boxsize);
+
 
     kd_fof(root, linkinglength, head);
 
@@ -227,7 +247,7 @@ _fof_global_merge(
         /* prepare the communication buffer, every particle has
          * the minid and task of the current head. such that
          * they will connect to the other ranks correctly */
-        for(i = 0; i < p->np + pgd->nghosts; i ++) {
+        for(i = 0; i < p->np + pgd->p->np; i ++) {
             fofcomm[i].minid = fofsave[head[i]].minid;
             fofcomm[i].task = fofsave[head[i]].task;
         }
@@ -239,8 +259,13 @@ _fof_global_merge(
 
         p->fof = NULL;
 
+        /* flatten the fof data received from the ghosts */
+        /* FIXME: use reduce? */ 
+        for(i = p->np; i < p->np + pgd->p->np; i ++) {
+            fofcomm[i] = pgd->p->fof[i - p->np];
+        }
         size_t nmerged = 0;
-        for(i = p->np; i < p->np + pgd->nghosts; i ++) {
+        for(i = p->np; i < p->np + pgd->p->np; i ++) {
             nmerged += _merge(&fofcomm[i], &fofsave[head[i]]);
         }
 
@@ -254,7 +279,7 @@ _fof_global_merge(
 
         if(nmerged == 0) break;
 
-        for(i = 0; i < p->np + pgd->nghosts; i ++) {
+        for(i = 0; i < p->np + pgd->p->np; i ++) {
             if(fofsave[i].minid < fofsave[head[i]].minid) {
                 fastpm_raise(-1, "fofsave invariance is broken i = %td np = %td\n", i, p->np);
             }
@@ -302,32 +327,38 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     }
 
     PMGhostData * pgd = pm_ghosts_create_full(pm, p,
-            PACK_POS | PACK_ID, NULL,
+            PACK_POS | PACK_ID | PACK_FOF, NULL,
             below, above
         );
 
-    struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem, "FOFComm",
-                    sizeof(fofcomm[0]) * (p->np_upper), FASTPM_MEMORY_STACK);
+    pm_ghosts_send(pgd, PACK_POS | PACK_ID);
 
-    memset(fofcomm, 0, sizeof(fofcomm[0]) * p->np_upper);
+    struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem, "FOFComm",
+                    sizeof(fofcomm[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
+
+    memset(fofcomm, 0, sizeof(fofcomm[0]) * (p->np + pgd->p->np));
 
     struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem, "FOFSave",
-                    sizeof(fofsave[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
+                    sizeof(fofsave[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
 
     ptrdiff_t * head = fastpm_memory_alloc(p->mem, "FOFHead",
-                    sizeof(head[0]) * (p->np + pgd->nghosts), FASTPM_MEMORY_STACK);
+                    sizeof(head[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
 
-    _fof_local_find(finder, p, p->np + pgd->nghosts, head, finder->linkinglength);
+    _fof_local_find(finder, p, pgd, head, finder->linkinglength);
 
     /* initialize minid, used as a global tag of groups as we merge */
-    for(i = 0; i < p->np + pgd->nghosts; i ++) {
+    for(i = 0; i < p->np; i ++) {
         fofsave[i].minid = p->id[i];
-        fofsave[i].task = i < p->np?finder->priv->ThisTask: -1;
+        fofsave[i].task = finder->priv->ThisTask;
+    }
+    for(i = 0; i < pgd->p->np; i ++) {
+        fofsave[i + p->np].minid = pgd->p->id[i];
+        fofsave[i + p->np].task = -1;
     }
 
     /* reduce the minid of the head items according to the local connection. */
 
-    for(i = 0; i < p->np + pgd->nghosts; i ++) {
+    for(i = 0; i < p->np + pgd->p->np; i ++) {
         _merge(&fofsave[i], &fofsave[head[i]]);
     }
 
@@ -421,7 +452,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     KDTree tree;
 
     /* redo fof on the new decomposition -- no halo cross two ranks */
-    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, finder->p, 0, finder->p->np, finder->priv->boxsize);
+    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, &(finder->p), 1, finder->priv->boxsize);
 
     ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, "FOFHead", sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
     ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);

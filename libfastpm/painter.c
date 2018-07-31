@@ -339,7 +339,10 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
 {
     PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
 
-    fastpm_paint_local(painter, canvas, p, p->np + pgd->nghosts, attribute);
+    pm_ghosts_send(pgd, p->attributes);
+
+    fastpm_paint_local(painter, canvas, p, p->np, attribute);
+    fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, attribute);
 
     pm_ghosts_free(pgd);
 }
@@ -366,8 +369,10 @@ fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, enum FastPMPackFields attribute)
 {
     PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
+    pm_ghosts_send(pgd, p->attributes);
 
-    fastpm_readout_local(painter, canvas, p, p->np + pgd->nghosts, attribute);
+    fastpm_readout_local(painter, canvas, p, p->np, attribute);
+    fastpm_readout_local(painter, canvas, pgd->p, pgd->p->np, attribute);
 
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);

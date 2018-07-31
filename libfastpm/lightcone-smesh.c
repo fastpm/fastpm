@@ -445,6 +445,9 @@ fastpm_smesh_compute_potential(
         PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, PACK_POS, NULL);
         PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, PACK_POS, NULL);
 
+        pm_ghosts_send(pgd_last_now, PACK_POS);
+        pm_ghosts_send(pgd_new_now, PACK_POS);
+
         for(d = 0; d < 8; d ++) {
             CLOCK(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
@@ -460,8 +463,10 @@ fastpm_smesh_compute_potential(
             LEAVE(c2r);
 
             CLOCK(readout);
-            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np + pgd_last_now->nghosts, ACC[d]);
-            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np + pgd_new_now->nghosts, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, pgd_last_now->p, pgd_last_now->p->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, pgd_new_now->p, pgd_new_now->p->np, ACC[d]);
             LEAVE(readout);
 
             CLOCK(reduce);

@@ -14,7 +14,13 @@
 typedef void (*pm_iter_ghosts_func)(PM * pm, PMGhostData * ppd, void * userdata);
 
 void pm_ghosts_free(PMGhostData * pgd) {
+    if(pgd->p) {
+        fastpm_store_destroy(pgd->p);
+        free(pgd->p);
+    }
+
     fastpm_memory_free(pgd->pm->mem, pgd->ighost_to_ipar);
+
     free(pgd->Nsend);
     free(pgd->Osend);
     free(pgd->Nrecv);
@@ -83,9 +89,10 @@ count_ghosts(PM * pm, PMGhostData * pgd, void * userdata)
 static void
 build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 {
-    enum FastPMPackFields * attributes = userdata;
+    void ** userdata2 = userdata;
+    enum FastPMPackFields * attributes = userdata2[0];
+    size_t * elsize = userdata2[1];
 
-    FastPMStore * p = pgd->source;
     double pos[3];
     pgd->get_position(pgd->source, pgd->ipar, pos);
 
@@ -97,20 +104,23 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 
     ighost = pgd->Osend[pgd->rank] + offset;
 
-    p->pack(p, pgd->ipar,
-        (char*) pgd->send_buffer + ighost * pgd->elsize, *attributes);
+    pgd->source->pack(pgd->source, pgd->ipar,
+        (char*) pgd->send_buffer + ighost * *elsize, *attributes);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
 }
 
+/* create ghosts that can hold 'attributes';
+ * use pm_ghosts_send to send subsets of `attributes`;
+ * */
 PMGhostData *
-pm_ghosts_create(PM * pm, FastPMStore *p,
+pm_ghosts_create(PM * pm, FastPMStore * p,
     enum FastPMPackFields attributes,
     fastpm_posfunc get_position)
 {
-    return
-    pm_ghosts_create_full(pm, p, attributes,
+    return pm_ghosts_create_full(pm, p, attributes,
             get_position, pm->Below, pm->Above);
+
 }
 
 PMGhostData * 
@@ -130,7 +140,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
         pgd->get_position = p->get_position;
     else
         pgd->get_position = get_position;
-    pgd->nghosts = 0;
+
 
     int d;
     for(d = 0; d < 3; d++) {
@@ -145,23 +155,8 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
     pgd->Nrecv = calloc(pm->NTask, sizeof(int));
     pgd->Orecv = calloc(pm->NTask, sizeof(int));
 
-    pm_ghosts_send(pgd, attributes);
-
-    return pgd;
-}
-
-void
-pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
-{
-    PM * pm = pgd->pm;
-    FastPMStore * p = pgd->source;
-
-    ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = p->pack(pgd->source, 0, NULL, attributes);
-
-    pgd->elsize = elsize;
 
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
@@ -173,26 +168,42 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
 
-    if(pgd->ighost_to_ipar == NULL)
-        pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, "Ghost2Par", Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
+    pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, "Ghost2Par", Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
 
-    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
-    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
+    pgd->p = malloc(sizeof(pgd->p[0]));
+    fastpm_store_init(pgd->p, Nrecv, attributes, FASTPM_MEMORY_HEAP);
 
+    return pgd;
+}
+
+void
+pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
+{
+    PM * pm = pgd->pm;
+    ptrdiff_t i;
+    size_t Nsend;
+    size_t Nrecv;
+
+    Nsend = cumsum(pgd->Osend, pgd->Nsend, pm->NTask);
+    Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
+
+    size_t elsize = pgd->source->pack(pgd->source, 0, NULL, attributes);
+
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
+
+    /* build buffer */
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    pm_iter_ghosts(pm, pgd, build_ghost_buffer, &attributes);
+    void * userdata[] = {&attributes, &elsize};
+    pm_iter_ghosts(pm, pgd, build_ghost_buffer, userdata);
 
     /* exchange */
 
-    pgd->nghosts = Nrecv;
-
-    if(Nrecv + pgd->source->np > pgd->source->np_upper) {
-        fastpm_raise(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, pgd->source->np_upper - pgd->source->np);
-    }
+    pgd->p->np = Nrecv;
 
     MPI_Datatype GHOST_TYPE;
-    MPI_Type_contiguous(pgd->elsize, MPI_BYTE, &GHOST_TYPE);
+    MPI_Type_contiguous(elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
     MPI_Alltoallv_sparse(pgd->send_buffer, pgd->Nsend, pgd->Osend, GHOST_TYPE,
                   pgd->recv_buffer, pgd->Nrecv, pgd->Orecv, GHOST_TYPE,
@@ -201,8 +212,8 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        p->unpack(pgd->source, pgd->source->np + i,
-                (char*) pgd->recv_buffer + i * pgd->elsize,
+        pgd->p->unpack(pgd->p, i,
+                (char*) pgd->recv_buffer + i * elsize,
                         attributes);
     }
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
@@ -234,25 +245,26 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
         void * userdata)
 {
     PM * pm = pgd->pm;
-    FastPMStore * p = pgd->source;
 
     size_t Nsend = cumsum(NULL, pgd->Nsend, pm->NTask);
     size_t Nrecv = cumsum(NULL, pgd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    pgd->elsize = p->pack(pgd->source, 0, NULL, attributes);
-    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
-    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
+    size_t elsize;
+
+    elsize = pgd->p->pack(pgd->p, 0, NULL, attributes);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
 
 #pragma omp parallel for
-    for(i = 0; i < pgd->nghosts; i ++) {
-        p->pack(p, i + pgd->source->np,
-            (char*) pgd->recv_buffer + i * pgd->elsize, 
+    for(i = 0; i < pgd->p->np; i ++) {
+        pgd->p->pack(pgd->p, i,
+            (char*) pgd->recv_buffer + i * elsize, 
             attributes);
     }
 
     MPI_Datatype GHOST_TYPE;
-    MPI_Type_contiguous(pgd->elsize, MPI_BYTE, &GHOST_TYPE);
+    MPI_Type_contiguous(elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
     MPI_Alltoallv_sparse(pgd->recv_buffer, pgd->Nrecv, pgd->Orecv, GHOST_TYPE,
                   pgd->send_buffer, pgd->Nsend, pgd->Osend, GHOST_TYPE,
@@ -270,7 +282,7 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
     for(ighost = 0; ighost < Nsend; ighost ++) {
         func(pgd, attributes, 
             pgd->ighost_to_ipar[ighost],
-            pgd->send_buffer + ighost * pgd->elsize,
+            pgd->send_buffer + ighost * elsize,
             userdata);
     }
     fastpm_memory_free(pm->mem, pgd->send_buffer);
