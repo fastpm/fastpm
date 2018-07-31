@@ -409,7 +409,7 @@ fastpm_smesh_compute_potential(
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
-    fastpm_store_init(p_last_now, np_upper,
+    fastpm_store_init(p_last_now, mesh->last.p->np_upper,
                     mesh->last.p->attributes & ~ PACK_POS & ~ PACK_AEMIT & ~ PACK_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
