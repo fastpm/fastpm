@@ -113,6 +113,8 @@ _create_kdtree (KDTree * tree, int thresh,
         memcpy(tree->input.buffer, &stores[0]->x[0][0], stores[0]->np * sizeof(stores[0]->x[0]));
     }
 
+    i = stores[0]->np;
+
     /* copy the other positions to the base pointer. */
     for(s = 1; s < nstore; s ++) {
         memcpy(((char*) tree->input.buffer) + i * sizeof(stores[0]->x[0]),
@@ -190,7 +192,6 @@ _fof_local_find(FastPMFOFFinder * finder,
     FastPMStore * stores[2] = {p, pgd->p};
 
     KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, stores, 2, finder->priv->boxsize);
-
 
     kd_fof(root, linkinglength, head);
 
