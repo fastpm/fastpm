@@ -84,8 +84,10 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     if(redistribute) {
         int broken = localsize > p->np_upper;
         MPI_Allreduce(MPI_IN_PLACE, &broken, 1, MPI_INT, MPI_LOR, comm);
-        if(broken)
-            fastpm_raise(-1, "redistribution is requested in sorting, but the store is not large enough: %td < %td\n", p->np_upper, localsize);
+        if(broken) {
+            fastpm_info("redistribution is requested in sorting, but the store is not large enough, will not redistribute: \n", p->np_upper, localsize);
+            localsize = p->np;
+        }
     } else {
         localsize = p->np;
     }
