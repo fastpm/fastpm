@@ -12,7 +12,6 @@ mpirun -n 4 $FASTPM standard.lua ic || fail
 
 mpirun -n 4 $FASTPM standard.lua fastpm lineark || fail
 mpirun -n 4 $FASTPM standard.lua fastpm whitenoisek || fail
-mpirun -n 4 $FASTPM standard.lua fastpm || fail
 
 #mpirun -n 4 $FASTPM standard.lua fastpm lanczos2 || fail
 #mpirun -n 4 $FASTPM standard.lua fastpm lanczos3 || fail
@@ -29,11 +28,11 @@ mpirun -n 4 $FASTPM standard.lua za fnl|| fail
 
 
 mpirun -n 4 $FASTPM standard.lua za || fail
-mpirun -n 4 $FASTPM standard.lua 2lpt || fail
+#mpirun -n 4 $FASTPM standard.lua 2lpt || fail
 mpirun -n 4 $FASTPM standard.lua fastpm || fail
-mpirun -n 4 $FASTPM standard.lua pm || fail
-mpirun -n 4 $FASTPM standard.lua cola || fail
+#mpirun -n 4 $FASTPM standard.lua pm || fail
+#mpirun -n 4 $FASTPM standard.lua cola || fail
 
-mpirun -n 4 $FASTPM standard.lua fastpm inverted || fail
-mpirun -n 4 $FASTPM standard.lua fastpm remove_variance || fail
+# mpirun -n 4 $FASTPM standard.lua fastpm inverted || fail
+# mpirun -n 4 $FASTPM standard.lua fastpm remove_variance || fail
 
