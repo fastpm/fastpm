@@ -581,7 +581,9 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
-        fastpm_usmesh_init(*usmesh, lc, fastpm->p->np_upper, tiles, ntiles, lc_amin, lc_amax);
+        fastpm_usmesh_init(*usmesh, lc,
+                CONF(prr, lc_usmesh_alloc_factor) * fastpm->p->np_upper,
+                tiles, ntiles, lc_amin, lc_amax);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION,
@@ -901,7 +903,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
     ENTER(fof);
 
     int append = !lcevent->is_first;
-    double maxhalosize = 10; /* MPC/h, used to cut along z direction. */
+    double maxhalosize = CONF(prr, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
     ptrdiff_t i;
 
