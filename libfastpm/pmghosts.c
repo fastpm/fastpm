@@ -32,7 +32,7 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
         PMGhostData localppd = *pgd;
         double pos[3];
         int rank;
-        pgd->get_position(pgd->p, i, pos);
+        pgd->get_position(pgd->source, i, pos);
         int d;
 
         /* how far the window expands. */
@@ -85,9 +85,9 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 {
     enum FastPMPackFields * attributes = userdata;
 
-    FastPMStore * p = pgd->p;
+    FastPMStore * p = pgd->source;
     double pos[3];
-    pgd->get_position(pgd->p, pgd->ipar, pos);
+    pgd->get_position(pgd->source, pgd->ipar, pos);
 
     int ighost;
     int offset; 
@@ -124,7 +124,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
     PMGhostData * pgd = malloc(sizeof(pgd[0]));
 
     pgd->pm = pm;
-    pgd->p = p;
+    pgd->source = p;
     pgd->np = p->np;
     pgd->np_upper = p->np_upper;
 
@@ -156,12 +156,12 @@ void
 pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 {
     PM * pm = pgd->pm;
-    FastPMStore * p = pgd->p;
+    FastPMStore * p = pgd->source;
 
     ptrdiff_t i;
     size_t Nsend;
     size_t Nrecv;
-    size_t elsize = p->pack(pgd->p, 0, NULL, attributes);
+    size_t elsize = p->pack(pgd->source, 0, NULL, attributes);
 
     pgd->elsize = elsize;
 
@@ -203,7 +203,7 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        p->unpack(pgd->p, pgd->np + i,
+        p->unpack(pgd->source, pgd->np + i,
                 (char*) pgd->recv_buffer + i * pgd->elsize,
                         attributes);
     }
@@ -218,7 +218,7 @@ _reduce_any_field(PMGhostData * pgd,
     ptrdiff_t index, void * buf,
     void * userdata)
 {
-    pgd->p->reduce(pgd->p, index, buf, attributes);
+    pgd->source->reduce(pgd->source, index, buf, attributes);
 }
 
 void
@@ -236,13 +236,13 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
         void * userdata)
 {
     PM * pm = pgd->pm;
-    FastPMStore * p = pgd->p;
+    FastPMStore * p = pgd->source;
 
     size_t Nsend = cumsum(NULL, pgd->Nsend, pm->NTask);
     size_t Nrecv = cumsum(NULL, pgd->Nrecv, pm->NTask);
     ptrdiff_t i;
 
-    pgd->elsize = p->pack(pgd->p, 0, NULL, attributes);
+    pgd->elsize = p->pack(pgd->source, 0, NULL, attributes);
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * pgd->elsize, FASTPM_MEMORY_HEAP);
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * pgd->elsize, FASTPM_MEMORY_HEAP);
 

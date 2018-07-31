@@ -1,6 +1,6 @@
 typedef struct PMGhostData {
     PM * pm;
-    FastPMStore * p;
+    FastPMStore * source;
     size_t np;
     size_t np_upper;
     size_t nghosts;
