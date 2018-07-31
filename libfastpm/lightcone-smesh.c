@@ -460,8 +460,8 @@ fastpm_smesh_compute_potential(
             LEAVE(c2r);
 
             CLOCK(readout);
-            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np + pgd_last_now->nghosts, NULL, ACC[d]);
-            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np + pgd_new_now->nghosts, NULL, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np + pgd_last_now->nghosts, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np + pgd_new_now->nghosts, ACC[d]);
             LEAVE(readout);
 
             CLOCK(reduce);

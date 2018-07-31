@@ -31,7 +31,7 @@ force_mode = "fastpm"
 -- force_mode = "cola"
 pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
-np_alloc_factor= 25.0      -- Amount of memory allocated for particle
+np_alloc_factor= 2.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
@@ -45,7 +45,7 @@ particle_fraction = 0.1
 fof_linkinglength = 0.2
 fof_nmin = 4
 dh_factor = 0.1
-lc_fov = 0
+lc_fov = 360
 -- lc_octants = {0}
 -- lc_fov = 361
 
@@ -58,10 +58,10 @@ lc_fov = 0
 --]]
 
 -- lc_glmatrix = fastpm.translation(-128, -128, -128)
-lc_smesh_max_nside=512
+lc_smesh_max_nside= 64
 lc_amin = 0.1
 lc_amax = 1.0
-lc_smesh_fraction = 1.0
+lc_smesh_fraction = 2.0
 --
 --lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
 lc_write_usmesh = "lightcone/usmesh"

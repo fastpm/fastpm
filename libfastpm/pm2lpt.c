@@ -56,7 +56,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
 
         pm_c2r(pm, workspace);
 
-        fastpm_readout_local(painter, workspace, p, p->np + pgd->nghosts, NULL, DX1[d]);
+        fastpm_readout_local(painter, workspace, p, p->np + pgd->nghosts, DX1[d]);
 
         pm_ghosts_reduce(pgd, DX1[d]);
     } 
@@ -108,7 +108,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         /* this ensures x = x0 + dx1(t) + dx2(t) */
         fastpm_apply_multiply_transfer(pm, workspace, workspace, 3.0 / 7);
 
-        fastpm_readout_local(painter, workspace, p, p->np + pgd->nghosts, NULL, DX2[d]);
+        fastpm_readout_local(painter, workspace, p, p->np + pgd->nghosts, DX2[d]);
     }
 
 #ifdef PM_2LPT_DUMP

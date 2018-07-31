@@ -1008,7 +1008,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         fastpm_painter_init(painter, fastpm->basepm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
-        fastpm_paint(painter, rho_x, snapshot, NULL, 0);
+        fastpm_paint(painter, rho_x, snapshot, 0);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
 
         write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->Nwriters);

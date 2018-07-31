@@ -285,7 +285,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np + pgd->nghosts);
 
     fastpm_paint_local(painter, canvas,
-                p, p->np + pgd->nghosts, NULL, 0);
+                p, p->np + pgd->nghosts, 0);
 
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
 
@@ -315,7 +315,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         LEAVE(c2r);
 
         CLOCK(readout);
-        fastpm_readout_local(reader, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
+        fastpm_readout_local(reader, canvas, p, p->np + pgd->nghosts, ACC[d]);
         LEAVE(readout);
 
         CLOCK(reduce);
