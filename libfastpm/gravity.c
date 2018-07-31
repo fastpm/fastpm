@@ -286,6 +286,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
     VALGRIND_CHECK_MEM_IS_DEFINED(pgd->p->x, sizeof(pgd->p->x[0]) * pgd->p->np);
 
+    pm_clear(pm, canvas);
     fastpm_paint_local(painter, canvas, p, p->np, 0);
     fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, 0);
 

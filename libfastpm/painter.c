@@ -322,8 +322,6 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
 {
     ptrdiff_t i;
 
-    memset(canvas, 0, sizeof(canvas[0]) * painter->pm->allocsize);
-
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
@@ -340,6 +338,8 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
     PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
 
     pm_ghosts_send(pgd, p->attributes);
+
+    pm_clear(painter->pm, canvas);
 
     fastpm_paint_local(painter, canvas, p, p->np, attribute);
     fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, attribute);
