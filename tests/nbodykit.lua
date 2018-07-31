@@ -24,7 +24,7 @@ h       = 0.6774
 read_powerspectrum= "powerspec.txt"
 linear_density_redshift = 0.0 -- the redshift of the linear density field.
 random_seed= 100
-particle_fraction = 0.1
+particle_fraction = 1.0
 --
 -------- Approximation Method ---------------
 force_mode = "fastpm"

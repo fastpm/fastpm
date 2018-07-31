@@ -45,7 +45,9 @@ particle_fraction = 0.1
 fof_linkinglength = 0.2
 fof_nmin = 4
 dh_factor = 0.1
-lc_fov = 360
+
+lc_fov = 0
+
 -- lc_octants = {0}
 -- lc_fov = 361
 
@@ -58,11 +60,12 @@ lc_fov = 360
 --]]
 
 -- lc_glmatrix = fastpm.translation(-128, -128, -128)
-lc_smesh_max_nside= 64
+lc_smesh_max_nside= 32
 lc_amin = 0.1
 lc_amax = 1.0
-lc_smesh_fraction = 2.0
+lc_smesh_fraction = 1.0
 --
---lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
+lc_usmesh_tiles = fastpm.outerproduct({-1, 0}, {-1, 0}, {-1, 0})
+lc_usmesh_fof_padding = 10.0
 lc_write_usmesh = "lightcone/usmesh"
 lc_write_smesh = "lightcone/smesh"
