@@ -1,8 +1,6 @@
 typedef struct PMGhostData {
     PM * pm;
     FastPMStore * source;
-    size_t np;
-    size_t np_upper;
     size_t nghosts;
 
     /* the get_position member is used to determine the target rank */

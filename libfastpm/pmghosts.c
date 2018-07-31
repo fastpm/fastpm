@@ -28,7 +28,7 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
 {
 
     ptrdiff_t i;
-    for (i = 0; i < pgd->np; i ++) {
+    for (i = 0; i < pgd->source->np; i ++) {
         PMGhostData localppd = *pgd;
         double pos[3];
         int rank;
@@ -125,8 +125,6 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     pgd->pm = pm;
     pgd->source = p;
-    pgd->np = p->np;
-    pgd->np_upper = p->np_upper;
 
     if(get_position == NULL)
         pgd->get_position = p->get_position;
@@ -189,8 +187,8 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
     pgd->nghosts = Nrecv;
 
-    if(Nrecv + pgd->np > pgd->np_upper) {
-        fastpm_raise(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, pgd->np_upper - pgd->np);
+    if(Nrecv + pgd->source->np > pgd->source->np_upper) {
+        fastpm_raise(-1, "Too many ghosts; asking for %td, space for %td\n", Nrecv, pgd->source->np_upper - pgd->source->np);
     }
 
     MPI_Datatype GHOST_TYPE;
@@ -203,7 +201,7 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        p->unpack(pgd->source, pgd->np + i,
+        p->unpack(pgd->source, pgd->source->np + i,
                 (char*) pgd->recv_buffer + i * pgd->elsize,
                         attributes);
     }
@@ -248,7 +246,7 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
 
 #pragma omp parallel for
     for(i = 0; i < pgd->nghosts; i ++) {
-        p->pack(p, i + pgd->np,
+        p->pack(p, i + pgd->source->np,
             (char*) pgd->recv_buffer + i * pgd->elsize, 
             attributes);
     }
