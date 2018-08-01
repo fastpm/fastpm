@@ -137,7 +137,7 @@ fastpm_memory_dump_status(FastPMMemory * m, int fd)
     int pool;
     for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
         for(entry = m->pools[pool]; entry != &head; entry = entry->prev) {
-            sprintf(buf, "%c %08p : %09d : %s\n", P[pool], entry->p, entry->size, entry->tag);
+            sprintf(buf, "%c 0x%016tx : %010d : %s\n", (ptrdiff_t) P[pool], entry->p, entry->size, entry->tag);
             write(fd, buf, strlen(buf));
         }
     }
