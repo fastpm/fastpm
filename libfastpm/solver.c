@@ -378,6 +378,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
+    free(fastpm->p);
 }
 
 static void
