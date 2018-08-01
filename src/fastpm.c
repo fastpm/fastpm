@@ -743,7 +743,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
 static void
 smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
 {
+    CLOCK(potential);
+    ENTER(potential);
     fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+    LEAVE(potential);
 }
 
 static int

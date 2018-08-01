@@ -261,7 +261,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     CLOCK(decompose);
     CLOCK(force);
-    CLOCK(afterforce);
+    CLOCK(event);
 
     fastpm->pm = fastpm_find_pm(fastpm, trans->a.f);
 
@@ -277,7 +277,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     fastpm_gravity_calculate(gravity, pm, fastpm->p, delta_k);
     LEAVE(force);
 
-    ENTER(afterforce);
+    ENTER(event);
 
     int64_t N = fastpm->p->np;
 
@@ -305,7 +305,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     }
 
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
-    LEAVE(afterforce);
+    LEAVE(event);
 
     pm_free(pm, delta_k);
 

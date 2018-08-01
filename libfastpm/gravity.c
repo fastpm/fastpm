@@ -306,23 +306,28 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
                  PACK_POTENTIAL,
                 };
 
+    CLOCK(transfer);
+    CLOCK(c2r);
+    CLOCK(readout);
+    CLOCK(reduce);
+
     for(d = 0; d < 3 + 1; d ++) {
         /* skip potential if not wanted */
         if(p->potential == NULL && ACC[d] == PACK_POTENTIAL) continue;
-        CLOCK(transfer);
+        ENTER(transfer);
         gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
         LEAVE(transfer);
 
-        CLOCK(c2r);
+        ENTER(c2r);
         pm_c2r(pm, canvas);
         LEAVE(c2r);
 
-        CLOCK(readout);
+        ENTER(readout);
         fastpm_readout_local(reader, canvas, p, p->np, ACC[d]);
         fastpm_readout_local(reader, canvas, pgd->p, pgd->p->np, ACC[d]);
         LEAVE(readout);
 
-        CLOCK(reduce);
+        ENTER(reduce);
         pm_ghosts_reduce(pgd, ACC[d]);
         LEAVE(reduce);
     }

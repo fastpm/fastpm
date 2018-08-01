@@ -394,9 +394,18 @@ fastpm_smesh_compute_potential(
         double a_n
 )
 {
+    CLOCK(transfer);
+    CLOCK(c2r);
+    CLOCK(readout);
+    CLOCK(reduce);
+    CLOCK(interp);
+    CLOCK(event);
+    CLOCK(active);
+
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 
+    ENTER(active);
     while(1) {
 
         fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
@@ -415,6 +424,7 @@ fastpm_smesh_compute_potential(
 #endif
         break;
     }
+    LEAVE(active);
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
@@ -458,7 +468,7 @@ fastpm_smesh_compute_potential(
         pm_ghosts_send(pgd_new_now, PACK_POS);
 
         for(d = 0; d < 8; d ++) {
-            CLOCK(transfer);
+            ENTER(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
             if(ACC[d] == PACK_DENSITY) {
@@ -467,18 +477,18 @@ fastpm_smesh_compute_potential(
 
             LEAVE(transfer);
 
-            CLOCK(c2r);
+            ENTER(c2r);
             pm_c2r(pm, canvas);
             LEAVE(c2r);
 
-            CLOCK(readout);
+            ENTER(readout);
             fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np, ACC[d]);
             fastpm_readout_local(reader, canvas, pgd_last_now->p, pgd_last_now->p->np, ACC[d]);
             fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np, ACC[d]);
             fastpm_readout_local(reader, canvas, pgd_new_now->p, pgd_new_now->p->np, ACC[d]);
             LEAVE(readout);
 
-            CLOCK(reduce);
+            ENTER(reduce);
             pm_ghosts_reduce(pgd_last_now, ACC[d]);
             pm_ghosts_reduce(pgd_new_now, ACC[d]);
             LEAVE(reduce);
@@ -509,6 +519,7 @@ fastpm_smesh_compute_potential(
     double potfactor = 1.5 * mesh->lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
     FastPMStore * p_last_then = mesh->last.p;
 
+    ENTER(interp);
     #pragma omp parallel for
     for(i = 0; i < p_last_now->np; i ++) {
 
@@ -551,6 +562,8 @@ fastpm_smesh_compute_potential(
         _rotate_tidal(mesh->lc->glmatrix, &p_last_then->tidal[i][0]);
 
     }
+    LEAVE(interp);
+
     /* p_last_now is no longer useful after interpolation */
     fastpm_store_destroy(p_last_now);
 
@@ -561,10 +574,12 @@ fastpm_smesh_compute_potential(
     lcevent->a1 = a_f;
     lcevent->is_first = mesh->last.a_f == 0;
 
+    ENTER(event);
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
             (FastPMEvent*) lcevent, mesh);
 
+    LEAVE(event);
     /* last.a_f is when the potential is last updated */
     mesh->last.a_f = a_f;
 
