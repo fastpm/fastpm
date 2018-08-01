@@ -147,7 +147,7 @@ void fastpm_clock_stat(MPI_Comm comm)
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
     FastPMClock foo = {0};
-    
+
     FastPMMemory * g = _libfastpm_get_gmem();
     size_t max_used_bytes = g->peak_bytes;
 
@@ -155,7 +155,7 @@ void fastpm_clock_stat(MPI_Comm comm)
             &max_used_bytes, 1, MPI_LONG, MPI_MAX,
             comm);
 
-    fastpm_log(INFO, "Peak memory usage on rank 0: %g MB\n", max_used_bytes / 1024. / 1024);
+    fastpm_log(INFO, "Peak memory usage of all ranks: %g MB\n", max_used_bytes / 1024. / 1024);
 
     fastpm_info("%8s %8s %8s \n", "min", "max", "mean");
 
