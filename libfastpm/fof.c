@@ -121,7 +121,7 @@ _create_kdtree (KDTree * tree, int thresh,
                 &stores[s]->x[0][0],
                 stores[s]->np * sizeof(stores[0]->x[0]));
 
-        i = i + stores[s]->np * sizeof(stores[0]->x[0]);
+        i = i + stores[s]->np;
     }
 
     tree->input.strides[0] = sizeof(stores[0]->x[0]);
