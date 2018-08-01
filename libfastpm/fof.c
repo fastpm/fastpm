@@ -465,13 +465,12 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* */
     {
         size_t nhalos = _assign_halo_attr(head, offset, finder->p->np, finder->nmin);
-    /*
-        ptrdiff_t i;
-        for(i = 0; i < finder->p->np; i++) {
-            if(head[i] < 0) abort();
-            if(head[i] >= finder->p->np) abort();
-        }
-*/
+
+        size_t total_nhalos = nhalos;
+
+        MPI_Allreduce(MPI_IN_PLACE, &total_nhalos, 1, MPI_LONG, MPI_SUM, pm_comm(finder->pm));
+        size_t avg_halos = total_nhalos / finder->priv->NTask + 1;
+
         enum FastPMPackFields attributes = finder->p->attributes;
         attributes |= PACK_LENGTH | PACK_FOF;
         attributes &= ~PACK_ACC;
@@ -487,9 +486,11 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             attributes &= ~PACK_Q;
         }
 
-        fastpm_store_init(halos, nhalos,
+        /* give it enough space for rebalancing. */
+        fastpm_store_init(halos, nhalos < 2 * avg_halos?2 * avg_halos:nhalos,
                 attributes,
                 FASTPM_MEMORY_HEAP);
+
         halos->np = nhalos;
         halos->a_x = finder->p->a_x;
         halos->a_v = finder->p->a_v;
