@@ -10,7 +10,7 @@ boxsize = 512
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.5, 1, 3)
+time_step = linspace(0.1, 1, 10)
 
 output_redshifts= {1.0, 0.0}  -- redshifts of output
 compute_potential = true
@@ -31,7 +31,7 @@ force_mode = "fastpm"
 -- force_mode = "cola"
 pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
-np_alloc_factor= 25.0      -- Amount of memory allocated for particle
+np_alloc_factor= 2.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
@@ -41,9 +41,14 @@ write_snapshot = "lightcone/fastpm"
 write_fof = "lightcone/fof"
 -- 1d power spectrum (raw), without shotnoise correction
 
+particle_fraction = 0.1
+fof_linkinglength = 0.2
+fof_nmin = 4
 dh_factor = 0.1
-lc_fov = 360
-lc_octants = {0}
+
+lc_fov = 0
+
+-- lc_octants = {0}
 -- lc_fov = 361
 
 --s =[[glmatrix = { 
@@ -55,10 +60,12 @@ lc_octants = {0}
 --]]
 
 -- lc_glmatrix = fastpm.translation(-128, -128, -128)
-lc_smesh_max_nside=512
-lc_amin = 0.5
+lc_smesh_max_nside= 32
+lc_amin = 0.1
 lc_amax = 1.0
+lc_smesh_fraction = 1.0
 --
--- lc_usmesh_tiles = fastpm.outerproduct({0}, {0}, {0, 1, 2, 3})
+lc_usmesh_tiles = fastpm.outerproduct({-1, 0}, {-1, 0}, {-1, 0})
+lc_usmesh_fof_padding = 10.0
 lc_write_usmesh = "lightcone/usmesh"
 lc_write_smesh = "lightcone/smesh"

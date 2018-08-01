@@ -14,7 +14,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
-#include <fastpm/lc-unstruct.h>
+#include <fastpm/lightcone.h>
 #include <fastpm/constrainedgaussian.h>
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
@@ -84,6 +84,14 @@ read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double 
 
 static void
 write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr);
+
+static void
+write_usmesh_fof(FastPMSolver * fastpm,
+        FastPMStore * snapshot,
+        char * filebase, Parameters * prr,
+        FastPMLCEvent * lcevent,
+        FastPMStore * tail,
+        FastPMLightCone * lc);
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
@@ -252,8 +260,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
 
-    /* subsampling ratio */
-    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr, particle_fraction), comm);
+    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr, particle_fraction), fastpm->p->mask, comm);
 
     fastpm_info("dx1  : %g %g %g %g\n", 
             fastpm->info.dx1[0], fastpm->info.dx1[1], fastpm->info.dx1[2],
@@ -494,6 +501,15 @@ produce:
     pm_free(fastpm->basepm, delta_k);
 }
 
+static void
+_usmesh_lc_ready_free(void * data) {
+    void ** userdata = data;
+    if(userdata[2]) {
+        fastpm_store_destroy(userdata[2]);
+        free(userdata[2]);
+    }
+    free(userdata);
+}
 
 static void
 prepare_lc(FastPMSolver * fastpm, Parameters * prr,
@@ -565,7 +581,9 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
-        fastpm_usmesh_init(*usmesh, lc, fastpm->p->np_upper, tiles, ntiles, lc_amin, lc_amax);
+        fastpm_usmesh_init(*usmesh, lc,
+                CONF(prr, lc_usmesh_alloc_factor) * fastpm->p->np_upper,
+                tiles, ntiles, lc_amin, lc_amax);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION,
@@ -575,14 +593,17 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
         free(tiles);
 
-        void ** data = malloc(sizeof(void*) * 2);
+        void ** data = malloc(sizeof(void*) * 3);
         data[0] = fastpm;
         data[1] = prr;
+        data[2] = malloc(sizeof(FastPMStore));
+
+        fastpm_store_init(data[2], 0, 0, FASTPM_MEMORY_FLOATING);
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
                 (FastPMEventHandlerFunction) usmesh_ready_handler,
-                data, free);
+                data, _usmesh_lc_ready_free);
     }
 
     *smesh = NULL;
@@ -674,6 +695,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
 
     FastPMSolver * solver = userdata[0];
     Parameters * prr = userdata[1];
+    FastPMStore * tail = userdata[2];
 
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
@@ -681,6 +703,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
     fastpm_info("Unstructured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
 
     char * fn = fastpm_strdup_printf(CONF(prr, lc_write_usmesh));
+
+    write_usmesh_fof(solver, lcevent->p, fn, prr, lcevent, tail, mesh->lc);
+
+    /* subsample, this will remove the tail particles that were appended. */
+    fastpm_store_subsample(lcevent->p, lcevent->p->mask, lcevent->p);
 
     ENTER(sort);
     fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
@@ -761,7 +788,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         }
 
         /* in place subsampling to avoid creating another store, we trash it immediately anyways. */
-        fastpm_store_subsample(snapshot, snapshot);
+        fastpm_store_subsample(snapshot, snapshot->mask, snapshot);
 
         take_a_snapshot(fastpm, snapshot, aout[iout], prr);
 
@@ -781,6 +808,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
         .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
+        .periodic = 1,
         .nmin = CONF(prr, fof_nmin),
         .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
     };
@@ -794,7 +822,6 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     fastpm_fof_execute(&fof, halos);
 
     LEAVE(fof);
-
 
     fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
 
@@ -816,6 +843,157 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     fastpm_fof_destroy(&fof);
 }
 
+static void
+_halos_ready (FastPMFOFFinder * finder,
+    FastPMHaloEvent * event, void ** userdata)
+{
+    double rmin = *((double*) userdata[0]);
+    double halosize = *((double*) userdata[1]);
+    FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
+    char * keep_for_tail = (char *) userdata[3];
+    FastPMStore * halos = event->halos;
+    FastPMStore * p = event->p;
+
+    ptrdiff_t i;
+
+    uint8_t * halos_mask = malloc(halos->np);
+
+    for(i = 0; i < halos->np; i ++) {
+        double r = fastpm_lc_distance(lc, halos->x[i]);
+        /* only keep reliable halos */
+        if(r > rmin + halosize * 0.5) {
+            halos_mask[i] = 1;
+        } else {
+            halos_mask[i] = 0;
+        }
+    }
+
+    for(i = 0; i < p->np; i ++) {
+        ptrdiff_t hid = event->ihalo[i];
+        double r_p = fastpm_lc_distance(lc, p->x[i]);
+        if (r_p > rmin + halosize) {
+            /* not near the tail of the lightcone, do not keep for tail */
+            keep_for_tail[i] = 0;
+        } else {
+            /* near the tail of the lightcone, do not keep those formed reliable halos */
+            if(hid >= 0) {
+                /* unreliable halos, keep them */
+                keep_for_tail[i] = !halos_mask[hid];
+            } else {
+                /* not in halos, keep them too */
+                keep_for_tail[i] = 1;
+            }
+        }
+    }
+    userdata[4] = halos_mask;
+}
+
+
+static void
+write_usmesh_fof(FastPMSolver * fastpm,
+        FastPMStore * snapshot,
+        char * filebase, Parameters * prr,
+        FastPMLCEvent * lcevent,
+        FastPMStore * tail,
+        FastPMLightCone * lc)
+{
+    CLOCK(fof);
+    CLOCK(io);
+    CLOCK(sort);
+    ENTER(fof);
+
+    int append = !lcevent->is_first;
+    double maxhalosize = CONF(prr, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
+    FastPMStore * p = lcevent->p;
+    ptrdiff_t i;
+
+    /* not the first segment, add the left over particles to the FOF */
+
+    /* avoid including the tail particles in the subsample;
+     * by clearing their mask */
+    for(i = 0; i < tail->np; i ++) {
+        tail->mask[i] = 0;
+    }
+    fastpm_store_append(tail, lcevent->p);
+    fastpm_store_destroy(tail);
+
+    /* FIXME: register event to mask out particles*/
+    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np, FASTPM_MEMORY_HEAP);
+
+    FastPMFOFFinder fof = {
+        /* convert from fraction of mean separation to simulation distance units. */
+        .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
+        .periodic = 0,
+        .nmin = CONF(prr, fof_nmin),
+        .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
+    };
+
+    fastpm_fof_init(&fof, snapshot, fastpm->basepm);
+
+    double rmin = lc->speedfactor * HorizonDistance(lcevent->a1, lc->horizon);
+
+    void * userdata[4];
+    userdata[0] = & rmin;
+    userdata[1] = & maxhalosize;
+    userdata[2] = lc;
+    userdata[3] = keep_for_tail;
+    userdata[4] = NULL; /* halos_mask , return value of the handler */
+
+    FastPMStore halos[1];
+    fastpm_add_event_handler(&fof.event_handlers,
+        FASTPM_EVENT_HALO,
+        FASTPM_EVENT_STAGE_AFTER,
+        (FastPMEventHandlerFunction) _halos_ready,
+        userdata);
+
+    ENTER(fof);
+
+    fastpm_fof_execute(&fof, halos);
+
+    LEAVE(fof);
+
+    fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
+
+    uint8_t * halos_mask = userdata[4];
+    fastpm_store_subsample(halos, halos_mask, halos);
+    free(halos_mask);
+
+    ENTER(sort);
+    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
+    LEAVE(sort);
+
+    ENTER(io);
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
+    if(!append) {
+        write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    } else {
+        append_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    }
+    free(dataset);
+    LEAVE(io);
+
+    uint64_t nhalos = halos->np;
+    MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+
+    fastpm_info("FOF Catalog %s written with %td halos\n", filebase, nhalos);
+
+    fastpm_store_destroy(halos);
+
+    fastpm_fof_destroy(&fof);
+
+    uint64_t ntail = 0;
+    for(i = 0; i < p->np; i ++) {
+        if(keep_for_tail[i]) ntail ++;
+    }
+
+    fastpm_store_init(tail, ntail, p->attributes, FASTPM_MEMORY_FLOATING);
+    fastpm_store_subsample(p, keep_for_tail, tail);
+
+    MPI_Allreduce(MPI_IN_PLACE, &ntail, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+    fastpm_info("%td particles will be reused in next batch\n", ntail);
+    fastpm_memory_free(p->mem, keep_for_tail);
+}
+
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr) 
 {
@@ -832,7 +1010,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         fastpm_painter_init(painter, fastpm->basepm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
-        fastpm_paint(painter, rho_x, snapshot, NULL, 0);
+        fastpm_paint(painter, rho_x, snapshot, 0);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
 
         write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->Nwriters);

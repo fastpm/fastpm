@@ -56,6 +56,7 @@ struct FastPMStore {
 
     enum FastPMPackFields attributes; /* bit flags of allocated attributes */
 
+    void * base; /* base pointer of all memory buffers */
     double (* x)[3];
     float (* q)[3];
     float (* v)[3];
@@ -87,7 +88,9 @@ struct FastPMStore {
 };
 
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc);
+fastpm_store_init_details(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
+
+#define fastpm_store_init(p, np_upper, attributes, loc) fastpm_store_init_details(p, np_upper, attributes, loc, __FILE__, __LINE__)
 
 size_t
 fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes,
@@ -110,7 +113,7 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
 
 typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
-void
+int
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
 
 void fastpm_store_sort_by_id(FastPMStore * p);
@@ -125,10 +128,11 @@ void fastpm_store_write(FastPMStore * p, char * datasource);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
+        uint8_t * mask,
         MPI_Comm comm);
 
 void
-fastpm_store_subsample(FastPMStore * in, FastPMStore * out);
+fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit(FastPMStore * store,
@@ -139,6 +143,9 @@ fastpm_store_histogram_aemit(FastPMStore * store,
 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
+
+void
+fastpm_store_append(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
 void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);

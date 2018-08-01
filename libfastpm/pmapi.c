@@ -24,6 +24,12 @@ pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to)
     memcpy(to, from, sizeof(from[0]) * pm->allocsize);
 }
 
+void 
+pm_clear(PM * pm, FastPMFloat * buf)
+{
+    memset(buf, 0, sizeof(buf[0]) * pm->allocsize);
+}
+
 size_t 
 pm_allocsize(PM * pm)
 {

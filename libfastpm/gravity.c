@@ -266,7 +266,8 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     double density_factor = pm->Norm / np;
 
     CLOCK(ghosts);
-    PMGhostData * pgd = pm_ghosts_create(pm, p, PACK_POS, NULL);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, NULL);
+    pm_ghosts_send(pgd, PACK_POS);
     LEAVE(ghosts);
 
     FastPMFloat * canvas = pm_alloc(pm);
@@ -282,10 +283,12 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
      * */
     CLOCK(paint);
 
-    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np + pgd->nghosts);
+    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
+    VALGRIND_CHECK_MEM_IS_DEFINED(pgd->p->x, sizeof(pgd->p->x[0]) * pgd->p->np);
 
-    fastpm_paint_local(painter, canvas,
-                p, p->np + pgd->nghosts, NULL, 0);
+    pm_clear(pm, canvas);
+    fastpm_paint_local(painter, canvas, p, p->np, 0);
+    fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, 0);
 
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
 
@@ -315,7 +318,8 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         LEAVE(c2r);
 
         CLOCK(readout);
-        fastpm_readout_local(reader, canvas, p, p->np + pgd->nghosts, NULL, ACC[d]);
+        fastpm_readout_local(reader, canvas, p, p->np, ACC[d]);
+        fastpm_readout_local(reader, canvas, pgd->p, pgd->p->np, ACC[d]);
         LEAVE(readout);
 
         CLOCK(reduce);

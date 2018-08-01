@@ -1,9 +1,9 @@
 typedef struct PMGhostData {
     PM * pm;
-    FastPMStore * p;
-    size_t np;
-    size_t np_upper;
-    size_t nghosts;
+    FastPMStore * source; /* original particles */
+    FastPMStore * p;  /* ghost particles */
+
+    /* the get_position member is used to determine the target rank */
     fastpm_posfunc get_position;
     double Below[3];
     double Above[3];
@@ -21,7 +21,6 @@ typedef struct PMGhostData {
     int * ighost_to_ipar;
     int rank;
     int * reason; /* relative offset causing the ghost */
-    size_t elsize;
 } PMGhostData;
 
 PMGhostData * 

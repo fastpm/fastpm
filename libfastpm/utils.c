@@ -43,63 +43,6 @@ fastpm_utils_get_random(uint64_t id)
     return RNDTABLE[ind];
 }
 
-void
-fastpm_utils_paint(PM * pm, FastPMStore * p, 
-    FastPMFloat * delta_x, 
-    FastPMFloat * delta_k,
-    fastpm_posfunc get_position,
-    enum FastPMPackFields attribute)
-{
-    /* This paints count per cell */
-    FastPMPainter painter;
-
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
-
-    fastpm_painter_init(&painter, pm, FASTPM_PAINTER_CIC, 1);
-
-    /* since for 2lpt we have on average 1 particle per cell, use 1.0 here.
-     * otherwise increase this to (Nmesh / Ngrid) **3 */
-    FastPMFloat * canvas = pm_alloc(pm);
-
-    fastpm_paint_local(&painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
-
-    if(delta_x)
-        pm_assign(pm, canvas, delta_x);
-
-    if(delta_k) {
-        pm_r2c(pm, canvas, delta_k);
-    }
-    pm_free(pm, canvas);
-    pm_ghosts_free(pgd);
-}
-
-void
-fastpm_utils_readout(PM * pm, FastPMStore * p,
-    FastPMFloat * delta_x,
-    fastpm_posfunc get_position,
-    enum FastPMPackFields attribute
-    )
-{
-    FastPMPainter painter;
-
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
-
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, get_position);
-
-    fastpm_painter_init(&painter, pm,
-                FASTPM_PAINTER_CIC, 1);
-
-    fastpm_readout_local(&painter, delta_x, p, p->np + pgd->nghosts, get_position, attribute);
-
-    pm_ghosts_reduce(pgd, attribute);
-    pm_ghosts_free(pgd);
-}
-
 void 
 fastpm_utils_dump(PM * pm , const char * filename, FastPMFloat *data) 
 {

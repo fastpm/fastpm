@@ -143,6 +143,12 @@ schema.declare{name='lc_amax',
 
 schema.declare{name='lc_write_usmesh',         type='string', help='file name base for writing the particle lightcone'}
 
+schema.declare{name='lc_usmesh_alloc_factor',     type='number', default=1.0,
+                    help='allocation factor for the unstructured mesh, relative to alloc_factor.'}
+
+schema.declare{name='lc_usmesh_fof_padding',     type='number', default=10.0,
+                    help='padding in the line of sight direction for light cone fof. roughly the size of a halo.'}
+
 schema.declare{name='lc_usmesh_tiles',     type='array:number',
         default={
             {0, 0, 0},

@@ -318,36 +318,31 @@ outside:
 void
 fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
-    fastpm_posfunc get_position, enum FastPMPackFields attribute)
+    enum FastPMPackFields attribute)
 {
     ptrdiff_t i;
-
-    memset(canvas, 0, sizeof(canvas[0]) * painter->pm->allocsize);
-
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
 
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
         double weight = attribute? p->to_double(p, i, attribute): 1.0;
-        get_position(p, i, pos);
+        fastpm_store_get_position(p, i, pos);
         painter->paint(painter, canvas, pos, weight, painter->diffdir);
     }
 }
 
 void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
-    FastPMStore * p, fastpm_posfunc get_position, enum FastPMPackFields attribute)
+    FastPMStore * p, enum FastPMPackFields attribute)
 {
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
 
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, get_position);
+    pm_ghosts_send(pgd, p->attributes);
 
-    fastpm_paint_local(painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
+    pm_clear(painter->pm, canvas);
+
+    fastpm_paint_local(painter, canvas, p, p->np, attribute);
+    fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, attribute);
 
     pm_ghosts_free(pgd);
 }
@@ -355,17 +350,15 @@ fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
 void
 fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, size_t size,
-    fastpm_posfunc get_position, enum FastPMPackFields attribute)
+    enum FastPMPackFields attribute)
 {
 
     ptrdiff_t i;
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
+
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
-        get_position(p, i, pos);
+        fastpm_store_get_position(p, i, pos);
         double weight = painter->readout(painter, canvas, pos, painter->diffdir);
         p->from_double(p, i, attribute, weight);
     }
@@ -373,15 +366,13 @@ fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
 
 void
 fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
-    FastPMStore * p, fastpm_posfunc get_position, enum FastPMPackFields attribute)
+    FastPMStore * p, enum FastPMPackFields attribute)
 {
-    if(get_position == NULL) {
-        get_position = p->get_position;
-    }
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
+    pm_ghosts_send(pgd, p->attributes);
 
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, get_position);
-
-    fastpm_readout_local(painter, canvas, p, p->np + pgd->nghosts, get_position, attribute);
+    fastpm_readout_local(painter, canvas, p, p->np, attribute);
+    fastpm_readout_local(painter, canvas, pgd->p, pgd->p->np, attribute);
 
     pm_ghosts_reduce(pgd, attribute);
     pm_ghosts_free(pgd);

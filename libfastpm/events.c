@@ -104,6 +104,9 @@ fastpm_destroy_event_handlers(FastPMEventHandler ** handlers)
     FastPMEventHandler * h, * h2;
     for(h = *handlers; h; h = h2) {
         h2 = h->next;
+        if(h->free) {
+            h->free(h->userdata);
+        }
         free(h);
     }
     *handlers = NULL;

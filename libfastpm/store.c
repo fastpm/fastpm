@@ -288,8 +288,20 @@ byebye:
     }
 }
 
+static ptrdiff_t
+_alignsize(ptrdiff_t size)
+{
+    /* align sizes */
+    return ((size + 1024) / 1024) * 1024;
+}
+
 void
-fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc) 
+fastpm_store_init_details(FastPMStore * p,
+                  size_t np_upper,
+                  enum FastPMPackFields attributes,
+                  enum FastPMMemoryLocation loc,
+                  const char * file,
+                  const int line)
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
@@ -304,77 +316,44 @@ fastpm_store_init(FastPMStore * p, size_t np_upper, enum FastPMPackFields attrib
     p->np_upper = np_upper;
     p->attributes = attributes;
 
-    if(attributes & PACK_Q)
-        p->q = fastpm_memory_alloc(p->mem, "Q", sizeof(p->q[0]) * np_upper, loc);
-    else
-        p->q = NULL;
+    int it;
+    p->base = NULL;
 
-    if(attributes & PACK_POS)
-        p->x = fastpm_memory_alloc(p->mem, "X", sizeof(p->x[0]) * np_upper, loc);
-    else
-        p->x = NULL;
+    #define SIZEIT(column, PACK) \
+        if(it == 0) { \
+            (size += ((attributes & PACK) != 0) * _alignsize(sizeof(p->column[0]) * np_upper)); \
+        } else { \
+            if(attributes & PACK) { \
+                p->column = (void*) (((char*) p->base) + offset); \
+                offset += _alignsize(sizeof(p->column[0]) * np_upper); \
+            } else { \
+                p->column = NULL; \
+            } \
+        }
 
+    ptrdiff_t size = 0;
+    ptrdiff_t offset = 0;
+    for(it = 0; it < 2; it ++) {
+        SIZEIT(q, PACK_Q);
+        SIZEIT(x, PACK_POS);
+        SIZEIT(v, PACK_VEL);
+        SIZEIT(id, PACK_ID);
+        SIZEIT(length, PACK_LENGTH);
+        SIZEIT(fof , PACK_FOF);
+        SIZEIT(acc, PACK_ACC);
+        SIZEIT(dx1, PACK_DX1);
+        SIZEIT(dx2, PACK_DX2);
+        SIZEIT(aemit, PACK_AEMIT);
+        SIZEIT(rho, PACK_DENSITY);
+        SIZEIT(potential, PACK_POTENTIAL);
+        SIZEIT(tidal, PACK_TIDAL);
+        SIZEIT(mask, PACK_MASK);
 
-    if(attributes & PACK_VEL)
-        p->v = fastpm_memory_alloc(p->mem, "V", sizeof(p->v[0]) * np_upper, loc);
-    else
-        p->v = NULL;
-
-    if(attributes & PACK_ID)
-        p->id = fastpm_memory_alloc(p->mem, "ID", sizeof(p->id[0]) * np_upper, loc);
-    else
-        p->id = NULL;
-
-    if(attributes & PACK_MASK)
-        p->mask = fastpm_memory_alloc(p->mem, "Mask", sizeof(p->mask[0]) * np_upper, loc);
-    else
-        p->mask = NULL;
-
-    if(attributes & PACK_LENGTH)
-        p->length = fastpm_memory_alloc(p->mem, "Length", sizeof(p->length[0]) * np_upper, loc);
-    else
-        p->length = NULL;
-
-    if(attributes & PACK_FOF)
-        p->fof = fastpm_memory_alloc(p->mem, "FOF", sizeof(p->fof[0]) * np_upper, loc);
-    else
-        p->fof = NULL;
-
-    if(attributes & PACK_ACC)
-        p->acc = fastpm_memory_alloc(p->mem, "Acc", sizeof(p->acc[0]) * np_upper, loc);
-    else
-        p->acc = NULL;
-
-    if(attributes & PACK_DX1)
-        p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * np_upper, loc);
-    else
-        p->dx1 = NULL;
-
-    if(attributes & PACK_DX2)
-        p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * np_upper, loc);
-    else
-        p->dx2 = NULL;
-
-    if(attributes & PACK_AEMIT)
-        p->aemit = fastpm_memory_alloc(p->mem, "Aemit", sizeof(p->aemit[0]) * np_upper, loc);
-    else
-        p->aemit = NULL;
-
-    if(attributes & PACK_DENSITY)
-        p->rho = fastpm_memory_alloc(p->mem, "Density", sizeof(p->rho[0]) * np_upper, loc);
-    else
-        p->rho = NULL;
-
-    if(attributes & PACK_POTENTIAL)
-        p->potential = fastpm_memory_alloc(p->mem, "Potential", sizeof(p->potential[0]) * np_upper, loc);
-    else
-        p->potential = NULL;
-
-    if(attributes & PACK_TIDAL)
-        p->tidal = fastpm_memory_alloc(p->mem, "Tidal", sizeof(p->tidal[0]) * np_upper, loc);
-    else
-        p->tidal = NULL;
-};
+        if(it == 0) {
+            p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
+        }
+    };
+}
 
 size_t 
 fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes, double alloc_factor, MPI_Comm comm) 
@@ -382,7 +361,11 @@ fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields
     /* allocate for np_total cross all */
     int NTask;
     MPI_Comm_size(comm, &NTask);
-    fastpm_store_init(p, (size_t)(1.0 * np_total / NTask * alloc_factor), attributes, FASTPM_MEMORY_HEAP);
+
+    size_t np_upper = (size_t)(1.0 * np_total / NTask * alloc_factor);
+
+    MPI_Bcast(&np_upper, 1, MPI_LONG, 0, comm);
+    fastpm_store_init(p, np_upper, attributes, FASTPM_MEMORY_HEAP);
     return 0;
 }
 
@@ -397,34 +380,7 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
-    if(p->attributes & PACK_TIDAL)
-        fastpm_memory_free(p->mem, p->tidal);
-    if(p->attributes & PACK_POTENTIAL)
-        fastpm_memory_free(p->mem, p->potential);
-    if(p->attributes & PACK_DENSITY)
-        fastpm_memory_free(p->mem, p->rho);
-    if(p->attributes & PACK_AEMIT)
-        fastpm_memory_free(p->mem, p->aemit);
-    if(p->attributes & PACK_DX2)
-        fastpm_memory_free(p->mem, p->dx2);
-    if(p->attributes & PACK_DX1)
-        fastpm_memory_free(p->mem, p->dx1);
-    if(p->attributes & PACK_ACC)
-        fastpm_memory_free(p->mem, p->acc);
-    if(p->attributes & PACK_FOF)
-        fastpm_memory_free(p->mem, p->fof);
-    if(p->attributes & PACK_LENGTH)
-        fastpm_memory_free(p->mem, p->length);
-    if(p->attributes & PACK_MASK)
-        fastpm_memory_free(p->mem, p->mask);
-    if(p->attributes & PACK_ID)
-        fastpm_memory_free(p->mem, p->id);
-    if(p->attributes & PACK_VEL)
-        fastpm_memory_free(p->mem, p->v);
-    if(p->attributes & PACK_POS)
-        fastpm_memory_free(p->mem, p->x);
-    if(p->attributes & PACK_Q)
-        fastpm_memory_free(p->mem, p->q);
+    fastpm_memory_free(p->mem, p->base);
 }
 
 void fastpm_store_read(FastPMStore * p, char * datasource) {
@@ -546,7 +502,7 @@ checkx(FastPMStore * p)
 }
 */
 
-void
+int
 fastpm_store_decompose(FastPMStore * p,
     fastpm_store_target_func target_func,
     void * data, MPI_Comm comm)
@@ -603,6 +559,15 @@ fastpm_store_decompose(FastPMStore * p,
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
     size_t elsize = p->pack(p, 0, NULL, p->attributes);
 
+    size_t max_size = p->np + Nrecv - Nsend;
+
+    MPI_Allreduce(MPI_IN_PLACE, &max_size, 1, MPI_LONG, MPI_MAX, comm);
+
+    if(max_size > p->np_upper) {
+        fastpm_info("Need %td particles on most expensive rank; %td allocated\n", max_size, p->np_upper);
+        goto fail_oom;
+    }
+
     void * send_buffer = fastpm_memory_alloc(p->mem, "SendBuf", elsize * Nsend, FASTPM_MEMORY_HEAP);
     void * recv_buffer = fastpm_memory_alloc(p->mem, "RecvBuf", elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
@@ -616,7 +581,6 @@ fastpm_store_decompose(FastPMStore * p,
     MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
     MPI_Type_commit(&PTYPE);
 
-    
     MPI_Alltoallv_sparse(
             send_buffer, sendcount, sendoffset, PTYPE,
             recv_buffer, recvcount, recvoffset, PTYPE,
@@ -624,9 +588,6 @@ fastpm_store_decompose(FastPMStore * p,
 
     MPI_Type_free(&PTYPE);
 
-    if(p->np + Nrecv > p->np_upper) {
-        fastpm_raise(-1, "Need %td particles; %td allocated\n", p->np + Nrecv, p->np_upper);
-    }
     for(i = 0; i < Nrecv; i ++) {
         p->unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
@@ -641,6 +602,15 @@ fastpm_store_decompose(FastPMStore * p,
     free(sendoffset);
     free(offsets);
     free(count);
+    return 0;
+
+    fail_oom:
+        free(recvcount);
+        free(recvoffset);
+        free(sendoffset);
+        free(offsets);
+        free(count);
+    return -1;
 }
 
 void
@@ -774,26 +744,29 @@ fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm com
 
 }
 
-void
-fastpm_store_copy(FastPMStore * p, FastPMStore * po)
+static void
+_fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t offset)
 {
-    if(p->np > po->np_upper) {
+    if(p->np - start + offset > po->np_upper) {
         fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
     }
-    if(po->x) memcpy(po->x, p->x, sizeof(p->x[0][0]) * 3 * p->np);
-    if(po->q) memcpy(po->q, p->q, sizeof(p->q[0][0]) * 3 * p->np);
-    if(po->v) memcpy(po->v, p->v, sizeof(p->v[0][0]) * 3 * p->np);
-    if(po->acc) memcpy(po->acc, p->acc, sizeof(p->acc[0][0]) * 3 * p->np);
-    if(po->dx1) memcpy(po->dx1, p->dx1, sizeof(p->dx1[0][0]) * 3 * p->np);
-    if(po->dx2) memcpy(po->dx2, p->dx2, sizeof(p->dx2[0][0]) * 3 * p->np);
-    if(po->id) memcpy(po->id, p->id, sizeof(p->id[0]) * p->np);
-    if(po->mask) memcpy(po->mask, p->mask, sizeof(p->mask[0]) * p->np);
-    if(po->aemit) memcpy(po->aemit, p->aemit, sizeof(p->aemit[0]) * p->np);
-    if(po->potential) memcpy(po->potential, p->potential, sizeof(p->potential[0]) * p->np);
-    if(po->rho) memcpy(po->rho, p->rho, sizeof(p->potential[0]) * p->np);
-    if(po->tidal) memcpy(po->tidal, p->tidal, sizeof(p->tidal[0]) * p->np);
 
-    po->np = p->np;
+    ptrdiff_t ncopy = p->np - start;
+
+    if(po->x) memcpy(&po->x[offset], &p->x[start], sizeof(p->x[0][0]) * 3 * ncopy);
+    if(po->q) memcpy(&po->q[offset], &p->q[start], sizeof(p->q[0][0]) * 3 * ncopy);
+    if(po->v) memcpy(&po->v[offset], &p->v[start], sizeof(p->v[0][0]) * 3 * ncopy);
+    if(po->acc) memcpy(&po->acc[offset], &p->acc[start], sizeof(p->acc[0][0]) * 3 * ncopy);
+    if(po->dx1) memcpy(&po->dx1[offset], &p->dx1[start], sizeof(p->dx1[0][0]) * 3 * ncopy);
+    if(po->dx2) memcpy(&po->dx2[offset], &p->dx2[start], sizeof(p->dx2[0][0]) * 3 * ncopy);
+    if(po->id) memcpy(&po->id[offset], &p->id[start], sizeof(p->id[0]) * ncopy);
+    if(po->mask) memcpy(&po->mask[offset], &p->mask[start], sizeof(p->mask[0]) * ncopy);
+    if(po->aemit) memcpy(&po->aemit[offset], &p->aemit[start], sizeof(p->aemit[0]) * ncopy);
+    if(po->potential) memcpy(&po->potential[offset], &p->potential[start], sizeof(p->potential[0]) * ncopy);
+    if(po->rho) memcpy(&po->rho[offset], &p->rho[start], sizeof(p->potential[0]) * ncopy);
+    if(po->tidal) memcpy(&po->tidal[offset], &p->tidal[start], sizeof(p->tidal[0]) * ncopy);
+
+    po->np = offset + ncopy;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
     if(po != p) {
@@ -804,8 +777,21 @@ fastpm_store_copy(FastPMStore * p, FastPMStore * po)
 }
 
 void
+fastpm_store_copy(FastPMStore * p, FastPMStore * po)
+{
+    _fastpm_store_copy(p, 0, po, 0);
+}
+
+void
+fastpm_store_append(FastPMStore * p, FastPMStore * po)
+{
+    _fastpm_store_copy(p, 0, po, po->np);
+}
+
+void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
+        uint8_t * mask,
         MPI_Comm comm)
 {
     gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -823,27 +809,30 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 
     gsl_rng_set(random_generator, seed);
 
-    memset(p->mask, 0, p->np);
+    memset(mask, 0, p->np);
 
     ptrdiff_t i;
     for(i=0; i < p->np; i++) {
         double rand_i = gsl_rng_uniform(random_generator);
         int flag = fraction > 1 || rand_i <= fraction;
-        p->mask[i] = flag;
+        mask[i] = flag;
     }
 
     gsl_rng_free(random_generator);
 }
 
+/*
+ * Create a subsample, keeping only those with mask == True
+ * */
 void
-fastpm_store_subsample(FastPMStore * p, FastPMStore * po)
+fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;
     j = 0;
 
     for(i = 0; i < p->np; i ++) {
-        if(!p->mask[i]) continue;
+        if(!mask[i]) continue;
         /* avoid memcpy of same address if we are doing subsample inplace */
         if(p != po || j != i) {
             if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);

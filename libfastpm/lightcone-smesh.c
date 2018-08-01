@@ -8,7 +8,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
-#include <fastpm/lc-unstruct.h>
+#include <fastpm/lightcone.h>
 #include <fastpm/logging.h>
 
 #include "pmpfft.h"
@@ -278,7 +278,9 @@ fastpm_smesh_destroy(FastPMSMesh * mesh)
     fastpm_store_destroy(mesh->last.p);
 }
 
-static void
+/* select active regions of smesh between two scaling factors.
+ * if q is NULL, return number of mesh points */
+static size_t
 fastpm_smesh_layer_select_active(
         FastPMSMesh * mesh,
         struct FastPMSMeshLayer * layer,
@@ -290,13 +292,23 @@ fastpm_smesh_layer_select_active(
 
     size_t i;
     for (i = 0; i < layer->Na; i ++) {
-        if(layer->a[i] >= a0 && layer->a[i] < a1) {
+        /* cast to float because aemit is float */
+        float aemit = layer->a[i];
+        if(aemit >= a0 && aemit < a1) {
             Na ++;
         }
     }
 
-    if((size_t) Na * (size_t) layer->Nxy + q->np >= q->np_upper) {
-        fastpm_raise(0, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
+    size_t nactive = (size_t) Na * (size_t) layer->Nxy;
+
+    /* request for size*/
+    if(q == NULL) {
+        return nactive;
+    }
+
+
+    if(nactive + q->np > q->np_upper) {
+        fastpm_raise(-1, "More layer points requested than np_upper (%d * %d > %td), a0 = %g a1 = %g\n",
                 Na, layer->Nxy, q->np_upper, a0, a1);
     }
 
@@ -332,23 +344,43 @@ fastpm_smesh_layer_select_active(
                 q->aemit[q->np] = aemit;
                 q->np++;
                 if(q->np > q->np_upper) {
-                    fastpm_raise(-1, "too many particles are created, increase np_upper current=%td!", q->np_upper);
+                    fastpm_raise(-1,
+                            "too many particles are created, increase np_upper current=%td; this has been checked and shouldn't happen.\n",
+                            q->np_upper);
                 }
             }
         }
     }
+    return nactive;
 }
 
-void
+int
 fastpm_smesh_select_active(FastPMSMesh * mesh,
         double a0, double a1,
         FastPMStore * q
     )
 {
     struct FastPMSMeshLayer * layer;
+    size_t nactive = 0;
+    for(layer = mesh->layers; layer; layer = layer->next) {
+        nactive += fastpm_smesh_layer_select_active(mesh, layer, a0, a1, NULL);
+    }
+
+    fastpm_store_init(q, nactive,
+              PACK_ID
+            | PACK_POS
+            | PACK_POTENTIAL
+            | PACK_DENSITY
+            | PACK_TIDAL
+            | PACK_AEMIT,
+            FASTPM_MEMORY_HEAP
+    );
+
     for(layer = mesh->layers; layer; layer = layer->next) {
         fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q);
     }
+
+    return 0;
 }
 
 int
@@ -364,33 +396,38 @@ fastpm_smesh_compute_potential(
     FastPMStore p_new_now[1];
     FastPMStore p_last_now[1];
 
-    fastpm_store_init(p_new_now, mesh->np_upper,
-              PACK_ID
-            | PACK_POS
-            | PACK_POTENTIAL
-            | PACK_DENSITY
-            | PACK_TIDAL
-            | PACK_AEMIT,
-            FASTPM_MEMORY_HEAP
-    );
+    while(1) {
 
-    fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
+        fastpm_smesh_select_active(mesh, a_f, a_n, p_new_now);
 
-    /* avoid wrapping because it would mean the coordinates are wrong if the lightcone is beyond box. */
-    fastpm_store_decompose(p_new_now, (fastpm_store_target_func) FastPMTargetPM, pm, pm_comm(pm));
+#if 0
+        /* avoid wrapping because it would mean the coordinates are wrong if the lightcone is beyond box. */
+        if (0 != fastpm_store_decompose(p_new_now,
+                    (fastpm_store_target_func) FastPMTargetPM, pm,
+                    pm_comm(pm))
+        ) {
+            /* need a bigger mesh */
+            fastpm_store_destroy(p_new_now);
+            np_upper = np_upper * 1.1;
+            continue;
+        }
+#endif
+        break;
+    }
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
-    fastpm_store_init(p_last_now, mesh->np_upper,
+    fastpm_store_init(p_last_now, mesh->last.p->np_upper,
                     mesh->last.p->attributes & ~ PACK_POS & ~ PACK_AEMIT & ~ PACK_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
                     );
+
     p_last_now->np = mesh->last.p->np;
     p_last_now->id = mesh->last.p->id;
     p_last_now->x = mesh->last.p->x;
     p_last_now->aemit = mesh->last.p->aemit;
-    
+
     int64_t np = p_last_now->np + p_new_now->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, pm_comm(pm));
@@ -413,8 +450,11 @@ fastpm_smesh_compute_potential(
                      PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
                     };
 
-        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, PACK_POS, NULL);
-        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, PACK_POS, NULL);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | PACK_POS, NULL);
+        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes, NULL);
+
+        pm_ghosts_send(pgd_last_now, PACK_POS);
+        pm_ghosts_send(pgd_new_now, PACK_POS);
 
         for(d = 0; d < 8; d ++) {
             CLOCK(transfer);
@@ -431,8 +471,10 @@ fastpm_smesh_compute_potential(
             LEAVE(c2r);
 
             CLOCK(readout);
-            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np + pgd_last_now->nghosts, NULL, ACC[d]);
-            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np + pgd_new_now->nghosts, NULL, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_last_now, p_last_now->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, pgd_last_now->p, pgd_last_now->p->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, p_new_now, p_new_now->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, pgd_new_now->p, pgd_new_now->p->np, ACC[d]);
             LEAVE(readout);
 
             CLOCK(reduce);

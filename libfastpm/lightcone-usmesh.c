@@ -8,7 +8,7 @@
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
-#include <fastpm/lc-unstruct.h>
+#include <fastpm/lightcone.h>
 #include <fastpm/logging.h>
 #include <gsl/gsl_linalg.h>
 
@@ -78,7 +78,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->p = malloc(sizeof(FastPMStore));
     /* for saving the density with particles */
     fastpm_store_init(mesh->p, np_upper,
-                  PACK_ID | PACK_POS | PACK_VEL
+                  PACK_ID | PACK_POS | PACK_VEL | PACK_MASK
                 | PACK_AEMIT,
                 FASTPM_MEMORY_HEAP
     );
@@ -130,19 +130,27 @@ funct(double a, void *params)
     /* transform the coordinate */
     fastpm_gldot(lc->glmatrix, xi, xo);
 
+    double distance = fastpm_lc_distance(lc, xo);
+
     /* XXX: may need to worry about periodic boundary */
+    return distance - lc->speedfactor * HorizonDistance(a, lc->horizon);
+}
+
+double
+fastpm_lc_distance(FastPMLightCone * lc, double x[3])
+{
     double distance;
     if (lc->fov <= 0) {
-        distance = xo[2];
+        distance = x[2];
     } else {
         distance = 0;
+        int d;
         for (d = 0; d < 3; d ++) {
-            distance += xo[d] * xo[d];
+            distance += x[d] * x[d];
         }
         distance = sqrt(distance);
     }
-
-    return distance - lc->speedfactor * HorizonDistance(a, lc->horizon);
+    return distance;
 }
 
 static int
@@ -345,6 +353,8 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
                 pout->id[next] = p->id[i];
             if(pout->aemit)
                 pout->aemit[next] = a_emit;
+            if(pout->mask)
+                pout->mask[next] = p->mask[i];
 
             double potfactor = 1.5 * lc->cosmology->OmegaM / (HubbleDistance * HubbleDistance);
             /* convert to dimensionless potential */

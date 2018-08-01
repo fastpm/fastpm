@@ -18,6 +18,7 @@ FastPMFloat * pm_alloc_details(PM * pm, const char * file, const int line);
 
 void pm_free(PM * pm, FastPMFloat * buf);
 void pm_assign(PM * pm, FastPMFloat * from, FastPMFloat * to);
+void pm_clear(PM * pm, FastPMFloat * buf);
 
 /* property accessors of PM objects */
 size_t pm_allocsize(PM * pm);
