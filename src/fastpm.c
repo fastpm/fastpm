@@ -52,6 +52,9 @@ _memory_peak_handler(FastPMMemory * mem, void * userdata);
 static void 
 parse_args(int * argc, char *** argv, Parameters * prr);
 
+static void
+free_parameters(Parameters * prr);
+
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
 
@@ -171,7 +174,10 @@ int main(int argc, char ** argv) {
 
     libfastpm_cleanup();
 
+    free_parameters(prr);
+
     MPI_Finalize();
+
     return 0;
 }
 
@@ -1295,6 +1301,13 @@ int read_parameters(char * filename, Parameters * param, int argc, char ** argv,
         fastpm_raise(-1, "error: %s\n", lua_config_error(param->config));
     }
     return 0;
+}
+
+static void
+free_parameters(Parameters * param)
+{
+    lua_config_free(param->config);
+    free(param->string);
 }
 
 
