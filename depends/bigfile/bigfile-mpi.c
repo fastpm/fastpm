@@ -186,10 +186,15 @@ int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_C
     if(rank == 0) {
         rt = _big_block_grow_internal(bb, Nfile_grow, fsize_grow);
     }
+
     MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
     if(rt) {
         big_file_mpi_broadcast_error(0, comm);
         return rt;
+    }
+    if(rank != 0) {
+        /* closed on non-root because we will bcast.*/
+        _big_block_close_internal(bb);
     }
     big_block_mpi_broadcast(bb, 0, comm);
 

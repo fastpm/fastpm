@@ -464,7 +464,17 @@ int
 _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[])
 {
     memset(bb, 0, sizeof(bb[0]));
+
     if(basename == NULL) basename = "/.";
+
+    RAISEIF (
+         strchr(basename, ' ')
+      || strchr(basename, '\t')
+      || strchr(basename, '\n'),
+      ex_name,
+      "Column name cannot contain blanks (space, tab or newline)"
+    );
+
     bb->basename = strdup(basename);
 
     bb->attrset = attrset_create();
@@ -528,10 +538,10 @@ ex_flush2:
         attrset_free(bb->attrset);
         return -1;
     }
-}
 
-static void
-big_block_close_internal(BigBlock * block);
+ex_name:
+    return -1;
+}
 
 int
 big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[])
@@ -553,7 +563,7 @@ big_block_create(BigBlock * bb, const char * basename, const char * dtype, int n
 ex_internal:
     return rt;
 ex_fileio:
-    big_block_close_internal(bb);
+    _big_block_close_internal(bb);
     return -1;
 }
 
@@ -609,8 +619,8 @@ ex_fileio:
     return -1;
 }
 
-static void
-big_block_close_internal(BigBlock * block)
+void
+_big_block_close_internal(BigBlock * block)
 {
     attrset_free(block->attrset);
 
@@ -629,7 +639,7 @@ big_block_close(BigBlock * block)
             ex_flush,
             NULL);
 finalize:
-    big_block_close_internal(block);
+    _big_block_close_internal(block);
     return rt;
 
 ex_flush:
@@ -783,7 +793,9 @@ int
 big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
 {
     char * chunkbuf = malloc(CHUNK_BYTES);
-    int felsize = dtype_itemsize(bb->dtype) * bb->nmemb;
+
+    int nmemb = bb->nmemb ? bb->nmemb : 1;
+    int felsize = dtype_itemsize(bb->dtype) * nmemb;
     size_t CHUNK_SIZE = CHUNK_BYTES / felsize;
 
     BigArray chunk_array = {0};
@@ -804,7 +816,7 @@ big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
     big_array_init(&chunk_array, chunkbuf, bb->dtype, 2, dims, NULL);
     big_array_iter_init(&array_iter, array);
 
-    toread = array->size / bb->nmemb;
+    toread = array->size / nmemb;
 
     ptrdiff_t abs = bb->foffset[ptr->fileid] + ptr->roffset + toread;
     RAISEIF(abs > bb->size,
@@ -877,7 +889,8 @@ big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
     /* the file header is modified */
     bb->dirty = 1;
     char * chunkbuf = malloc(CHUNK_BYTES);
-    int felsize = dtype_itemsize(bb->dtype) * bb->nmemb;
+    int nmemb = bb->nmemb ? bb->nmemb : 1;
+    int felsize = dtype_itemsize(bb->dtype) * nmemb;
     size_t CHUNK_SIZE = CHUNK_BYTES / felsize;
 
     BigArray chunk_array = {0};
@@ -897,7 +910,7 @@ big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
     big_array_init(&chunk_array, chunkbuf, bb->dtype, 2, dims, NULL);
     big_array_iter_init(&array_iter, array);
 
-    towrite = array->size / bb->nmemb;
+    towrite = array->size / nmemb;
 
     ptrdiff_t abs = bb->foffset[ptr->fileid] + ptr->roffset + towrite;
     RAISEIF(abs > bb->size,
@@ -1684,6 +1697,14 @@ attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data,
     BigAttr * attr;
     attrset->dirty = 1;
 
+    RAISEIF (
+         strchr(attrname, ' ')
+      || strchr(attrname, '\t')
+      || strchr(attrname, '\n'),
+      ex_name,
+      "Attribute name cannot contain blanks (space, tab or newline)"
+    );
+
     attrset_remove_attr(attrset, attrname);
     /* add ensures the dtype has been normalized! */
     RAISEIF(0 != attrset_add_attr(attrset, attrname, dtype, nmemb),
@@ -1695,6 +1716,7 @@ attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data,
             "attr nmemb mismatch");
     return dtype_convert_simple(attr->data, attr->dtype, data, dtype, attr->nmemb);
 
+ex_name:
 ex_mismatch:
 ex_add:
     return -1;

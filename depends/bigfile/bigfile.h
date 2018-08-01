@@ -98,10 +98,13 @@ int big_block_create(BigBlock * bb, const char * basename, const char * dtype, i
 int big_block_close(BigBlock * block);
 int big_block_grow(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]);
 
-/* The internal version of the code creates the meta data but not the physical back-end storage files */
+/* The internal code creates the meta data but not the physical back-end storage files */
 int _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
 
-/* The internal version that grows the internal meta data but not the physical back-end stroage files */
+/* the internal code to free meta-data associated with a block. */
+void _big_block_close_internal(BigBlock * block);
+
+/* The internal code grows the internal meta data but not the physical back-end stroage files */
 int _big_block_grow_internal(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]);
 
 /* The internal routine to open a physical file */
