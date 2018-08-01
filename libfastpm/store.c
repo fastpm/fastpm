@@ -28,8 +28,10 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
-            VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index], sizeof(p->field[0])); \
-            if(ptr) memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
+            if(ptr) { \
+                VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index], sizeof(p->field[0])); \
+                memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
+            } \
             s += sizeof(p->field[0]); \
             flags &= ~f; \
         } \
@@ -37,8 +39,10 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     #define DISPATCHC(f, field, c) \
     if(HAS(flags, f)) { \
         if(p->field) { \
-            VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index][c], sizeof(p->field[0][0])); \
-            if(ptr) memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
+            if(ptr) { \
+                VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index][c], sizeof(p->field[0][0])); \
+                memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
+            } \
             s += sizeof(p->field[0][0]); \
             flags &= ~f; \
         } \
