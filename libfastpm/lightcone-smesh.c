@@ -327,6 +327,7 @@ fastpm_smesh_layer_select_active(
                         x_temp[0]=layer->xy[j][0];
                         x_temp[1]=layer->xy[j][1];
                         x_temp[2]=layer->z[k];
+                        q->id[q->np] = 0;
                         break;
                     case FASTPM_SMESH_SPHERE:
                         x_temp[0] = layer->vec[j][0] * layer->z[k];
