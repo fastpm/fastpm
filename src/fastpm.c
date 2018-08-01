@@ -1155,8 +1155,8 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 
     fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
 
-    fastpm_info("Load imbalance is - %g / + %g\n",
-        fastpm->info.imbalance.min, fastpm->info.imbalance.max);
+    fastpm_info("Load imbalance: min = %g max = %g std = %g\n",
+        fastpm->info.imbalance.min, fastpm->info.imbalance.max, fastpm->info.imbalance.std);
 
     MPI_Barrier(fastpm->comm);
     ENTER(compute);

@@ -909,3 +909,4 @@ fastpm_store_histogram_aemit(FastPMStore * store,
     }
     MPI_Allreduce(MPI_IN_PLACE, hist, nbins + 2, MPI_LONG, MPI_SUM, comm);
 }
+

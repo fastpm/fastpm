@@ -87,6 +87,7 @@ typedef struct {
         struct {
             double min;
             double max;
+            double std;
         } imbalance;
     } info;
 

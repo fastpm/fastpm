@@ -82,9 +82,7 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     size_t localsize = size * (ThisTask + 1) / NTask - size * ThisTask / NTask;
 
     if(redistribute) {
-        int broken = localsize > p->np_upper;
-        MPI_Allreduce(MPI_IN_PLACE, &broken, 1, MPI_INT, MPI_LOR, comm);
-        if(broken) {
+        if(MPIU_Any(comm, localsize > p->np_upper)) {
             fastpm_info("redistribution is requested in sorting, but the store is not large enough, will not redistribute: \n", p->np_upper, localsize);
             localsize = p->np;
         }
@@ -111,6 +109,14 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     fastpm_store_destroy(ptmp);
     free(recv_buffer);
     free(send_buffer);
+
+    double min, max, std, mean;
+
+    MPIU_stats(comm, p->np, "<->s",
+        &min, &mean, &max, &std);
+
+    fastpm_info("number of particles after sorting: min = %g max = %g mean = %g std = %g\n",
+            min, max, mean, std);
 }
 
 void
@@ -181,8 +187,6 @@ write_snapshot_data(FastPMStore * p,
     big_file_mpi_set_aggregated_threshold(1024 * 1024 * 64);
 
     int64_t size = p->np;
-
-    MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
     int Nfile = size / (32 * 1024 * 1024);
 
@@ -396,7 +400,6 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
 
     size_t size = localsize;
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
-
 
     int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;

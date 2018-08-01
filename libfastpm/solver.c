@@ -399,17 +399,17 @@ fastpm_decompose(FastPMSolver * fastpm) {
         fastpm_raise(-1, "Out of particle storage space\n");
     }
 
-    size_t np_max;
-    size_t np_min;
+    double np_max;
+    double np_min;
+    double np_mean;
+    double np_std;
 
-
-    double np_mean = 1.0 * fastpm_store_get_np_total(p, fastpm->comm) / NTask;
-
-    MPI_Allreduce(&p->np, &np_max, 1, MPI_LONG, MPI_MAX, fastpm->comm);
-    MPI_Allreduce(&p->np, &np_min, 1, MPI_LONG, MPI_MIN, fastpm->comm);
+    MPIU_stats(fastpm->comm, p->np, "<->s",
+            &np_min, &np_mean, &np_max, &np_std);
 
     fastpm->info.imbalance.min = np_min / np_mean;
     fastpm->info.imbalance.max = np_max / np_mean;
+    fastpm->info.imbalance.std = np_std / np_mean;
 }
 
 /* Interpolate position and velocity for snapshot at a=aout */
