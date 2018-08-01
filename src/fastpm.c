@@ -295,7 +295,23 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     fastpm_solver_destroy(fastpm);
 
+    {
+        FastPMMemory * g = _libfastpm_get_gmem();
+        double max_used_bytes;
+        double min_used_bytes;
+
+        MPIU_stats(comm, g->peak_bytes, "<>",
+                &min_used_bytes,
+                &max_used_bytes);
+
+        fastpm_log(INFO, "Peak memory usage max: %g MB min : %g MB\n",
+                max_used_bytes / 1024. / 1024,
+                min_used_bytes / 1024. / 1024
+            );
+    }
+
     fastpm_clock_stat(comm);
+
     return 0;
 }
 
