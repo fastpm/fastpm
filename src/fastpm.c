@@ -909,7 +909,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     CLOCK(fof);
     CLOCK(io);
     CLOCK(sort);
-    ENTER(fof);
 
     int append = !lcevent->is_first;
     double maxhalosize = CONF(prr, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
@@ -928,6 +927,8 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     /* FIXME: register event to mask out particles*/
     uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np_upper, FASTPM_MEMORY_HEAP);
+
+    ENTER(fof);
 
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
