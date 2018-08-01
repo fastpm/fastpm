@@ -918,7 +918,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/
-    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np, FASTPM_MEMORY_HEAP);
+    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np_upper, FASTPM_MEMORY_HEAP);
 
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
