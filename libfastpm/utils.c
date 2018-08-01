@@ -160,6 +160,7 @@ _sort_pix(const void * ptr, void * radix, void * arg)
     memcpy(radix, ptr, 8);
 }
 
+/* generate evenly balanced healpix positions that are inside the lightcone. */
 void
 fastpm_utils_healpix_ra_dec (
                 int nside,
@@ -273,4 +274,104 @@ fastpm_gldotf(double glmatrix[4][4], float vi[4], float vo[4])
             vo[i] += glmatrix[i][j] * vi[j];
         }
     }
+}
+
+/* returns MPI_LOR reduction */
+int
+MPIU_Any(MPI_Comm comm, int value)
+{
+    MPI_Allreduce(MPI_IN_PLACE, &value, 1, MPI_INT, MPI_LOR, comm);
+    return value;
+}
+
+/* returns MPI_LAND reduction */
+int
+MPIU_All(MPI_Comm comm, int value)
+{
+    MPI_Allreduce(MPI_IN_PLACE, &value, 1, MPI_INT, MPI_LAND, comm);
+    return value;
+}
+
+/*
+ * Compute the standard statistics of a value over communicator.
+ * fmt is a string, describing the list of stats to return:
+ *  < : minimum
+ *  > : maximum
+ *  - : mean
+ *  s : std (biased standard derivation)
+ *  v : variance (biased variance)
+ *  S : unbiased std
+ *  V : unbiased variance
+ *
+ * e.g.
+ *
+ *    double min, max;
+ *    MPIU_stats(comm, r, "<>", &min, &max);
+ *
+ * returns number of items converted;
+ * if a fmt char is unknown, the input variable is unmodified.
+ *
+ * */
+int
+MPIU_stats(MPI_Comm comm,
+    const double value,
+    const char * fmt, ...)
+{
+    
+    va_list va;
+    va_start(va, fmt);
+
+    int NTask;
+    MPI_Comm_size(comm, &NTask);
+
+    double sum = value;
+    double min = value;
+    double max = value;
+    double sumsq = value * value;
+
+    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &sumsq, 1, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &min, 1, MPI_DOUBLE, MPI_MIN, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &max, 1, MPI_DOUBLE, MPI_MAX, comm);
+
+    double avg = (sum) / NTask;
+    double avg_sq = (sumsq) / NTask;
+    double var = avg_sq - avg * avg;
+    double std = sqrt(avg_sq - avg * avg);
+
+    int i;
+    int c;
+    for(i = 0; i < strlen(fmt); i ++) {
+        double * r = va_arg(va, double *);
+
+        c++;
+        switch(fmt[i]) {
+            case '-':
+                *r = avg;
+                break;
+            case '<':
+                *r = min;
+                break;
+            case '>':
+                *r = max;
+                break;
+            case 's':
+                *r = std;
+                break;
+            case 'S':
+                *r = std * sqrt(1.0 * NTask / (NTask - 1.0));
+                break;
+            case 'v':
+                *r = var;
+                break;
+            case 'V':
+                *r = var * 1.0 * NTask / (NTask - 1.0);
+                break;
+            default:
+                c--;
+        }
+    }
+    va_end(va);
+
+    return c;
 }
