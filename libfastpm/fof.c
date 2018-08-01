@@ -475,6 +475,9 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         enum FastPMPackFields attributes = finder->p->attributes;
         attributes |= PACK_LENGTH | PACK_FOF;
         attributes &= ~PACK_ACC;
+        attributes &= ~PACK_POTENTIAL;
+        attributes &= ~PACK_DENSITY;
+        attributes &= ~PACK_TIDAL;
 
         /* store initial position only for periodic case. non-periodic suggests light cone and
          * we cannot infer q from ID sensibly. (crashes there) */
@@ -500,6 +503,9 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     for(i = 0; i < halos->np; i++) {
         int d;
         halos->length[i] = 0;
+
+        if(halos->mask)
+            halos->mask[i] = 1; /* select the halos for output. */
 
         if(halos->aemit)
             halos->aemit[i] = 0;
