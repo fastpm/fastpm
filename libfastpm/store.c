@@ -355,6 +355,8 @@ fastpm_store_init_details(FastPMStore * p,
 
         if(it == 0) {
             p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
+            /* zero out all memory */
+            memset(p->base, 0, size);
         }
     };
 }
