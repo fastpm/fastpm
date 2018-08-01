@@ -361,6 +361,7 @@ pm_destroy(PM * pm)
         free(pm->Grid.edges_int[d]);
         free(pm->Grid.edges_float[d]);
     }
+    MPI_Comm_free(&pm->Comm2D);
 }
 
 int pm_pos_to_rank(PM * pm, double pos[3]) {
