@@ -188,6 +188,8 @@ write_snapshot_data(FastPMStore * p,
 
     int64_t size = p->np;
 
+    MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
+
     int Nfile = size / (32 * 1024 * 1024);
 
     if(Nfile < 1) Nfile = 1;
