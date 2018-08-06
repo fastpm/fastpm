@@ -40,6 +40,9 @@ typedef struct {
 extern char * 
 lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
 
+extern void
+init_stacktrace();
+
 #define CONF(prr, name) lua_config_get_ ## name (prr->config)
 #define HAS(prr, name) lua_config_has_ ## name (prr->config)
 
@@ -99,6 +102,8 @@ write_usmesh_fof(FastPMSolver * fastpm,
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
+
+    init_stacktrace();
 
     MPI_Init(&argc, &argv);
 
