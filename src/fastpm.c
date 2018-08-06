@@ -963,7 +963,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     double rmin = lc->speedfactor * HorizonDistance(lcevent->a1, lc->horizon);
 
-    void * userdata[4];
+    void * userdata[5];
     userdata[0] = & rmin;
     userdata[1] = & maxhalosize;
     userdata[2] = lc;
