@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -39,7 +41,7 @@ show_backtrace(void)
         /* CHILD */
         char parent[16];
         char buf[512];
-        seteuid(0);
+        //seteuid(0); /* no need to attempt to switch to root.*/
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         dup2(pipefd[1],STDOUT_FILENO);
