@@ -569,8 +569,8 @@ fastpm_store_decompose(FastPMStore * p,
 
     MPI_Allreduce(MPI_IN_PLACE, &max_size, 1, MPI_LONG, MPI_MAX, comm);
 
+    fastpm_info("Need %td particles on most expensive rank; %td allocated\n", max_size, p->np_upper);
     if(max_size > p->np_upper) {
-        fastpm_info("Need %td particles on most expensive rank; %td allocated\n", max_size, p->np_upper);
         goto fail_oom;
     }
 
