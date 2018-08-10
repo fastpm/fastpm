@@ -382,11 +382,6 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     fastpm_memory_free(p->mem, fofsave);
 
 
-    /* for the assertion below only. need fofcomm to be as long as np_upper. */
-    p->fof = fofcomm;
-    p->attributes |= PACK_FOF;
-
-
 #if 0
     BigFile bf = {0};
     big_file_mpi_create(&bf, fastpm_strdup_printf("dump-fof-%d", pm->NTask), pm_comm(pm));
@@ -396,19 +391,35 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
 
     /* real decompose, move particles of the same halo to the same rank */
     {
+#if 0
+        /* for the assertion below only. need fofcomm to be as long as np_upper. */
+        p->fof = fofcomm;
+        p->attributes |= PACK_FOF;
+
+#endif
         void * userdata[1] = {fofcomm};
 
-        fastpm_store_decompose(p,
+        if(0 != fastpm_store_decompose(p,
                     (fastpm_store_target_func) FastPMTargetFOF,
-                    userdata, pm_comm(pm));
+                    userdata, pm_comm(pm))) {
+            fastpm_raise(-1, "out of storage space decomposing for FOF\n");
+        }
+#if 0
+        ptrdiff_t i;
+        for(i = 0; i < p->np; i ++) {
+            if(p->fof[i].task != finder->priv->ThisTask) abort();
+        }
+
+        p->attributes &= ~PACK_FOF;
+        p->fof = NULL;
+#endif
     }
 
-    for(i = 0; i < p->np; i ++) {
-        if(p->fof[i].task != finder->priv->ThisTask) abort();
-    }
+    MPIU_stats(pm_comm(pm), p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
-    p->attributes &= ~PACK_FOF;
-    p->fof = NULL;
+    fastpm_info("load balance after second decompose : min = %g max = %g mean = %g std = %g\n",
+        npmin, npmax, npmean, npstd
+        );
 
     fastpm_memory_free(p->mem, fofcomm);
 
