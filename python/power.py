@@ -8,6 +8,12 @@ import warnings
 # python power.py output [...] catalog1 [...] -- catalog2 [...]
 #
 # for cross correlation the second catalog is given after '--'
+#
+# example, cross correlation
+# python power.py test.txt --with-plot ../tests/nbodykit/fastpm_1.0000 --dataset 1 --with-rsd -- ../tests/nbodykit/fof_1.0000/ --with-rsd --abundance 1e-5
+
+# example, auto correlation
+# python power.py test.txt --with-plot ../tests/nbodykit/fastpm_1.0000 --dataset 1 --with-rsd
 
 ap = argparse.ArgumentParser()
 ap.add_argument("output", help='e.g. power.json (FFTPower.load) or power.txt (numpy.loadtxt)')
@@ -40,7 +46,9 @@ def read_cat(ns):
     volume = cat.attrs['BoxSize'][0] ** 3
     sel = True
     if ns.abundance is not None:
-        sel = sel | (cat['Index'] < volume * ns.abundance)
+        if cat.comm.rank == 0:
+            print('Abundance cut %g / %d halos ' %  (volume * ns.abundance, cat.csize))
+        sel = sel | (cat.Index < volume * ns.abundance)
     if ns.nmin is not None:
         sel = sel | (cat['Length'] >= ns.nmin)
     if ns.nmax is not None:
@@ -108,6 +116,10 @@ def make_plot(r):
 
     ax.axhline(r.attrs['shotnoise'], label='shotnoise', ls='--')
     ax.legend(lines, labels)
+
+    ymin = max(numpy.nanmin(r.power['power']), numpy.nanmax(r.power['power']) / 1e4)
+
+    ax.set_ylim(bottom=ymin)
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel('k h/Mpc')
