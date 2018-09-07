@@ -1,4 +1,5 @@
 from nbodykit.lab import FFTPower, BigFileCatalog
+from nbodykit import setup_logging
 import numpy
 import argparse
 import warnings
@@ -21,6 +22,7 @@ ap.add_argument("--mode", choices=['1d', '2d'], default=None)
 ap.add_argument("--with-plot", action='store_true', default=False, help='make a plot (will be same basename as output')
 ap.add_argument("--unique-k", action='store_true', default=False, help='compute for all unique k values.')
 ap.add_argument("--nmesh", type=int, default=256, help='mesh resolution')
+ap.add_argument("--verbose", action='store_true', default=False, help='print progress')
 
 cat_ap = argparse.ArgumentParser()
 
@@ -48,11 +50,11 @@ def read_cat(ns):
     if ns.abundance is not None:
         if cat.comm.rank == 0:
             print('Abundance cut %g / %d halos ' %  (volume * ns.abundance, cat.csize))
-        sel = sel | (cat.Index < volume * ns.abundance)
+        sel = sel & (cat.Index < volume * ns.abundance)
     if ns.nmin is not None:
-        sel = sel | (cat['Length'] >= ns.nmin)
+        sel = sel & (cat['Length'] >= ns.nmin)
     if ns.nmax is not None:
-        sel = sel | (cat['Length'] <= ns.nmax)
+        sel = sel & (cat['Length'] <= ns.nmax)
 
     cat['VelocityOffset'] = cat['Velocity'] * cat.attrs['RSDFactor']
 
@@ -62,6 +64,9 @@ def read_cat(ns):
     return cat
 
 def main(ns, ns1, ns2):
+    if ns.verbose:
+        setup_logging('info')
+
     cat1 = read_cat(ns1)
     cat2 = read_cat(ns2)
 
