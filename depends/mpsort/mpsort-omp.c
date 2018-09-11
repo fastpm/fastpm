@@ -52,7 +52,7 @@ void mpsort_omp(void * base, size_t nmemb, size_t size,
 
     struct crstruct d;
     struct crompstruct o;
-    _setup_radix_sort(&d, size, radix, rsize, arg);
+    _setup_radix_sort(&d, base, nmemb, size, radix, rsize, arg);
 
     _setup_mpsort_omp(&o, &d);
 

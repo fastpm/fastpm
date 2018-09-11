@@ -25,9 +25,11 @@ void radix_sort(void * base, size_t nmemb, size_t size,
         void (*radix)(const void * ptr, void * radix, void * arg), 
         size_t rsize, 
         void * arg) {
+
     struct crstruct d;
-    _setup_radix_sort(&d, size, radix, rsize, arg);
-    mpsort_qsort_r(base, nmemb, size, _compute_and_compar_radix, &d);
+    _setup_radix_sort(&d, base, nmemb, size, radix, rsize, arg);
+
+    mpsort_qsort_r(d.base, d.nmemb, d.size, _compute_and_compar_radix, &d);
 }
 
 
@@ -139,12 +141,16 @@ static void _bisect_radix_be(void * r, const void * r1, const void * r2, size_t 
 
 void _setup_radix_sort(
         struct crstruct *d,
+        void * base,
+        size_t nmemb,
         size_t size,
         void (*radix)(const void * ptr, void * radix, void * arg), 
         size_t rsize, 
         void * arg) {
     const char deadbeef[] = "deadbeef";
     const uint32_t * ideadbeef = (uint32_t *) deadbeef;
+    d->base = base;
+    d->nmemb = nmemb;
     d->rsize = rsize;
     d->arg = arg;
     d->radix = radix;

@@ -12,6 +12,8 @@ typedef int (*_compar_fn_t)(const void * r1, const void * r2, size_t rsize);
 typedef void (*_bisect_fn_t)(void * r, const void * r1, const void * r2, size_t rsize);
 
 struct crstruct {
+    void * base;
+    size_t nmemb;
     size_t size;
     size_t rsize;
     void * arg;
@@ -23,6 +25,8 @@ struct crstruct {
 int _compute_and_compar_radix(const void * p1, const void * p2, void * arg);
 void _setup_radix_sort(
         struct crstruct *d,
+        void * base,
+        size_t nmemb,
         size_t size,
         void (*radix)(const void * ptr, void * radix, void * arg), 
         size_t rsize, 
