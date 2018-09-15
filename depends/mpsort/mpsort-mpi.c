@@ -304,9 +304,7 @@ mpsort_mpi_histogram_sort(struct crstruct d, struct crmpistruct o, struct TIMER 
                     MPI_TYPE_PTRDIFF, MPI_SUM, o.comm, &r[1]);
 
             MPI_Waitall(2, r, MPI_STATUSES_IGNORE);
-
-            MPI_Request_free(&r[0]);
-            MPI_Request_free(&r[1]);
+            /* no free because MPI_Wait frees it automatially. */
         }
 #else
         MPI_Allreduce(myCLT, CLT, o.NTask + 1, 
