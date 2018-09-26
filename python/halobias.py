@@ -48,8 +48,8 @@ def read_cat(ns, nmin=None):
         sel = True
         sel = sel & (cat['Length'] >= nmin)
 
-        cat['Selection'] = sel
-
+#        cat['Selection'] = sel
+        cat = cat[sel]
     return cat
 
 def main(ns, ns1, ns2):
@@ -76,6 +76,7 @@ def main(ns, ns1, ns2):
 
     r = []
     b = []
+    a = []
     for nmin1 in nmin:
         cat2 = read_cat(ns2, nmin1)
         mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
@@ -84,14 +85,16 @@ def main(ns, ns1, ns2):
 
         save_bs(ns.output, 'x-nmin-%05d' % nmin1, r[-1])
         bias = fit_bias(r[-1], rm)
+        abundance = cat2.csize / cat2.attrs['BoxSize'][0] ** 3
         b.append(bias)
+        a.append(abundance)
         if cat1.comm.rank == 0:
-            print('Bias of N=', nmin1, bias)
+            print('Bias of N=', nmin1, bias, abundance)
 
     basename = ns.output.rsplit('.', 1)[0]
 
     if cat1.comm.rank == 0:
-        numpy.savetxt(basename + '-bias.txt', numpy.array([nmin, b]).T)
+        numpy.savetxt(basename + '-bias.txt', numpy.array([nmin, b, a]).T)
 
     if ns.with_plot:
         if cat1.comm.rank == 0:
