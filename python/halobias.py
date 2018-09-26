@@ -57,7 +57,7 @@ def main(ns, ns1, ns2):
         setup_logging('info')
 
     cat1 = read_cat(ns1)
-    mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
+    mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh).paint(mode='complex')
     cat2 = read_cat(ns2)
 
     if ns.unique_k:
