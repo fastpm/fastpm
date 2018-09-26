@@ -3,6 +3,7 @@ from nbodykit import setup_logging
 import numpy
 import argparse
 import warnings
+from mpi4py import MPI
 
 # usage:
 #
@@ -66,8 +67,8 @@ def main(ns, ns1, ns2):
 
     rm = FFTPower(mesh1, second=mesh1, mode='1d', dk=dk)
     nmin = numpy.unique(numpy.int32(numpy.logspace(numpy.log10(ns.nmin), numpy.log10(ns.nmax), ns.nn, endpoint=True)))
-    nmin0 = cat2['Length'].min().compute()
-    nmax0 = cat2['Length'].max().compute()
+    nmin0 = cat1.comm.allreduce(cat2['Length'].min().compute(), MPI.MIN)
+    nmax0 = cat1.comm.allreduce(cat2['Length'].max().compute(), MPI.MAX)
     nmin = nmin[nmin >= nmin0]
     nmin = nmin[nmin < nmax0]
 
@@ -84,14 +85,18 @@ def main(ns, ns1, ns2):
         save_bs(ns.output, 'x-nmin-%05d' % nmin1, r[-1])
         bias = fit_bias(r[-1], rm)
         b.append(bias)
-        print(nmin1, bias)
+        if cat1.comm.rank == 0:
+            print('Bias of N=', nmin1, bias)
 
     basename = ns.output.rsplit('.', 1)[0]
-    numpy.savetxt(basename + '-bias.txt', numpy.array([nmin, b]).T)
+
+    if cat1.comm.rank == 0:
+        numpy.savetxt(basename + '-bias.txt', numpy.array([nmin, b]).T)
 
     if ns.with_plot:
-        figure = make_plot(rm, r, nmin)
-        figure.savefig(basename + '.png')
+        if cat1.comm.rank == 0:
+            figure = make_plot(rm, r, nmin)
+            figure.savefig(basename + '.png')
 
 def fit_bias(r, rm):
     rat = r.power['power'][:20].real / rm.power['power'][:20].real
