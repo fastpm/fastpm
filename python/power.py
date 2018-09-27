@@ -89,20 +89,20 @@ def main(ns, ns1, ns2):
 
     r = FFTPower(mesh1, second=mesh2, mode=ns.mode, dk=dk)
 
+    basename = filename.rsplit('.', 1)[0]
     if ns.output.endswith('.json'):
-        basename = ns.output[:-5]
         r.save(ns.output)
     elif ns.output.endswith('.txt'):
-        basename = ns.output[:-4]
-
-        for var in r.power.data.dtype.names:
-            numpy.savetxt(basename + '-%s.txt' % var,
-                r.power[var]
-            )
+        if cat1.comm.rank == 0:
+            for var in r.power.data.dtype.names:
+                numpy.savetxt(basename + '-%s.txt' % var,
+                    r.power[var]
+                )
 
     if ns.with_plot:
-        figure = make_plot(r)
-        figure.savefig(basename + '.png')
+        if cat1.comm.rank == 0:
+            figure = make_plot(r)
+            figure.savefig(basename + '.png')
 
 def make_plot(r):
     from matplotlib.figure import Figure
