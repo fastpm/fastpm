@@ -103,8 +103,9 @@ def main(ns, ns1, ns2):
             figure.savefig(basename + '.png')
 
 def fit_bias(r, rm):
-    rat = r.power['power'][:20].real / rm.power['power'][:20].real
-    good = ~numpy.isnan(rat)
+    with numpy.errstate(all='ignore'):
+        rat = r.power['power'][:20].real / rm.power['power'][:20].real
+        good = ~numpy.isnan(rat)
     return rat[good].mean()
 
 def save_bs(filename, dataset, r):
