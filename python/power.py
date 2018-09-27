@@ -89,7 +89,7 @@ def main(ns, ns1, ns2):
 
     r = FFTPower(mesh1, second=mesh2, mode=ns.mode, dk=dk)
 
-    basename = filename.rsplit('.', 1)[0]
+    basename = ns.output.rsplit('.', 1)[0]
     if ns.output.endswith('.json'):
         r.save(ns.output)
     elif ns.output.endswith('.txt'):
