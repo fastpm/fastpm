@@ -48,8 +48,9 @@ def read_cat(ns, nmin=None):
         sel = True
         sel = sel & (cat['Length'] >= nmin)
 
-#        cat['Selection'] = sel
-        cat = cat[sel]
+        cat['Selection'] = sel
+#        cat = cat[sel]
+
     return cat
 
 def main(ns, ns1, ns2):
@@ -85,7 +86,7 @@ def main(ns, ns1, ns2):
 
         save_bs(ns.output, 'x-nmin-%05d' % nmin1, r[-1])
         bias = fit_bias(r[-1], rm)
-        abundance = cat2.csize / cat2.attrs['BoxSize'][0] ** 3
+        abundance = r[-1].attrs['N2'] / cat2.attrs['BoxSize'][0] ** 3
         b.append(bias)
         a.append(abundance)
         if cat1.comm.rank == 0:
