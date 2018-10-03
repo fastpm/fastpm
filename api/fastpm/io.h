@@ -48,6 +48,15 @@ void
 write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     const char * parameters, BigFile * bf, MPI_Comm comm);
 
+void
+write_snapshot_attr(const char * filebase,
+    const char * dataset,
+    const char * attrname,
+    void * buf,
+    const char * dtype,
+    size_t nmemb,
+    MPI_Comm comm);
+
 int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase);
 
@@ -68,8 +77,9 @@ read_angular_grid(FastPMStore * store,
 
 void
 write_aemit_hist(const char * fn, const char * ds,
-            FastPMStore * p,
-            double amin, double amax, size_t nbins,
+            int64_t * hist,
+            double * aedges,
+            size_t nedges,
             MPI_Comm comm);
 
 FASTPM_END_DECLS

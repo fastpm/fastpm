@@ -892,21 +892,31 @@ binary_search(double foo, double a[], size_t n) {
     return left;
 }
 
+/* this is cumulative */
 void
 fastpm_store_histogram_aemit(FastPMStore * store,
-        ptrdiff_t * hist,
-        double * edges,
-        size_t nbins,
+        int64_t * hist,
+        double * aedges,
+        size_t nedges,
         MPI_Comm comm)
 {
     ptrdiff_t i;
 
-    memset(hist, 0, sizeof(ptrdiff_t) * (nbins + 2));
+    int64_t * hist1 = malloc(sizeof(hist1[0]) * (nedges + 1));
+
+    memset(hist1, 0, sizeof(ptrdiff_t) * (nedges + 1));
 
     for(i = 0; i < store->np; i ++) {
-        int ibin = binary_search(store->aemit[i], edges, nbins + 1);
-        hist[ibin] ++;
+        int ibin = binary_search(store->aemit[i], aedges, nedges);
+        hist1[ibin] ++;
     }
-    MPI_Allreduce(MPI_IN_PLACE, hist, nbins + 2, MPI_LONG, MPI_SUM, comm);
+
+    MPI_Allreduce(MPI_IN_PLACE, hist1, nedges + 1, MPI_LONG, MPI_SUM, comm);
+
+    for(i = 0; i < nedges + 1; i ++) {
+        hist[i] += hist1[i];
+    }
+
+    free(hist1);
 }
 

@@ -136,7 +136,7 @@ fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit(FastPMStore * store,
-        ptrdiff_t * hist,
+        int64_t * hist,
         double * edges,
         size_t nbins,
         MPI_Comm comm);

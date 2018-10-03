@@ -224,7 +224,14 @@ write_snapshot_data(FastPMStore * p,
         {"Task", p->fof?&(p->fof[0].task):NULL, "i4", sizeof(p->fof[0]), 1, "i4"},
         {NULL, },
     };
-
+    if (!append) {
+        BigBlock bb;
+        /* create the root block for the dataset attributes specific to this dataset. */
+        if(0 != big_file_mpi_create_block(bf, &bb, dataset, NULL, 0, 0, 0, comm)) {
+            fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+        }
+        big_block_mpi_close(&bb, comm);
+    }
     for(bdesc = BLOCKS; bdesc->name; bdesc ++) {
         if(bdesc->fastpm == NULL) continue;
 
@@ -696,9 +703,35 @@ read_angular_grid(FastPMStore * store,
 }
 
 void
+write_snapshot_attr(const char * filebase,
+    const char * dataset,
+    const char * attrname,
+    void * buf,
+    const char * dtype,
+    size_t nmemb,
+    MPI_Comm comm)
+{
+    BigFile bf;
+    BigBlock bb;
+    if(0 != big_file_mpi_open(&bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to open the file: %s\n", big_file_get_error_message());
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, dataset, comm)) {
+        fastpm_raise(-1, "Failed to open the dataset : %s\n", big_file_get_error_message());
+    }
+
+    big_block_set_attr(&bb, attrname, buf, dtype, nmemb);
+
+    big_block_mpi_close(&bb, comm);
+    big_file_mpi_close(&bf, comm);
+}
+
+void
 write_aemit_hist(const char * filebase, const char * dataset,
-            FastPMStore * p,
-            double amin, double amax, size_t nbins,
+            int64_t * hist,
+            double * aedges,
+            size_t nedges,
             MPI_Comm comm)
 {
     /* write an index to the dataset (usually Header block) */
@@ -714,65 +747,30 @@ write_aemit_hist(const char * filebase, const char * dataset,
         fastpm_raise(-1, "Failed to open the dataset : %s\n", big_file_get_error_message());
     }
 
-    double * edges = malloc(sizeof(double) * (nbins + 2));
-    int64_t * hist = malloc(sizeof(int64_t) * (nbins + 2));
-    int64_t * oldhist = malloc(sizeof(int64_t) * (nbins + 2));
+    /* starting edges of the bins */
+    big_block_remove_attr(&bb, "aemitIndex.edges");
+    big_block_set_attr(&bb, "aemitIndex.edges", aedges, "f8", nedges);
 
+    /* number in each layer bin 0 is the first layer, since it is the only layer outside of the edges */
+    big_block_remove_attr(&bb, "aemitIndex.size");
+    big_block_set_attr(&bb, "aemitIndex.size", hist, "i8", nedges + 1);
+
+    int64_t * offset = malloc(sizeof(int64_t) * (nedges + 1));
+    int64_t * size = malloc(sizeof(int64_t) * nedges);
+
+    /* the starting particles offset for each layer */
+    offset[0] = 0;
     int i;
-    if(0 != big_block_get_attr(&bb, "aemitIndex.aemit", edges, "f8", nbins + 1)) {
-        for(i = 0; i < nbins + 1; i ++) {
-            edges[i] = (amax - amin) * i / nbins + amin;
-        }
-        edges[nbins] = amax;
-        /* make sure no one is setting attr before any other tries to read */
-        MPI_Barrier(comm);
-        /* starting edges of the bins */
-        big_block_set_attr(&bb, "aemitIndex.aemit", edges, "f8", nbins + 1);
-    }
-
-    if(0 != big_block_get_attr(&bb, "aemitIndex.N", oldhist, "i8", nbins + 2)) {
-        for(i = 0; i < nbins + 2; i ++) {
-            oldhist[i] = 0;
-        }
-    }
-
-    /* make sure no one is setting attr before any other tries to read */
-    MPI_Barrier(comm);
-
-    /* add to the histogram */
-    fastpm_store_histogram_aemit(p, hist, edges, nbins, comm);
-
-    for(i = 0; i < nbins + 2; i ++) {
-        hist[i] += oldhist[i];
-    }
-
-    /* histogram (for diagnostics) */
-    big_block_remove_attr(&bb, "aemitIndex.N");
-    big_block_set_attr(&bb, "aemitIndex.N", hist, "i8", nbins + 2);
-
-    /* the starting particles for this bin */
-    oldhist[0] = hist[0];
-    for(i = 1; i < nbins + 2; i ++) {
-        oldhist[i] = oldhist[i - 1] + hist[i];
+    for(i = 1; i < nedges + 1; i ++) {
+        offset[i] = offset[i - 1] + hist[i];
     }
     big_block_remove_attr(&bb, "aemitIndex.offset");
-    big_block_set_attr(&bb, "aemitIndex.offset", oldhist, "i8", nbins + 2);
-
-    /* the number of particles for this bin */
-    for(i = 1; i < nbins + 2; i ++) {
-        oldhist[i - 1] = hist[i];
-    }
-    big_block_remove_attr(&bb, "aemitIndex.size");
-    big_block_set_attr(&bb, "aemitIndex.size", oldhist, "i8", nbins + 1);
-
-    /* make sure no one is flushing attr before any other tries to read */
-    MPI_Barrier(comm);
+    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", nedges + 1);
 
     big_block_mpi_close(&bb, comm);
     big_file_mpi_close(&bf, comm);
 
-    free(oldhist);
-    free(hist);
-    free(edges);
+    free(offset);
+    free(size);
 }
 

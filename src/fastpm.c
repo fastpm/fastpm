@@ -64,11 +64,28 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 static void
 smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh);
 
-static void
-smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata);
+struct smesh_ready_handler_data {
+    FastPMSolver * fastpm;
+    Parameters * prr;
+    int64_t * hist;
+    double * aedges;
+    int Nedges;
+};
 
 static void
-usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata);
+smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_ready_handler_data * userdata);
+
+struct usmesh_ready_handler_data {
+    FastPMSolver * fastpm;
+    Parameters * prr;
+    FastPMStore tail[1];
+    int64_t * hist;
+    double * aedges;
+    int Nedges;
+};
+
+static void
+usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh_ready_handler_data * userdata);
 
 int 
 read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename);
@@ -530,13 +547,21 @@ produce:
 }
 
 static void
-_usmesh_lc_ready_free(void * data) {
-    void ** userdata = data;
-    if(userdata[2]) {
-        fastpm_store_destroy(userdata[2]);
-        free(userdata[2]);
-    }
-    free(userdata);
+_usmesh_ready_handler_free(void * userdata) {
+    struct usmesh_ready_handler_data * data = userdata;
+    fastpm_store_destroy(data->tail);
+    free(data->aedges);
+    free(data->hist);
+    free(data);
+}
+
+
+static void
+_smesh_ready_handler_free(void * userdata) {
+    struct smesh_ready_handler_data * data = userdata;
+    free(data->aedges);
+    free(data->hist);
+    free(data);
 }
 
 static void
@@ -583,6 +608,57 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
     fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", lc_amin, lc_amax);
 
+    *smesh = NULL;
+    if(CONF(prr, lc_write_smesh)) {
+        *smesh = malloc(sizeof(FastPMSMesh));
+
+        double n = CONF(prr, nc) / CONF(prr, boxsize) * CONF(prr, lc_smesh_fraction);
+
+        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, 1 / n);
+
+        if(lc->fov > 0) {
+            fastpm_info("Creating healpix structured meshes for FOV=%g, with number density %g per (Mpc/h)**3. \n",
+                lc->fov, n * n * n);
+            fastpm_smesh_add_layers_healpix(*smesh,
+                    n * n, n * n * n,
+                    lc_amin, lc_amax,
+                    CONF(prr, lc_smesh_max_nside),
+                    fastpm->comm);
+        } else {
+            /* FIXME: use n, not nc */
+            ptrdiff_t Nc1[3] = {CONF(prr, nc), CONF(prr, nc), CONF(prr, nc)};
+            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, lc_amin, lc_amax);
+        }
+
+        fastpm_add_event_handler(&fastpm->event_handlers,
+                FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_force_handler,
+                *smesh);
+
+        size_t Nedges;
+        double * aedges = fastpm_smesh_get_aemit(*smesh, &Nedges);
+        fastpm_info("Structured Mesh have %d layers, from a=%g to %g\n", Nedges, aedges[0], aedges[Nedges-1]);
+
+        /* use the centers of the layers to ensure each bin has exactly one layer */
+        int i;
+        for(i = 0; i < Nedges - 1; i ++) {
+            aedges[i] = 0.5 * (aedges[i + 1] + aedges[i]);
+        }
+
+        struct smesh_ready_handler_data * data = malloc(sizeof(data[0]));
+        data->fastpm = fastpm;
+        data->prr = prr;
+        data->hist = calloc(Nedges, sizeof(int64_t));
+        data->aedges = aedges;
+        data->Nedges = Nedges - 1;
+
+        fastpm_add_event_handler_free(&(*smesh)->event_handlers,
+                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                (FastPMEventHandlerFunction) smesh_ready_handler,
+                data, _smesh_ready_handler_free);
+
+    }
+
     *usmesh = NULL;
     if(CONF(prr, lc_write_usmesh)) {
         *usmesh = malloc(sizeof(FastPMUSMesh));
@@ -621,67 +697,61 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
         free(tiles);
 
-        void ** data = malloc(sizeof(void*) * 3);
-        data[0] = fastpm;
-        data[1] = prr;
-        data[2] = malloc(sizeof(FastPMStore));
+        struct usmesh_ready_handler_data * data = malloc(sizeof(data[0]));
+        data->fastpm = fastpm;
+        data->prr = prr;
 
-        fastpm_store_init(data[2], 0, 0, FASTPM_MEMORY_FLOATING);
+        if (*smesh) {
+            size_t Nedges;
+            double * aedges;
+            aedges = fastpm_smesh_get_aemit(*smesh, &Nedges);
+            /* use the centers of the layers to ensure each bin has exactly one layer */
+            int i;
+            for(i = 0; i < Nedges - 1; i ++) {
+                aedges[i] = 0.5 * (aedges[i + 1] + aedges[i]);
+            }
+            data->aedges = aedges;
+            data->Nedges = Nedges - 1;
+        } else {
+            double amin = CONF(prr, lc_amin);
+            double amax = CONF(prr, lc_amax);
+            fastpm_info("No structured mesh requested, generating an AemitIndex with 128 layers for usmesh. \n");
+
+            int nedges = 128;
+            double * edges = malloc(sizeof(double) * (nedges));
+
+            int i;
+
+            for(i = 0; i < nedges - 1; i ++) {
+                edges[i] = (amax - amin) * i / (nedges - 1) + amin;
+            }
+
+            edges[nedges - 1] = amax;
+            data->aedges = edges;
+            data->Nedges = nedges;
+        }
+
+        data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
+
+        fastpm_store_init(data->tail, 0, 0, FASTPM_MEMORY_FLOATING);
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
                 (FastPMEventHandlerFunction) usmesh_ready_handler,
-                data, _usmesh_lc_ready_free);
+                data, _usmesh_ready_handler_free);
     }
 
-    *smesh = NULL;
-    if(CONF(prr, lc_write_smesh)) {
-        *smesh = malloc(sizeof(FastPMSMesh));
-
-        double n = CONF(prr, nc) / CONF(prr, boxsize) * CONF(prr, lc_smesh_fraction);
-
-        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, 1 / n);
-
-        if(lc->fov > 0) {
-            fastpm_info("Creating healpix structured meshes for FOV=%g, with number density %g per (Mpc/h)**3. \n",
-                lc->fov, n * n * n);
-            fastpm_smesh_add_layers_healpix(*smesh,
-                    n * n, n * n * n,
-                    lc_amin, lc_amax,
-                    CONF(prr, lc_smesh_max_nside),
-                    fastpm->comm);
-        } else {
-            /* FIXME: use n, not nc */
-            ptrdiff_t Nc1[3] = {CONF(prr, nc), CONF(prr, nc), CONF(prr, nc)};
-            fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, lc_amin, lc_amax);
-        }
-
-        fastpm_add_event_handler(&fastpm->event_handlers,
-                FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
-                (FastPMEventHandlerFunction) smesh_force_handler,
-                *smesh);
-
-        void ** data = malloc(sizeof(void*) * 2);
-        data[0] = fastpm;
-        data[1] = prr;
-
-        fastpm_add_event_handler_free(&(*smesh)->event_handlers,
-                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-                (FastPMEventHandlerFunction) smesh_ready_handler,
-                data, free);
-
-    }
 }
 
 static void
-smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata)
+smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_ready_handler_data * data)
 {
     CLOCK(io);
     CLOCK(sort);
     CLOCK(indexing);
 
-    FastPMSolver * solver = userdata[0];
-    Parameters * prr = userdata[1];
+    FastPMSolver * solver = data->fastpm;
+    Parameters * prr = data->prr;
 
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
@@ -698,6 +768,10 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        size_t na;
+        double * a = fastpm_smesh_get_aemit(mesh, &na);
+        write_snapshot_attr(fn, "Header", "LCLayersAemit", a, "f8", na, solver->comm);
+        free(a);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
@@ -705,25 +779,26 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, void ** userdat
 
     LEAVE(io);
     ENTER(indexing);
-    double amin = CONF(prr, lc_amin);
-    double amax = CONF(prr, lc_amax);
 
-    write_aemit_hist(fn, "Header", lcevent->p, amin, amax, 128, solver->comm);
+    fastpm_store_histogram_aemit(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
+
+    write_aemit_hist(fn, "1/.", data->hist, data->aedges, data->Nedges, solver->comm);
+
     LEAVE(indexing);
 
     free(fn);
 }
 
 static void
-usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userdata)
+usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh_ready_handler_data * data)
 {
     CLOCK(io);
     CLOCK(sort);
     CLOCK(indexing);
 
-    FastPMSolver * solver = userdata[0];
-    Parameters * prr = userdata[1];
-    FastPMStore * tail = userdata[2];
+    FastPMSolver * solver = data->fastpm;
+    Parameters * prr = data->prr;
+    FastPMStore * tail = data->tail;
 
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
@@ -745,6 +820,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        write_snapshot_attr(fn, "Header", "AemitGrid", data->aedges, "f8", data->Nedges, solver->comm);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
@@ -752,10 +828,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, void ** userd
 
     LEAVE(io);
     ENTER(indexing);
-    double amin = CONF(prr, lc_amin);
-    double amax = CONF(prr, lc_amax);
 
-    write_aemit_hist(fn, "Header", lcevent->p, amin, amax, 128, solver->comm);
+    fastpm_store_histogram_aemit(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
+
+    write_aemit_hist(fn, "1/.", data->hist, data->aedges, data->Nedges, solver->comm);
+
     LEAVE(indexing);
 
     free(fn);

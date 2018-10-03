@@ -680,4 +680,30 @@ fill_a(FastPMSMesh * mesh, double * a, int Na,
 
 }
 
+static int
+_compare_double(const void * p1, const void * p2)
+{
+    const double * d1 = p1;
+    const double * d2 = p2;
+    return (*d1 > *d2) - (*d2 > *d1);
+}
+
+/* obtain a list of full aemit values on the smesh */
+double *
+fastpm_smesh_get_aemit(FastPMSMesh * mesh, size_t * Na)
+{
+    struct FastPMSMeshLayer * layer;
+    *Na = 0;
+    for(layer = mesh->layers; layer; layer = layer->next) {
+        *Na += layer->Na;
+    }
+    double * aemit = malloc(sizeof(double) * *Na);
+    size_t offset = 0;
+    for(layer = mesh->layers; layer; layer = layer->next) {
+        memcpy(&aemit[offset], layer->a, sizeof(double) * layer->Na);
+        offset += layer->Na;
+    }
+    qsort(aemit, *Na, sizeof(double), _compare_double);
+    return aemit;
+}
 

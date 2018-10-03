@@ -117,6 +117,9 @@ fastpm_lc_destroy(FastPMLightCone * lc);
 void
 fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, double smoothing);
 
+double *
+fastpm_smesh_get_aemit(FastPMSMesh * mesh, size_t * Na);
+
 void
 fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
