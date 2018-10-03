@@ -286,27 +286,69 @@ mpsort_mpi_histogram_sort(struct crstruct d, struct crmpistruct o, struct TIMER 
         iter ++;
         piter_bisect(&pi, P);
 
-        _histogram(P, o.NTask - 1, o.mybase, o.mynmemb, myCLT, myCLE, &d);
-
 #if MPI_VERSION >= 3
-        if (mpsort_mpi_has_options(MPSORT_DISABLE_IALLREDUCE)
+        if (1 || mpsort_mpi_has_options(MPSORT_DISABLE_IALLREDUCE)
         ) {
+            _histogram(P, o.NTask - 1, o.mybase, o.mynmemb, myCLT, myCLE, &d);
+
             MPI_Allreduce(myCLT, CLT, o.NTask + 1, 
                     MPI_TYPE_PTRDIFF, MPI_SUM, o.comm);
             MPI_Allreduce(myCLE, CLE, o.NTask + 1, 
                     MPI_TYPE_PTRDIFF, MPI_SUM, o.comm);
         } else {
+            /* overlap allreduce with histogramming by pipelining */
+            myCLT[0] = 0;
+            myCLE[0] = 0;
             MPI_Request r[2];
 
-            MPI_Iallreduce(myCLT, CLT, o.NTask + 1, 
-                    MPI_TYPE_PTRDIFF, MPI_SUM, o.comm, &r[0]);
-            MPI_Iallreduce(myCLE, CLE, o.NTask + 1, 
-                    MPI_TYPE_PTRDIFF, MPI_SUM, o.comm, &r[1]);
+            int it;
+            /* calculate the next bins */
+            for (it = 0; it < o.NTask + 1; it ++) {
+                if (it == 0) {
+                    myCLT[it] = 0;
+                }
+                if (it > 0 && it < o.NTask) {
+                    /* No need to start from the beginging of mybase, since myubase and P are both sorted */
+                    myCLT[it] = _bsearch_last_lt(P + (it - 1) * d.rsize, ((char*) o.mybase) + myCLT[it - 1] * d.size,
+                                        o.mynmemb - myCLT[it - 1], &d) + 1 + myCLT[it - 1];
+                }
+                if(it == o.NTask) {
+                    /* last bin */
+                    myCLT[it] = o.mynmemb;
+                }
+            }
 
-            MPI_Waitall(2, r, MPI_STATUSES_IGNORE);
-            /* no free because MPI_Wait frees it automatially. */
+            /* reduce the bins just calculated */
+            MPI_Iallreduce(myCLT, CLT, o.NTask + 1,
+                    MPI_TYPE_PTRDIFF, MPI_SUM, o.comm, &r[0]);
+
+            /* calculate the next bins */
+            for (it = 0; it < o.NTask + 1; it ++) {
+                if (it == 0) {
+                    myCLE[it] = 0;
+                }
+                if (it > 0 && it < o.NTask) {
+                    /* No need to start from the beginging of mybase, since myubase and P are both sorted */
+                    myCLE[it] = _bsearch_last_le(P + (it - 1) * d.rsize, ((char*) o.mybase) + myCLE[it - 1] * d.size,
+                                        o.mynmemb - myCLE[it - 1], &d) + 1 + myCLE[it - 1];
+                }
+                if(it == o.NTask) {
+                    /* last bin */
+                    myCLE[it] = o.mynmemb;
+                }
+            }
+/*
+            MPI_Iallreduce(myCLE, CLE, o.NTask + 1,
+                    MPI_TYPE_PTRDIFF, MPI_SUM, o.comm, &r[1]);
+*/
+            MPI_Allreduce(myCLE, CLE, o.NTask + 1, 
+                    MPI_TYPE_PTRDIFF, MPI_SUM, o.comm);
+
+            MPI_Waitall(1, r, MPI_STATUSES_IGNORE);
         }
 #else
+        _histogram(P, o.NTask - 1, o.mybase, o.mynmemb, myCLT, myCLE, &d);
+
         MPI_Allreduce(myCLT, CLT, o.NTask + 1, 
                 MPI_TYPE_PTRDIFF, MPI_SUM, o.comm);
         MPI_Allreduce(myCLE, CLE, o.NTask + 1, 
@@ -321,7 +363,7 @@ mpsort_mpi_histogram_sort(struct crstruct d, struct crmpistruct o, struct TIMER 
                 MPI_Barrier(o.comm);
                 int i;
                 if(o.ThisTask != k) continue;
-                
+
                 printf("P (%d): PMin %d PMax %d P ", 
                         o.ThisTask, 
                         *(int*) Pmin,

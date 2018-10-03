@@ -34,4 +34,6 @@ void mpsort_mpi_newarray(void * base, size_t nmemb,
         void (*radix)(const void * ptr, void * radix, void * arg), 
         size_t rsize, 
         void * arg, MPI_Comm comm);
+
+void mpsort_mpi_report_last_run();
 #endif

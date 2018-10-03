@@ -61,7 +61,7 @@ int main(int argc, char * argv[]) {
 
     {
         double start = MPI_Wtime();
-        radix_sort_mpi(mydata, mysize, sizeof(int64_t),
+        mpsort_mpi(mydata, mysize, sizeof(int64_t),
                 radix_int, sizeof(int64_t),
                 NULL, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -70,7 +70,7 @@ int main(int argc, char * argv[]) {
             printf("radix sort: %g\n", end - start);
     }
     if(ThisTask == 0)  {
-        radix_sort_mpi_report_last_run();
+        mpsort_mpi_report_last_run();
     }
 
     {

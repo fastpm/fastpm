@@ -103,8 +103,9 @@ static void _histogram(char * P, int Plength, void * mybase, size_t mynmemb,
     myCLT[0] = 0;
     myCLE[0] = 0;
     for(it = 0; it < Plength; it ++) {
-        myCLT[it + 1] = _bsearch_last_lt(P + it * d->rsize, mybase, mynmemb, d) + 1;
-        myCLE[it + 1] = _bsearch_last_le(P + it * d->rsize, mybase, mynmemb, d) + 1;
+        /* No need to start from the beginging of mybase, since myubase and P are both sorted */
+        myCLT[it + 1] = _bsearch_last_lt(P + it * d->rsize, ((char*) mybase) + myCLT[it] * d->size, mynmemb - myCLT[it], d) + 1 + myCLT[it];
+        myCLE[it + 1] = _bsearch_last_le(P + it * d->rsize, ((char*) mybase) + myCLE[it] * d->size, mynmemb - myCLE[it], d) + 1 + myCLE[it];
     }
     myCLT[it + 1] = mynmemb;
     myCLE[it + 1] = mynmemb;
