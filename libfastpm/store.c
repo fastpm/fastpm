@@ -894,7 +894,7 @@ binary_search(double foo, double a[], size_t n) {
 
 /* this is cumulative */
 void
-fastpm_store_histogram_aemit(FastPMStore * store,
+fastpm_store_histogram_aemit_sorted(FastPMStore * store,
         int64_t * hist,
         double * aedges,
         size_t nedges,
@@ -904,11 +904,38 @@ fastpm_store_histogram_aemit(FastPMStore * store,
 
     int64_t * hist1 = malloc(sizeof(hist1[0]) * (nedges + 1));
 
-    memset(hist1, 0, sizeof(ptrdiff_t) * (nedges + 1));
+    memset(hist1, 0, sizeof(hist1[0]) * (nedges + 1));
 
-    for(i = 0; i < store->np; i ++) {
-        int ibin = binary_search(store->aemit[i], aedges, nedges);
-        hist1[ibin] ++;
+#pragma omp parallel
+    {
+        /* FIXME: use standard reduction with OpenMP 4.7 */
+
+        int64_t * hist2 = malloc(sizeof(hist2[0]) * (nedges + 1));
+        memset(hist2, 0, sizeof(hist2[0]) * (nedges + 1));
+
+        int iedge = 0;
+
+        /* this works because openmp will send each thread at most 1
+         * chunk with the static scheduling; thus a thread never sees
+         * out of order aemit */
+        #pragma omp for schedule(static)
+        for(i = 0; i < store->np; i ++) {
+            while(iedge < nedges && store->aemit[i] >= aedges[iedge]) iedge ++;
+
+//           int ibin = binary_search(store->aemit[i], aedges, nedges);
+//           if(ibin != iedge) abort();
+
+            hist2[iedge] ++;
+        }
+
+        #pragma omp critical
+        {
+            for(i = 0; i < nedges + 1; i ++) {
+                hist1[i] += hist2[i];
+            }
+        }
+
+        free(hist2);
     }
 
     MPI_Allreduce(MPI_IN_PLACE, hist1, nedges + 1, MPI_LONG, MPI_SUM, comm);

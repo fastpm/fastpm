@@ -135,7 +135,7 @@ void
 fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
 
 void
-fastpm_store_histogram_aemit(FastPMStore * store,
+fastpm_store_histogram_aemit_sorted(FastPMStore * store,
         int64_t * hist,
         double * edges,
         size_t nbins,

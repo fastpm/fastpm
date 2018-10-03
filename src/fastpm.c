@@ -804,7 +804,7 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     LEAVE(io);
     ENTER(indexing);
 
-    fastpm_store_histogram_aemit(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
 
     write_aemit_hist(fn, "1/.", data->hist, data->aedges, data->Nedges, solver->comm);
 
@@ -854,7 +854,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     LEAVE(io);
     ENTER(indexing);
 
-    fastpm_store_histogram_aemit(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
 
     write_aemit_hist(fn, "1/.", data->hist, data->aedges, data->Nedges, solver->comm);
 
