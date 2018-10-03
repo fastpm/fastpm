@@ -2,7 +2,7 @@
 ------ Size of the simulation -------- 
 
 -- For Testing
-nc = 64
+nc = 128
 boxsize = 512
 
 -------- Time Sequence ----
@@ -10,7 +10,7 @@ boxsize = 512
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.1, 1, 10)
+time_step = linspace(0.1, 1, 3)
 
 output_redshifts= {1.0, 0.0}  -- redshifts of output
 compute_potential = true
@@ -41,15 +41,15 @@ write_snapshot = "lightcone/fastpm"
 write_fof = "lightcone/fof"
 -- 1d power spectrum (raw), without shotnoise correction
 
-particle_fraction = 0.1
+particle_fraction = 1.0
 fof_linkinglength = 0.2
 fof_nmin = 4
 dh_factor = 0.1
 
 lc_fov = 0
 
--- lc_octants = {0}
--- lc_fov = 361
+--lc_octants = {0}
+lc_fov = 360
 
 --s =[[glmatrix = { 
 --        {1, 0, 0, -128},
@@ -67,5 +67,6 @@ lc_smesh_fraction = 1.0
 --
 lc_usmesh_tiles = fastpm.outerproduct({-1, 0}, {-1, 0}, {-1, 0})
 lc_usmesh_fof_padding = 10.0
+lc_usmesh_alloc_factor = 10.0
 lc_write_usmesh = "lightcone/usmesh"
 lc_write_smesh = "lightcone/smesh"
