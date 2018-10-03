@@ -779,14 +779,26 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     ENTER(io);
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
-        size_t na;
-        double * a = fastpm_smesh_get_aemit(mesh, &na);
-        write_snapshot_attr(fn, "Header", "LCLayersAemit", a, "f8", na, solver->comm);
-        free(a);
+
+        write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
+        write_snapshot_attr(fn, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, solver->comm);
+
+        double * aemit = malloc(sizeof(double) * (data->Nslices));
+        int * nside = malloc(sizeof(int) * (data->Nslices));
+
+        int i;
+        for(i = 0; i < data->Nslices; i ++) {
+            aemit[i] = data->slices[i].aemit;
+            nside[i] = data->slices[i].nside;
+        }
+        write_snapshot_attr(fn, "Header", "LCLayersAemit", aemit, "f8", data->Nslices, solver->comm);
+        write_snapshot_attr(fn, "Header", "LCLayersNside", nside, "i4", data->Nslices, solver->comm);
+
+        free(nside);
+        free(aemit);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        append_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
     }
 
     LEAVE(io);
@@ -831,11 +843,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     ENTER(io);
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
+        write_snapshot_attr(fn, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, solver->comm);
         write_snapshot_attr(fn, "Header", "AemitGrid", data->aedges, "f8", data->Nedges, solver->comm);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", "", prr->Nwriters);
+        append_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
     }
 
     LEAVE(io);
@@ -952,7 +965,8 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     ENTER(io);
 
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
-    write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+    write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
+    write_snapshot_attr(filebase, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, fastpm->comm);
 
     free(dataset);
     LEAVE(io);
@@ -1086,9 +1100,10 @@ write_usmesh_fof(FastPMSolver * fastpm,
     ENTER(io);
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
     if(!append) {
-        write_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+        write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
+        write_snapshot_attr(filebase, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, fastpm->comm);
     } else {
-        append_snapshot(fastpm, halos, filebase, dataset, prr->string, prr->Nwriters);
+        append_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
     }
     free(dataset);
     LEAVE(io);
@@ -1159,7 +1174,8 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         LEAVE(sort);
 
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, "1", prr->string, prr->Nwriters);
+        write_snapshot(fastpm, snapshot, filebase, "1", prr->Nwriters);
+        write_snapshot_attr(filebase, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, fastpm->comm);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);

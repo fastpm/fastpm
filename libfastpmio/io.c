@@ -121,7 +121,7 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
 
 void
 write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
-    const char * parameters, BigFile * bf, MPI_Comm comm)
+    BigFile * bf, MPI_Comm comm)
 {
     BigBlock bb;
     if(0 != big_file_mpi_create_block(bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
@@ -155,7 +155,6 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     big_block_set_attr(&bb, "NC", &NC, "i8", 1);
     big_block_set_attr(&bb, "M0", &M0, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
-    big_block_set_attr(&bb, "ParamFile", parameters, "S1", strlen(parameters) + 1);
 
     /* Compatibility with MP-Gadget */
     double UnitVelocity_in_cm_per_s = 1e5; /* 1 km/sec */
@@ -272,7 +271,6 @@ int
 write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * filebase,
         const char * dataset,
-        const char * parameters,
         int Nwriters)
 {
     CLOCK(meta);
@@ -296,7 +294,7 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
     }
 
-    write_snapshot_header(fastpm, p, parameters, &bf, comm);
+    write_snapshot_header(fastpm, p, &bf, comm);
 
     write_snapshot_data(p,  Nwriters, 0, &bf, dataset, comm);
 
@@ -309,7 +307,6 @@ int
 append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * filebase,
         const char * dataset,
-        const char * parameters,
         int Nwriters)
 {
     CLOCK(meta);
