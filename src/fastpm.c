@@ -784,17 +784,21 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
         write_snapshot_attr(fn, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, solver->comm);
 
         double * aemit = malloc(sizeof(double) * (data->Nslices));
+        double * r = malloc(sizeof(double) * (data->Nslices));
         int * nside = malloc(sizeof(int) * (data->Nslices));
 
         int i;
         for(i = 0; i < data->Nslices; i ++) {
             aemit[i] = data->slices[i].aemit;
             nside[i] = data->slices[i].nside;
+            r[i] = data->slices[i].distance;
         }
-        write_snapshot_attr(fn, "Header", "LCLayersAemit", aemit, "f8", data->Nslices, solver->comm);
-        write_snapshot_attr(fn, "Header", "LCLayersNside", nside, "i4", data->Nslices, solver->comm);
+        write_snapshot_attr(fn, "Header", "SMeshLayers.aemit", aemit, "f8", data->Nslices, solver->comm);
+        write_snapshot_attr(fn, "Header", "SMeshLayers.nside", nside, "i4", data->Nslices, solver->comm);
+        write_snapshot_attr(fn, "Header", "SMeshLayers.distance", r, "f8", data->Nslices, solver->comm);
 
         free(nside);
+        free(r);
         free(aemit);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
@@ -845,7 +849,6 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_info("Creating usmesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
         write_snapshot_attr(fn, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, solver->comm);
-        write_snapshot_attr(fn, "Header", "AemitGrid", data->aedges, "f8", data->Nedges, solver->comm);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);

@@ -121,6 +121,7 @@ fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, dou
 typedef struct {
     double aemit;
     int nside;
+    double distance;
 } FastPMSMeshSlice;
 
 FastPMSMeshSlice *

@@ -867,6 +867,7 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
 }
 
 
+#if 0
 static ptrdiff_t
 binary_search(double foo, double a[], size_t n) {
     ptrdiff_t left = 0, right = n;
@@ -891,7 +892,7 @@ binary_search(double foo, double a[], size_t n) {
     }
     return left;
 }
-
+#endif
 /* this is cumulative */
 void
 fastpm_store_histogram_aemit_sorted(FastPMStore * store,

@@ -719,6 +719,7 @@ fastpm_smesh_get_aemit(FastPMSMesh * mesh, size_t * Na)
         for(i = 0; i < layer->Na; i ++) {
             aemit[offset + i].aemit = layer->a[i];
             aemit[offset + i].nside = layer->nside;
+            aemit[offset + i].distance = layer->z[i];
         }
         offset += layer->Na;
     }
