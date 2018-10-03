@@ -60,6 +60,7 @@ typedef struct FastPMSMesh {
         };
 
         int Nxy;
+        int nside; /* healpix number of pixels; 0 for other cases. */
 
         double * a;
         double * z;
@@ -117,24 +118,30 @@ fastpm_lc_destroy(FastPMLightCone * lc);
 void
 fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, double smoothing);
 
-double *
+typedef struct {
+    double aemit;
+    int nside;
+} FastPMSMeshSlice;
+
+FastPMSMeshSlice *
 fastpm_smesh_get_aemit(FastPMSMesh * mesh, size_t * Na);
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
         double * a, size_t Na);
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
         PM * pm, double * shift, ptrdiff_t * Nc,
         double amin, double amax);
-void
+
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, uint64_t * pix, size_t Npix,
         double * a, size_t Na);
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
         int nside,
         double * a, size_t Na, MPI_Comm comm);

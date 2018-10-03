@@ -70,6 +70,8 @@ struct smesh_ready_handler_data {
     int64_t * hist;
     double * aedges;
     int Nedges;
+    int Nslices;
+    FastPMSMeshSlice * slices;
 };
 
 static void
@@ -564,6 +566,17 @@ _smesh_ready_handler_free(void * userdata) {
     free(data);
 }
 
+double * _get_aedges(FastPMSMeshSlice * slices, size_t Nslices)
+{
+    /* use the centers of the layers to ensure each bin has exactly one layer */
+    double * aedges = malloc(sizeof(double) * (Nslices - 1));
+    int i;
+    for (i = 0; i < Nslices - 1; i ++) {
+        aedges[i] = (slices[i].aemit + slices[i+1].aemit) * 0.5;
+    }
+    return aedges;
+}
+
 static void
 prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh,
@@ -635,22 +648,24 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
                 (FastPMEventHandlerFunction) smesh_force_handler,
                 *smesh);
 
-        size_t Nedges;
-        double * aedges = fastpm_smesh_get_aemit(*smesh, &Nedges);
-        fastpm_info("Structured Mesh have %d layers, from a=%g to %g\n", Nedges, aedges[0], aedges[Nedges-1]);
+        size_t Nslices;
+        FastPMSMeshSlice * slices = fastpm_smesh_get_aemit(*smesh, &Nslices);
+
+        double * aedges = _get_aedges(slices, Nslices);
 
         /* use the centers of the layers to ensure each bin has exactly one layer */
-        int i;
-        for(i = 0; i < Nedges - 1; i ++) {
-            aedges[i] = 0.5 * (aedges[i + 1] + aedges[i]);
-        }
+
+        fastpm_info("Structured Mesh have %d layers, from a=%g to %g\n", Nslices, slices[0].aemit, slices[Nslices-1].aemit);
 
         struct smesh_ready_handler_data * data = malloc(sizeof(data[0]));
         data->fastpm = fastpm;
         data->prr = prr;
-        data->hist = calloc(Nedges, sizeof(int64_t));
+        data->slices = slices;
+        data->Nslices = Nslices;
+
         data->aedges = aedges;
-        data->Nedges = Nedges - 1;
+        data->Nedges = Nslices - 1;
+        data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
 
         fastpm_add_event_handler_free(&(*smesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -702,16 +717,13 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         data->prr = prr;
 
         if (*smesh) {
-            size_t Nedges;
-            double * aedges;
-            aedges = fastpm_smesh_get_aemit(*smesh, &Nedges);
-            /* use the centers of the layers to ensure each bin has exactly one layer */
-            int i;
-            for(i = 0; i < Nedges - 1; i ++) {
-                aedges[i] = 0.5 * (aedges[i + 1] + aedges[i]);
-            }
+            size_t Nslices;
+            FastPMSMeshSlice * slices = fastpm_smesh_get_aemit(*smesh, &Nslices);
+            double * aedges = _get_aedges(slices, Nslices);
+            size_t Nedges = Nslices - 1;
             data->aedges = aedges;
-            data->Nedges = Nedges - 1;
+            data->Nedges = Nedges;
+            free(slices);
         } else {
             double amin = CONF(prr, lc_amin);
             double amax = CONF(prr, lc_amax);

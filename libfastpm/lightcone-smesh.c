@@ -65,10 +65,13 @@ fastpm_smesh_add_layer_common(FastPMSMesh * mesh,
         layer->z[i] = mesh->lc->speedfactor * HorizonDistance(a[i], mesh->lc->horizon);
     }
 
+    /* set default nside for non-healpix layers. */
+    layer->nside = 0;
+
     return layer;
 }
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
         double (*xy)[2], size_t Nxy,
         double * a, size_t Na)
@@ -86,9 +89,10 @@ fastpm_smesh_add_layer_plane(FastPMSMesh * mesh,
         layer->xy[i][0] = xy[i][0];
         layer->xy[i][1] = xy[i][1];
     }
+    return layer;
 }
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
         PM * pm, double * shift, ptrdiff_t * Nc, double amin, double amax)
 {
@@ -139,13 +143,15 @@ fastpm_smesh_add_layer_pm(FastPMSMesh * mesh,
 
     fill_a(mesh, a, Na, zmin, zmax);
 
-    fastpm_smesh_add_layer_plane(mesh, xy, Nxy, a, Na);
+    struct FastPMSMeshLayer * layer =
+            fastpm_smesh_add_layer_plane(mesh, xy, Nxy, a, Na);
 
     free(xy);
     free(a);
+    return layer;
 }
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         double * ra, double * dec, uint64_t * pix, size_t Nxy,
         double * a, size_t Na)
@@ -170,24 +176,28 @@ fastpm_smesh_add_layer_sphere(FastPMSMesh * mesh,
         layer->dec[i] = dec[i];
         layer->pix[i] = pix[i];
     }
+    return layer;
 }
 
-void
+struct FastPMSMeshLayer *
 fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
         int nside,
         double * a, size_t Na, MPI_Comm comm)
 {
     double *ra, *dec;
     uint64_t * pix;
-    size_t npix;
+    size_t nxy;
 
-    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &pix, &npix, mesh->lc, comm);
+    fastpm_utils_healpix_ra_dec(nside, &ra, &dec, &pix, &nxy, mesh->lc, comm);
 
-    fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, npix, a, Na);
+    struct FastPMSMeshLayer * layer =
+        fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, nxy, a, Na);
 
+    layer->nside = nside;
     free(ra);
     free(dec);
     free(pix);
+    return layer;
 }
 
 /* automatically add healpix layers with roughly the correct
@@ -238,11 +248,14 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
         fastpm_info("Creating smesh for Nside = %04td arange %6.4f - %6.4f\n", nside[j], a[j], a[i - 1]);
         double *ra, *dec;
         uint64_t * pix;
-        size_t npix;
+        size_t nxy;
 
-        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &pix, &npix, mesh->lc, comm);
+        fastpm_utils_healpix_ra_dec(nside[j], &ra, &dec, &pix, &nxy, mesh->lc, comm);
 
-        fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, npix, &a[j], i - j);
+        struct FastPMSMeshLayer * layer =
+                fastpm_smesh_add_layer_sphere(mesh, ra, dec, pix, nxy, &a[j], i - j);
+
+        layer->nside = nside[j];
 
         free(pix);
         free(ra);
@@ -681,15 +694,16 @@ fill_a(FastPMSMesh * mesh, double * a, int Na,
 }
 
 static int
-_compare_double(const void * p1, const void * p2)
+_compare_slice(const void * p1, const void * p2)
 {
-    const double * d1 = p1;
-    const double * d2 = p2;
-    return (*d1 > *d2) - (*d2 > *d1);
+    const FastPMSMeshSlice * d1 = p1;
+    const FastPMSMeshSlice * d2 = p2;
+    return (d1->aemit > d2->aemit) - (d2->aemit > d1->aemit);
 }
 
-/* obtain a list of full aemit values on the smesh */
-double *
+
+/* obtain a list of all slices on the smesh, sorted by aemit */
+FastPMSMeshSlice *
 fastpm_smesh_get_aemit(FastPMSMesh * mesh, size_t * Na)
 {
     struct FastPMSMeshLayer * layer;
@@ -697,13 +711,18 @@ fastpm_smesh_get_aemit(FastPMSMesh * mesh, size_t * Na)
     for(layer = mesh->layers; layer; layer = layer->next) {
         *Na += layer->Na;
     }
-    double * aemit = malloc(sizeof(double) * *Na);
+    
+    FastPMSMeshSlice * aemit = malloc(sizeof(aemit[0]) * *Na);
     size_t offset = 0;
     for(layer = mesh->layers; layer; layer = layer->next) {
-        memcpy(&aemit[offset], layer->a, sizeof(double) * layer->Na);
+        int i;
+        for(i = 0; i < layer->Na; i ++) {
+            aemit[offset + i].aemit = layer->a[i];
+            aemit[offset + i].nside = layer->nside;
+        }
         offset += layer->Na;
     }
-    qsort(aemit, *Na, sizeof(double), _compare_double);
+    qsort(aemit, *Na, sizeof(FastPMSMeshSlice), _compare_slice);
     return aemit;
 }
 
