@@ -271,10 +271,13 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
     CLOCK(meta);
 
     int NTask = fastpm->NTask;
+    int ThisTask = fastpm->ThisTask;
     MPI_Comm comm = fastpm->comm;
 
     ENTER(meta);
-    fastpm_path_ensure_dirname(filebase);
+    if (ThisTask == 0)
+        fastpm_path_ensure_dirname(filebase);
+
     LEAVE(meta);
 
     MPI_Barrier(comm);
@@ -305,10 +308,12 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
     CLOCK(meta);
 
     int NTask = fastpm->NTask;
+    int ThisTask = fastpm->ThisTask;
     MPI_Comm comm = fastpm->comm;
 
     ENTER(meta);
-    fastpm_path_ensure_dirname(filebase);
+    if (ThisTask == 0)
+        fastpm_path_ensure_dirname(filebase);
     MPI_Barrier(comm);
     LEAVE(meta);
 
@@ -369,14 +374,16 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
     int ThisTask;
     int NTask;
 
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
+
     ENTER(meta);
-    fastpm_path_ensure_dirname(filename);
+
+    if (ThisTask == 0)
+        fastpm_path_ensure_dirname(filename);
 
     MPI_Barrier(comm);
     LEAVE(meta);
-
-    MPI_Comm_rank(comm, &ThisTask);
-    MPI_Comm_size(comm, &NTask);
 
     struct BufType * buf = malloc(sizeof(struct BufType) * pm_allocsize(pm) / 2);
 
