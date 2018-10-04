@@ -140,19 +140,21 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     double OmegaLambda = fastpm->cosmology->OmegaLambda;
     double HubbleParam = fastpm->config->hubble_param;
     double BoxSize = fastpm->config->boxsize;
-    uint64_t NC = fastpm->config->nc;
     double rho_crit = 27.7455; /* 1e10 Msun /h*/
+    uint64_t NC = fastpm->config->nc;
+
     double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
     double MassTable[6] = {0, M0, 0, 0, 0, 0};
-    uint64_t TotNumPart[6] = {0, NC * NC * NC, 0, 0, 0, 0};
+    uint64_t TotNumPart[6] = {0, fastpm_store_get_np_total(p, comm), 0, 0, 0, 0};
 
+    /* FIXME: move some of these to fastpm.c; see if we can reduce the number of entries in fastpm->config. */
+    big_block_set_attr(&bb, "NC", &NC, "i8", 1);
     big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
     big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
     big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
     big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
     big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
-    big_block_set_attr(&bb, "NC", &NC, "i8", 1);
     big_block_set_attr(&bb, "M0", &M0, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
 

@@ -18,6 +18,7 @@
 #include <fastpm/constrainedgaussian.h>
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
+#include <bigfile-mpi.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -117,6 +118,28 @@ write_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
         FastPMStore * tail,
         FastPMLightCone * lc);
+
+static void
+_write_parameters(const char * filebase, const char * dataset, Parameters * prr, MPI_Comm comm)
+{
+    BigFile bf;
+    BigBlock bb;
+    if(0 != big_file_mpi_open(&bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to open the file: %s\n", big_file_get_error_message());
+    }
+
+    if(0 != big_file_mpi_open_block(&bf, &bb, dataset, comm)) {
+        fastpm_raise(-1, "Failed to open the dataset : %s\n", big_file_get_error_message());
+    }
+
+    big_block_set_attr(&bb, "ParamFile", prr->string, "S1", strlen(prr->string) + 1);
+    double ParticleFraction = CONF(prr, particle_fraction);
+    big_block_set_attr(&bb, "ParticleFraction", &ParticleFraction, "f8", 1);
+
+    big_block_mpi_close(&bb, comm);
+    big_file_mpi_close(&bf, comm);
+
+}
 
 int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
 
@@ -781,7 +804,7 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
         fastpm_info("Creating smesh catalog in %s\n", fn);
 
         write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
-        write_snapshot_attr(fn, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, solver->comm);
+        _write_parameters(fn, "Header", prr, solver->comm);
 
         double * aemit = malloc(sizeof(double) * (data->Nslices));
         double * r = malloc(sizeof(double) * (data->Nslices));
@@ -848,7 +871,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", fn);
         write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
-        write_snapshot_attr(fn, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, solver->comm);
+        _write_parameters(fn, "Header", prr, solver->comm);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
         append_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
@@ -969,7 +992,7 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
     write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
-    write_snapshot_attr(filebase, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, fastpm->comm);
+    _write_parameters(filebase, "Header", prr, fastpm->comm);
 
     free(dataset);
     LEAVE(io);
@@ -1104,7 +1127,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
     if(!append) {
         write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
-        write_snapshot_attr(filebase, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, fastpm->comm);
+        _write_parameters(filebase, "Header", prr, fastpm->comm);
     } else {
         append_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
     }
@@ -1175,10 +1198,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
             fastpm_info("Snapshot is not sorted by ID.\n");
         }
         LEAVE(sort);
-
         ENTER(io);
         write_snapshot(fastpm, snapshot, filebase, "1", prr->Nwriters);
-        write_snapshot_attr(filebase, "Header", "ParamFile", prr->string, "S1", strlen(prr->string) + 1, fastpm->comm);
+        _write_parameters(filebase, "Header", prr, fastpm->comm);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
