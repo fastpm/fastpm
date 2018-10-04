@@ -40,6 +40,9 @@ struct KDTreeNodeBuffer {
     struct KDTreeNodeBuffer * prev;
 };
 
+static void
+fastpm_fof_compute_halo_attrs (FastPMFOFFinder * finder, FastPMStore * halos, ptrdiff_t * head);
+
 static void *
 _kdtree_buffered_malloc(void * userdata, size_t size)
 {
@@ -476,15 +479,34 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     KDTree tree;
 
+    ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, "FOFHead", sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
+
     /* redo fof on the new decomposition -- no halo cross two ranks */
     KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, &(finder->p), 1, finder->priv->boxsize);
 
-    ptrdiff_t * head = fastpm_memory_alloc(finder->p->mem, "FOFHead", sizeof(head[0]) * finder->p->np, FASTPM_MEMORY_STACK);
-    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);
-
     kd_fof(root, finder->linkinglength, head);
 
+    _free_kdtree(&tree, root);
+
     /* now do the attributes */
+
+    fastpm_fof_compute_halo_attrs(finder, halos, head);
+
+    FastPMHaloEvent event[1];
+    event->halos = halos;
+    event->p = finder->p;
+    event->ihalo = head;
+
+    fastpm_emit_event(finder->event_handlers, FASTPM_EVENT_HALO,
+                    FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, finder);
+
+    fastpm_memory_free(finder->p->mem, head);
+}
+
+static void
+fastpm_fof_compute_halo_attrs (FastPMFOFFinder * finder, FastPMStore * halos, ptrdiff_t * head)
+{
+    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * finder->p->np, FASTPM_MEMORY_STACK);
 
     /* */
     {
@@ -636,18 +658,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         head[i] = hid;
     }
 
-    FastPMHaloEvent event[1];
-    event->halos = halos;
-    event->p = finder->p;
-    event->ihalo = head;
-
-    fastpm_emit_event(finder->event_handlers, FASTPM_EVENT_HALO,
-                    FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, finder);
-
     fastpm_memory_free(finder->p->mem, offset);
-    fastpm_memory_free(finder->p->mem, head);
-
-    _free_kdtree(&tree, root);
 }
 
 void
