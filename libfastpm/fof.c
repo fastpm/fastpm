@@ -234,13 +234,18 @@ _fof_global_merge(
     FastPMFOFFinder * finder,
     PMGhostData * pgd,
     struct FastPMFOFData * fofsave,
-    struct FastPMFOFData * fofcomm,
     ptrdiff_t * head
 )
 {
     ptrdiff_t i;
     FastPMStore * p = finder->p;
     PM * pm = finder->pm;
+
+    struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem, "FOFComm",
+                    sizeof(fofcomm[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
+
+    memset(fofcomm, 0, sizeof(fofcomm[0]) * (p->np + pgd->p->np));
+
 
     /* at this point all items with head[i] = i have local minid and task */
 
@@ -297,8 +302,11 @@ _fof_global_merge(
             fastpm_raise(-1, "undeterimined particle %d id = %03td head = %03td head[%03d/%03d] : id = %03td task = %03d\n",
                 finder->priv->ThisTask, p->id[i], p->id[head[i]], i, p->np, fofcomm[i].minid, fofcomm[i].task);
         }
+        fofsave[i].minid = fofcomm[i].minid;
+        fofsave[i].minid = fofcomm[i].minid;
     }
 
+    fastpm_memory_free(p->mem, fofcomm);
 }
 
 static void
@@ -350,11 +358,6 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
 
     pm_ghosts_send(pgd, PACK_POS | PACK_ID);
 
-    struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem, "FOFComm",
-                    sizeof(fofcomm[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
-
-    memset(fofcomm, 0, sizeof(fofcomm[0]) * (p->np + pgd->p->np));
-
     struct FastPMFOFData * fofsave = fastpm_memory_alloc(p->mem, "FOFSave",
                     sizeof(fofsave[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
 
@@ -379,10 +382,9 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         _merge(&fofsave[i], &fofsave[head[i]]);
     }
 
-    _fof_global_merge (finder, pgd, fofsave, fofcomm, head);
+    _fof_global_merge (finder, pgd, fofsave, head);
 
     fastpm_memory_free(p->mem, head);
-    fastpm_memory_free(p->mem, fofsave);
 
     pm_ghosts_free(pgd);
 
@@ -402,7 +404,7 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         p->attributes |= PACK_FOF;
 
 #endif
-        void * userdata[1] = {fofcomm};
+        void * userdata[1] = {fofsave};
 
         if(0 != fastpm_store_decompose(p,
                     (fastpm_store_target_func) FastPMTargetFOF,
@@ -426,7 +428,7 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         npmin, npmax, npmean, npstd
         );
 
-    fastpm_memory_free(p->mem, fofcomm);
+    fastpm_memory_free(p->mem, fofsave);
 }
 
 static size_t
