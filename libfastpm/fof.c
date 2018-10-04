@@ -384,6 +384,8 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     fastpm_memory_free(p->mem, head);
     fastpm_memory_free(p->mem, fofsave);
 
+    pm_ghosts_free(pgd);
+
 
 #if 0
     BigFile bf = {0};
@@ -425,8 +427,6 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
         );
 
     fastpm_memory_free(p->mem, fofcomm);
-
-    pm_ghosts_free(pgd);
 }
 
 static size_t
