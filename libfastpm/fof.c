@@ -325,7 +325,7 @@ _fof_global_merge(
 }
 
 static void
-fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
+fastpm_fof_find_halos(FastPMFOFFinder * finder, FastPMStore * p, PM * pm, struct FastPMFOFData ** labels)
 {
 
     /* initial decompose -- reduce number of ghosts */
@@ -386,6 +386,7 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
 
     pm_ghosts_free(pgd);
 
+    *labels = fofsave;
 
 #if 0
     BigFile bf = {0};
@@ -394,39 +395,42 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
     big_file_mpi_close(&bf, pm_comm(pm));
 #endif
 
-    /* real decompose, move particles of the same halo to the same rank */
-    {
+}
+
+static void
+fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm, struct FastPMFOFData * fofsave)
+{
+/* real decompose, move particles of the same halo to the same rank */
 #if 0
-        /* for the assertion below only. need fofcomm to be as long as np_upper. */
-        p->fof = fofcomm;
-        p->attributes |= PACK_FOF;
+    /* for the assertion below only. need fofcomm to be as long as np_upper. */
+    p->fof = fofcomm;
+    p->attributes |= PACK_FOF;
 
 #endif
-        void * userdata[1] = {fofsave};
+    void * userdata[1] = {fofsave};
 
-        if(0 != fastpm_store_decompose(p,
-                    (fastpm_store_target_func) FastPMTargetFOF,
-                    userdata, pm_comm(pm))) {
-            fastpm_raise(-1, "out of storage space decomposing for FOF\n");
-        }
-#if 0
-        ptrdiff_t i;
-        for(i = 0; i < p->np; i ++) {
-            if(p->fof[i].task != finder->priv->ThisTask) abort();
-        }
-
-        p->attributes &= ~PACK_FOF;
-        p->fof = NULL;
-#endif
+    if(0 != fastpm_store_decompose(p,
+                (fastpm_store_target_func) FastPMTargetFOF,
+                userdata, pm_comm(pm))) {
+        fastpm_raise(-1, "out of storage space decomposing for FOF\n");
     }
+#if 0
+    ptrdiff_t i;
+    for(i = 0; i < p->np; i ++) {
+        if(p->fof[i].task != finder->priv->ThisTask) abort();
+    }
+
+    p->attributes &= ~PACK_FOF;
+    p->fof = NULL;
+#endif
+
+    double npmax, npmin, npstd, npmean;
 
     MPIU_stats(pm_comm(pm), p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
     fastpm_info("load balance after second decompose : min = %g max = %g mean = %g std = %g\n",
         npmin, npmax, npmean, npstd
         );
-
-    fastpm_memory_free(p->mem, fofsave);
 }
 
 static size_t
@@ -475,7 +479,14 @@ periodic_add(double x, double wx, double y, double wy, double L)
 void
 fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 {
-    fastpm_fof_decompose(finder, finder->p, finder->pm);
+
+    struct FastPMFOFData * fofsave = NULL;
+
+    fastpm_fof_find_halos(finder, finder->p, finder->pm, &fofsave);
+
+    fastpm_fof_decompose(finder, finder->p, finder->pm, fofsave);
+
+    fastpm_memory_free(finder->p->mem, fofsave);
 
     KDTree tree;
 
