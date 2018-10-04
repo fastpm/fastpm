@@ -96,7 +96,7 @@ def main(ns, ns1, ns2):
         if cat1.comm.rank == 0:
             for var in r.power.data.dtype.names:
                 numpy.savetxt(basename + '-%s.txt' % var,
-                    r.power[var]
+                    r.power[var].real
                 )
 
     if ns.with_plot:

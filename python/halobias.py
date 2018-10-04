@@ -116,7 +116,7 @@ def save_bs(filename, dataset, r):
     elif filename.endswith('.txt'):
         for var in r.power.data.dtype.names:
             numpy.savetxt(basename + '-%s-%s.txt' % (dataset, var),
-                r.power[var]
+                r.power[var].real
             )
 
 def make_plot(rm, r, nmin):
