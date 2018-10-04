@@ -246,6 +246,21 @@ _fof_global_merge(
 
     memset(fofcomm, 0, sizeof(fofcomm[0]) * (p->np + pgd->p->np));
 
+    /* initialize minid, used as a global tag of groups as we merge */
+    for(i = 0; i < p->np; i ++) {
+        fofsave[i].minid = p->id[i];
+        fofsave[i].task = finder->priv->ThisTask;
+    }
+    for(i = 0; i < pgd->p->np; i ++) {
+        fofsave[i + p->np].minid = pgd->p->id[i];
+        fofsave[i + p->np].task = -1;
+    }
+
+    /* reduce the minid of the head items according to the local connection. */
+
+    for(i = 0; i < p->np + pgd->p->np; i ++) {
+        _merge(&fofsave[i], &fofsave[head[i]]);
+    }
 
     /* at this point all items with head[i] = i have local minid and task */
 
@@ -312,7 +327,6 @@ _fof_global_merge(
 static void
 fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
 {
-    ptrdiff_t i;
 
     /* initial decompose -- reduce number of ghosts */
 
@@ -365,22 +379,6 @@ fastpm_fof_decompose(FastPMFOFFinder * finder, FastPMStore * p, PM * pm)
                     sizeof(head[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
 
     _fof_local_find(finder, p, pgd, head, finder->linkinglength);
-
-    /* initialize minid, used as a global tag of groups as we merge */
-    for(i = 0; i < p->np; i ++) {
-        fofsave[i].minid = p->id[i];
-        fofsave[i].task = finder->priv->ThisTask;
-    }
-    for(i = 0; i < pgd->p->np; i ++) {
-        fofsave[i + p->np].minid = pgd->p->id[i];
-        fofsave[i + p->np].task = -1;
-    }
-
-    /* reduce the minid of the head items according to the local connection. */
-
-    for(i = 0; i < p->np + pgd->p->np; i ++) {
-        _merge(&fofsave[i], &fofsave[head[i]]);
-    }
 
     _fof_global_merge (finder, pgd, fofsave, head);
 
