@@ -512,6 +512,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                     FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, finder);
 
     fastpm_memory_free(finder->p->mem, head);
+
+    fastpm_store_subsample(halos, halos->mask, halos);
 }
 
 static void
