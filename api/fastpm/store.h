@@ -116,7 +116,16 @@ typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * da
 int
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
 
-void fastpm_store_sort_by_id(FastPMStore * p);
+void
+fastpm_store_permute(FastPMStore * p, int * ind);
+
+int
+FastPMLocalSortByID(const int i1,
+                    const int i2,
+                    FastPMStore * p);
+
+void
+fastpm_store_sort(FastPMStore * p, int (*cmpfunc)(const int i1, const int i2, FastPMStore * p));
 
 size_t
 fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm);
