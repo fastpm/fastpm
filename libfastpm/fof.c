@@ -632,23 +632,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     halos->a_v = finder->p->a_v;
 
     MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, pm_comm(finder->pm));
-}
 
-/*
- * compute the attrs of the local halo segments based on local particles.
- * head : the hid of each particle; 
- * fofsave : the minid of each particle (unique label of each halo)
- *
- * if a halo has no local particles,  halos->mask[i] is set to 0.
- * if a halo has any local particles, and halos->mask[i] is set to 1.
- * */
-static void
-fastpm_fof_compute_local_halo_attrs (FastPMFOFFinder * finder, FastPMStore * halos, struct FastPMFOFData * fofsave, ptrdiff_t * head)
-{
-    FastPMStore h1[1];
-    fastpm_store_init(h1, 1, halos->attributes, FASTPM_MEMORY_HEAP);
-
-    /* */
     ptrdiff_t i;
     for(i = 0; i < halos->np; i++) {
         int d;
@@ -673,6 +657,24 @@ fastpm_fof_compute_local_halo_attrs (FastPMFOFFinder * finder, FastPMStore * hal
                 halos->q[i][d] = 0;
         }
     }
+}
+
+/*
+ * compute the attrs of the local halo segments based on local particles.
+ * head : the hid of each particle; 
+ * fofsave : the minid of each particle (unique label of each halo)
+ *
+ * if a halo has no local particles,  halos->mask[i] is set to 0.
+ * if a halo has any local particles, and halos->mask[i] is set to 1.
+ * */
+static void
+fastpm_fof_compute_local_halo_attrs (FastPMFOFFinder * finder, FastPMStore * halos, struct FastPMFOFData * fofsave, ptrdiff_t * head)
+{
+    FastPMStore h1[1];
+    fastpm_store_init(h1, 1, halos->attributes, FASTPM_MEMORY_HEAP);
+
+    /* */
+    ptrdiff_t i;
 
     /* set minid and task of the halo; all of the halo particles of the same minid needs to be reduced */
     for(i = 0; i < finder->p->np; i++) {
