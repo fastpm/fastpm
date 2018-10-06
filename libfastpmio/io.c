@@ -191,6 +191,7 @@ write_snapshot_data(FastPMStore * p,
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
+
     int Nfile = size / (32 * 1024 * 1024);
 
     if(Nfile < 1) Nfile = 1;
@@ -201,6 +202,8 @@ write_snapshot_data(FastPMStore * p,
      * */
 
     if(Nwriters > Nfile * 8) Nwriters = Nfile * 8;
+
+    fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
     struct {
         char * name;
@@ -298,6 +301,8 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 
     write_snapshot_header(fastpm, p, &bf, comm);
 
+    fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
+
     write_snapshot_data(p,  Nwriters, 0, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
@@ -331,6 +336,7 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
     }
 
+    fastpm_info("Appending a catalog to %s [%s]\n", filebase, dataset);
     write_snapshot_data(p, Nwriters, 1, &bf, dataset, comm);
 
     big_file_mpi_close(&bf, comm);
