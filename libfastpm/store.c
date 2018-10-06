@@ -51,19 +51,19 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     size_t s = 0;
     char * ptr = (char*) buf;
     DISPATCH(PACK_POS, x)
+    DISPATCH(PACK_Q, q)
     DISPATCH(PACK_VEL, v)
-    DISPATCH(PACK_ID, id)
-    DISPATCH(PACK_MASK, mask)
-    DISPATCH(PACK_LENGTH, length)
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
+    DISPATCH(PACK_ACC, acc)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
-    DISPATCH(PACK_Q, q)
     DISPATCH(PACK_AEMIT, aemit)
-    DISPATCH(PACK_ACC, acc)
+    DISPATCH(PACK_DENSITY, rho)
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_TIDAL, tidal)
+    DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_MASK, mask)
     DISPATCH(PACK_FOF, fof)
+    DISPATCH(PACK_LENGTH, length)
 
     /* components */
     DISPATCHC(PACK_ACC_X, acc, 0)
@@ -115,19 +115,19 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
         } \
     }
     DISPATCH(PACK_POS, x)
+    DISPATCH(PACK_Q, q)
     DISPATCH(PACK_VEL, v)
-    DISPATCH(PACK_ID, id)
-    DISPATCH(PACK_MASK, mask)
-    DISPATCH(PACK_LENGTH, length)
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
+    DISPATCH(PACK_ACC, acc)
     DISPATCH(PACK_DX1, dx1)
     DISPATCH(PACK_DX2, dx2)
-    DISPATCH(PACK_Q, q)
     DISPATCH(PACK_AEMIT, aemit)
-    DISPATCH(PACK_ACC, acc)
+    DISPATCH(PACK_DENSITY, rho)
+    DISPATCH(PACK_POTENTIAL, potential)
     DISPATCH(PACK_TIDAL, tidal)
+    DISPATCH(PACK_ID, id)
+    DISPATCH(PACK_MASK, mask)
     DISPATCH(PACK_FOF, fof)
+    DISPATCH(PACK_LENGTH, length)
 
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
@@ -338,12 +338,9 @@ fastpm_store_init_details(FastPMStore * p,
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
     for(it = 0; it < 2; it ++) {
-        SIZEIT(q, PACK_Q);
         SIZEIT(x, PACK_POS);
+        SIZEIT(q, PACK_Q);
         SIZEIT(v, PACK_VEL);
-        SIZEIT(id, PACK_ID);
-        SIZEIT(length, PACK_LENGTH);
-        SIZEIT(fof , PACK_FOF);
         SIZEIT(acc, PACK_ACC);
         SIZEIT(dx1, PACK_DX1);
         SIZEIT(dx2, PACK_DX2);
@@ -351,7 +348,10 @@ fastpm_store_init_details(FastPMStore * p,
         SIZEIT(rho, PACK_DENSITY);
         SIZEIT(potential, PACK_POTENTIAL);
         SIZEIT(tidal, PACK_TIDAL);
+        SIZEIT(id, PACK_ID);
         SIZEIT(mask, PACK_MASK);
+        SIZEIT(fof , PACK_FOF);
+        SIZEIT(length, PACK_LENGTH);
 
         if(it == 0) {
             p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
@@ -410,47 +410,54 @@ static void permute(void * data, int np, size_t elsize, int * ind) {
     free(tmp);
 }
 
-static void fastpm_store_permute(FastPMStore * p, int * ind) {
-    if(p->x)
-        permute(p->x, p->np, sizeof(p->x[0]), ind);
-    if(p->v)
-        permute(p->v, p->np, sizeof(p->v[0]), ind);
-    if(p->id)
-        permute(p->id, p->np, sizeof(p->id[0]), ind);
-    if(p->mask)
-        permute(p->mask, p->np, sizeof(p->mask[0]), ind);
-    if(p->fof)
-        permute(p->fof, p->np, sizeof(p->fof[0]), ind);
-    if(p->potential)
-        permute(p->potential, p->np, sizeof(p->potential[0]), ind);
-    if(p->tidal)
-        permute(p->tidal, p->np, sizeof(p->tidal[0]), ind);
-    if(p->aemit)
-        permute(p->aemit, p->np, sizeof(p->aemit[0]), ind);
-    if(p->q)
-        permute(p->q, p->np, sizeof(p->q[0]), ind);
-    if(p->acc)
-        permute(p->acc, p->np, sizeof(p->acc[0]), ind);
-    if(p->dx1)
-        permute(p->dx1, p->np, sizeof(p->dx1[0]), ind);
-    if(p->dx2)
-        permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
+void fastpm_store_permute(FastPMStore * p, int * ind)
+{
+    if(p->x) permute(p->x, p->np, sizeof(p->x[0]), ind);
+    if(p->q) permute(p->q, p->np, sizeof(p->q[0]), ind);
+    if(p->v) permute(p->v, p->np, sizeof(p->v[0]), ind);
+    if(p->acc) permute(p->acc, p->np, sizeof(p->acc[0]), ind);
+    if(p->dx1) permute(p->dx1, p->np, sizeof(p->dx1[0]), ind);
+    if(p->dx2) permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
+    if(p->aemit) permute(p->aemit, p->np, sizeof(p->aemit[0]), ind);
+    if(p->rho) permute(p->rho, p->np, sizeof(p->rho[0]), ind);
+    if(p->potential) permute(p->potential, p->np, sizeof(p->potential[0]), ind);
+    if(p->tidal) permute(p->tidal, p->np, sizeof(p->tidal[0]), ind);
+    if(p->id) permute(p->id, p->np, sizeof(p->id[0]), ind);
+    if(p->mask) permute(p->mask, p->np, sizeof(p->mask[0]), ind);
+    if(p->fof) permute(p->fof, p->np, sizeof(p->fof[0]), ind);
+    if(p->length) permute(p->length, p->np, sizeof(p->length[0]), ind);
 }
 
-static int * __sort_by_id_arg;
-static FastPMStore *  __sort_by_id_p;
+
+static FastPMStore *  _fastpm_store_sort_store;
+static int (*_fastpm_store_sort_cmp_func)(const int i1, const int i2, FastPMStore * p);
+
 int _sort_by_id_cmpfunc(const void * p1, const void * p2)
 {
     const int * i1 = (const int*) p1;
     const int * i2 = (const int*) p2;
-    
-    int v1 = (__sort_by_id_p->id[*i1] < __sort_by_id_p->id[*i2]);
-    int v2 = (__sort_by_id_p->id[*i1] > __sort_by_id_p->id[*i2]);
+
+    return _fastpm_store_sort_cmp_func(*i1, *i2, _fastpm_store_sort_store);
+}
+
+int
+FastPMLocalSortByID(const int i1,
+                    const int i2,
+                    FastPMStore * p)
+{
+    int v1 = (p->id[i1] < p->id[i2]);
+    int v2 = (p->id[i1] > p->id[i2]);
 
     return v2 - v1;
 }
 
-void fastpm_store_sort_by_id(FastPMStore * p)
+/* sort a store locally with in the MPI rank. 
+ *
+ * cmp_func is called with three arguments.
+ * */
+void
+fastpm_store_sort(FastPMStore * p,
+        int (*cmp_func)(const int i1, const int i2, FastPMStore * p))
 {
     int * arg = fastpm_memory_alloc(p->mem, "Temp", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     int i;
@@ -458,8 +465,8 @@ void fastpm_store_sort_by_id(FastPMStore * p)
         arg[i] = i;
     }
     /* FIXME: copy some version of qsort_r */
-    __sort_by_id_arg = arg;
-    __sort_by_id_p = p;
+    _fastpm_store_sort_store = p;
+    _fastpm_store_sort_cmp_func = cmp_func;
     qsort(arg, p->np, sizeof(arg[0]), _sort_by_id_cmpfunc);
     fastpm_store_permute(p, arg);
     fastpm_memory_free(p->mem, arg);
@@ -765,12 +772,14 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
     if(po->acc) memcpy(&po->acc[offset], &p->acc[start], sizeof(p->acc[0][0]) * 3 * ncopy);
     if(po->dx1) memcpy(&po->dx1[offset], &p->dx1[start], sizeof(p->dx1[0][0]) * 3 * ncopy);
     if(po->dx2) memcpy(&po->dx2[offset], &p->dx2[start], sizeof(p->dx2[0][0]) * 3 * ncopy);
+    if(po->aemit) memcpy(&po->aemit[offset], &p->aemit[start], sizeof(p->aemit[0]) * ncopy);
+    if(po->rho) memcpy(&po->rho[offset], &p->rho[start], sizeof(p->potential[0]) * ncopy);
+    if(po->potential) memcpy(&po->potential[offset], &p->potential[start], sizeof(p->potential[0]) * ncopy);
+    if(po->tidal) memcpy(&po->tidal[offset], &p->tidal[start], sizeof(p->tidal[0]) * ncopy);
     if(po->id) memcpy(&po->id[offset], &p->id[start], sizeof(p->id[0]) * ncopy);
     if(po->mask) memcpy(&po->mask[offset], &p->mask[start], sizeof(p->mask[0]) * ncopy);
-    if(po->aemit) memcpy(&po->aemit[offset], &p->aemit[start], sizeof(p->aemit[0]) * ncopy);
-    if(po->potential) memcpy(&po->potential[offset], &p->potential[start], sizeof(p->potential[0]) * ncopy);
-    if(po->rho) memcpy(&po->rho[offset], &p->rho[start], sizeof(p->potential[0]) * ncopy);
-    if(po->tidal) memcpy(&po->tidal[offset], &p->tidal[start], sizeof(p->tidal[0]) * ncopy);
+    if(po->fof) memcpy(&po->fof[offset], &p->fof[start], sizeof(p->fof[0]) * ncopy);
+    if(po->length) memcpy(&po->length[offset], &p->length[start], sizeof(p->length[0]) * ncopy);
 
     po->np = offset + ncopy;
     po->a_x = p->a_x;
@@ -847,11 +856,14 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
             if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0][0]) * 3);
             if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0][0]) * 3);
             if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0][0]) * 3);
-            if(po->id) po->id[j] = p->id[i];
-            if(po->mask) po->mask[j] = p->mask[i];
             if(po->aemit) po->aemit[j] = p->aemit[i];
+            if(po->rho) po->rho[j] = p->rho[i];
             if(po->potential) po->potential[j] = p->potential[i];
             if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0][0]) * 6);
+            if(po->id) po->id[j] = p->id[i];
+            if(po->mask) po->mask[j] = p->mask[i];
+            if(po->fof) po->fof[j] = p->fof[i];
+            if(po->length) po->length[j] = p->length[i];
         }
         j ++;
     }
