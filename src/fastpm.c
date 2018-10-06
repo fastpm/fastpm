@@ -982,22 +982,17 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     LEAVE(fof);
 
-    fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
-
     ENTER(sort);
     fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
     LEAVE(sort);
 
     ENTER(io);
-
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
     write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
     _write_parameters(filebase, "Header", prr, fastpm->comm);
 
     free(dataset);
     LEAVE(io);
-
-    fastpm_info("FOF Catalog %s written\n", filebase);
 
     fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);
@@ -1037,15 +1032,16 @@ _halos_ready (FastPMFOFFinder * finder,
         } else {
             /* near the tail of the lightcone, do not keep those formed reliable halos */
             if(hid >= 0) {
-                /* unreliable halos, keep them */
+                /* particles in unreliable halos, keep them */
                 keep_for_tail[i] = !halos_mask[hid];
             } else {
                 /* not in halos, keep them too */
                 keep_for_tail[i] = 1;
             }
         }
+        halos->mask[hid] &= halos_mask[hid];
     }
-    userdata[4] = halos_mask;
+    free(halos_mask);
 }
 
 
@@ -1098,7 +1094,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     userdata[1] = & maxhalosize;
     userdata[2] = lc;
     userdata[3] = keep_for_tail;
-    userdata[4] = NULL; /* halos_mask , return value of the handler */
 
     FastPMStore halos[1];
     fastpm_add_event_handler(&fof.event_handlers,
@@ -1112,12 +1107,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_fof_execute(&fof, halos);
 
     LEAVE(fof);
-
-    fastpm_info("Writing fof %s with %d writers\n", filebase, prr->Nwriters);
-
-    uint8_t * halos_mask = userdata[4];
-    fastpm_store_subsample(halos, halos_mask, halos);
-    free(halos_mask);
 
     ENTER(sort);
     fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
@@ -1134,11 +1123,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     free(dataset);
     LEAVE(io);
 
-    uint64_t nhalos = halos->np;
-    MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, fastpm->comm);
-
-    fastpm_info("FOF Catalog %s written with %td halos\n", filebase, nhalos);
-
     fastpm_store_destroy(halos);
 
     fastpm_fof_destroy(&fof);
@@ -1152,7 +1136,9 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_store_subsample(p, keep_for_tail, tail);
 
     MPI_Allreduce(MPI_IN_PLACE, &ntail, 1, MPI_LONG, MPI_SUM, fastpm->comm);
-    fastpm_info("%td particles will be reused in next batch\n", ntail);
+
+    fastpm_info("%td particles will be reused in next batch for usmesh FOF\n", ntail);
+
     fastpm_memory_free(p->mem, keep_for_tail);
 }
 
