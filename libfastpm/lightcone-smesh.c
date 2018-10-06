@@ -243,7 +243,7 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
 
     int j = 0;
     for(i = 1; i <= Na; i ++) {
-        if(nside[i] == nside[j] && i != Na) continue;
+        if(i != Na && nside[i] == nside[j]) continue;
         /* nside[i] != nside[j]; j ... i - 1 (inclusive) has the same nside */
         fastpm_info("Creating smesh for Nside = %04td arange %6.4f - %6.4f\n", nside[j], a[j], a[i - 1]);
         double *ra, *dec;
