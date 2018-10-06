@@ -15,7 +15,6 @@ typedef struct {
     int nmin;
     double linkinglength; /* absolute */
     int periodic;
-    FastPMStore halos[1];
     int kdtree_thresh;
 
     FastPMStore * p;
