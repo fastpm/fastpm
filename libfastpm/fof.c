@@ -411,6 +411,38 @@ periodic_add(double x, double wx, double y, double wy, double L)
     }
 }
 
+/*
+ * apply mask to a halo storage.
+ * relable head, and halo->id
+ * */
+static void
+fastpm_fof_subsample(FastPMFOFFinder * finder, FastPMStore * halos, uint8_t * mask, ptrdiff_t * head)
+{
+    /* mapping goes from the old head[i] value to the new head[i] value */
+    ptrdiff_t * mapping = fastpm_memory_alloc(finder->p->mem, "FOFMapping", sizeof(mapping[0]) * halos->np, FASTPM_MEMORY_STACK);
+
+    ptrdiff_t i;
+    for(i = 0; i < halos->np; i ++) {
+        mapping[i] = -1;
+        halos->id[i] = i;
+    }
+
+    /* remove non-contributing halo segments */
+    fastpm_store_subsample(halos, mask, halos);
+
+    for(i = 0; i < halos->np; i ++) {
+        mapping[halos->id[i]] = i;
+        halos->id[i] = i;
+    }
+
+    /* adjust head[i] */
+
+    for(i = 0; i < finder->p->np; i ++) {
+        head[i] = mapping[head[i]];
+    }
+
+    fastpm_memory_free(finder->p->mem, mapping);
+}
 /* first every undecided halo; then the real halo with particles */
 static int
 FastPMLocalSortByMinID(const int i1,
@@ -528,6 +560,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     fastpm_memory_free(finder->p->mem, fofsave);
 
+    fastpm_fof_subsample(finder, halos, halos->mask, head);
+
     /* halo will be returned to this task;
      * we save ThisTask here. Watchout: do not touch task of halos->mask[i] == 0 */
     ptrdiff_t i;
@@ -571,9 +605,22 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             (fastpm_store_target_func) FastPMTargetTask, finder, pm_comm(pm))) {
         fastpm_raise(-1, "out of space for halos decomposition.\n");
     }
-
     /* local sort by id (restore the order) */
     fastpm_store_sort(halos, FastPMLocalSortByID);
+
+    {
+        uint8_t * mask = fastpm_memory_alloc(finder->p->mem, "LengthMask", sizeof(mask[0]) * halos->np, FASTPM_MEMORY_STACK);
+        for(i = 0; i < halos->np; i ++) {
+            /* remove halos that are shorter than nmin */
+            if(halos->length[i] < finder->nmin) {
+                mask[i] = 0;
+            } else {
+                mask[i] = 1;
+            }
+        }
+        fastpm_fof_subsample(finder, halos, mask, head);
+        fastpm_memory_free(finder->p->mem, mask);
+    }
 
     /* now head[i] is again the halo attribute of particle i. */
 
@@ -887,10 +934,6 @@ fastpm_fof_reduce_sorted_local_halo_attrs(FastPMFOFFinder * finder, FastPMStore 
         if(halos->aemit)
             halos->aemit[i] /= n;
 
-        /* remove halos that are shorter than nmin */
-        if(halos->mask[i] && halos->length[i] < finder->nmin) {
-            halos->mask[i] = 0;
-        }
     }
 
     fastpm_memory_free(finder->p->mem, ind);
