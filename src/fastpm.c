@@ -1012,9 +1012,13 @@ _halos_ready (FastPMFOFFinder * finder,
     ptrdiff_t i;
 
     uint8_t * halos_mask = malloc(halos->np);
-
+    fastpm_info("halos_ready sees %td halos\n", halos->np);
     for(i = 0; i < halos->np; i ++) {
         double r = fastpm_lc_distance(lc, halos->x[i]);
+
+        /* this shall not happen */
+        if (halos->length[i] < finder->nmin) abort();
+
         /* only keep reliable halos */
         if(r > rmin + halosize * 0.5) {
             halos_mask[i] = 1;
