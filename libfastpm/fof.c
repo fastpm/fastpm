@@ -27,6 +27,7 @@ struct FastPMFOFFinderPrivate {
     int ThisTask;
     int NTask;
     double * boxsize;
+    MPI_Comm comm;
 };
 
 /* creating a kdtree struct
@@ -191,8 +192,10 @@ fastpm_fof_init(FastPMFOFFinder * finder, FastPMStore * store, PM * pm)
     else
         finder->priv->boxsize = NULL;
 
-    MPI_Comm_rank(pm_comm(pm), &finder->priv->ThisTask);
-    MPI_Comm_size(pm_comm(pm), &finder->priv->NTask);
+    finder->priv->comm = pm_comm(pm);
+    MPI_Comm comm = finder->priv->comm;
+    MPI_Comm_rank(comm, &finder->priv->ThisTask);
+    MPI_Comm_size(comm, &finder->priv->NTask);
 }
 
 static void
@@ -268,7 +271,7 @@ _fof_global_merge(
 {
     ptrdiff_t i;
     FastPMStore * p = finder->p;
-    PM * pm = finder->pm;
+    MPI_Comm comm = finder->priv->comm;
 
     struct FastPMFOFData * fofcomm = fastpm_memory_alloc(p->mem, "FOFComm",
                     sizeof(fofcomm[0]) * (p->np + pgd->p->np), FASTPM_MEMORY_STACK);
@@ -325,9 +328,9 @@ _fof_global_merge(
 
         /* at this point all items on fofsave with head[i] = i have present minid and task */
 
-        MPI_Allreduce(MPI_IN_PLACE, &nmerged, 1, MPI_LONG, MPI_SUM, pm_comm(pm));
+        MPI_Allreduce(MPI_IN_PLACE, &nmerged, 1, MPI_LONG, MPI_SUM, comm);
 
-        MPI_Barrier(pm_comm(pm));
+        MPI_Barrier(comm);
 
         fastpm_info("FOF reduction iteration %d : merged %td crosslinks\n", iter, nmerged);
 
@@ -443,6 +446,28 @@ fastpm_fof_subsample(FastPMFOFFinder * finder, FastPMStore * halos, uint8_t * ma
 
     fastpm_memory_free(finder->p->mem, mapping);
 }
+
+static void
+fastpm_fof_apply_length_cut(FastPMFOFFinder * finder, FastPMStore * halos, ptrdiff_t * head)
+{
+    MPI_Comm comm = finder->priv->comm;
+
+    uint8_t * mask = fastpm_memory_alloc(finder->p->mem, "LengthMask", sizeof(mask[0]) * halos->np, FASTPM_MEMORY_STACK);
+    ptrdiff_t i;
+    for(i = 0; i < halos->np; i ++) {
+        /* remove halos that are shorter than nmin */
+        if(halos->length[i] < finder->nmin) {
+            mask[i] = 0;
+        } else {
+            mask[i] = 1;
+        }
+    }
+    fastpm_fof_subsample(finder, halos, mask, head);
+    fastpm_memory_free(finder->p->mem, mask);
+
+    fastpm_info("After length cut we have %td halos (including ghost halos)\n", fastpm_store_get_np_total(halos, comm));
+}
+
 /* first every undecided halo; then the real halo with particles */
 static int
 FastPMLocalSortByMinID(const int i1,
@@ -485,6 +510,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* initial decompose -- reduce number of ghosts */
     FastPMStore * p = finder->p;
     PM * pm = finder->pm;
+    MPI_Comm comm = finder->priv->comm;
 
     /* only do wrapping for periodic data */
     if(finder->priv->boxsize)
@@ -492,7 +518,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     double npmax, npmin, npstd, npmean;
 
-    MPIU_stats(pm_comm(pm), p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
+    MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
     fastpm_info("load balance after decompose : min = %g max = %g mean = %g std = %g\n",
         npmin, npmax, npmean, npstd
@@ -501,12 +527,12 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* still route particles to the pm pencils as if they are periodic. */
     if(0 != fastpm_store_decompose(p,
                 (fastpm_store_target_func) FastPMTargetPM,
-                pm, pm_comm(pm))
+                pm, comm)
     ) {
         fastpm_raise(-1, "out of storage space decomposing for FOF\n");
     }
 
-    MPIU_stats(pm_comm(pm), p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
+    MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
     fastpm_info("load balance after first decompose : min = %g max = %g mean = %g std = %g\n",
         npmin, npmax, npmean, npstd
@@ -573,7 +599,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
      * these into a single entry, then replicate for each particle to look up;
      * halo segments that have no local particles are never exchanged to another rank. */
     if(0 != fastpm_store_decompose(halos,
-            (fastpm_store_target_func) FastPMTargetMinID, finder, pm_comm(pm))) {
+            (fastpm_store_target_func) FastPMTargetMinID, finder, comm)) {
 
         fastpm_raise(-1, "out of space for halos decomposition.\n");
     }
@@ -602,25 +628,14 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     /* decompose halos by task (return) */
     if (0 != fastpm_store_decompose(halos,
-            (fastpm_store_target_func) FastPMTargetTask, finder, pm_comm(pm))) {
+            (fastpm_store_target_func) FastPMTargetTask, finder, comm)) {
         fastpm_raise(-1, "out of space for halos decomposition.\n");
     }
     /* local sort by id (restore the order) */
     fastpm_store_sort(halos, FastPMLocalSortByID);
 
-    {
-        uint8_t * mask = fastpm_memory_alloc(finder->p->mem, "LengthMask", sizeof(mask[0]) * halos->np, FASTPM_MEMORY_STACK);
-        for(i = 0; i < halos->np; i ++) {
-            /* remove halos that are shorter than nmin */
-            if(halos->length[i] < finder->nmin) {
-                mask[i] = 0;
-            } else {
-                mask[i] = 1;
-            }
-        }
-        fastpm_fof_subsample(finder, halos, mask, head);
-        fastpm_memory_free(finder->p->mem, mask);
-    }
+    /* apply length cut */
+    fastpm_fof_apply_length_cut(finder, halos, head);
 
     /* now head[i] is again the halo attribute of particle i. */
 
@@ -639,6 +654,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     fastpm_memory_free(finder->p->mem, head);
 
     fastpm_store_subsample(halos, halos->mask, halos);
+
+    fastpm_info("There are %td real halos.\n", fastpm_store_get_np_total(halos, comm));
 }
 
 /* This function creates the storage object for halo segments that are local on this
@@ -649,6 +666,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 static void
 fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, size_t nhalos)
 {
+
+    MPI_Comm comm = finder->priv->comm;
 
     enum FastPMPackFields attributes = finder->p->attributes;
     attributes |= PACK_LENGTH | PACK_FOF;
@@ -667,7 +686,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
 
     double avg_halos;
     /* + 1 to ensure avg_halos > 0 */
-    MPIU_stats(pm_comm(finder->pm), nhalos + 1, "-", &avg_halos);
+    MPIU_stats(comm, nhalos + 1, "-", &avg_halos);
 
     /* give it enough space for rebalancing. */
     fastpm_store_init(halos, nhalos < 2 * avg_halos?2 * avg_halos:nhalos,
@@ -678,7 +697,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     halos->a_x = finder->p->a_x;
     halos->a_v = finder->p->a_v;
 
-    MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, pm_comm(finder->pm));
+    MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, comm);
 
     ptrdiff_t i;
     for(i = 0; i < halos->np; i++) {
