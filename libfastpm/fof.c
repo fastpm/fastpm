@@ -843,11 +843,11 @@ fastpm_fof_convert_particle_to_halo(FastPMStore * p, ptrdiff_t i, FastPMStore * 
         if(halos->x)
             halos->x[hid][d] = p->x[i][d];
         if(halos->v)
-            halos->v[hid][d] += p->v[i][d];
+            halos->v[hid][d] = p->v[i][d];
         if(halos->dx1)
-            halos->dx1[hid][d] += p->dx1[i][d];
+            halos->dx1[hid][d] = p->dx1[i][d];
         if(halos->dx2)
-            halos->dx2[hid][d] += p->dx2[i][d];
+            halos->dx2[hid][d] = p->dx2[i][d];
         if(halos->q) {
             halos->q[hid][d] = q[d];
         }
