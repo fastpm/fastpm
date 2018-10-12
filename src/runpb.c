@@ -116,6 +116,20 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         MPI_Bcast(&aa, 1, MPI_DOUBLE, 0, comm);
     }
 
+    fastpm_info("Ntot = %td aa=%g\n", Ntot, aa);
+
+    int temp_dx1 = 0;
+    int temp_dx2 = 0;
+    if(p->dx1 == NULL) {
+        p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+        temp_dx1 = 1;
+    }
+    if(p->dx2 == NULL) {
+        p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+        temp_dx2 = 1;
+    }
+
+
     NcumFile = malloc(sizeof(size_t) * Nfile);
     NcumFile[0] = 0;
     int i;
@@ -127,7 +141,6 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
     size_t end   = (ThisTask + 1) * Ntot / NTask;
     p->np = end - start;
 
-    
     int offset = 0;
     int chunknpart = chunksize / (sizeof(float) * 3);
     fastpm_info("chunknpart = %d\n", chunknpart);
@@ -294,6 +307,15 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
     free(NcumFile);
     free(NperFile);
     free(scratch);
+
+    if(temp_dx2) {
+        fastpm_memory_free(p->mem, p->dx2);
+        p->dx2 = NULL;
+    }
+    if(temp_dx1) {
+        fastpm_memory_free(p->mem, p->dx1);
+        p->dx1 = NULL;
+    }
     return 0;
 }
 
