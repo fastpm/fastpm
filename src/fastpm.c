@@ -367,8 +367,28 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 {
     /* we may need a read gadget ic here too */
     if(CONF(prr, read_runpbic)) {
+        FastPMStore * p = fastpm->p;
+        int temp_dx1 = 0;
+        int temp_dx2 = 0;
+        if(p->dx1 == NULL) {
+            p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+            temp_dx1 = 1;
+        }
+        if(p->dx2 == NULL) {
+            p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+            temp_dx2 = 1;
+        }
+
         read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
         fastpm_solver_setup_ic(fastpm, NULL, CONF(prr, time_step)[0]);
+        if(temp_dx2) {
+            fastpm_memory_free(p->mem, p->dx2);
+            p->dx2 = NULL;
+        }
+        if(temp_dx1) {
+            fastpm_memory_free(p->mem, p->dx1);
+            p->dx1 = NULL;
+        }
         return;
     } 
 
