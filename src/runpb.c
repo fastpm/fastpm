@@ -118,17 +118,6 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 
     fastpm_info("Ntot = %td aa=%g\n", Ntot, aa);
 
-    int temp_dx1 = 0;
-    int temp_dx2 = 0;
-    if(p->dx1 == NULL) {
-        p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
-        temp_dx1 = 1;
-    }
-    if(p->dx2 == NULL) {
-        p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
-        temp_dx2 = 1;
-    }
-
 
     NcumFile = malloc(sizeof(size_t) * Nfile);
     NcumFile[0] = 0;
@@ -314,14 +303,6 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
     free(NperFile);
     free(scratch);
 
-    if(temp_dx2) {
-        fastpm_memory_free(p->mem, p->dx2);
-        p->dx2 = NULL;
-    }
-    if(temp_dx1) {
-        fastpm_memory_free(p->mem, p->dx1);
-        p->dx1 = NULL;
-    }
     return 0;
 }
 
