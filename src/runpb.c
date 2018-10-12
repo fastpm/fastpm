@@ -245,6 +245,13 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 
     int64_t strides[] = {fastpm->config->nc * fastpm->config->nc, fastpm->config->nc, 1};
 
+    int d;
+    for(d = 0; d < 3; d++){
+        p->q_strides[d] = strides[d];
+        p->q_scale[d] = (1.0 * fastpm->config->boxsize) / fastpm->config->nc;
+        p->q_shift[d] = 0.5 * (1.0 * fastpm->config->boxsize) / fastpm->config->nc;
+    }
+
     /* RUN PB ic global shifting */
     const double offset0 = 0.5 * 1.0 / fastpm->config->nc;
     double dx1disp[3] = {0};
@@ -288,7 +295,6 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         }
     }
 
-    int d;
     MPI_Allreduce(MPI_IN_PLACE, dx1disp, 3, MPI_DOUBLE, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, dx2disp, 3, MPI_DOUBLE, MPI_SUM, comm);
     for(d =0; d < 3; d++) {
