@@ -529,6 +529,9 @@ fastpm_store_decompose(FastPMStore * p,
     MPI_Comm_rank(comm, &ThisTask);
     MPI_Comm_size(comm, &NTask);
 
+    if(p->np > p->np_upper) {
+        fastpm_raise(-1, "Particle buffer overrun detected np = %td > np_upper %td.\n", p->np, p->np_upper);
+    }
     ptrdiff_t i;
     for(i = 0; i < p->np; i ++) {
         target[i] = target_func(p, i, data);
@@ -572,12 +575,13 @@ fastpm_store_decompose(FastPMStore * p,
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
     size_t elsize = p->pack(p, 0, NULL, p->attributes);
 
-    size_t max_size = p->np + Nrecv - Nsend;
+    size_t neededsize = p->np + Nrecv - Nsend;
 
-    MPI_Allreduce(MPI_IN_PLACE, &max_size, 1, MPI_LONG, MPI_MAX, comm);
+    if(neededsize > p->np_upper) {
+        fastpm_ilog(INFO, "Need %td particles on rank %d; %td allocated\n", neededsize, ThisTask, p->np_upper);
+    }
 
-    fastpm_info("Need %td particles on most expensive rank; %td allocated\n", max_size, p->np_upper);
-    if(max_size > p->np_upper) {
+    if(MPIU_Any(comm, neededsize > p->np_upper)) {
         goto fail_oom;
     }
 
