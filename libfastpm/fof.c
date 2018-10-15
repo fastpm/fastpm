@@ -601,7 +601,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     if(0 != fastpm_store_decompose(halos,
             (fastpm_store_target_func) FastPMTargetMinID, finder, comm)) {
 
-        fastpm_raise(-1, "out of space for halos decomposition.\n");
+        fastpm_raise(-1, "out of space sending halos by MinID.\n");
     }
 
     /* now head[i] is no longer the halo attribute of particle i. */
@@ -629,7 +629,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* decompose halos by task (return) */
     if (0 != fastpm_store_decompose(halos,
             (fastpm_store_target_func) FastPMTargetTask, finder, comm)) {
-        fastpm_raise(-1, "out of space for halos decomposition.\n");
+        fastpm_raise(-1, "out of space for gathering halos this shall never happen.\n");
     }
     /* local sort by id (restore the order) */
     fastpm_store_sort(halos, FastPMLocalSortByID);
