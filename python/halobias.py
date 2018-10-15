@@ -68,8 +68,8 @@ def main(ns, ns1, ns2):
 
     rm = FFTPower(mesh1, second=mesh1, mode='1d', dk=dk)
     nmin = numpy.unique(numpy.int32(numpy.logspace(numpy.log10(ns.nmin), numpy.log10(ns.nmax), ns.nn, endpoint=True)))
-    nmin0 = cat1.comm.allreduce(cat2['Length'].min().compute(), MPI.MIN)
-    nmax0 = cat1.comm.allreduce(cat2['Length'].max().compute(), MPI.MAX)
+    nmin0 = cat1.comm.allreduce(cat2['Length'].min().compute() if cat2.size > 0 else 10000000, MPI.MIN)
+    nmax0 = cat1.comm.allreduce(cat2['Length'].max().compute() if cat2.size > 0 else 0, MPI.MAX)
     nmin = nmin[nmin >= nmin0]
     nmin = nmin[nmin < nmax0]
 
