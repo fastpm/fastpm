@@ -68,10 +68,13 @@ def main(ns, ns1, ns2):
         setup_logging('info')
 
     cat1 = read_cat(ns1)
-    cat2 = read_cat(ns2)
-
     mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
-    mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
+
+    if ns1 is not ns2:
+        cat2 = read_cat(ns2)
+        mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
+    else:
+        mesh2 = None
 
     if ns1.with_rsd != ns2.with_rsd:
         warnings.warn("Two catalogs have different with-rsd settings, this may not be intended.")
