@@ -20,6 +20,8 @@ enum FastPMPackFields {
     PACK_FOF =  1L << 11,
     PACK_LENGTH =  1L << 12,
     PACK_MASK    =  1L << 13,
+    PACK_RDISP =  1L << 14,
+    PACK_VDISP =  1L << 15,
 
 
     PACK_ACC_X =  1L << 20,
@@ -76,6 +78,8 @@ struct FastPMStore {
         int64_t task; /* to fill up the 8 bytes alignment */
      } * fof;
     int32_t * length;
+    float (* rdisp)[6];
+    float (* vdisp)[6];
 
     size_t np;
     size_t np_upper;
