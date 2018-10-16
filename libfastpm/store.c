@@ -575,7 +575,7 @@ fastpm_store_decompose(FastPMStore * p,
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
     size_t elsize = p->pack(p, 0, NULL, p->attributes);
 
-    size_t neededsize = p->np + Nrecv - Nsend;
+    volatile size_t neededsize = p->np + Nrecv - Nsend;
 
     if(neededsize > p->np_upper) {
         fastpm_ilog(INFO, "Need %td particles on rank %d; %td allocated\n", neededsize, ThisTask, p->np_upper);
