@@ -491,8 +491,14 @@ FastPMTargetMinID(FastPMStore * store, ptrdiff_t i, void * userdata)
     FastPMFOFFinder * finder = userdata;
 
     if(store->mask[i] != 0) {
-        return store->fof[i].minid % finder->priv->NTask;
+        const uint32_t GOLDEN32 = 2654435761ul;
+        /* const uint64_t GOLDEN64 = 11400714819323198549; */
+        /* may over flow, but should be okay here as the periodicity is ggt NTask */
+        int key = (store->fof[i].minid * GOLDEN32) % finder->priv->NTask;
+        return key;
     } else {
+        /* never happens because zero particle halos are removed before this.*/
+        abort();
         return finder->priv->ThisTask;
     }
 }
@@ -586,10 +592,10 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     fastpm_memory_free(finder->p->mem, fofsave);
 
-    fastpm_fof_subsample(finder, halos, halos->mask, head);
+    fastpm_fof_subsample(finder, halos, halos->mask, head); /* remove halos without any local particles. */
 
     /* halo will be returned to this task;
-     * we save ThisTask here. Watchout: do not touch task of halos->mask[i] == 0 */
+     * we save ThisTask here.*/
     ptrdiff_t i;
     for(i = 0; i < halos->np; i ++) {
         halos->fof[i].task = finder->priv->ThisTask;
@@ -652,10 +658,18 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                     FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, finder);
 
     fastpm_memory_free(finder->p->mem, head);
-
+    {
+        size_t n = 0;
+        for (i = 0; i < halos->np; i ++) {
+            if (halos->mask[i]) n++;
+        }
+        MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPI_LONG, MPI_SUM, comm);
+        
+        fastpm_info("Before event: %td halos.\n", n);
+    }
     fastpm_store_subsample(halos, halos->mask, halos);
 
-    fastpm_info("There are %td real halos.\n", fastpm_store_get_np_total(halos, comm));
+    fastpm_info("After event: %td halos.\n", fastpm_store_get_np_total(halos, comm));
 }
 
 /* This function creates the storage object for halo segments that are local on this
@@ -685,19 +699,18 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     }
 
     double avg_halos;
+    double max_halos;
     /* + 1 to ensure avg_halos > 0 */
-    MPIU_stats(comm, nhalos + 1, "-", &avg_halos);
+    MPIU_stats(comm, nhalos + 1, "->", &avg_halos, &max_halos);
 
     /* give it enough space for rebalancing. */
-    fastpm_store_init(halos, nhalos < 2 * avg_halos?2 * avg_halos:nhalos,
+    fastpm_store_init(halos, max_halos * 2,
             attributes,
             FASTPM_MEMORY_HEAP);
 
     halos->np = nhalos;
     halos->a_x = finder->p->a_x;
     halos->a_v = finder->p->a_v;
-
-    MPI_Allreduce(MPI_IN_PLACE, &nhalos, 1, MPI_LONG, MPI_SUM, comm);
 
     ptrdiff_t i;
     for(i = 0; i < halos->np; i++) {
@@ -883,6 +896,7 @@ fastpm_fof_reduce_sorted_local_halo_attrs(FastPMFOFFinder * finder, FastPMStore 
         ind[i] = i;
         i++;
     }
+    if (i != 0) abort();
     /* the following items will have mask[i] == 1, but we will mark some to 0 if
      * they are not the principle (first) halos segment with this minid */
     for(; i < halos->np + 1; i++) {
