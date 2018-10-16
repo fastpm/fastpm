@@ -360,28 +360,39 @@ _fof_global_merge(
     fastpm_memory_free(p->mem, fofcomm);
 }
 
+/* set head[i] to hid*/
 static size_t
-_assign_halo_attr(ptrdiff_t * head, ptrdiff_t * offset, size_t np, int nmin)
+_assign_halo_attr(FastPMFOFFinder * finder, ptrdiff_t * head, size_t np, size_t np_ghosts, int nmin)
 {
+    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * (np + np_ghosts), FASTPM_MEMORY_STACK);
+    uint8_t * has_remote = fastpm_memory_alloc(finder->p->mem, "FOFHasRemote", sizeof(has_remote[0]) * (np + np_ghosts), FASTPM_MEMORY_STACK);
+    uint8_t * has_local = fastpm_memory_alloc(finder->p->mem, "FOFHasLocal", sizeof(has_local[0]) * (np + np_ghosts), FASTPM_MEMORY_STACK);
+
     ptrdiff_t i;
-    for(i = 0; i < np; i ++) {
+    for(i = 0; i < np + np_ghosts; i ++) {
         offset[i] = 0;
+        has_remote[i] = 0;
+        has_local[i] = 0;
     }
 
     /* set offset to number of particles in the halo */
-    for(i = 0; i < np; i ++) {
+    for(i = 0; i < np + np_ghosts; i ++) {
         offset[head[i]] ++;
     }
 
-    size_t it = 0;
-    
-    ptrdiff_t max = 0;
-    /* assign attr index */
     for(i = 0; i < np; i ++) {
-        if(offset[i] > max) {
-            max = offset[i];
-        }
-        if(offset[i] >= nmin) {
+        has_local[head[i]] = 1;
+    }
+    /* if the group is connected to a remote component */
+    for(i = np; i < np + np_ghosts; i ++) {
+        has_remote[head[i]] = 1;
+    }
+
+    size_t it = 0;
+
+    /* assign attr index for groups at least contain 1 local particle */
+    for(i = 0; i < np + np_ghosts; i ++) {
+        if(has_local[i] && (has_remote[i] || offset[i] >= nmin)) {
             offset[i] = it;
             it ++;
         } else {
@@ -392,12 +403,17 @@ _assign_halo_attr(ptrdiff_t * head, ptrdiff_t * offset, size_t np, int nmin)
     size_t nhalos = it;
 
     /* update head [i] to offset[head[i]], which stores the index in the halo store for this particle. */
-    for(i = 0; i < np; i ++) {
+    for(i = 0; i < np + np_ghosts; i ++) {
         head[i] = offset[head[i]];
+        /* this will not happen if nmin == 1 */
         if(head[i] != -1 && head[i] > nhalos) {
-            fastpm_raise(-1, "head[i] (%td) > nhalos (%td) This shall not happend\n", head[i], nhalos);
+            fastpm_raise(-1, "head[i] (%td) > nhalos (%td) This shall not happen.\n", head[i], nhalos);
         }
     }
+
+    fastpm_memory_free(finder->p->mem, has_local);
+    fastpm_memory_free(finder->p->mem, has_remote);
+    fastpm_memory_free(finder->p->mem, offset);
 
     return it;
 }
@@ -441,7 +457,9 @@ fastpm_fof_subsample(FastPMFOFFinder * finder, FastPMStore * halos, uint8_t * ma
     /* adjust head[i] */
 
     for(i = 0; i < finder->p->np; i ++) {
-        head[i] = mapping[head[i]];
+        if(head[i] >= 0) {
+            head[i] = mapping[head[i]];
+        }
     }
 
     fastpm_memory_free(finder->p->mem, mapping);
@@ -474,11 +492,6 @@ FastPMLocalSortByMinID(const int i1,
                     const int i2,
                     FastPMStore * p)
 {
-    int d1 = (p->mask[i1] == 0);
-    int d2 = (p->mask[i2] == 0);
-
-    if(d1 != d2) return d2 - d1;
-
     int v1 = (p->fof[i1].minid < p->fof[i2].minid);
     int v2 = (p->fof[i1].minid > p->fof[i2].minid);
 
@@ -490,17 +503,11 @@ FastPMTargetMinID(FastPMStore * store, ptrdiff_t i, void * userdata)
 {
     FastPMFOFFinder * finder = userdata;
 
-    if(store->mask[i] != 0) {
-        const uint32_t GOLDEN32 = 2654435761ul;
-        /* const uint64_t GOLDEN64 = 11400714819323198549; */
-        /* may over flow, but should be okay here as the periodicity is ggt NTask */
-        int key = (store->fof[i].minid * GOLDEN32) % finder->priv->NTask;
-        return key;
-    } else {
-        /* never happens because zero particle halos are removed before this.*/
-        abort();
-        return finder->priv->ThisTask;
-    }
+    const uint32_t GOLDEN32 = 2654435761ul;
+    /* const uint64_t GOLDEN64 = 11400714819323198549; */
+    /* may over flow, but should be okay here as the periodicity is ggt NTask */
+    int key = (store->fof[i].minid * GOLDEN32) % (unsigned) finder->priv->NTask;
+    return key;
 }
 
 static int
@@ -572,13 +579,10 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     _fof_global_merge (finder, pgd, fofsave, head);
 
-    ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
+    /* assign halo attr entries. This will keep only candidates that can possibly reach to nmin */
+    size_t nhalos = _assign_halo_attr(finder, head, p->np, pgd->p->np, finder->nmin);
 
-    size_t nhalos = _assign_halo_attr(head, offset, np_and_ghosts, 1);
-
-    fastpm_info("Found %td halos segments >= %d particles\n", nhalos, 1);
-
-    fastpm_memory_free(finder->p->mem, offset);
+    fastpm_info("Found %td halos segments >= %d particles; or cross linked. \n", nhalos, finder->nmin);
 
     pm_ghosts_free(pgd);
 
@@ -592,14 +596,9 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     fastpm_memory_free(finder->p->mem, fofsave);
 
-    fastpm_fof_subsample(finder, halos, halos->mask, head); /* remove halos without any local particles. */
+    /* remove halos without any local particles */
 
-    /* halo will be returned to this task;
-     * we save ThisTask here.*/
-    ptrdiff_t i;
-    for(i = 0; i < halos->np; i ++) {
-        halos->fof[i].task = finder->priv->ThisTask;
-    }
+    fastpm_fof_subsample(finder, halos, halos->mask, head); 
 
     /* decompose halos by minid (gather); if all halo segments of the same minid are on the same rank, we can combine
      * these into a single entry, then replicate for each particle to look up;
@@ -660,11 +659,12 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     fastpm_memory_free(finder->p->mem, head);
     {
         size_t n = 0;
+        ptrdiff_t i;
         for (i = 0; i < halos->np; i ++) {
             if (halos->mask[i]) n++;
         }
         MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPI_LONG, MPI_SUM, comm);
-        
+
         fastpm_info("Before event: %td halos.\n", n);
     }
     fastpm_store_subsample(halos, halos->mask, halos);
@@ -704,7 +704,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     MPIU_stats(comm, nhalos + 1, "->", &avg_halos, &max_halos);
 
     /* give it enough space for rebalancing. */
-    fastpm_store_init(halos, max_halos * 2,
+    fastpm_store_init(halos, (size_t) (max_halos * 2),
             attributes,
             FASTPM_MEMORY_HEAP);
 
@@ -760,13 +760,16 @@ fastpm_fof_compute_local_halo_attrs (FastPMFOFFinder * finder, FastPMStore * hal
         /* set the minid of the halo; need to take care of the ghosts too.
          * even though we do not add them to the attributes */
         ptrdiff_t hid = head[i];
+
+        if(hid < 0) continue;
+
         if(halos->mask[hid] == 0) {
             /* halo will be reduced by minid */
             halos->fof[hid].minid = fofsave[i].minid;
             halos->mask[hid] = 1;
         } else {
             if(halos->fof[hid].minid != fofsave[i].minid) {
-                abort();
+                fastpm_raise(-1, "Consistency check failed after FOF global merge.\n");
             }
         }
     }
@@ -789,6 +792,12 @@ fastpm_fof_compute_local_halo_attrs (FastPMFOFFinder * finder, FastPMStore * hal
     }
 
     fastpm_store_destroy(h1);
+
+    /* halo will be returned to this task;
+     * we save ThisTask here.*/
+    for(i = 0; i < halos->np; i ++) {
+        halos->fof[i].task = finder->priv->ThisTask;
+    }
 }
 
 static void
@@ -889,17 +898,9 @@ fastpm_fof_reduce_sorted_local_halo_attrs(FastPMFOFFinder * finder, FastPMStore 
     /* ind is the array to use to replicate items */
     int * ind = fastpm_memory_alloc(finder->p->mem, "HaloPermutation", sizeof(ind[0]) * halos->np, FASTPM_MEMORY_STACK);
 
-    /* at this point we haven't started modifying mask; it still means if a halo segment has any local particles */
-    i = 0;
-    while(i < halos->np) {
-        if(halos->mask[i]) break;
-        ind[i] = i;
-        i++;
-    }
-    if (i != 0) abort();
     /* the following items will have mask[i] == 1, but we will mark some to 0 if
      * they are not the principle (first) halos segment with this minid */
-    for(; i < halos->np + 1; i++) {
+    for(i = 0; i < halos->np + 1; i++) {
         /* we use i == halos->np to terminate the last segment */
         if(first == -1 || i == halos->np || lastminid != halos->fof[i].minid) {
             if (first >= 0) {
