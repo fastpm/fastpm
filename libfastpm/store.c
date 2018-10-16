@@ -64,6 +64,8 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_MASK, mask)
     DISPATCH(PACK_FOF, fof)
     DISPATCH(PACK_LENGTH, length)
+    DISPATCH(PACK_RDISP, rdisp)
+    DISPATCH(PACK_VDISP, vdisp)
 
     /* components */
     DISPATCHC(PACK_ACC_X, acc, 0)
@@ -128,6 +130,8 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_MASK, mask)
     DISPATCH(PACK_FOF, fof)
     DISPATCH(PACK_LENGTH, length)
+    DISPATCH(PACK_RDISP, rdisp)
+    DISPATCH(PACK_VDISP, vdisp)
 
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
@@ -352,6 +356,8 @@ fastpm_store_init_details(FastPMStore * p,
         SIZEIT(mask, PACK_MASK);
         SIZEIT(fof , PACK_FOF);
         SIZEIT(length, PACK_LENGTH);
+        SIZEIT(rdisp, PACK_RDISP);
+        SIZEIT(vdisp, PACK_VDISP);
 
         if(it == 0) {
             p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
@@ -426,6 +432,8 @@ void fastpm_store_permute(FastPMStore * p, int * ind)
     if(p->mask) permute(p->mask, p->np, sizeof(p->mask[0]), ind);
     if(p->fof) permute(p->fof, p->np, sizeof(p->fof[0]), ind);
     if(p->length) permute(p->length, p->np, sizeof(p->length[0]), ind);
+    if(p->rdisp) permute(p->rdisp, p->np, sizeof(p->rdisp[0]), ind);
+    if(p->vdisp) permute(p->vdisp, p->np, sizeof(p->vdisp[0]), ind);
 }
 
 
@@ -784,6 +792,8 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
     if(po->mask) memcpy(&po->mask[offset], &p->mask[start], sizeof(p->mask[0]) * ncopy);
     if(po->fof) memcpy(&po->fof[offset], &p->fof[start], sizeof(p->fof[0]) * ncopy);
     if(po->length) memcpy(&po->length[offset], &p->length[start], sizeof(p->length[0]) * ncopy);
+    if(po->rdisp) memcpy(&po->rdisp[offset], &p->rdisp[start], sizeof(p->rdisp[0]) * ncopy);
+    if(po->vdisp) memcpy(&po->vdisp[offset], &p->vdisp[start], sizeof(p->vdisp[0]) * ncopy);
 
     po->np = offset + ncopy;
     po->a_x = p->a_x;
@@ -868,6 +878,8 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
             if(po->mask) po->mask[j] = p->mask[i];
             if(po->fof) po->fof[j] = p->fof[i];
             if(po->length) po->length[j] = p->length[i];
+            if(po->rdisp) memcpy(po->rdisp[j], p->rdisp[i], sizeof(p->rdisp[0][0]) * 6);
+            if(po->vdisp) memcpy(po->vdisp[j], p->vdisp[i], sizeof(p->vdisp[0][0]) * 6);
         }
         j ++;
     }
