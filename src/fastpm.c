@@ -1031,7 +1031,7 @@ _halos_ready (FastPMFOFFinder * finder,
 
     ptrdiff_t i;
 
-    uint8_t * halos_mask = malloc(halos->np);
+    uint8_t * halos_established = malloc(halos->np);
     fastpm_info("halos_ready sees %td halos\n", halos->np);
     for(i = 0; i < halos->np; i ++) {
         double r = fastpm_lc_distance(lc, halos->x[i]);
@@ -1041,10 +1041,11 @@ _halos_ready (FastPMFOFFinder * finder,
 
         /* only keep reliable halos */
         if(r > rmin + halosize * 0.5) {
-            halos_mask[i] = 1;
+            halos_established[i] = 1;
         } else {
-            halos_mask[i] = 0;
+            halos_established[i] = 0;
         }
+        halos->mask[i] &= halos_established[i];
     }
 
     for(i = 0; i < p->np; i ++) {
@@ -1057,15 +1058,14 @@ _halos_ready (FastPMFOFFinder * finder,
             /* near the tail of the lightcone, do not keep those formed reliable halos */
             if(hid >= 0) {
                 /* particles in unreliable halos, keep them */
-                keep_for_tail[i] = !halos_mask[hid];
+                keep_for_tail[i] = !halos_established[hid];
             } else {
                 /* not in halos, keep them too */
                 keep_for_tail[i] = 1;
             }
         }
-        halos->mask[hid] &= halos_mask[hid];
     }
-    free(halos_mask);
+    free(halos_established);
 }
 
 
