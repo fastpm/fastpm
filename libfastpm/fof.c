@@ -278,14 +278,25 @@ _fof_global_merge(
 
     memset(fofcomm, 0, sizeof(fofcomm[0]) * (p->np + pgd->p->np));
 
+    size_t npmax = p->np;
+
+    MPI_Allreduce(MPI_IN_PLACE, &npmax, 1, MPI_LONG, MPI_MAX, comm);
+
     /* initialize minid, used as a global tag of groups as we merge */
     for(i = 0; i < p->np; i ++) {
-        fofsave[i].minid = p->id[i];
+        /* assign unique ID to each particle; could use a better scheme with true offsets */
+        fofsave[i].minid = i + finder->priv->ThisTask * npmax;
         fofsave[i].task = finder->priv->ThisTask;
     }
+
+    /* send minid */
+    p->fof = fofsave;
+    pm_ghosts_send(pgd, PACK_FOF);
+    p->fof = NULL;
+
     for(i = 0; i < pgd->p->np; i ++) {
-        fofsave[i + p->np].minid = pgd->p->id[i];
-        fofsave[i + p->np].task = -1;
+        fofsave[i + p->np] = pgd->p->fof[i];
+        fofsave[i + p->np].task = -1; /* ghosts we do not yet know their host task */
     }
 
     /* reduce the minid of the head items according to the local connection. */
