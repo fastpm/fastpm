@@ -770,13 +770,14 @@ fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm com
 }
 
 static void
-_fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t offset)
+_fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t offset, size_t ncopy)
 {
-    if(p->np - start + offset > po->np_upper) {
+    if(ncopy + start > p->np) {
+        fastpm_raise(-1, "Copy out of bounds from source FastPMStore: asking for %td but has %td\n", ncopy + start, p->np);
+    }
+    if(ncopy + offset > po->np_upper) {
         fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
     }
-
-    ptrdiff_t ncopy = p->np - start;
 
     if(po->x) memcpy(&po->x[offset], &p->x[start], sizeof(p->x[0][0]) * 3 * ncopy);
     if(po->q) memcpy(&po->q[offset], &p->q[start], sizeof(p->q[0][0]) * 3 * ncopy);
@@ -808,13 +809,19 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
 void
 fastpm_store_copy(FastPMStore * p, FastPMStore * po)
 {
-    _fastpm_store_copy(p, 0, po, 0);
+    _fastpm_store_copy(p, 0, po, 0, p->np);
+}
+
+void
+fastpm_store_take(FastPMStore * p, ptrdiff_t i, FastPMStore * po, ptrdiff_t j)
+{
+    _fastpm_store_copy(p, i, po, j, 1);
 }
 
 void
 fastpm_store_append(FastPMStore * p, FastPMStore * po)
 {
-    _fastpm_store_copy(p, 0, po, po->np);
+    _fastpm_store_copy(p, 0, po, po->np, p->np);
 }
 
 void
