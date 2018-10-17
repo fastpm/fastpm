@@ -12,6 +12,7 @@ CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 
 TEST_SOURCES = testpm.c \
                testfof.c \
+               testcosmology.c \
                testconstrained.c \
                testlightcone.c \
                testangulargrid.c
@@ -28,6 +29,10 @@ SOURCES = $(TEST_SOURCES)
 all: $(TESTS)
 
 testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) $(GSL_LIBS) -lm
+
+testcosmology : .objs/testcosmology.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
