@@ -48,12 +48,6 @@ enum FastPMPackFields {
 };
 
 struct FastPMStore {
-    size_t (*pack)  (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
-    void   (*unpack)(FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
-    void   (*reduce)(FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
-    double (*to_double)(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute);
-    void   (*from_double)(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute, double value);
-
     FastPMMemory * mem;
 
     enum FastPMPackFields attributes; /* bit flags of allocated attributes */
@@ -104,6 +98,12 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);
 
 void 
 fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
+
+size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+void   fastpm_store_reduce (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+double fastpm_store_to_double (FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute);
+void   fastpm_store_from_double (FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute, double value);
 
 void
 fastpm_store_destroy(FastPMStore * p);

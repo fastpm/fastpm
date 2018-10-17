@@ -41,7 +41,7 @@ FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
-    p->unpack(p, 0, (void*) ptr, p->attributes);
+    fastpm_store_unpack(p, 0, (void*) ptr, p->attributes);
 
     *((uint64_t*) radix) = p->id[0];
 }
@@ -51,7 +51,7 @@ FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
-    p->unpack(p, 0, (void*) ptr, p->attributes);
+    fastpm_store_unpack(p, 0, (void*) ptr, p->attributes);
 
     *((uint64_t*) radix) = -p->length[0];
 }
@@ -61,7 +61,7 @@ FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
 {
     FastPMStore * p = (FastPMStore *) arg;
 
-    p->unpack(p, 0, (void*) ptr, p->attributes);
+    fastpm_store_unpack(p, 0, (void*) ptr, p->attributes);
 
     /* larger than 53 is probably good enough but perhaps should have used ldexp (>GLIBC 2.19)*/
     *((uint64_t*) radix) = p->aemit[0] * (1L << 60L);
@@ -78,7 +78,7 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     MPI_Comm_size(comm, &NTask);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    size_t elsize = p->pack(p, 0, NULL, p->attributes);
+    size_t elsize = fastpm_store_pack(p, 0, NULL, p->attributes);
     size_t localsize = size * (ThisTask + 1) / NTask - size * ThisTask / NTask;
 
     if(redistribute) {
@@ -98,12 +98,12 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
 
     for(i = 0; i < p->np; i ++) {
-        p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
+        fastpm_store_pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
     }
     mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, ptmp, comm);
 
     for(i = 0; i < localsize; i ++) {
-        p->unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
+        fastpm_store_unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
     }
     p->np = localsize;
     fastpm_store_destroy(ptmp);

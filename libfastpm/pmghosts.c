@@ -104,7 +104,7 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 
     ighost = pgd->Osend[pgd->rank] + offset;
 
-    pgd->source->pack(pgd->source, pgd->ipar,
+    fastpm_store_pack(pgd->source, pgd->ipar,
         (char*) pgd->send_buffer + ighost * *elsize, *attributes);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
@@ -178,7 +178,7 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
     Nsend = cumsum(pgd->Osend, pgd->Nsend, pm->NTask);
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
 
-    size_t elsize = pgd->source->pack(pgd->source, 0, NULL, attributes);
+    size_t elsize = fastpm_store_pack(pgd->source, 0, NULL, attributes);
 
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
@@ -203,7 +203,7 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        pgd->p->unpack(pgd->p, i,
+        fastpm_store_unpack(pgd->p, i,
                 (char*) pgd->recv_buffer + i * elsize,
                         attributes);
     }
@@ -218,7 +218,7 @@ _reduce_any_field(PMGhostData * pgd,
     ptrdiff_t index, void * buf,
     void * userdata)
 {
-    pgd->source->reduce(pgd->source, index, buf, attributes);
+    fastpm_store_reduce(pgd->source, index, buf, attributes);
 }
 
 void
@@ -243,13 +243,13 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
 
     size_t elsize;
 
-    elsize = pgd->p->pack(pgd->p, 0, NULL, attributes);
+    elsize = fastpm_store_pack(pgd->p, 0, NULL, attributes);
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
 
 #pragma omp parallel for
     for(i = 0; i < pgd->p->np; i ++) {
-        pgd->p->pack(pgd->p, i,
+        fastpm_store_pack(pgd->p, i,
             (char*) pgd->recv_buffer + i * elsize, 
             attributes);
     }

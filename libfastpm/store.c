@@ -24,7 +24,7 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
     pos[2] = p->q[index][2];
 }
 
-static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
+size_t fastpm_store_pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
     #define DISPATCH(f, field) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -96,7 +96,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     }
     return s;
 }
-static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
+void fastpm_store_unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -161,7 +161,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
         fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
     }
 }
-static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
+void fastpm_store_reduce(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
     size_t s = 0;
     char * ptr = (char*) buf;
 
@@ -207,7 +207,7 @@ static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
         fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
     }
 }
-static double to_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags) {
+double fastpm_store_to_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags) {
     double rt = 0.;
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
@@ -255,7 +255,7 @@ byebye:
         return rt;
     }
 }
-static void from_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags, double value) {
+void fastpm_store_from_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags, double value) {
     #define DISPATCHC(f, field, i) \
     if(HAS(flags, f)) { \
         if(p->field) { \
@@ -317,11 +317,6 @@ fastpm_store_init_details(FastPMStore * p,
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
-    p->pack = pack;
-    p->unpack = unpack;
-    p->reduce = reduce;
-    p->to_double = to_double;
-    p->from_double = from_double;
 
     p->np = 0; 
     p->np_upper = np_upper;
@@ -588,7 +583,7 @@ fastpm_store_decompose(FastPMStore * p,
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = p->pack(p, 0, NULL, p->attributes);
+    size_t elsize = fastpm_store_pack(p, 0, NULL, p->attributes);
 
     volatile size_t neededsize = p->np + Nrecv - Nsend;
 
@@ -606,7 +601,7 @@ fastpm_store_decompose(FastPMStore * p,
     p->np -= Nsend;
 
     for(i = 0; i < Nsend; i ++) {
-        p->pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
+        fastpm_store_pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
     }
 
     MPI_Datatype PTYPE;
@@ -621,7 +616,7 @@ fastpm_store_decompose(FastPMStore * p,
     MPI_Type_free(&PTYPE);
 
     for(i = 0; i < Nrecv; i ++) {
-        p->unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
+        fastpm_store_unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
     }
 
     p->np += Nrecv;

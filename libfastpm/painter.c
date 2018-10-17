@@ -325,7 +325,7 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
 #pragma omp parallel for
     for (i = 0; i < size; i ++) {
         double pos[3];
-        double weight = attribute? p->to_double(p, i, attribute): 1.0;
+        double weight = attribute? fastpm_store_to_double(p, i, attribute): 1.0;
         fastpm_store_get_position(p, i, pos);
         painter->paint(painter, canvas, pos, weight, painter->diffdir);
     }
@@ -360,7 +360,7 @@ fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
         double pos[3];
         fastpm_store_get_position(p, i, pos);
         double weight = painter->readout(painter, canvas, pos, painter->diffdir);
-        p->from_double(p, i, attribute, weight);
+        fastpm_store_from_double(p, i, attribute, weight);
     }
 }
 
