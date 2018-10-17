@@ -969,7 +969,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     }
 
     PMGhostData * pgd = pm_ghosts_create_full(pm, p,
-            PACK_POS | PACK_ID | PACK_MINID | PACK_TASK, NULL,
+            PACK_POS | PACK_ID | PACK_MINID | PACK_TASK,
             below, above
         );
 

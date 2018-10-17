@@ -335,7 +335,7 @@ void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, enum FastPMPackFields attribute)
 {
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes);
 
     pm_ghosts_send(pgd, p->attributes);
 
@@ -368,7 +368,7 @@ void
 fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, enum FastPMPackFields attribute)
 {
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, NULL);
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes);
     pm_ghosts_send(pgd, p->attributes);
 
     fastpm_readout_local(painter, canvas, p, p->np, attribute);
