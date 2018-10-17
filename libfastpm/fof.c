@@ -802,6 +802,11 @@ static void
 _add_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * h1, ptrdiff_t i1, FastPMStore * h2, ptrdiff_t i2)
 {
     int d;
+    if(h1->rvdisp) {
+        for(d = 0; d < 9; d ++) {
+            h1->rvdisp[i1][d] += h2->rvdisp[i2][d];
+        }
+    }
     if(h1->vdisp) {
         for(d = 0; d < 6; d ++) {
             h1->vdisp[i1][d] += h2->vdisp[i2][d];
@@ -844,6 +849,19 @@ _convert_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * p, ptrdiff_
             halos->vdisp[hid][d + 3] = vrel[d] * vrel[(d + 1) % 3];
         }
     }
+    if(halos->rvdisp) {
+        /* FIXME: add hubble expansion term based on aemit and hubble function? needs to modify Finder object */
+
+        double vrel[3];
+        for(d = 0; d < 3; d ++) {
+            vrel[d] = p->v[i][d] - halos->v[hid][d];
+        }
+        for(d = 0; d < 3; d ++) {
+            halos->rvdisp[hid][d] = rrel[d] * vrel[d];
+            halos->rvdisp[hid][d + 3] = rrel[d] * vrel[(d + 1) % 3];
+            halos->rvdisp[hid][d + 6] = rrel[d] * vrel[(d + 2) % 3];
+        }
+    }
     if(halos->rdisp) {
         for(d = 0; d < 3; d ++) {
             halos->rdisp[hid][d] = rrel[d] * rrel[d];
@@ -856,6 +874,11 @@ _reduce_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
 {
     double n = halos->length[hid];
     int d;
+    if(halos->rvdisp) {
+        for(d = 0; d < 9; d ++) {
+            halos->rvdisp[hid][d] /= n;
+        }
+    }
     if(halos->vdisp) {
         for(d = 0; d < 6; d ++) {
             halos->vdisp[hid][d] /= n;
@@ -881,7 +904,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
 
     enum FastPMPackFields attributes = finder->p->attributes;
     attributes |= PACK_LENGTH | PACK_FOF;
-    attributes |= PACK_RDISP | PACK_VDISP;
+    attributes |= PACK_RDISP | PACK_VDISP | PACK_RVDISP;
     attributes |= PACK_ACC; /* ACC used as the first particle position offset */
     attributes &= ~PACK_POTENTIAL;
     attributes &= ~PACK_DENSITY;
