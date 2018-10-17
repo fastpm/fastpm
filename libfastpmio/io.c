@@ -228,6 +228,7 @@ write_snapshot_data(FastPMStore * p,
         {"Task", p->fof?&(p->fof[0].task):NULL, "i4", sizeof(p->fof[0]), 1, "i4"},
         {"Rdisp",p->rdisp, "f4", sizeof(p->rdisp[0][0]), 6, "f4"},
         {"Vdisp", p->vdisp, "f4", sizeof(p->vdisp[0][0]), 6, "f4"},
+        {"RVdisp", p->rvdisp, "f4", sizeof(p->rvdisp[0][0]), 9, "f4"},
         {NULL, },
     };
     if (!append) {
