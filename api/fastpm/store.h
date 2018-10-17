@@ -48,8 +48,6 @@ enum FastPMPackFields {
 };
 
 struct FastPMStore {
-    fastpm_posfunc get_position;
-
     size_t (*pack)  (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
     void   (*unpack)(FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
     void   (*reduce)(FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);

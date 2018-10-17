@@ -474,8 +474,8 @@ fastpm_smesh_compute_potential(
                      PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
                     };
 
-        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | PACK_POS, NULL);
-        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes, NULL);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | PACK_POS);
+        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes);
 
         pm_ghosts_send(pgd_last_now, PACK_POS);
         pm_ghosts_send(pgd_new_now, PACK_POS);

@@ -320,7 +320,6 @@ fastpm_store_init_details(FastPMStore * p,
     p->pack = pack;
     p->unpack = unpack;
     p->reduce = reduce;
-    p->get_position = fastpm_store_get_position;
     p->to_double = to_double;
     p->from_double = from_double;
 
@@ -333,7 +332,7 @@ fastpm_store_init_details(FastPMStore * p,
 
     #define DISPATCH(PACK, column) \
         if(it == 0) { \
-            (size += ((attributes & PACK) != 0) * _alignsize(sizeof(p->column[0]) * np_upper)); \
+            (size += ((attributes & PACK) != 0) * (_alignsize(sizeof(p->column[0]) * np_upper))); \
         } else { \
             if(attributes & PACK) { \
                 p->column = (void*) (((char*) p->base) + offset); \
@@ -505,7 +504,7 @@ int
 FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm)
 {
     double pos[3];
-    p->get_position(p, i, pos);
+    fastpm_store_get_position(p, i, pos);
     return pm_pos_to_rank(pm, pos);
 }
 

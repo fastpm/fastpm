@@ -266,7 +266,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     double density_factor = pm->Norm / np;
 
     CLOCK(ghosts);
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, NULL);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes);
     pm_ghosts_send(pgd, PACK_POS);
     LEAVE(ghosts);
 

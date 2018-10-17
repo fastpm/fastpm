@@ -28,7 +28,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         }
     }
 
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | PACK_DX1 | PACK_DX2, NULL);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | PACK_DX1 | PACK_DX2);
     pm_ghosts_send(pgd, PACK_POS);
 
     FastPMPainter painter[1];

@@ -3,8 +3,6 @@ typedef struct PMGhostData {
     FastPMStore * source; /* original particles */
     FastPMStore * p;  /* ghost particles */
 
-    /* the get_position member is used to determine the target rank */
-    fastpm_posfunc get_position;
     double Below[3];
     double Above[3];
 
@@ -24,12 +22,11 @@ typedef struct PMGhostData {
 } PMGhostData;
 
 PMGhostData * 
-pm_ghosts_create(PM * pm, FastPMStore * p, enum FastPMPackFields attributes, fastpm_posfunc get_position);
+pm_ghosts_create(PM * pm, FastPMStore * p, enum FastPMPackFields attributes);
 
 PMGhostData * 
 pm_ghosts_create_full(PM * pm, FastPMStore * p,
         enum FastPMPackFields attributes,
-        fastpm_posfunc get_position,
         double below[],
         double above[]
         );

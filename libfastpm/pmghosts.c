@@ -38,7 +38,7 @@ pm_iter_ghosts(PM * pm, PMGhostData * pgd,
         PMGhostData localppd = *pgd;
         double pos[3];
         int rank;
-        pgd->get_position(pgd->source, i, pos);
+        fastpm_store_get_position(pgd->source, i, pos);
         int d;
 
         /* how far the window expands. */
@@ -94,7 +94,7 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
     size_t * elsize = userdata2[1];
 
     double pos[3];
-    pgd->get_position(pgd->source, pgd->ipar, pos);
+    fastpm_store_get_position(pgd->source, pgd->ipar, pos);
 
     int ighost;
     int offset; 
@@ -115,18 +115,15 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
  * */
 PMGhostData *
 pm_ghosts_create(PM * pm, FastPMStore * p,
-    enum FastPMPackFields attributes,
-    fastpm_posfunc get_position)
+    enum FastPMPackFields attributes)
 {
-    return pm_ghosts_create_full(pm, p, attributes,
-            get_position, pm->Below, pm->Above);
+    return pm_ghosts_create_full(pm, p, attributes, pm->Below, pm->Above);
 
 }
 
 PMGhostData * 
 pm_ghosts_create_full(PM * pm, FastPMStore * p,
         enum FastPMPackFields attributes,
-        fastpm_posfunc get_position,
         double below[],
         double above[]
         )
@@ -135,12 +132,6 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     pgd->pm = pm;
     pgd->source = p;
-
-    if(get_position == NULL)
-        pgd->get_position = p->get_position;
-    else
-        pgd->get_position = get_position;
-
 
     int d;
     for(d = 0; d < 3; d++) {
