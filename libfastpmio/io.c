@@ -209,26 +209,25 @@ write_snapshot_data(FastPMStore * p,
         char * name;
         void * fastpm;
         char * dtype;
-        int stride;
         int nmemb;
         char * dtype_out;
     } * bdesc, BLOCKS[] = {
-        {"Position", p->x, "f8", 8, 3, "f4"},
-        {"InitialPosition", p->q, "f4", 4, 3, "f4"},
-        {"DX1", p->dx1, "f4", 4, 3, "f4"},
-        {"DX2", p->dx2, "f4", 4, 3, "f4"},
-        {"Velocity", p->v, "f4", 4, 3, "f4"},
-        {"ID", p->id, "i8", 8, 1, "i8"},
-        {"Aemit", p->aemit, "f4", 4, 1, "f4"},
-        {"Potential", p->potential, "f4", 4, 1, "f4"},
-        {"Density", p->rho, "f4", 4, 1, "f4"},
-        {"Tidal", p->tidal, "f4", 4, 6, "f4"},
-        {"Length", p->length, "i4", 4, 1, "i4"},
-        {"MinID",p->fof?&(p->fof[0].minid):NULL, "i8", sizeof(p->fof[0]), 1, "i8"},
-        {"Task", p->fof?&(p->fof[0].task):NULL, "i4", sizeof(p->fof[0]), 1, "i4"},
-        {"Rdisp",p->rdisp, "f4", sizeof(p->rdisp[0][0]), 6, "f4"},
-        {"Vdisp", p->vdisp, "f4", sizeof(p->vdisp[0][0]), 6, "f4"},
-        {"RVdisp", p->rvdisp, "f4", sizeof(p->rvdisp[0][0]), 9, "f4"},
+        {"Position", p->x, "f8", 3, "f4"},
+        {"InitialPosition", p->q, "f4", 3, "f4"},
+        {"DX1", p->dx1, "f4", 3, "f4"},
+        {"DX2", p->dx2, "f4", 3, "f4"},
+        {"Velocity", p->v, "f4", 3, "f4"},
+        {"ID", p->id, "i8", 1, "i8"},
+        {"Aemit", p->aemit, "f4", 1, "f4"},
+        {"Potential", p->potential, "f4", 1, "f4"},
+        {"Density", p->rho, "f4", 1, "f4"},
+        {"Tidal", p->tidal, "f4", 6, "f4"},
+        {"Length", p->length, "i4", 1, "i4"},
+        {"MinID",p->minid, "i8", 1, "i8"},
+        {"Task", p->task, "i4", 1, "i4"},
+        {"Rdisp",p->rdisp, "f4", 6, "f4"},
+        {"Vdisp", p->vdisp, "f4", 6, "f4"},
+        {"RVdisp", p->rvdisp, "f4", 9, "f4"},
         {NULL, },
     };
     if (!append) {
@@ -266,7 +265,7 @@ write_snapshot_data(FastPMStore * p,
             big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
             big_block_seek(&bb, &ptr, oldsize);
         }
-        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, (ptrdiff_t[]) {bdesc->stride * bdesc->nmemb, bdesc->stride} );
+        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL );
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
         big_block_mpi_close(&bb, comm);
         free(blockname);

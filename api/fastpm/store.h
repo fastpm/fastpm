@@ -17,12 +17,13 @@ enum FastPMPackFields {
     PACK_DENSITY =  1L << 8,
     PACK_POTENTIAL =  1L << 9,
     PACK_TIDAL     =  1L << 10,
-    PACK_FOF =  1L << 11,
-    PACK_LENGTH =  1L << 12,
-    PACK_MASK    =  1L << 13,
-    PACK_RDISP =  1L << 14,
-    PACK_VDISP =  1L << 15,
-    PACK_RVDISP =  1L << 16,
+    PACK_MINID =  1L << 11,
+    PACK_TASK =  1L << 12,
+    PACK_LENGTH =  1L << 13,
+    PACK_MASK    =  1L << 14,
+    PACK_RDISP =  1L << 15,
+    PACK_VDISP =  1L << 16,
+    PACK_RVDISP =  1L << 17,
 
 
     PACK_ACC_X =  1L << 20,
@@ -74,10 +75,8 @@ struct FastPMStore {
     uint8_t * mask;
 
     /* for fof */
-    struct FastPMFOFData {
-        uint64_t minid;
-        int64_t task; /* to fill up the 8 bytes alignment */
-     } * fof;
+    uint64_t * minid;
+    int32_t  * task;
     int32_t * length;
     float (* rdisp)[6]; /* zero lag, first lag, second lag */
     float (* vdisp)[6];
