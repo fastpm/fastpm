@@ -158,6 +158,9 @@ void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
 void
+fastpm_store_take(FastPMStore * in, ptrdiff_t i, FastPMStore * out, ptrdiff_t j);
+
+void
 fastpm_store_append(FastPMStore * in, FastPMStore * out);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
