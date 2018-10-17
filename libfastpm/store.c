@@ -66,6 +66,7 @@ static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_LENGTH, length)
     DISPATCH(PACK_RDISP, rdisp)
     DISPATCH(PACK_VDISP, vdisp)
+    DISPATCH(PACK_RVDISP, rvdisp)
 
     /* components */
     DISPATCHC(PACK_ACC_X, acc, 0)
@@ -132,6 +133,7 @@ static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPack
     DISPATCH(PACK_LENGTH, length)
     DISPATCH(PACK_RDISP, rdisp)
     DISPATCH(PACK_VDISP, vdisp)
+    DISPATCH(PACK_RVDISP, rvdisp)
 
     DISPATCHC(PACK_ACC_X, acc, 0)
     DISPATCHC(PACK_ACC_Y, acc, 1)
@@ -358,6 +360,7 @@ fastpm_store_init_details(FastPMStore * p,
         DISPATCH(PACK_LENGTH, length);
         DISPATCH(PACK_RDISP, rdisp);
         DISPATCH(PACK_VDISP, vdisp);
+        DISPATCH(PACK_RVDISP, rvdisp);
 
         if(it == 0) {
             p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
@@ -434,6 +437,7 @@ void fastpm_store_permute(FastPMStore * p, int * ind)
     if(p->length) permute(p->length, p->np, sizeof(p->length[0]), ind);
     if(p->rdisp) permute(p->rdisp, p->np, sizeof(p->rdisp[0]), ind);
     if(p->vdisp) permute(p->vdisp, p->np, sizeof(p->vdisp[0]), ind);
+    if(p->rvdisp) permute(p->rvdisp, p->np, sizeof(p->rvdisp[0]), ind);
 }
 
 
