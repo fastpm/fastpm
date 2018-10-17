@@ -327,7 +327,7 @@ fastpm_store_init_details(FastPMStore * p,
     int it;
     p->base = NULL;
 
-    #define SIZEIT(column, PACK) \
+    #define DISPATCH(PACK, column) \
         if(it == 0) { \
             (size += ((attributes & PACK) != 0) * _alignsize(sizeof(p->column[0]) * np_upper)); \
         } else { \
@@ -342,22 +342,22 @@ fastpm_store_init_details(FastPMStore * p,
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
     for(it = 0; it < 2; it ++) {
-        SIZEIT(x, PACK_POS);
-        SIZEIT(q, PACK_Q);
-        SIZEIT(v, PACK_VEL);
-        SIZEIT(acc, PACK_ACC);
-        SIZEIT(dx1, PACK_DX1);
-        SIZEIT(dx2, PACK_DX2);
-        SIZEIT(aemit, PACK_AEMIT);
-        SIZEIT(rho, PACK_DENSITY);
-        SIZEIT(potential, PACK_POTENTIAL);
-        SIZEIT(tidal, PACK_TIDAL);
-        SIZEIT(id, PACK_ID);
-        SIZEIT(mask, PACK_MASK);
-        SIZEIT(fof , PACK_FOF);
-        SIZEIT(length, PACK_LENGTH);
-        SIZEIT(rdisp, PACK_RDISP);
-        SIZEIT(vdisp, PACK_VDISP);
+        DISPATCH(PACK_POS, x);
+        DISPATCH(PACK_Q, q);
+        DISPATCH(PACK_VEL, v);
+        DISPATCH(PACK_ACC, acc);
+        DISPATCH(PACK_DX1, dx1);
+        DISPATCH(PACK_DX2, dx2);
+        DISPATCH(PACK_AEMIT, aemit);
+        DISPATCH(PACK_DENSITY, rho);
+        DISPATCH(PACK_POTENTIAL, potential);
+        DISPATCH(PACK_TIDAL, tidal);
+        DISPATCH(PACK_ID, id);
+        DISPATCH(PACK_MASK, mask);
+        DISPATCH(PACK_FOF, fof);
+        DISPATCH(PACK_LENGTH, length);
+        DISPATCH(PACK_RDISP, rdisp);
+        DISPATCH(PACK_VDISP, vdisp);
 
         if(it == 0) {
             p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
@@ -779,12 +779,12 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
         fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
     }
 
-    if(po->x) memcpy(&po->x[offset], &p->x[start], sizeof(p->x[0][0]) * 3 * ncopy);
-    if(po->q) memcpy(&po->q[offset], &p->q[start], sizeof(p->q[0][0]) * 3 * ncopy);
-    if(po->v) memcpy(&po->v[offset], &p->v[start], sizeof(p->v[0][0]) * 3 * ncopy);
-    if(po->acc) memcpy(&po->acc[offset], &p->acc[start], sizeof(p->acc[0][0]) * 3 * ncopy);
-    if(po->dx1) memcpy(&po->dx1[offset], &p->dx1[start], sizeof(p->dx1[0][0]) * 3 * ncopy);
-    if(po->dx2) memcpy(&po->dx2[offset], &p->dx2[start], sizeof(p->dx2[0][0]) * 3 * ncopy);
+    if(po->x) memcpy(&po->x[offset], &p->x[start], sizeof(p->x[0]) * ncopy);
+    if(po->q) memcpy(&po->q[offset], &p->q[start], sizeof(p->q[0]) * ncopy);
+    if(po->v) memcpy(&po->v[offset], &p->v[start], sizeof(p->v[0]) * ncopy);
+    if(po->acc) memcpy(&po->acc[offset], &p->acc[start], sizeof(p->acc[0]) * ncopy);
+    if(po->dx1) memcpy(&po->dx1[offset], &p->dx1[start], sizeof(p->dx1[0]) * ncopy);
+    if(po->dx2) memcpy(&po->dx2[offset], &p->dx2[start], sizeof(p->dx2[0]) * ncopy);
     if(po->aemit) memcpy(&po->aemit[offset], &p->aemit[start], sizeof(p->aemit[0]) * ncopy);
     if(po->rho) memcpy(&po->rho[offset], &p->rho[start], sizeof(p->potential[0]) * ncopy);
     if(po->potential) memcpy(&po->potential[offset], &p->potential[start], sizeof(p->potential[0]) * ncopy);
@@ -795,6 +795,7 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
     if(po->length) memcpy(&po->length[offset], &p->length[start], sizeof(p->length[0]) * ncopy);
     if(po->rdisp) memcpy(&po->rdisp[offset], &p->rdisp[start], sizeof(p->rdisp[0]) * ncopy);
     if(po->vdisp) memcpy(&po->vdisp[offset], &p->vdisp[start], sizeof(p->vdisp[0]) * ncopy);
+    if(po->rvdisp) memcpy(&po->rvdisp[offset], &p->rvdisp[start], sizeof(p->rvdisp[0]) * ncopy);
 
     po->np = offset + ncopy;
     po->a_x = p->a_x;
@@ -871,22 +872,23 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
         if(!mask[i]) continue;
         /* avoid memcpy of same address if we are doing subsample inplace */
         if(p != po || j != i) {
-            if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0][0]) * 3);
-            if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0][0]) * 3);
-            if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0][0]) * 3);
-            if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0][0]) * 3);
-            if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0][0]) * 3);
-            if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0][0]) * 3);
+            if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0]));
+            if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0]));
+            if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0]));
+            if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0]));
+            if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0]));
+            if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0]));
             if(po->aemit) po->aemit[j] = p->aemit[i];
             if(po->rho) po->rho[j] = p->rho[i];
             if(po->potential) po->potential[j] = p->potential[i];
-            if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0][0]) * 6);
+            if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0]));
             if(po->id) po->id[j] = p->id[i];
             if(po->mask) po->mask[j] = p->mask[i];
             if(po->fof) po->fof[j] = p->fof[i];
             if(po->length) po->length[j] = p->length[i];
-            if(po->rdisp) memcpy(po->rdisp[j], p->rdisp[i], sizeof(p->rdisp[0][0]) * 6);
-            if(po->vdisp) memcpy(po->vdisp[j], p->vdisp[i], sizeof(p->vdisp[0][0]) * 6);
+            if(po->rdisp) memcpy(po->rdisp[j], p->rdisp[i], sizeof(p->rdisp[0]));
+            if(po->vdisp) memcpy(po->vdisp[j], p->vdisp[i], sizeof(p->vdisp[0]));
+            if(po->rvdisp) memcpy(po->rvdisp[j], p->rvdisp[i], sizeof(p->rvdisp[0]));
         }
         j ++;
     }
