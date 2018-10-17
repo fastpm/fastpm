@@ -42,9 +42,6 @@ struct KDTreeNodeBuffer {
 };
 
 
-static void
-fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, size_t nhalos);
-
 static void *
 _kdtree_buffered_malloc(void * userdata, size_t size)
 {
@@ -620,6 +617,9 @@ fastpm_fof_compute_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos,
             fastpm_raise(-1, "halo of a particle out of bounds (%td > %td)\n", hid, halos->np);
         }
 
+        /* initialize h1 with existing halo attributes for this particle */
+        fastpm_store_take(halos, hid, h1, 0);
+
         convert_func(finder, finder->p, i, h1);
 
         add_func(finder, halos, hid, h1, 0);
@@ -772,20 +772,10 @@ _convert_basic_halo_attrs(FastPMFOFFinder * finder, FastPMStore * p, ptrdiff_t i
             halos->q[hid][d] = q[d];
         }
     }
-    if(halos->rdisp) {
 
-    }
-
-    if(halos->vdisp) {
-        for(d = 0; d < 3; d ++) {
-            halos->vdisp[hid][d] = p->v[i][d] * p->v[i][d];
-            halos->vdisp[hid][d + 3] = p->v[i][d] * p->v[i][(d + 1) % 3];
-        }
-    }
     if(halos->aemit)
         halos->aemit[hid] = p->aemit[i];
 }
-
 static void
 _reduce_basic_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos, ptrdiff_t i)
 {
@@ -806,6 +796,126 @@ _reduce_basic_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos, ptrdiff_
     }
     if(halos->aemit)
         halos->aemit[i] /= n;
+}
+
+static void
+_add_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * h1, ptrdiff_t i1, FastPMStore * h2, ptrdiff_t i2)
+{
+    int d;
+    if(h1->vdisp) {
+        for(d = 0; d < 6; d ++) {
+            h1->vdisp[i1][d] += h2->vdisp[i2][d];
+        }
+    }
+    if(h1->rdisp) {
+        for(d = 0; d < 6; d ++) {
+            h1->rdisp[i1][d] += h2->rdisp[i2][d];
+        }
+    }
+}
+
+static void
+_convert_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * p, ptrdiff_t i, FastPMStore * halos)
+{
+    int hid = 0;
+
+    int d;
+    double rrel[3];
+
+    for(d = 0; d < 3; d ++) {
+        rrel[d] = p->x[i][d] - halos->x[hid][d];
+
+        if(finder->priv->boxsize) {
+            double L = finder->priv->boxsize[d];
+            while(rrel[d] > L / 2) rrel[d] -= L;
+            while(rrel[d] < -L / 2) rrel[d] += L;
+        }
+    }
+
+    if(halos->vdisp) {
+        /* FIXME: add hubble expansion term based on aemit and hubble function? needs to modify Finder object */
+
+        double vrel[3];
+        for(d = 0; d < 3; d ++) {
+            vrel[d] = p->v[i][d] - halos->v[hid][d];
+        }
+        for(d = 0; d < 3; d ++) {
+            halos->vdisp[hid][d] = vrel[d] * vrel[d];
+            halos->vdisp[hid][d + 3] = vrel[d] * vrel[(d + 1) % 3];
+        }
+    }
+    if(halos->rdisp) {
+        for(d = 0; d < 3; d ++) {
+            halos->rdisp[hid][d] = rrel[d] * rrel[d];
+            halos->rdisp[hid][d + 3] = rrel[d] * rrel[(d + 1) % 3];
+        }
+    }
+}
+static void
+_reduce_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos, ptrdiff_t hid)
+{
+    double n = halos->length[hid];
+    int d;
+    if(halos->vdisp) {
+        for(d = 0; d < 6; d ++) {
+            halos->vdisp[hid][d] /= n;
+        }
+    }
+    if(halos->rdisp) {
+        for(d = 0; d < 3; d ++) {
+            halos->rdisp[hid][d] /= n;
+        }
+    }
+}
+
+/* This function creates the storage object for halo segments that are local on this
+ * rank. We store mnay attributes. We only allow a flucutation of 2 around avg_halos.
+ * this should be OK, since we will only redistribute by the MinID, which are supposed
+ * to be very uniform.
+ * */
+static void
+fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, size_t nhalos)
+{
+
+    MPI_Comm comm = finder->priv->comm;
+
+    enum FastPMPackFields attributes = finder->p->attributes;
+    attributes |= PACK_LENGTH | PACK_FOF;
+    attributes |= PACK_RDISP | PACK_VDISP;
+    attributes |= PACK_ACC; /* ACC used as the first particle position offset */
+    attributes &= ~PACK_POTENTIAL;
+    attributes &= ~PACK_DENSITY;
+    attributes &= ~PACK_TIDAL;
+
+    /* store initial position only for periodic case. non-periodic suggests light cone and
+     * we cannot infer q from ID sensibly. (crashes there) */
+    if(finder->priv->boxsize) {
+        attributes |= PACK_Q;
+    } else {
+        attributes &= ~PACK_Q;
+    }
+
+    double avg_halos;
+    double max_halos;
+    /* + 1 to ensure avg_halos > 0 */
+    MPIU_stats(comm, nhalos + 1, "->", &avg_halos, &max_halos);
+
+    /* give it enough space for rebalancing. */
+    fastpm_store_init(halos, (size_t) (max_halos * 2),
+            attributes,
+            FASTPM_MEMORY_HEAP);
+
+    halos->np = nhalos;
+    halos->a_x = finder->p->a_x;
+    halos->a_v = finder->p->a_v;
+
+    ptrdiff_t i;
+    for(i = 0; i < halos->np; i++) {
+        halos->id[i] = i;
+
+        halos->mask[i] = 0; /* unselect the halos ; will turn this only if any particle is used */
+        /* everthing should have been set to zero already by fastpm_store_init */
+    }
 }
 
 
@@ -881,8 +991,6 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* create local halos and modify head to index the local halos */
     fastpm_fof_create_local_halos(finder, halos, nhalos);
 
-    /* now halos[head[i]] is the halo attribute of particle i. */
-
     /* remove halos without any local particles */
     fastpm_fof_remove_empty_halos(finder, halos, fofsave, head);
 
@@ -893,6 +1001,9 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     /* apply length cut */
     fastpm_fof_apply_length_cut(finder, halos, head);
+
+    /* reduce the primary halo attrs */
+    fastpm_fof_compute_halo_attrs(finder, halos, head, _convert_extended_halo_attrs, _add_extended_halo_attrs, _reduce_extended_halo_attrs);
 
     /* the event is called with full halos, only those where mask==1 are primary
      * the others are ghosts with the correct properties but shall not show up in the
@@ -911,55 +1022,6 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     fastpm_store_subsample(halos, halos->mask, halos);
 
     fastpm_info("After event: %td halos.\n", fastpm_store_get_np_total(halos, comm));
-}
-
-/* This function creates the storage object for halo segments that are local on this
- * rank. We store mnay attributes. We only allow a flucutation of 2 around avg_halos.
- * this should be OK, since we will only redistribute by the MinID, which are supposed
- * to be very uniform.
- * */
-static void
-fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, size_t nhalos)
-{
-
-    MPI_Comm comm = finder->priv->comm;
-
-    enum FastPMPackFields attributes = finder->p->attributes;
-    attributes |= PACK_LENGTH | PACK_FOF;
-    attributes |= PACK_ACC; /* ACC used as the first particle position offset */
-    attributes &= ~PACK_POTENTIAL;
-    attributes &= ~PACK_DENSITY;
-    attributes &= ~PACK_TIDAL;
-
-    /* store initial position only for periodic case. non-periodic suggests light cone and
-     * we cannot infer q from ID sensibly. (crashes there) */
-    if(finder->priv->boxsize) {
-        attributes |= PACK_Q;
-    } else {
-        attributes &= ~PACK_Q;
-    }
-
-    double avg_halos;
-    double max_halos;
-    /* + 1 to ensure avg_halos > 0 */
-    MPIU_stats(comm, nhalos + 1, "->", &avg_halos, &max_halos);
-
-    /* give it enough space for rebalancing. */
-    fastpm_store_init(halos, (size_t) (max_halos * 2),
-            attributes,
-            FASTPM_MEMORY_HEAP);
-
-    halos->np = nhalos;
-    halos->a_x = finder->p->a_x;
-    halos->a_v = finder->p->a_v;
-
-    ptrdiff_t i;
-    for(i = 0; i < halos->np; i++) {
-        halos->id[i] = i;
-
-        halos->mask[i] = 0; /* unselect the halos ; will turn this only if any particle is used */
-        /* everthing should have been set to zero already by fastpm_store_init */
-    }
 }
 
 void
