@@ -6,45 +6,26 @@
 
 FASTPM_BEGIN_DECLS
 enum FastPMPackFields {
-    PACK_POS   =  1L << 0,
-    PACK_VEL   =  1L << 1,
-    PACK_DX1   =  1L << 2,
-    PACK_DX2   =  1L << 3,
-    PACK_ACC   =  1L << 4,
-    PACK_ID    =  1L << 5,
-    PACK_Q     =  1L << 6,
-    PACK_AEMIT     =  1L << 7,
-    PACK_DENSITY =  1L << 8,
-    PACK_POTENTIAL =  1L << 9,
-    PACK_TIDAL     =  1L << 10,
-    PACK_MINID =  1L << 11,
-    PACK_TASK =  1L << 12,
-    PACK_LENGTH =  1L << 13,
-    PACK_MASK    =  1L << 14,
+    PACK_MASK    =  1L << 0,
+    PACK_POS   =  1L << 1,
+    PACK_Q     =  1L << 2,
+    PACK_VEL   =  1L << 3,
+    PACK_DX1   =  1L << 4,
+    PACK_DX2   =  1L << 5,
+    PACK_ACC   =  1L << 6,
+    PACK_ID    =  1L << 7,
+    PACK_AEMIT     =  1L << 8,
+    PACK_DENSITY =  1L << 9,
+    PACK_POTENTIAL =  1L << 10,
+    PACK_TIDAL     =  1L << 11,
+
+    /* for fof */
+    PACK_MINID =  1L << 12,
+    PACK_TASK =  1L << 13,
+    PACK_LENGTH =  1L << 14,
     PACK_RDISP =  1L << 15,
     PACK_VDISP =  1L << 16,
     PACK_RVDISP =  1L << 17,
-
-
-    PACK_ACC_X =  1L << 20,
-    PACK_ACC_Y =  1L << 21,
-    PACK_ACC_Z =  1L << 22,
-    PACK_DX1_X   =  1L << 23,
-    PACK_DX1_Y   =  1L << 24,
-    PACK_DX1_Z   =  1L << 25,
-    PACK_DX2_X   =  1L << 26,
-    PACK_DX2_Y   =  1L << 27,
-    PACK_DX2_Z   =  1L << 28,
-    PACK_POS_X =  1L << 29,
-    PACK_POS_Y =  1L << 30,
-    PACK_POS_Z =  1L << 31,
-
-    PACK_TIDAL_XX =  1L << 32,
-    PACK_TIDAL_YY =  1L << 33,
-    PACK_TIDAL_ZZ =  1L << 34,
-    PACK_TIDAL_XY =  1L << 35,
-    PACK_TIDAL_YZ =  1L << 36,
-    PACK_TIDAL_ZX =  1L << 37,
 };
 
 struct FastPMStore {
@@ -53,27 +34,47 @@ struct FastPMStore {
     enum FastPMPackFields attributes; /* bit flags of allocated attributes */
 
     void * base; /* base pointer of all memory buffers */
-    double (* x)[3];
-    float (* q)[3];
-    float (* v)[3];
-    float (* acc)[3];
-    float (* dx1)[3];
-    float (* dx2)[3];
-    float (* aemit);
-    float (* rho);
-    float (* potential);
-    float (* tidal)[6];
-    uint64_t * id;
-    uint8_t * mask;
 
-    /* for fof */
-    uint64_t * minid;
-    int32_t  * task;
-    int32_t * length;
-    float (* rdisp)[6]; /* zero lag, first lag, second lag */
-    float (* vdisp)[6];
-    float (* rvdisp)[9];
+    struct {
+        void   (*pack)   (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
+        void   (*unpack) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
+        void   (*pack_member)   (FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed);
+        void   (*reduce_member) (FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed);
+        double (*to_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb);
+        void   (*from_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value);
 
+        char dtype[8];
+        size_t elsize;
+        size_t membsize;
+        size_t nmemb;
+        enum FastPMPackFields attribute;
+    } column_info[32];
+
+    union {
+        char * columns[32];
+        struct {
+            uint8_t * mask;
+            double (* x)[3];
+            float (* q)[3];
+            float (* v)[3];
+            float (* dx1)[3];
+            float (* dx2)[3];
+            float (* acc)[3];
+            uint64_t * id;
+            float (* aemit);
+            float (* rho);
+            float (* potential);
+            float (* tidal)[6];
+
+            /* for fof */
+            uint64_t * minid;
+            int32_t  * task;
+            int32_t * length;
+            float (* rdisp)[6]; /* zero lag, first lag, second lag */
+            float (* vdisp)[6];
+            float (* rvdisp)[9];
+        };
+    };
     size_t np;
     size_t np_upper;
     double a_x;
@@ -84,6 +85,12 @@ struct FastPMStore {
     ptrdiff_t q_strides[3];
 };
 
+typedef struct {
+    enum FastPMPackFields attribute;
+    int memb;
+} FastPMFieldDescr;
+
+const static FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 void
 fastpm_store_init_details(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
 
@@ -101,9 +108,8 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
 
 size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
 void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
-void   fastpm_store_reduce (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
-double fastpm_store_to_double (FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute);
-void   fastpm_store_from_double (FastPMStore * p, ptrdiff_t index, enum FastPMPackFields attribute, double value);
+
+int fastpm_store_find_column_id(FastPMStore *p, enum FastPMPackFields attribute);
 
 void
 fastpm_store_destroy(FastPMStore * p);

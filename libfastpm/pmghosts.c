@@ -93,9 +93,6 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
     enum FastPMPackFields * attributes = userdata2[0];
     size_t * elsize = userdata2[1];
 
-    double pos[3];
-    fastpm_store_get_position(pgd->source, pgd->ipar, pos);
-
     int ighost;
     int offset; 
 
@@ -211,30 +208,15 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
     fastpm_memory_free(pm->mem, pgd->send_buffer);
 }
 
-static
 void
-_reduce_any_field(PMGhostData * pgd,
-    enum FastPMPackFields attributes,
-    ptrdiff_t index, void * buf,
-    void * userdata)
+pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
 {
-    fastpm_store_reduce(pgd->source, index, buf, attributes);
-}
 
-void
-pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes)
-{
-    pm_ghosts_reduce_any(pgd, attributes,
-        (pm_ghosts_reduce_func) _reduce_any_field,
-        NULL);
-}
+    int ci;
+    for(ci = 0; ci < 32; ci ++) {
+        if(field.attribute == pgd->p->column_info[ci].attribute) break;
+    }
 
-void
-pm_ghosts_reduce_any(PMGhostData * pgd, 
-        enum FastPMPackFields attributes,
-        pm_ghosts_reduce_func func,
-        void * userdata)
-{
     PM * pm = pgd->pm;
 
     size_t Nsend = cumsum(NULL, pgd->Nsend, pm->NTask);
@@ -243,15 +225,15 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
 
     size_t elsize;
 
-    elsize = fastpm_store_pack(pgd->p, 0, NULL, attributes);
+    elsize = pgd->p->column_info[ci].elsize;
+
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
 
 #pragma omp parallel for
     for(i = 0; i < pgd->p->np; i ++) {
-        fastpm_store_pack(pgd->p, i,
-            (char*) pgd->recv_buffer + i * elsize, 
-            attributes);
+        pgd->p->column_info[ci].pack_member(pgd->p, i, ci, field.memb,
+            (char*) pgd->recv_buffer + i * elsize);
     }
 
     MPI_Datatype GHOST_TYPE;
@@ -271,10 +253,9 @@ pm_ghosts_reduce_any(PMGhostData * pgd,
      * but unlikly worth the effort.
      * */
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        func(pgd, attributes, 
-            pgd->ighost_to_ipar[ighost],
-            pgd->send_buffer + ighost * elsize,
-            userdata);
+        pgd->p->column_info[ci].reduce_member(pgd->source,
+            pgd->ighost_to_ipar[ighost], ci, field.memb,
+            pgd->send_buffer + ighost * elsize);
     }
     fastpm_memory_free(pm->mem, pgd->send_buffer);
     fastpm_memory_free(pm->mem, pgd->recv_buffer);

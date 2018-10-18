@@ -56,7 +56,7 @@ int main(int argc, char * argv[]) {
     fastpm_painter_init(painter, solver->basepm, config->PAINTER_TYPE, config->painter_support);
 
     pm_clear(solver->basepm, rho_final_xtruth);
-    fastpm_paint(painter, rho_final_xtruth, solver->p, 0);
+    fastpm_paint(painter, rho_final_xtruth, solver->p, FASTPM_FIELD_DESCR_NONE);
     //fastpm_utils_dump(solver->basepm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
 
     pm_free(solver->basepm, rho_final_xtruth);

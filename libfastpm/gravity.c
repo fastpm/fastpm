@@ -118,7 +118,7 @@ void
 gravity_apply_kernel_transfer(FastPMGravity * gravity,
         PM * pm,
         FastPMFloat * delta_k,
-        FastPMFloat * canvas, enum FastPMPackFields attribute)
+        FastPMFloat * canvas, FastPMFieldDescr field)
 {
     int potorder = 0;
     int gradorder = 0;
@@ -158,60 +158,56 @@ gravity_apply_kernel_transfer(FastPMGravity * gravity,
 
     int d1, d2;
 
-    switch(attribute) {
+    switch(field.attribute) {
         case PACK_POTENTIAL:
             apply_pot_transfer(pm, delta_k, canvas, potorder);
             break;
         case PACK_DENSITY:
             fastpm_apply_multiply_transfer(pm, delta_k, canvas, 1.0);
             break;
-        case PACK_TIDAL_XX:
-            d1 = 0; d2 = 0;
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
-            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+        case PACK_TIDAL:
+            switch(field.memb) {
+                case 0:
+                    d1 = 0; d2 = 0;
+                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+                    apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+                    break;
+                case 1:
+                    d1 = 1; d2 = 1;
+                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+                    apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+                    break;
+                case 2:
+                    d1 = 2; d2 = 2;
+                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+                    apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+                    break;
+                case 3:
+                    d1 = 0; d2 = 1;
+                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+                    apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+                    break;
+                case 4:
+                    d1 = 1; d2 = 2;
+                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+                    apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+                    break;
+                case 5:
+                    d1 = 2; d2 = 0;
+                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
+                    apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
+                    break;
+            }
             break;
-        case PACK_TIDAL_YY:
-            d1 = 1; d2 = 1;
+        case PACK_ACC:
             apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
-            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
-            break;
-        case PACK_TIDAL_ZZ:
-            d1 = 2; d2 = 2;
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
-            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
-            break;
-        case PACK_TIDAL_XY:
-            d1 = 0; d2 = 1;
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
-            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
-            break;
-        case PACK_TIDAL_YZ:
-            d1 = 1; d2 = 2;
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
-            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
-            break;
-        case PACK_TIDAL_ZX:
-            d1 = 2; d2 = 0;
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
-            apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
-            break;
-        case PACK_ACC_X:
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, 0, gradorder);
-            break;
-        case PACK_ACC_Y:
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, 1, gradorder);
-            break;
-        case PACK_ACC_Z:
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
-            apply_grad_transfer(pm, canvas, canvas, 2, gradorder);
+            apply_grad_transfer(pm, canvas, canvas, field.memb, gradorder);
             break;
         default:
             fastpm_raise(-1, "Unknown type for gravity attribute\n");
@@ -285,10 +281,11 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
     VALGRIND_CHECK_MEM_IS_DEFINED(pgd->p->x, sizeof(pgd->p->x[0]) * pgd->p->np);
+    FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 
     pm_clear(pm, canvas);
-    fastpm_paint_local(painter, canvas, p, p->np, 0);
-    fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, 0);
+    fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
+    fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, FASTPM_FIELD_DESCR_NONE);
 
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
 
@@ -301,10 +298,13 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
 
     int d;
-    enum FastPMPackFields ACC[] = {
-                 PACK_ACC_X, PACK_ACC_Y, PACK_ACC_Z,
-                 PACK_POTENTIAL,
-                };
+
+    FastPMFieldDescr ACC[] = {
+         {PACK_ACC, 0},
+         {PACK_ACC, 1},
+         {PACK_ACC, 2},
+         {PACK_POTENTIAL, 0}
+    };
 
     CLOCK(transfer);
     CLOCK(c2r);
@@ -313,7 +313,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     for(d = 0; d < 3 + 1; d ++) {
         /* skip potential if not wanted */
-        if(p->potential == NULL && ACC[d] == PACK_POTENTIAL) continue;
+        if(p->potential == NULL && ACC[d].attribute == PACK_POTENTIAL) continue;
         ENTER(transfer);
         gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
         LEAVE(transfer);

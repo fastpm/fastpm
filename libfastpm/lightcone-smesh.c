@@ -467,12 +467,16 @@ fastpm_smesh_compute_potential(
         /*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
 
         int d;
-        enum FastPMPackFields ACC[] = {
-                     PACK_DENSITY,
-                     PACK_POTENTIAL,
-                     PACK_TIDAL_XX, PACK_TIDAL_YY, PACK_TIDAL_ZZ,
-                     PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
-                    };
+        FastPMFieldDescr ACC[] = {
+         { PACK_DENSITY, 0 },
+         { PACK_POTENTIAL, 0},
+         { PACK_TIDAL, 0 },
+         { PACK_TIDAL, 1 },
+         { PACK_TIDAL, 2 },
+         { PACK_TIDAL, 3 },
+         { PACK_TIDAL, 4 },
+         { PACK_TIDAL, 5 },
+        };
 
         PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | PACK_POS);
         PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes);
@@ -484,7 +488,7 @@ fastpm_smesh_compute_potential(
             ENTER(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
-            if(ACC[d] == PACK_DENSITY) {
+            if(ACC[d].attribute == PACK_DENSITY) {
 //                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
             }
 
