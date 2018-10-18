@@ -86,12 +86,16 @@ count_ghosts(PM * pm, PMGhostData * pgd, void * userdata)
     pgd->Nsend[pgd->rank] ++;
 }
 
+struct build_ghost_buffer_data {
+    enum FastPMPackFields attributes;
+    size_t elsize;
+};
+
 static void
 build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 {
-    void ** userdata2 = userdata;
-    enum FastPMPackFields * attributes = userdata2[0];
-    size_t * elsize = userdata2[1];
+    struct build_ghost_buffer_data * data = userdata;
+
 
     int ighost;
     int offset; 
@@ -102,7 +106,7 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
     ighost = pgd->Osend[pgd->rank] + offset;
 
     fastpm_store_pack(pgd->source, pgd->ipar,
-        (char*) pgd->send_buffer + ighost * *elsize, *attributes);
+        (char*) pgd->send_buffer + ighost * data->elsize, data->attributes);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
 }
@@ -183,8 +187,8 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
     /* build buffer */
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    void * userdata[] = {&attributes, &elsize};
-    pm_iter_ghosts(pm, pgd, build_ghost_buffer, userdata);
+    struct build_ghost_buffer_data data = {attributes, elsize};
+    pm_iter_ghosts(pm, pgd, build_ghost_buffer, &data);
 
     /* exchange */
 
