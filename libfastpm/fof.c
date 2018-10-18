@@ -460,7 +460,9 @@ fastpm_fof_apply_length_cut(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
     fastpm_fof_subsample(finder, halos, mask, head);
     fastpm_memory_free(finder->p->mem, mask);
 
-    fastpm_info("After length cut we have %td halos (including ghost halos)\n", fastpm_store_get_np_total(halos, comm));
+    fastpm_info("After length cut we have %td halos (%td including ghost halos).\n", 
+            fastpm_store_get_mask_sum(halos, comm),
+            fastpm_store_get_np_total(halos, comm));
 }
 
 /* first every undecided halo; then the real halo with particles */

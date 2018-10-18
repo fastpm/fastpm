@@ -275,6 +275,18 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
     return np;
 }
 
+size_t
+fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm)
+{
+    long long np = 0;
+    ptrdiff_t i;
+    for(i = 0; i < p->np; i ++) {
+        np += p->mask[i] != 0;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
+    return np;
+}
+
 int
 fastpm_store_find_column_id(FastPMStore * p, enum FastPMPackFields attribute)
 {
@@ -746,20 +758,21 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
     ptrdiff_t i;
     ptrdiff_t j;
 
-    int c;
-    for(c = 0; c < 32; c ++) {
-        size_t elsize = po->column_info[c].elsize;
-        if (! po->columns[c]) continue;
-        j = 0;
-        for(i = 0; i < p->np; i ++) {
-            if(!mask[i]) continue;
+    j = 0;
+    for(i = 0; i < p->np; i ++) {
+        if(!mask[i]) continue;
+        /* avoid memcpy of same address if we are doing subsample inplace */
+        if(p == po && j == i) {j ++; continue; }
 
-            /* avoid memcpy of same address if we are doing subsample inplace */
-            if(p != po || j != i) {
-                memcpy(po->columns[c] + j * elsize, p->columns[c] + i * elsize, elsize);
-            }
-            j ++;
+        int c;
+        for(c = 0; c < 32; c ++) {
+            if (!po->columns[c]) continue;
+
+            size_t elsize = po->column_info[c].elsize;
+            memcpy(po->columns[c] + j * elsize, p->columns[c] + i * elsize, elsize);
         }
+
+        j ++;
     }
 
     po->np = j;
