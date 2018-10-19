@@ -28,8 +28,8 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         }
     }
 
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | PACK_DX1 | PACK_DX2);
-    pm_ghosts_send(pgd, PACK_POS);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2);
+    pm_ghosts_send(pgd, COLUMN_POS);
 
     FastPMPainter painter[1];
     fastpm_painter_init(painter, pm, FASTPM_PAINTER_CIC, 0);
@@ -45,8 +45,8 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         field[d] = pm_alloc(pm);
         memset(field[d], 0, sizeof(field[d][0]) * pm->allocsize);
     }
-    FastPMFieldDescr DX1[] = { {PACK_DX1, 0}, {PACK_DX1, 1}, {PACK_DX1, 2}};
-    FastPMFieldDescr DX2[] = { {PACK_DX2, 0}, {PACK_DX2, 1}, {PACK_DX2, 2}};
+    FastPMFieldDescr DX1[] = { {COLUMN_DX1, 0}, {COLUMN_DX1, 1}, {COLUMN_DX1, 2}};
+    FastPMFieldDescr DX2[] = { {COLUMN_DX2, 0}, {COLUMN_DX2, 1}, {COLUMN_DX2, 2}};
     int D1[] = {1, 2, 0};
     int D2[] = {2, 0, 1};
 

@@ -214,7 +214,7 @@ int main(int argc, char ** argv) {
     };
 
     if(CONF(prr, compute_potential)) {
-        config->ExtraAttributes |= PACK_POTENTIAL;
+        config->ExtraAttributes |= COLUMN_POTENTIAL;
     }
 
     run_fastpm(config, prr, comm);
@@ -949,7 +949,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         FastPMStore snapshot[1];
 
         fastpm_store_init(snapshot, p->np_upper,
-                p->attributes & ~PACK_ACC,
+                p->attributes & ~COLUMN_ACC,
                 FASTPM_MEMORY_FLOATING
             );
 

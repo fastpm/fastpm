@@ -159,13 +159,13 @@ gravity_apply_kernel_transfer(FastPMGravity * gravity,
     int d1, d2;
 
     switch(field.attribute) {
-        case PACK_POTENTIAL:
+        case COLUMN_POTENTIAL:
             apply_pot_transfer(pm, delta_k, canvas, potorder);
             break;
-        case PACK_DENSITY:
+        case COLUMN_DENSITY:
             fastpm_apply_multiply_transfer(pm, delta_k, canvas, 1.0);
             break;
-        case PACK_TIDAL:
+        case COLUMN_TIDAL:
             switch(field.memb) {
                 case 0:
                     d1 = 0; d2 = 0;
@@ -205,7 +205,7 @@ gravity_apply_kernel_transfer(FastPMGravity * gravity,
                     break;
             }
             break;
-        case PACK_ACC:
+        case COLUMN_ACC:
             apply_pot_transfer(pm, delta_k, canvas, potorder);
             apply_grad_transfer(pm, canvas, canvas, field.memb, gradorder);
             break;
@@ -263,7 +263,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     CLOCK(ghosts);
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes);
-    pm_ghosts_send(pgd, PACK_POS);
+    pm_ghosts_send(pgd, COLUMN_POS);
     LEAVE(ghosts);
 
     FastPMFloat * canvas = pm_alloc(pm);
@@ -300,10 +300,10 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     int d;
 
     FastPMFieldDescr ACC[] = {
-         {PACK_ACC, 0},
-         {PACK_ACC, 1},
-         {PACK_ACC, 2},
-         {PACK_POTENTIAL, 0}
+         {COLUMN_ACC, 0},
+         {COLUMN_ACC, 1},
+         {COLUMN_ACC, 2},
+         {COLUMN_POTENTIAL, 0}
     };
 
     CLOCK(transfer);
@@ -313,7 +313,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     for(d = 0; d < 3 + 1; d ++) {
         /* skip potential if not wanted */
-        if(p->potential == NULL && ACC[d].attribute == PACK_POTENTIAL) continue;
+        if(p->potential == NULL && ACC[d].attribute == COLUMN_POTENTIAL) continue;
         ENTER(transfer);
         gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
         LEAVE(transfer);

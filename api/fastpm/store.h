@@ -12,26 +12,26 @@ FASTPM_BEGIN_DECLS
  * if mismatched, the code will issue an error at start up.
  * */
 typedef enum FastPMColumnTags {
-    PACK_MASK    =  1L << 0,
-    PACK_POS   =  1L << 1,
-    PACK_Q     =  1L << 2,
-    PACK_VEL   =  1L << 3,
-    PACK_DX1   =  1L << 4,
-    PACK_DX2   =  1L << 5,
-    PACK_ACC   =  1L << 6,
-    PACK_ID    =  1L << 7,
-    PACK_AEMIT     =  1L << 8,
-    PACK_DENSITY =  1L << 9,
-    PACK_POTENTIAL =  1L << 10,
-    PACK_TIDAL     =  1L << 11,
+    COLUMN_MASK    =  1L << 0,
+    COLUMN_POS   =  1L << 1,
+    COLUMN_Q     =  1L << 2,
+    COLUMN_VEL   =  1L << 3,
+    COLUMN_DX1   =  1L << 4,
+    COLUMN_DX2   =  1L << 5,
+    COLUMN_ACC   =  1L << 6,
+    COLUMN_ID    =  1L << 7,
+    COLUMN_AEMIT     =  1L << 8,
+    COLUMN_DENSITY =  1L << 9,
+    COLUMN_POTENTIAL =  1L << 10,
+    COLUMN_TIDAL     =  1L << 11,
 
     /* for fof */
-    PACK_MINID =  1L << 12,
-    PACK_TASK =  1L << 13,
-    PACK_LENGTH =  1L << 14,
-    PACK_RDISP =  1L << 15,
-    PACK_VDISP =  1L << 16,
-    PACK_RVDISP =  1L << 17,
+    COLUMN_MINID =  1L << 12,
+    COLUMN_TASK =  1L << 13,
+    COLUMN_LENGTH =  1L << 14,
+    COLUMN_RDISP =  1L << 15,
+    COLUMN_VDISP =  1L << 16,
+    COLUMN_RVDISP =  1L << 17,
 
 } FastPMColumnTags;
 

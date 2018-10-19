@@ -147,24 +147,24 @@ fastpm_store_init_details(FastPMStore * p,
 
     #define COLUMN_INFO(column) (p->_column_info[FASTPM_STORE_COLUMN_INDEX(column)])
 
-    DEFINE_COLUMN(x, PACK_POS, "f8", 3);
-    DEFINE_COLUMN(q, PACK_Q, "f4", 3);
-    DEFINE_COLUMN(v, PACK_VEL, "f4", 3);
-    DEFINE_COLUMN(acc, PACK_ACC, "f4", 3);
-    DEFINE_COLUMN(dx1, PACK_DX1, "f4", 3);
-    DEFINE_COLUMN(dx2, PACK_DX2, "f4", 3);
-    DEFINE_COLUMN(aemit, PACK_AEMIT, "f4", 1);
-    DEFINE_COLUMN(rho, PACK_DENSITY, "f4", 1);
-    DEFINE_COLUMN(potential, PACK_POTENTIAL, "f4", 1);
-    DEFINE_COLUMN(tidal, PACK_TIDAL, "f4", 6);
-    DEFINE_COLUMN(id, PACK_ID, "i8", 1);
-    DEFINE_COLUMN(mask, PACK_MASK, "i1", 1);
-    DEFINE_COLUMN(minid, PACK_MINID, "i8", 1);
-    DEFINE_COLUMN(task, PACK_TASK, "i4", 1);
-    DEFINE_COLUMN(length, PACK_LENGTH, "i4", 1);
-    DEFINE_COLUMN(rdisp, PACK_RDISP, "f4", 6);
-    DEFINE_COLUMN(vdisp, PACK_VDISP, "f4", 6);
-    DEFINE_COLUMN(rvdisp, PACK_RVDISP, "f4", 9);
+    DEFINE_COLUMN(x, COLUMN_POS, "f8", 3);
+    DEFINE_COLUMN(q, COLUMN_Q, "f4", 3);
+    DEFINE_COLUMN(v, COLUMN_VEL, "f4", 3);
+    DEFINE_COLUMN(acc, COLUMN_ACC, "f4", 3);
+    DEFINE_COLUMN(dx1, COLUMN_DX1, "f4", 3);
+    DEFINE_COLUMN(dx2, COLUMN_DX2, "f4", 3);
+    DEFINE_COLUMN(aemit, COLUMN_AEMIT, "f4", 1);
+    DEFINE_COLUMN(rho, COLUMN_DENSITY, "f4", 1);
+    DEFINE_COLUMN(potential, COLUMN_POTENTIAL, "f4", 1);
+    DEFINE_COLUMN(tidal, COLUMN_TIDAL, "f4", 6);
+    DEFINE_COLUMN(id, COLUMN_ID, "i8", 1);
+    DEFINE_COLUMN(mask, COLUMN_MASK, "i1", 1);
+    DEFINE_COLUMN(minid, COLUMN_MINID, "i8", 1);
+    DEFINE_COLUMN(task, COLUMN_TASK, "i4", 1);
+    DEFINE_COLUMN(length, COLUMN_LENGTH, "i4", 1);
+    DEFINE_COLUMN(rdisp, COLUMN_RDISP, "f4", 6);
+    DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
+    DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
 
     COLUMN_INFO(rho).reduce_member = reduce_member_f4_add;
     COLUMN_INFO(rho).from_double = from_double_f4;
