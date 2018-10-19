@@ -86,13 +86,6 @@ count_ghosts(PM * pm, PMGhostData * pgd, void * userdata)
     pgd->Nsend[pgd->rank] ++;
 }
 
-struct ghost_buffer_data {
-    int Nci;
-    int ci[32];
-    int offsets[32];
-    size_t elsize;
-};
-
 static void
 build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 {
@@ -220,7 +213,7 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
 
     int ci;
     for(ci = 0; ci < 32; ci ++) {
-        if(field.attribute == pgd->p->column_info[ci].attribute) break;
+        if(field.attribute == pgd->p->_column_info[ci].attribute) break;
     }
 
     PM * pm = pgd->pm;
@@ -231,14 +224,14 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
 
     size_t elsize;
 
-    elsize = pgd->p->column_info[ci].elsize;
+    elsize = pgd->p->_column_info[ci].elsize;
 
     pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
     pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
 
 #pragma omp parallel for
     for(i = 0; i < pgd->p->np; i ++) {
-        pgd->p->column_info[ci].pack_member(pgd->p, i, ci, field.memb,
+        pgd->p->_column_info[ci].pack_member(pgd->p, i, ci, field.memb,
             (char*) pgd->recv_buffer + i * elsize);
     }
 
@@ -259,7 +252,7 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
      * but unlikly worth the effort.
      * */
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        pgd->p->column_info[ci].reduce_member(pgd->source,
+        pgd->p->_column_info[ci].reduce_member(pgd->source,
             pgd->ighost_to_ipar[ighost], ci, field.memb,
             pgd->send_buffer + ighost * elsize);
     }

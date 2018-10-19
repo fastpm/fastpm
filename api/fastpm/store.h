@@ -40,7 +40,7 @@ struct FastPMStore {
 
     FastPMColumnTags attributes; /* bit flags of allocated attributes */
 
-    void * base; /* base pointer of all memory buffers */
+    void * _base; /* base pointer of all memory buffers */
 
     /* The ordering of the column_info array is the same as the columns array */
     struct FastPMColumnInfo {
@@ -58,7 +58,7 @@ struct FastPMStore {
 
         /* This is exactly 1 << item index. Ensured by DEFINE_COLUMN and values in FastPMColumnTags. */
         FastPMColumnTags attribute;
-    } column_info[32];
+    } _column_info[32];
 
     union {
         char * columns[32];
@@ -90,9 +90,9 @@ struct FastPMStore {
     double a_x;
     double a_v;
 
-    double q_shift[3];
-    double q_scale[3];
-    ptrdiff_t q_strides[3];
+    double _q_shift[3];
+    double _q_scale[3];
+    ptrdiff_t _q_strides[3];
 };
 
 /* convert a column name literal (e.g. x, id) to the column index in the column_info array */
@@ -102,13 +102,14 @@ struct FastPMStore {
 
 /* */
 typedef struct {
-    FastPMColumnTags attributes;
-    int Ncolumns;
     int elsize;
+    int Ncolumns;
+    FastPMColumnTags attributes;
+
     /* private : */
-    int ci[32];
-    int offsets[32];
-    struct FastPMColumnInfo column_info[32];
+    int _ci[32];
+    int _offsets[32];
+    struct FastPMColumnInfo _column_info[32];
 } FastPMPackingPlan;
 
 typedef struct {

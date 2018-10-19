@@ -13,27 +13,27 @@
 static void
 pack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
 {
-    size_t elsize = p->column_info[ci].elsize;
+    size_t elsize = p->_column_info[ci].elsize;
     memcpy(packed, p->columns[ci] + index * elsize, elsize);
 }
 
 static void
 unpack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
 {
-    size_t elsize = p->column_info[ci].elsize;
+    size_t elsize = p->_column_info[ci].elsize;
     memcpy(p->columns[ci] + index * elsize, packed, elsize);
 }
 
 static void
 pack_member_any(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
 {
-    size_t nmemb = p->column_info[ci].nmemb ;
+    size_t nmemb = p->_column_info[ci].nmemb ;
     if(memb > nmemb) {
         fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
     }
 
-    size_t elsize = p->column_info[ci].elsize;
-    size_t membsize = p->column_info[ci].membsize;
+    size_t elsize = p->_column_info[ci].elsize;
+    size_t membsize = p->_column_info[ci].membsize;
 
     memcpy(packed, p->columns[ci] + index * elsize + membsize * memb, membsize);
 }
@@ -41,12 +41,12 @@ pack_member_any(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packe
 static void
 reduce_member_f4_add(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
 {
-    size_t nmemb = p->column_info[ci].nmemb ;
+    size_t nmemb = p->_column_info[ci].nmemb ;
     if(memb > nmemb || memb < 0) {
         fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
     }
 
-    size_t elsize = p->column_info[ci].elsize;
+    size_t elsize = p->_column_info[ci].elsize;
 
     float * ptr = (float*) (p->columns[ci] + index * elsize);
     float * ptr_packed = (float*) packed;
@@ -57,11 +57,11 @@ reduce_member_f4_add(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * 
 static double
 to_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb)
 {
-    size_t nmemb = p->column_info[ci].nmemb ;
+    size_t nmemb = p->_column_info[ci].nmemb ;
     if(memb > nmemb) {
         fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
     }
-    size_t elsize = p->column_info[ci].elsize;
+    size_t elsize = p->_column_info[ci].elsize;
 
     float * ptr = (float*) (p->columns[ci] + index * elsize);
 
@@ -71,11 +71,11 @@ to_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb)
 static void
 from_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value)
 {
-    size_t nmemb = p->column_info[ci].nmemb ;
+    size_t nmemb = p->_column_info[ci].nmemb ;
     if(memb > nmemb) {
         fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
     }
-    size_t elsize = p->column_info[ci].elsize;
+    size_t elsize = p->_column_info[ci].elsize;
 
     float * ptr = (float*) (p->columns[ci] + index * elsize);
 
@@ -121,31 +121,31 @@ fastpm_store_init_details(FastPMStore * p,
 
     /* clear the column pointers. */
     memset(p->columns, 0, sizeof(p->columns));
-    memset(p->column_info, 0, sizeof(p->column_info));
+    memset(p->_column_info, 0, sizeof(p->_column_info));
 
     int it;
-    p->base = NULL;
+    p->_base = NULL;
 
-    /* first loop initialize the column_info struct for corresponding items in the pointer union; 
+    /* first loop initialize the _column_info struct for corresponding items in the pointer union; 
      * second loop initialize the pointers */
     #define DEFINE_COLUMN(column, attr_, dtype_, nmemb_) \
         { \
             int ci = FASTPM_STORE_COLUMN_INDEX(column); \
             if(attr_ != (1 << ci)) { fastpm_raise(-1, "attr and column are out of order for %s\n", # column ); } \
-            strcpy(p->column_info[ci].dtype, dtype_);  \
-            p->column_info[ci].elsize = sizeof(p->column[0]);  \
-            p->column_info[ci].nmemb = nmemb_;  \
-            p->column_info[ci].membsize = sizeof(p->column[0]) / nmemb_;  \
-            p->column_info[ci].attribute = attr_;  \
-            p->column_info[ci].pack = pack_any;  \
-            p->column_info[ci].unpack = unpack_any;  \
-            p->column_info[ci].pack_member = pack_member_any; \
-            p->column_info[ci].reduce_member = NULL;  \
-            p->column_info[ci].from_double = NULL;  \
-            p->column_info[ci].to_double = NULL;  \
+            strcpy(p->_column_info[ci].dtype, dtype_);  \
+            p->_column_info[ci].elsize = sizeof(p->column[0]);  \
+            p->_column_info[ci].nmemb = nmemb_;  \
+            p->_column_info[ci].membsize = sizeof(p->column[0]) / nmemb_;  \
+            p->_column_info[ci].attribute = attr_;  \
+            p->_column_info[ci].pack = pack_any;  \
+            p->_column_info[ci].unpack = unpack_any;  \
+            p->_column_info[ci].pack_member = pack_member_any; \
+            p->_column_info[ci].reduce_member = NULL;  \
+            p->_column_info[ci].from_double = NULL;  \
+            p->_column_info[ci].to_double = NULL;  \
         }
 
-    #define COLUMN_INFO(column) (p->column_info[FASTPM_STORE_COLUMN_INDEX(column)])
+    #define COLUMN_INFO(column) (p->_column_info[FASTPM_STORE_COLUMN_INDEX(column)])
 
     DEFINE_COLUMN(x, PACK_POS, "f8", 3);
     DEFINE_COLUMN(q, PACK_Q, "f4", 3);
@@ -186,11 +186,11 @@ fastpm_store_init_details(FastPMStore * p,
         int ci;
         for(ci = 0; ci < 32; ci ++) {
             if(it == 0) {
-                size += ((attributes & p->column_info[ci].attribute) != 0) * (_alignsize(p->column_info[ci].elsize * np_upper)); \
+                size += ((attributes & p->_column_info[ci].attribute) != 0) * (_alignsize(p->_column_info[ci].elsize * np_upper)); \
             } else { \
-                if(attributes & p->column_info[ci].attribute) { \
-                    p->columns[ci] = (void*) (((char*) p->base) + offset); \
-                    offset += _alignsize(p->column_info[ci].elsize * np_upper); \
+                if(attributes & p->_column_info[ci].attribute) { \
+                    p->columns[ci] = (void*) (((char*) p->_base) + offset); \
+                    offset += _alignsize(p->_column_info[ci].elsize * np_upper); \
                 } else { \
                     p->columns[ci] = NULL; \
                 } \
@@ -199,9 +199,9 @@ fastpm_store_init_details(FastPMStore * p,
 
         }
         if(it == 0) {
-            p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
+            p->_base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
             /* zero out all memory */
-            memset(p->base, 0, size);
+            memset(p->_base, 0, size);
         }
     };
 }
@@ -248,11 +248,11 @@ fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumn
     plan->elsize = 0;
     plan->attributes = attributes;
     for (ci = 0; ci < 32; ci ++) {
-        if (!(p->column_info[ci].attribute & attributes)) continue;
-        plan->ci[i] = ci;
-        plan->offsets[ci] = plan->elsize;
-        plan->elsize += p->column_info[ci].elsize;
-        plan->column_info[ci] = p->column_info[ci];
+        if (!(p->_column_info[ci].attribute & attributes)) continue;
+        plan->_ci[i] = ci;
+        plan->_offsets[ci] = plan->elsize;
+        plan->elsize += p->_column_info[ci].elsize;
+        plan->_column_info[ci] = p->_column_info[ci];
         i++;
     }
     plan->Ncolumns = i;
@@ -264,9 +264,9 @@ fastpm_packing_plan_pack(FastPMPackingPlan * plan,
 {
     int t;
     for (t = 0; t < plan->Ncolumns; t ++) {
-        int ci = plan->ci[t];
-        ptrdiff_t offset = plan->offsets[ci];
-        plan->column_info[ci].pack(p, i, ci,
+        int ci = plan->_ci[t];
+        ptrdiff_t offset = plan->_offsets[ci];
+        plan->_column_info[ci].pack(p, i, ci,
             ((char*) packed) + offset);
     }
 }
@@ -277,7 +277,7 @@ fastpm_packing_plan_unpack(FastPMPackingPlan * plan,
 {
     int t;
     for (t = 0; t < plan->Ncolumns; t ++) {
-        int ci = plan->ci[t];
+        int ci = plan->_ci[t];
         fastpm_packing_plan_unpack_ci(plan, ci, p, i, packed);
     }
 }
@@ -287,8 +287,8 @@ void
 fastpm_packing_plan_unpack_ci(FastPMPackingPlan * plan, int ci,
             FastPMStore * p, ptrdiff_t i, void * packed)
 {
-    ptrdiff_t offset = plan->offsets[ci];
-    plan->column_info[ci].unpack(p, i, ci,
+    ptrdiff_t offset = plan->_offsets[ci];
+    plan->_column_info[ci].unpack(p, i, ci,
         ((char*) packed) + offset);
 }
 
@@ -298,7 +298,7 @@ fastpm_store_find_column_id(FastPMStore * p, FastPMColumnTags attribute)
 {
     int ci;
     for (ci = 0; ci < 32; ci ++) {
-        if (p->column_info[ci].attribute == attribute) {
+        if (p->_column_info[ci].attribute == attribute) {
             return ci;
         }
     }
@@ -309,7 +309,7 @@ fastpm_store_find_column_id(FastPMStore * p, FastPMColumnTags attribute)
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
-    fastpm_memory_free(p->mem, p->base);
+    fastpm_memory_free(p->mem, p->_base);
 }
 
 void fastpm_store_read(FastPMStore * p, char * datasource) {
@@ -338,7 +338,7 @@ void fastpm_store_permute(FastPMStore * p, int * ind)
     int c;
     for(c = 0; c < 32; c ++) {
         if(!p->columns[c]) continue;
-        permute(p->columns[c], p->np, p->column_info[c].elsize, ind);
+        permute(p->columns[c], p->np, p->_column_info[c].elsize, ind);
     }
 }
 
@@ -555,13 +555,13 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
 
     int d;
     for(d = 0; d < 3; d++) {
-        pabs[d] = id / p->q_strides[d];
-        id -= pabs[d] * p->q_strides[d];
+        pabs[d] = id / p->_q_strides[d];
+        id -= pabs[d] * p->_q_strides[d];
     }
 
     for(d = 0; d < 3; d++) {
-        q[d] = pabs[d] * p->q_scale[d];
-        q[d] += p->q_shift[d];
+        q[d] = pabs[d] * p->_q_scale[d];
+        q[d] += p->_q_shift[d];
     }
 }
 
@@ -587,16 +587,16 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 
     for(d = 0; d < 3; d ++) {
         if(shift) 
-            p->q_shift[d] = shift[d];
+            p->_q_shift[d] = shift[d];
         else
-            p->q_shift[d] = 0;
+            p->_q_shift[d] = 0;
 
-        p->q_scale[d] = pm->BoxSize[d] / Nc[d];
+        p->_q_scale[d] = pm->BoxSize[d] / Nc[d];
     }
 
-    p->q_strides[0] = Nc[1] * Nc[2];
-    p->q_strides[1] = Nc[2];
-    p->q_strides[2] = 1;
+    p->_q_strides[0] = Nc[1] * Nc[2];
+    p->_q_strides[1] = Nc[2];
+    p->_q_strides[2] = 1;
 
     PMXIter iter;
     for(pm_xiter_init(pm, &iter);
@@ -615,9 +615,9 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
         for(kk = pabs_start[2]; kk < pabs_end[2]; kk ++) {
             ptrdiff_t pabs[3] = {ii, jj, kk};
 
-            uint64_t id = pabs[2] * p->q_strides[2] +
-                         pabs[1] * p->q_strides[1] +
-                         pabs[0] * p->q_strides[0] ;
+            uint64_t id = pabs[2] * p->_q_strides[2] +
+                         pabs[1] * p->_q_strides[1] +
+                         pabs[0] * p->_q_strides[0] ;
 
             if(p->id) p->id[ptr] = id;
             if(p->mask) p->mask[ptr] = 0;
@@ -692,7 +692,7 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
     int c;
     for(c = 0; c < 32; c ++) {
         if(!po->columns[c]) continue;
-        size_t elsize = po->column_info[c].elsize;
+        size_t elsize = po->_column_info[c].elsize;
 
         memcpy(po->columns[c] + offset * elsize,
                 p->columns[c] + start * elsize, elsize * ncopy);
@@ -702,9 +702,9 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
     po->a_x = p->a_x;
     po->a_v = p->a_v;
     if(po != p) {
-        memcpy(po->q_strides, p->q_strides, 3 * sizeof(p->q_strides[0]));
-        memcpy(po->q_scale, p->q_scale, 3 * sizeof(p->q_scale[0]));
-        memcpy(po->q_shift, p->q_shift, 3 * sizeof(p->q_shift[0]));
+        memcpy(po->_q_strides, p->_q_strides, 3 * sizeof(p->_q_strides[0]));
+        memcpy(po->_q_scale, p->_q_scale, 3 * sizeof(p->_q_scale[0]));
+        memcpy(po->_q_shift, p->_q_shift, 3 * sizeof(p->_q_shift[0]));
     }
 }
 
@@ -778,7 +778,7 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
         for(c = 0; c < 32; c ++) {
             if (!po->columns[c]) continue;
 
-            size_t elsize = po->column_info[c].elsize;
+            size_t elsize = po->_column_info[c].elsize;
             memcpy(po->columns[c] + j * elsize, p->columns[c] + i * elsize, elsize);
         }
 
@@ -790,9 +790,9 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
     po->a_v = p->a_v;
 
     if(po != p) {
-        memcpy(po->q_strides, p->q_strides, 3 * sizeof(p->q_strides[0]));
-        memcpy(po->q_scale, p->q_scale, 3 * sizeof(p->q_scale[0]));
-        memcpy(po->q_shift, p->q_shift, 3 * sizeof(p->q_shift[0]));
+        memcpy(po->_q_strides, p->_q_strides, 3 * sizeof(p->_q_strides[0]));
+        memcpy(po->_q_scale, p->_q_scale, 3 * sizeof(p->_q_scale[0]));
+        memcpy(po->_q_shift, p->_q_shift, 3 * sizeof(p->_q_shift[0]));
     }
 }
 

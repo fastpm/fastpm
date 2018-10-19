@@ -330,7 +330,7 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
         if (!field.attribute) {
             weight = 1.0;
         } else {
-            weight = p->column_info[ci].to_double(p, i, ci, field.memb);
+            weight = p->_column_info[ci].to_double(p, i, ci, field.memb);
         }
         fastpm_store_get_position(p, i, pos);
         painter->paint(painter, canvas, pos, weight, painter->diffdir);
@@ -368,7 +368,7 @@ fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
         fastpm_store_get_position(p, i, pos);
         double weight = painter->readout(painter, canvas, pos, painter->diffdir);
         // printf("ci = %d, weight = %g pos = %g %g %g\n", ci, weight, pos[0], pos[1], pos[2]);
-        p->column_info[ci].from_double(p, i, ci, field.memb, weight);
+        p->_column_info[ci].from_double(p, i, ci, field.memb, weight);
     }
 }
 
