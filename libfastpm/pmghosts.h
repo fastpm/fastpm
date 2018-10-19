@@ -22,28 +22,18 @@ typedef struct PMGhostData {
 } PMGhostData;
 
 PMGhostData * 
-pm_ghosts_create(PM * pm, FastPMStore * p, enum FastPMPackFields attributes);
+pm_ghosts_create(PM * pm, FastPMStore * p, FastPMColumnTags attributes);
 
 PMGhostData * 
 pm_ghosts_create_full(PM * pm, FastPMStore * p,
-        enum FastPMPackFields attributes,
+        FastPMColumnTags attributes,
         double below[],
         double above[]
         );
 void
-pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes);
+pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes);
 
-void pm_ghosts_reduce(PMGhostData * pgd, enum FastPMPackFields attributes);
-
-typedef
-void (*pm_ghosts_reduce_func)(PMGhostData * pgd,
-            enum FastPMPackFields attributes,
-            ptrdiff_t index,
-            void * buf, void * userdata);
-
-void
-pm_ghosts_reduce_any(PMGhostData * pgd, enum FastPMPackFields attributes,
-        pm_ghosts_reduce_func func, void * userdata);
+void pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field);
 
 void pm_ghosts_free(PMGhostData * pgd);
 

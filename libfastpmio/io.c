@@ -36,12 +36,20 @@ cumsum(int64_t offsets[], int N)
 }
 */
 
+struct sort_data {
+    FastPMStore * p; /* temporary store for decoding */
+    FastPMPackingPlan * plan;
+};
+
 void
 FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 {
-    FastPMStore * p = (FastPMStore *) arg;
+    struct sort_data * data = arg;
 
-    p->unpack(p, 0, (void*) ptr, p->attributes);
+    FastPMStore * p = data->p;
+    FastPMPackingPlan * plan = data->plan;
+
+    fastpm_packing_plan_unpack_ci(plan, FASTPM_STORE_COLUMN_INDEX(id), p, 0, (void*) ptr);
 
     *((uint64_t*) radix) = p->id[0];
 }
@@ -49,9 +57,12 @@ FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 void
 FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg)
 {
-    FastPMStore * p = (FastPMStore *) arg;
+    struct sort_data * data = arg;
 
-    p->unpack(p, 0, (void*) ptr, p->attributes);
+    FastPMStore * p = data->p;
+    FastPMPackingPlan * plan = data->plan;
+
+    fastpm_packing_plan_unpack_ci(plan, FASTPM_STORE_COLUMN_INDEX(length), p, 0, (void*) ptr);
 
     *((uint64_t*) radix) = -p->length[0];
 }
@@ -59,9 +70,12 @@ FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg)
 void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
 {
-    FastPMStore * p = (FastPMStore *) arg;
+    struct sort_data * data = arg;
 
-    p->unpack(p, 0, (void*) ptr, p->attributes);
+    FastPMStore * p = data->p;
+    FastPMPackingPlan * plan = data->plan;
+
+    fastpm_packing_plan_unpack_ci(plan, FASTPM_STORE_COLUMN_INDEX(aemit), p, 0, (void*) ptr);
 
     /* larger than 53 is probably good enough but perhaps should have used ldexp (>GLIBC 2.19)*/
     *((uint64_t*) radix) = p->aemit[0] * (1L << 60L);
@@ -78,8 +92,11 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     MPI_Comm_size(comm, &NTask);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    size_t elsize = p->pack(p, 0, NULL, p->attributes);
     size_t localsize = size * (ThisTask + 1) / NTask - size * ThisTask / NTask;
+
+    FastPMPackingPlan plan[1];
+    fastpm_packing_plan_init(plan, p, p->attributes);
+    size_t elsize = plan->elsize;
 
     if(redistribute) {
         if(MPIU_Any(comm, localsize > p->np_upper)) {
@@ -98,12 +115,17 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
 
     for(i = 0; i < p->np; i ++) {
-        p->pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_pack(plan, p, i, send_buffer + i * plan->elsize);
     }
-    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, ptmp, comm);
+
+    struct sort_data data[1];
+    data->p = ptmp;
+    data->plan = plan;
+
+    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, data, comm);
 
     for(i = 0; i < localsize; i ++) {
-        p->unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_unpack(plan, p, i, recv_buffer + i * plan->elsize);
     }
     p->np = localsize;
     fastpm_store_destroy(ptmp);
@@ -205,29 +227,38 @@ write_snapshot_data(FastPMStore * p,
 
     fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
+    #define DEFINE_COLUMN_IO(name, dtype_, column) \
+        {name, dtype_, \
+                    FASTPM_STORE_COLUMN_INFO(p, column).dtype, \
+                    FASTPM_STORE_COLUMN_INFO(p, column).nmemb, \
+                    FASTPM_STORE_COLUMN_INFO(p, column).attribute, \
+                    FASTPM_STORE_COLUMN_INDEX(column) \
+                }
+
     struct {
         char * name;
-        void * fastpm;
+        char * dtype_out;
         char * dtype;
         int nmemb;
-        char * dtype_out;
-    } * bdesc, BLOCKS[] = {
-        {"Position", p->x, "f8", 3, "f4"},
-        {"InitialPosition", p->q, "f4", 3, "f4"},
-        {"DX1", p->dx1, "f4", 3, "f4"},
-        {"DX2", p->dx2, "f4", 3, "f4"},
-        {"Velocity", p->v, "f4", 3, "f4"},
-        {"ID", p->id, "i8", 1, "i8"},
-        {"Aemit", p->aemit, "f4", 1, "f4"},
-        {"Potential", p->potential, "f4", 1, "f4"},
-        {"Density", p->rho, "f4", 1, "f4"},
-        {"Tidal", p->tidal, "f4", 6, "f4"},
-        {"Length", p->length, "i4", 1, "i4"},
-        {"MinID",p->minid, "i8", 1, "i8"},
-        {"Task", p->task, "i4", 1, "i4"},
-        {"Rdisp",p->rdisp, "f4", 6, "f4"},
-        {"Vdisp", p->vdisp, "f4", 6, "f4"},
-        {"RVdisp", p->rvdisp, "f4", 9, "f4"},
+        FastPMColumnTags attribute;
+        int ci;
+    } * descr, BLOCKS[] = {
+        DEFINE_COLUMN_IO("Position",        "f4", x),
+        DEFINE_COLUMN_IO("InitialPosition", "f4", q),
+        DEFINE_COLUMN_IO("DX1",             "f4", dx1),
+        DEFINE_COLUMN_IO("DX2",             "f4", dx2),
+        DEFINE_COLUMN_IO("Velocity",        "f4", v),
+        DEFINE_COLUMN_IO("ID",              "i8", id),
+        DEFINE_COLUMN_IO("Aemit",           "f4", aemit),
+        DEFINE_COLUMN_IO("Potential",       "f4", potential),
+        DEFINE_COLUMN_IO("Density",         "f4", rho),
+        DEFINE_COLUMN_IO("Tidal",           "f4", tidal),
+        DEFINE_COLUMN_IO("Length",          "i4", length),
+        DEFINE_COLUMN_IO("MinID",           "i8", minid),
+        DEFINE_COLUMN_IO("Task",            "i4", task),
+        DEFINE_COLUMN_IO("Rdisp",           "f4", rdisp),
+        DEFINE_COLUMN_IO("Vdisp",           "f4", vdisp),
+        DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
         {NULL, },
     };
     if (!append) {
@@ -238,16 +269,16 @@ write_snapshot_data(FastPMStore * p,
         }
         big_block_mpi_close(&bb, comm);
     }
-    for(bdesc = BLOCKS; bdesc->name; bdesc ++) {
-        if(bdesc->fastpm == NULL) continue;
+    for(descr = BLOCKS; descr->name; descr ++) {
+        if(p->columns[descr->ci] == NULL) continue;
 
-        fastpm_info("Writing block %s\n", bdesc->name);
+        fastpm_info("Writing block %s of (%s, %d)\n", descr->name, descr->dtype, descr->nmemb);
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        char * blockname = fastpm_strdup_printf("%s/%s", dataset, bdesc->name);
+        char * blockname = fastpm_strdup_printf("%s/%s", dataset, descr->name);
         if(!append) {
-            if(0 != big_file_mpi_create_block(bf, &bb, blockname, bdesc->dtype_out, bdesc->nmemb,
+            if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
                         Nfile, size, comm)) {
                 fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
             }
@@ -255,7 +286,7 @@ write_snapshot_data(FastPMStore * p,
         } else {
             if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
                 /* if open failed, create an empty block instead.*/
-                if(0 != big_file_mpi_create_block(bf, &bb, blockname, bdesc->dtype_out, bdesc->nmemb,
+                if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
                             0, 0, comm)) {
                     fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
                 }
@@ -265,8 +296,23 @@ write_snapshot_data(FastPMStore * p,
             big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
             big_block_seek(&bb, &ptr, oldsize);
         }
-        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL );
+
+        /* packing the single column for IO */
+        FastPMPackingPlan plan[1];
+        fastpm_packing_plan_init(plan, p, descr->attribute);
+
+        size_t elsize = plan->elsize;
+        void * buffer = malloc(elsize * p->np);
+
+        ptrdiff_t i;
+        for(i = 0; i < p->np; i ++) {
+            fastpm_packing_plan_pack(plan, p, i, ((char *) buffer) + i * elsize);
+        }
+
+        big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
+        free(buffer);
+
         big_block_mpi_close(&bb, comm);
         free(blockname);
     }

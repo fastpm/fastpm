@@ -10,6 +10,79 @@
 
 #define HAS(a, b) ((a & b) != 0)
 
+static void
+pack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
+{
+    size_t elsize = p->_column_info[ci].elsize;
+    memcpy(packed, p->columns[ci] + index * elsize, elsize);
+}
+
+static void
+unpack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
+{
+    size_t elsize = p->_column_info[ci].elsize;
+    memcpy(p->columns[ci] + index * elsize, packed, elsize);
+}
+
+static void
+pack_member_any(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
+{
+    size_t nmemb = p->_column_info[ci].nmemb ;
+    if(memb > nmemb) {
+        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
+    }
+
+    size_t elsize = p->_column_info[ci].elsize;
+    size_t membsize = p->_column_info[ci].membsize;
+
+    memcpy(packed, p->columns[ci] + index * elsize + membsize * memb, membsize);
+}
+
+static void
+reduce_member_f4_add(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
+{
+    size_t nmemb = p->_column_info[ci].nmemb ;
+    if(memb > nmemb || memb < 0) {
+        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
+    }
+
+    size_t elsize = p->_column_info[ci].elsize;
+
+    float * ptr = (float*) (p->columns[ci] + index * elsize);
+    float * ptr_packed = (float*) packed;
+
+    ptr[memb] += ptr_packed[0];
+}
+
+static double
+to_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb)
+{
+    size_t nmemb = p->_column_info[ci].nmemb ;
+    if(memb > nmemb) {
+        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
+    }
+    size_t elsize = p->_column_info[ci].elsize;
+
+    float * ptr = (float*) (p->columns[ci] + index * elsize);
+
+    return ptr[memb];
+}
+
+static void
+from_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value)
+{
+    size_t nmemb = p->_column_info[ci].nmemb ;
+    if(memb > nmemb) {
+        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
+    }
+    size_t elsize = p->_column_info[ci].elsize;
+
+    float * ptr = (float*) (p->columns[ci] + index * elsize);
+
+    ptr[memb] = value;
+}
+
+
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->x[index][0];
@@ -24,282 +97,6 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
     pos[2] = p->q[index][2];
 }
 
-static size_t pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
-    #define DISPATCH(f, field) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            if(ptr) { \
-                VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index], sizeof(p->field[0])); \
-                memcpy(&ptr[s], &p->field[index], sizeof(p->field[0])); \
-            } \
-            s += sizeof(p->field[0]); \
-            flags &= ~f; \
-        } \
-    }
-    #define DISPATCHC(f, field, c) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            if(ptr) { \
-                VALGRIND_CHECK_MEM_IS_DEFINED(&p->field[index][c], sizeof(p->field[0][0])); \
-                memcpy(&ptr[s], &p->field[index][c], sizeof(p->field[0][0])); \
-            } \
-            s += sizeof(p->field[0][0]); \
-            flags &= ~f; \
-        } \
-    }
-
-    size_t s = 0;
-    char * ptr = (char*) buf;
-    DISPATCH(PACK_POS, x)
-    DISPATCH(PACK_Q, q)
-    DISPATCH(PACK_VEL, v)
-    DISPATCH(PACK_ACC, acc)
-    DISPATCH(PACK_DX1, dx1)
-    DISPATCH(PACK_DX2, dx2)
-    DISPATCH(PACK_AEMIT, aemit)
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
-    DISPATCH(PACK_TIDAL, tidal)
-    DISPATCH(PACK_ID, id)
-    DISPATCH(PACK_MASK, mask)
-    DISPATCH(PACK_MINID, minid)
-    DISPATCH(PACK_TASK, task)
-    DISPATCH(PACK_LENGTH, length)
-    DISPATCH(PACK_RDISP, rdisp)
-    DISPATCH(PACK_VDISP, vdisp)
-    DISPATCH(PACK_RVDISP, rvdisp)
-
-    /* components */
-    DISPATCHC(PACK_ACC_X, acc, 0)
-    DISPATCHC(PACK_ACC_Y, acc, 1)
-    DISPATCHC(PACK_ACC_Z, acc, 2)
-    DISPATCHC(PACK_DX1_X, dx1, 0)
-    DISPATCHC(PACK_DX1_Y, dx1, 1)
-    DISPATCHC(PACK_DX1_Z, dx1, 2)
-    DISPATCHC(PACK_DX2_X, dx2, 0)
-    DISPATCHC(PACK_DX2_Y, dx2, 1)
-    DISPATCHC(PACK_DX2_Z, dx2, 2)
-    DISPATCHC(PACK_POS_X, x, 0)
-    DISPATCHC(PACK_POS_Y, x, 1)
-    DISPATCHC(PACK_POS_Z, x, 2)
-    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
-    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
-    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
-    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
-    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
-    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
-
-    #undef DISPATCH
-    #undef DISPATCHC
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
-    }
-    return s;
-}
-static void unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
-    size_t s = 0;
-    char * ptr = (char*) buf;
-
-    #define DISPATCH(f, field) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            VALGRIND_CHECK_MEM_IS_DEFINED(&ptr[s], sizeof(p->field[0])); \
-            memcpy(&p->field[index], &ptr[s], sizeof(p->field[0])); \
-            s += sizeof(p->field[0]); \
-            flags &= ~f; \
-        } \
-    }
-    #define DISPATCHC(f, field, c) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            VALGRIND_CHECK_MEM_IS_DEFINED(&ptr[s], sizeof(p->field[0][0])); \
-            memcpy(&p->field[index][c], &ptr[s], sizeof(p->field[0][0])); \
-            s += sizeof(p->field[0][0]); \
-            flags &= ~f; \
-        } \
-    }
-    DISPATCH(PACK_POS, x)
-    DISPATCH(PACK_Q, q)
-    DISPATCH(PACK_VEL, v)
-    DISPATCH(PACK_ACC, acc)
-    DISPATCH(PACK_DX1, dx1)
-    DISPATCH(PACK_DX2, dx2)
-    DISPATCH(PACK_AEMIT, aemit)
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
-    DISPATCH(PACK_TIDAL, tidal)
-    DISPATCH(PACK_ID, id)
-    DISPATCH(PACK_MASK, mask)
-    DISPATCH(PACK_MINID, minid)
-    DISPATCH(PACK_TASK, task)
-    DISPATCH(PACK_LENGTH, length)
-    DISPATCH(PACK_RDISP, rdisp)
-    DISPATCH(PACK_VDISP, vdisp)
-    DISPATCH(PACK_RVDISP, rvdisp)
-
-    DISPATCHC(PACK_ACC_X, acc, 0)
-    DISPATCHC(PACK_ACC_Y, acc, 1)
-    DISPATCHC(PACK_ACC_Z, acc, 2)
-    DISPATCHC(PACK_DX1_X, dx1, 0)
-    DISPATCHC(PACK_DX1_Y, dx1, 1)
-    DISPATCHC(PACK_DX1_Z, dx1, 2)
-    DISPATCHC(PACK_DX2_X, dx2, 0)
-    DISPATCHC(PACK_DX2_Y, dx2, 1)
-    DISPATCHC(PACK_DX2_Z, dx2, 2)
-    DISPATCHC(PACK_POS_X, x, 0)
-    DISPATCHC(PACK_POS_Y, x, 1)
-    DISPATCHC(PACK_POS_Z, x, 2)
-    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
-    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
-    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
-    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
-    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
-    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
-    #undef DISPATCH
-    #undef DISPATCHC
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
-    }
-}
-static void reduce(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
-    size_t s = 0;
-    char * ptr = (char*) buf;
-
-    #define DISPATCHC(f, field, i) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            p->field[index][i] += * ((__typeof__(p->field[index][i])*) &ptr[s]); \
-            s += sizeof(p->field[index][i]); \
-            flags &= ~f; \
-        } \
-    }
-    #define DISPATCH(f, field) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            p->field[index] += * ((__typeof__(p->field[index])*) &ptr[s]); \
-            s += sizeof(p->field[index]); \
-            flags &= ~f; \
-        } \
-    }
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
-    DISPATCHC(PACK_ACC_X, acc, 0);
-    DISPATCHC(PACK_ACC_Y, acc, 1);
-    DISPATCHC(PACK_ACC_Z, acc, 2);
-    DISPATCHC(PACK_DX1_X, dx1, 0)
-    DISPATCHC(PACK_DX1_Y, dx1, 1)
-    DISPATCHC(PACK_DX1_Z, dx1, 2)
-    DISPATCHC(PACK_DX2_X, dx2, 0)
-    DISPATCHC(PACK_DX2_Y, dx2, 1)
-    DISPATCHC(PACK_DX2_Z, dx2, 2)
-    DISPATCHC(PACK_POS_X, x, 0)
-    DISPATCHC(PACK_POS_Y, x, 1)
-    DISPATCHC(PACK_POS_Z, x, 2)
-    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
-    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
-    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
-    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
-    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
-    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
-    #undef DISPATCHC
-    #undef DISPATCH
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
-    }
-}
-static double to_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags) {
-    double rt = 0.;
-    #define DISPATCHC(f, field, i) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            rt = p->field[index][i]; \
-            flags &= ~f; \
-            goto byebye; \
-        } \
-    }
-    #define DISPATCH(f, field) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            rt = p->field[index]; \
-            flags &= ~f; \
-            goto byebye; \
-        } \
-    }
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
-    DISPATCHC(PACK_ACC_X, acc, 0);
-    DISPATCHC(PACK_ACC_Y, acc, 1);
-    DISPATCHC(PACK_ACC_Z, acc, 2);
-    DISPATCHC(PACK_DX1_X, dx1, 0)
-    DISPATCHC(PACK_DX1_Y, dx1, 1)
-    DISPATCHC(PACK_DX1_Z, dx1, 2)
-    DISPATCHC(PACK_DX2_X, dx2, 0)
-    DISPATCHC(PACK_DX2_Y, dx2, 1)
-    DISPATCHC(PACK_DX2_Z, dx2, 2)
-    DISPATCHC(PACK_POS_X, x, 0)
-    DISPATCHC(PACK_POS_Y, x, 1)
-    DISPATCHC(PACK_POS_Z, x, 2)
-    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
-    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
-    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
-    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
-    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
-    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
-    #undef DISPATCH
-    #undef DISPATCHC
-byebye:
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
-        return 0;
-    } else {
-        return rt;
-    }
-}
-static void from_double(FastPMStore * p, ptrdiff_t index, enum FastPMPackFields flags, double value) {
-    #define DISPATCHC(f, field, i) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            p->field[index][i] = value; \
-            flags &= ~f; \
-            goto byebye; \
-        } \
-    }
-    #define DISPATCH(f, field) \
-    if(HAS(flags, f)) { \
-        if(p->field) { \
-            p->field[index] = value; \
-            flags &= ~f; \
-            goto byebye; \
-        } \
-    }
-    DISPATCH(PACK_DENSITY, rho)
-    DISPATCH(PACK_POTENTIAL, potential)
-    DISPATCHC(PACK_ACC_X, acc, 0);
-    DISPATCHC(PACK_ACC_Y, acc, 1);
-    DISPATCHC(PACK_ACC_Z, acc, 2);
-    DISPATCHC(PACK_DX1_X, dx1, 0)
-    DISPATCHC(PACK_DX1_Y, dx1, 1)
-    DISPATCHC(PACK_DX1_Z, dx1, 2)
-    DISPATCHC(PACK_DX2_X, dx2, 0)
-    DISPATCHC(PACK_DX2_Y, dx2, 1)
-    DISPATCHC(PACK_DX2_Z, dx2, 2)
-    DISPATCHC(PACK_POS_X, x, 0)
-    DISPATCHC(PACK_POS_Y, x, 1)
-    DISPATCHC(PACK_POS_Z, x, 2)
-    DISPATCHC(PACK_TIDAL_XX, tidal, 0)
-    DISPATCHC(PACK_TIDAL_YY, tidal, 1)
-    DISPATCHC(PACK_TIDAL_ZZ, tidal, 2)
-    DISPATCHC(PACK_TIDAL_XY, tidal, 3)
-    DISPATCHC(PACK_TIDAL_YZ, tidal, 4)
-    DISPATCHC(PACK_TIDAL_ZX, tidal, 5)
-    #undef DISPATCH
-    #undef DISPATCHC
-byebye:
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field. %d\n", flags);
-    }
-}
-
 static ptrdiff_t
 _alignsize(ptrdiff_t size)
 {
@@ -310,70 +107,107 @@ _alignsize(ptrdiff_t size)
 void
 fastpm_store_init_details(FastPMStore * p,
                   size_t np_upper,
-                  enum FastPMPackFields attributes,
+                  FastPMColumnTags attributes,
                   enum FastPMMemoryLocation loc,
                   const char * file,
                   const int line)
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
-    p->pack = pack;
-    p->unpack = unpack;
-    p->reduce = reduce;
-    p->to_double = to_double;
-    p->from_double = from_double;
 
     p->np = 0; 
     p->np_upper = np_upper;
     p->attributes = attributes;
 
-    int it;
-    p->base = NULL;
+    /* clear the column pointers. */
+    memset(p->columns, 0, sizeof(p->columns));
+    memset(p->_column_info, 0, sizeof(p->_column_info));
 
-    #define DISPATCH(PACK, column) \
-        if(it == 0) { \
-            (size += ((attributes & PACK) != 0) * (_alignsize(sizeof(p->column[0]) * np_upper))); \
-        } else { \
-            if(attributes & PACK) { \
-                p->column = (void*) (((char*) p->base) + offset); \
-                offset += _alignsize(sizeof(p->column[0]) * np_upper); \
-            } else { \
-                p->column = NULL; \
-            } \
+    int it;
+    p->_base = NULL;
+
+    /* first loop initialize the _column_info struct for corresponding items in the pointer union; 
+     * second loop initialize the pointers */
+    #define DEFINE_COLUMN(column, attr_, dtype_, nmemb_) \
+        { \
+            int ci = FASTPM_STORE_COLUMN_INDEX(column); \
+            if(attr_ != (1 << ci)) { fastpm_raise(-1, "attr and column are out of order for %s\n", # column ); } \
+            strcpy(p->_column_info[ci].dtype, dtype_);  \
+            p->_column_info[ci].elsize = sizeof(p->column[0]);  \
+            p->_column_info[ci].nmemb = nmemb_;  \
+            p->_column_info[ci].membsize = sizeof(p->column[0]) / nmemb_;  \
+            p->_column_info[ci].attribute = attr_;  \
+            p->_column_info[ci].pack = pack_any;  \
+            p->_column_info[ci].unpack = unpack_any;  \
+            p->_column_info[ci].pack_member = pack_member_any; \
+            p->_column_info[ci].reduce_member = NULL;  \
+            p->_column_info[ci].from_double = NULL;  \
+            p->_column_info[ci].to_double = NULL;  \
         }
+
+    #define COLUMN_INFO(column) (p->_column_info[FASTPM_STORE_COLUMN_INDEX(column)])
+
+    DEFINE_COLUMN(x, COLUMN_POS, "f8", 3);
+    DEFINE_COLUMN(q, COLUMN_Q, "f4", 3);
+    DEFINE_COLUMN(v, COLUMN_VEL, "f4", 3);
+    DEFINE_COLUMN(acc, COLUMN_ACC, "f4", 3);
+    DEFINE_COLUMN(dx1, COLUMN_DX1, "f4", 3);
+    DEFINE_COLUMN(dx2, COLUMN_DX2, "f4", 3);
+    DEFINE_COLUMN(aemit, COLUMN_AEMIT, "f4", 1);
+    DEFINE_COLUMN(rho, COLUMN_DENSITY, "f4", 1);
+    DEFINE_COLUMN(potential, COLUMN_POTENTIAL, "f4", 1);
+    DEFINE_COLUMN(tidal, COLUMN_TIDAL, "f4", 6);
+    DEFINE_COLUMN(id, COLUMN_ID, "i8", 1);
+    DEFINE_COLUMN(mask, COLUMN_MASK, "i1", 1);
+    DEFINE_COLUMN(minid, COLUMN_MINID, "i8", 1);
+    DEFINE_COLUMN(task, COLUMN_TASK, "i4", 1);
+    DEFINE_COLUMN(length, COLUMN_LENGTH, "i4", 1);
+    DEFINE_COLUMN(rdisp, COLUMN_RDISP, "f4", 6);
+    DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
+    DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
+
+    COLUMN_INFO(rho).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(rho).from_double = from_double_f4;
+    COLUMN_INFO(rho).to_double = to_double_f4;
+    COLUMN_INFO(acc).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(acc).from_double = from_double_f4;
+    COLUMN_INFO(dx1).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(dx1).from_double = from_double_f4;
+    COLUMN_INFO(dx2).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(dx2).from_double = from_double_f4;
+    COLUMN_INFO(potential).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(potential).from_double = from_double_f4;
+    COLUMN_INFO(tidal).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(tidal).from_double = from_double_f4;
 
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
     for(it = 0; it < 2; it ++) {
-        DISPATCH(PACK_POS, x);
-        DISPATCH(PACK_Q, q);
-        DISPATCH(PACK_VEL, v);
-        DISPATCH(PACK_ACC, acc);
-        DISPATCH(PACK_DX1, dx1);
-        DISPATCH(PACK_DX2, dx2);
-        DISPATCH(PACK_AEMIT, aemit);
-        DISPATCH(PACK_DENSITY, rho);
-        DISPATCH(PACK_POTENTIAL, potential);
-        DISPATCH(PACK_TIDAL, tidal);
-        DISPATCH(PACK_ID, id);
-        DISPATCH(PACK_MASK, mask);
-        DISPATCH(PACK_MINID, minid);
-        DISPATCH(PACK_TASK, task);
-        DISPATCH(PACK_LENGTH, length);
-        DISPATCH(PACK_RDISP, rdisp);
-        DISPATCH(PACK_VDISP, vdisp);
-        DISPATCH(PACK_RVDISP, rvdisp);
+        int ci;
+        for(ci = 0; ci < 32; ci ++) {
+            if(it == 0) {
+                size += ((attributes & p->_column_info[ci].attribute) != 0) * (_alignsize(p->_column_info[ci].elsize * np_upper)); \
+            } else { \
+                if(attributes & p->_column_info[ci].attribute) { \
+                    p->columns[ci] = (void*) (((char*) p->_base) + offset); \
+                    offset += _alignsize(p->_column_info[ci].elsize * np_upper); \
+                } else { \
+                    p->columns[ci] = NULL; \
+                } \
+            }
 
+
+        }
         if(it == 0) {
-            p->base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
+            p->_base = fastpm_memory_alloc_details(p->mem, "FastPMStore", size, loc, file, line);
             /* zero out all memory */
-            memset(p->base, 0, size);
+            memset(p->_base, 0, size);
         }
     };
 }
 
 size_t 
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
@@ -394,10 +228,88 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm)
     return np;
 }
 
+size_t
+fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm)
+{
+    long long np = 0;
+    ptrdiff_t i;
+    for(i = 0; i < p->np; i ++) {
+        np += p->mask[i] != 0;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, comm);
+    return np;
+}
+
+void
+fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumnTags attributes)
+{
+    int ci;
+    int i = 0;
+    plan->elsize = 0;
+    plan->attributes = attributes;
+    for (ci = 0; ci < 32; ci ++) {
+        if (!(p->_column_info[ci].attribute & attributes)) continue;
+        plan->_ci[i] = ci;
+        plan->_offsets[ci] = plan->elsize;
+        plan->elsize += p->_column_info[ci].elsize;
+        plan->_column_info[ci] = p->_column_info[ci];
+        i++;
+    }
+    plan->Ncolumns = i;
+}
+
+void
+fastpm_packing_plan_pack(FastPMPackingPlan * plan,
+            FastPMStore * p, ptrdiff_t i, void * packed)
+{
+    int t;
+    for (t = 0; t < plan->Ncolumns; t ++) {
+        int ci = plan->_ci[t];
+        ptrdiff_t offset = plan->_offsets[ci];
+        plan->_column_info[ci].pack(p, i, ci,
+            ((char*) packed) + offset);
+    }
+}
+
+void
+fastpm_packing_plan_unpack(FastPMPackingPlan * plan,
+            FastPMStore * p, ptrdiff_t i, void * packed)
+{
+    int t;
+    for (t = 0; t < plan->Ncolumns; t ++) {
+        int ci = plan->_ci[t];
+        fastpm_packing_plan_unpack_ci(plan, ci, p, i, packed);
+    }
+}
+
+/* unpack a single column from the offset in packed data. */
+void
+fastpm_packing_plan_unpack_ci(FastPMPackingPlan * plan, int ci,
+            FastPMStore * p, ptrdiff_t i, void * packed)
+{
+    ptrdiff_t offset = plan->_offsets[ci];
+    plan->_column_info[ci].unpack(p, i, ci,
+        ((char*) packed) + offset);
+}
+
+
+int
+fastpm_store_find_column_id(FastPMStore * p, FastPMColumnTags attribute)
+{
+    int ci;
+    for (ci = 0; ci < 32; ci ++) {
+        if (p->_column_info[ci].attribute == attribute) {
+            return ci;
+        }
+    }
+    fastpm_raise(-1, "Unknown column %x", attribute);
+    return -1;
+}
+
 void 
 fastpm_store_destroy(FastPMStore * p) 
 {
-    fastpm_memory_free(p->mem, p->base);
+    fastpm_memory_free(p->mem, p->_base);
 }
 
 void fastpm_store_read(FastPMStore * p, char * datasource) {
@@ -423,24 +335,11 @@ static void permute(void * data, int np, size_t elsize, int * ind) {
 
 void fastpm_store_permute(FastPMStore * p, int * ind)
 {
-    if(p->x) permute(p->x, p->np, sizeof(p->x[0]), ind);
-    if(p->q) permute(p->q, p->np, sizeof(p->q[0]), ind);
-    if(p->v) permute(p->v, p->np, sizeof(p->v[0]), ind);
-    if(p->acc) permute(p->acc, p->np, sizeof(p->acc[0]), ind);
-    if(p->dx1) permute(p->dx1, p->np, sizeof(p->dx1[0]), ind);
-    if(p->dx2) permute(p->dx2, p->np, sizeof(p->dx2[0]), ind);
-    if(p->aemit) permute(p->aemit, p->np, sizeof(p->aemit[0]), ind);
-    if(p->rho) permute(p->rho, p->np, sizeof(p->rho[0]), ind);
-    if(p->potential) permute(p->potential, p->np, sizeof(p->potential[0]), ind);
-    if(p->tidal) permute(p->tidal, p->np, sizeof(p->tidal[0]), ind);
-    if(p->id) permute(p->id, p->np, sizeof(p->id[0]), ind);
-    if(p->mask) permute(p->mask, p->np, sizeof(p->mask[0]), ind);
-    if(p->minid) permute(p->minid, p->np, sizeof(p->minid[0]), ind);
-    if(p->task) permute(p->task, p->np, sizeof(p->task[0]), ind);
-    if(p->length) permute(p->length, p->np, sizeof(p->length[0]), ind);
-    if(p->rdisp) permute(p->rdisp, p->np, sizeof(p->rdisp[0]), ind);
-    if(p->vdisp) permute(p->vdisp, p->np, sizeof(p->vdisp[0]), ind);
-    if(p->rvdisp) permute(p->rvdisp, p->np, sizeof(p->rvdisp[0]), ind);
+    int c;
+    for(c = 0; c < 32; c ++) {
+        if(!p->columns[c]) continue;
+        permute(p->columns[c], p->np, p->_column_info[c].elsize, ind);
+    }
 }
 
 
@@ -508,28 +407,6 @@ FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm)
     return pm_pos_to_rank(pm, pos);
 }
 
-/*
-static void
-checkx(FastPMStore * p)
-{
-    ptrdiff_t i;
-
-    int j = 0;
-    for(i = 0; i < p->np; i ++) {
-        if(p->x[i][0] > 0) {
-            j = 1;
-        }
-        if(p->x[i][1] > 0) {
-            j = 1;
-        }
-        if(p->x[i][2] > 0) {
-            j = 1;
-        }
-    }
-    printf("%d\n", j);
-}
-*/
-
 int
 fastpm_store_decompose(FastPMStore * p,
     fastpm_store_target_func target_func,
@@ -588,7 +465,11 @@ fastpm_store_decompose(FastPMStore * p,
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = p->pack(p, 0, NULL, p->attributes);
+    FastPMPackingPlan plan[1];
+
+    fastpm_packing_plan_init(plan, p, p->attributes);
+
+    size_t elsize = plan->elsize;
 
     volatile size_t neededsize = p->np + Nrecv - Nsend;
 
@@ -606,7 +487,7 @@ fastpm_store_decompose(FastPMStore * p,
     p->np -= Nsend;
 
     for(i = 0; i < Nsend; i ++) {
-        p->pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_pack(plan, p, i + p->np, (char*) send_buffer + i * elsize);
     }
 
     MPI_Datatype PTYPE;
@@ -621,7 +502,7 @@ fastpm_store_decompose(FastPMStore * p,
     MPI_Type_free(&PTYPE);
 
     for(i = 0; i < Nrecv; i ++) {
-        p->unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_unpack(plan, p, i + p->np, (char*) recv_buffer + i * elsize);
     }
 
     p->np += Nrecv;
@@ -652,13 +533,13 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
 
     int d;
     for(d = 0; d < 3; d++) {
-        pabs[d] = id / p->q_strides[d];
-        id -= pabs[d] * p->q_strides[d];
+        pabs[d] = id / p->_q_strides[d];
+        id -= pabs[d] * p->_q_strides[d];
     }
 
     for(d = 0; d < 3; d++) {
-        q[d] = pabs[d] * p->q_scale[d];
-        q[d] += p->q_shift[d];
+        q[d] = pabs[d] * p->_q_scale[d];
+        q[d] += p->_q_shift[d];
     }
 }
 
@@ -684,16 +565,16 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 
     for(d = 0; d < 3; d ++) {
         if(shift) 
-            p->q_shift[d] = shift[d];
+            p->_q_shift[d] = shift[d];
         else
-            p->q_shift[d] = 0;
+            p->_q_shift[d] = 0;
 
-        p->q_scale[d] = pm->BoxSize[d] / Nc[d];
+        p->_q_scale[d] = pm->BoxSize[d] / Nc[d];
     }
 
-    p->q_strides[0] = Nc[1] * Nc[2];
-    p->q_strides[1] = Nc[2];
-    p->q_strides[2] = 1;
+    p->_q_strides[0] = Nc[1] * Nc[2];
+    p->_q_strides[1] = Nc[2];
+    p->_q_strides[2] = 1;
 
     PMXIter iter;
     for(pm_xiter_init(pm, &iter);
@@ -712,9 +593,9 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
         for(kk = pabs_start[2]; kk < pabs_end[2]; kk ++) {
             ptrdiff_t pabs[3] = {ii, jj, kk};
 
-            uint64_t id = pabs[2] * p->q_strides[2] +
-                         pabs[1] * p->q_strides[1] +
-                         pabs[0] * p->q_strides[0] ;
+            uint64_t id = pabs[2] * p->_q_strides[2] +
+                         pabs[1] * p->_q_strides[1] +
+                         pabs[0] * p->_q_strides[0] ;
 
             if(p->id) p->id[ptr] = id;
             if(p->mask) p->mask[ptr] = 0;
@@ -786,32 +667,22 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
         fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
     }
 
-    if(po->x) memcpy(&po->x[offset], &p->x[start], sizeof(p->x[0]) * ncopy);
-    if(po->q) memcpy(&po->q[offset], &p->q[start], sizeof(p->q[0]) * ncopy);
-    if(po->v) memcpy(&po->v[offset], &p->v[start], sizeof(p->v[0]) * ncopy);
-    if(po->acc) memcpy(&po->acc[offset], &p->acc[start], sizeof(p->acc[0]) * ncopy);
-    if(po->dx1) memcpy(&po->dx1[offset], &p->dx1[start], sizeof(p->dx1[0]) * ncopy);
-    if(po->dx2) memcpy(&po->dx2[offset], &p->dx2[start], sizeof(p->dx2[0]) * ncopy);
-    if(po->aemit) memcpy(&po->aemit[offset], &p->aemit[start], sizeof(p->aemit[0]) * ncopy);
-    if(po->rho) memcpy(&po->rho[offset], &p->rho[start], sizeof(p->potential[0]) * ncopy);
-    if(po->potential) memcpy(&po->potential[offset], &p->potential[start], sizeof(p->potential[0]) * ncopy);
-    if(po->tidal) memcpy(&po->tidal[offset], &p->tidal[start], sizeof(p->tidal[0]) * ncopy);
-    if(po->id) memcpy(&po->id[offset], &p->id[start], sizeof(p->id[0]) * ncopy);
-    if(po->mask) memcpy(&po->mask[offset], &p->mask[start], sizeof(p->mask[0]) * ncopy);
-    if(po->minid) memcpy(&po->minid[offset], &p->minid[start], sizeof(p->minid[0]) * ncopy);
-    if(po->task) memcpy(&po->task[offset], &p->task[start], sizeof(p->task[0]) * ncopy);
-    if(po->length) memcpy(&po->length[offset], &p->length[start], sizeof(p->length[0]) * ncopy);
-    if(po->rdisp) memcpy(&po->rdisp[offset], &p->rdisp[start], sizeof(p->rdisp[0]) * ncopy);
-    if(po->vdisp) memcpy(&po->vdisp[offset], &p->vdisp[start], sizeof(p->vdisp[0]) * ncopy);
-    if(po->rvdisp) memcpy(&po->rvdisp[offset], &p->rvdisp[start], sizeof(p->rvdisp[0]) * ncopy);
+    int c;
+    for(c = 0; c < 32; c ++) {
+        if(!po->columns[c]) continue;
+        size_t elsize = po->_column_info[c].elsize;
 
+        memcpy(po->columns[c] + offset * elsize,
+                p->columns[c] + start * elsize, elsize * ncopy);
+
+    }
     po->np = offset + ncopy;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
     if(po != p) {
-        memcpy(po->q_strides, p->q_strides, 3 * sizeof(p->q_strides[0]));
-        memcpy(po->q_scale, p->q_scale, 3 * sizeof(p->q_scale[0]));
-        memcpy(po->q_shift, p->q_shift, 3 * sizeof(p->q_shift[0]));
+        memcpy(po->_q_strides, p->_q_strides, 3 * sizeof(p->_q_strides[0]));
+        memcpy(po->_q_scale, p->_q_scale, 3 * sizeof(p->_q_scale[0]));
+        memcpy(po->_q_shift, p->_q_shift, 3 * sizeof(p->_q_shift[0]));
     }
 }
 
@@ -874,41 +745,32 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;
-    j = 0;
 
+    j = 0;
     for(i = 0; i < p->np; i ++) {
         if(!mask[i]) continue;
         /* avoid memcpy of same address if we are doing subsample inplace */
-        if(p != po || j != i) {
-            if(po->x) memcpy(po->x[j], p->x[i], sizeof(p->x[0]));
-            if(po->q) memcpy(po->q[j], p->q[i], sizeof(p->q[0]));
-            if(po->v) memcpy(po->v[j], p->v[i], sizeof(p->v[0]));
-            if(po->acc) memcpy(po->acc[j], p->acc[i], sizeof(p->acc[0]));
-            if(po->dx1) memcpy(po->dx1[j], p->dx1[i], sizeof(p->dx1[0]));
-            if(po->dx2) memcpy(po->dx2[j], p->dx2[i], sizeof(p->dx2[0]));
-            if(po->aemit) po->aemit[j] = p->aemit[i];
-            if(po->rho) po->rho[j] = p->rho[i];
-            if(po->potential) po->potential[j] = p->potential[i];
-            if(po->tidal) memcpy(po->tidal[j], p->tidal[i], sizeof(p->tidal[0]));
-            if(po->id) po->id[j] = p->id[i];
-            if(po->mask) po->mask[j] = p->mask[i];
-            if(po->minid) po->minid[j] = p->minid[i];
-            if(po->task) po->task[j] = p->task[i];
-            if(po->length) po->length[j] = p->length[i];
-            if(po->rdisp) memcpy(po->rdisp[j], p->rdisp[i], sizeof(p->rdisp[0]));
-            if(po->vdisp) memcpy(po->vdisp[j], p->vdisp[i], sizeof(p->vdisp[0]));
-            if(po->rvdisp) memcpy(po->rvdisp[j], p->rvdisp[i], sizeof(p->rvdisp[0]));
+        if(p == po && j == i) {j ++; continue; }
+
+        int c;
+        for(c = 0; c < 32; c ++) {
+            if (!po->columns[c]) continue;
+
+            size_t elsize = po->_column_info[c].elsize;
+            memcpy(po->columns[c] + j * elsize, p->columns[c] + i * elsize, elsize);
         }
+
         j ++;
     }
+
     po->np = j;
     po->a_x = p->a_x;
     po->a_v = p->a_v;
 
     if(po != p) {
-        memcpy(po->q_strides, p->q_strides, 3 * sizeof(p->q_strides[0]));
-        memcpy(po->q_scale, p->q_scale, 3 * sizeof(p->q_scale[0]));
-        memcpy(po->q_shift, p->q_shift, 3 * sizeof(p->q_shift[0]));
+        memcpy(po->_q_strides, p->_q_strides, 3 * sizeof(p->_q_strides[0]));
+        memcpy(po->_q_scale, p->_q_scale, 3 * sizeof(p->_q_scale[0]));
+        memcpy(po->_q_shift, p->_q_shift, 3 * sizeof(p->_q_shift[0]));
     }
 }
 

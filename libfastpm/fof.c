@@ -237,7 +237,7 @@ _fof_global_merge(
 
     FastPMStore commbuff[1];
 
-    fastpm_store_init(commbuff, p->np + pgd->p->np, PACK_MINID | PACK_TASK, FASTPM_MEMORY_STACK);
+    fastpm_store_init(commbuff, p->np + pgd->p->np, COLUMN_MINID | COLUMN_TASK, FASTPM_MEMORY_STACK);
 
     size_t npmax = p->np;
 
@@ -253,7 +253,7 @@ _fof_global_merge(
     /* send minid */
     p->minid = savebuff->minid;
     p->task = savebuff->task;
-    pm_ghosts_send(pgd, PACK_MINID | PACK_TASK);
+    pm_ghosts_send(pgd, COLUMN_MINID | COLUMN_TASK);
     p->minid = NULL;
     p->task = NULL;
 
@@ -286,7 +286,7 @@ _fof_global_merge(
 
         p->minid = commbuff->minid;
         p->task = commbuff->task;
-        pm_ghosts_send(pgd, PACK_MINID | PACK_TASK);
+        pm_ghosts_send(pgd, COLUMN_MINID | COLUMN_TASK);
 
         p->minid = NULL;
         p->task = NULL;
@@ -460,7 +460,9 @@ fastpm_fof_apply_length_cut(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
     fastpm_fof_subsample(finder, halos, mask, head);
     fastpm_memory_free(finder->p->mem, mask);
 
-    fastpm_info("After length cut we have %td halos (including ghost halos)\n", fastpm_store_get_np_total(halos, comm));
+    fastpm_info("After length cut we have %td halos (%td including ghost halos).\n", 
+            fastpm_store_get_mask_sum(halos, comm),
+            fastpm_store_get_np_total(halos, comm));
 }
 
 /* first every undecided halo; then the real halo with particles */
@@ -885,20 +887,20 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
 
     MPI_Comm comm = finder->priv->comm;
 
-    enum FastPMPackFields attributes = finder->p->attributes;
-    attributes |= PACK_LENGTH | PACK_MINID | PACK_TASK;
-    attributes |= PACK_RDISP | PACK_VDISP | PACK_RVDISP;
-    attributes |= PACK_ACC; /* ACC used as the first particle position offset */
-    attributes &= ~PACK_POTENTIAL;
-    attributes &= ~PACK_DENSITY;
-    attributes &= ~PACK_TIDAL;
+    FastPMColumnTags attributes = finder->p->attributes;
+    attributes |= COLUMN_LENGTH | COLUMN_MINID | COLUMN_TASK;
+    attributes |= COLUMN_RDISP | COLUMN_VDISP | COLUMN_RVDISP;
+    attributes |= COLUMN_ACC; /* ACC used as the first particle position offset */
+    attributes &= ~COLUMN_POTENTIAL;
+    attributes &= ~COLUMN_DENSITY;
+    attributes &= ~COLUMN_TIDAL;
 
     /* store initial position only for periodic case. non-periodic suggests light cone and
      * we cannot infer q from ID sensibly. (crashes there) */
     if(finder->priv->boxsize) {
-        attributes |= PACK_Q;
+        attributes |= COLUMN_Q;
     } else {
-        attributes &= ~PACK_Q;
+        attributes &= ~COLUMN_Q;
     }
 
     double avg_halos;
@@ -969,11 +971,11 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     }
 
     PMGhostData * pgd = pm_ghosts_create_full(pm, p,
-            PACK_POS | PACK_ID | PACK_MINID | PACK_TASK,
+            COLUMN_POS | COLUMN_ID | COLUMN_MINID | COLUMN_TASK,
             below, above
         );
 
-    pm_ghosts_send(pgd, PACK_POS | PACK_ID);
+    pm_ghosts_send(pgd, COLUMN_POS | COLUMN_ID);
 
     size_t np_and_ghosts = p->np + pgd->p->np;
 
@@ -981,7 +983,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                     sizeof(head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
 
     FastPMStore savebuff[1];
-    fastpm_store_init(savebuff, np_and_ghosts, PACK_MINID | PACK_TASK, FASTPM_MEMORY_STACK);
+    fastpm_store_init(savebuff, np_and_ghosts, COLUMN_MINID | COLUMN_TASK, FASTPM_MEMORY_STACK);
 
     _fof_local_find(finder, p, pgd, head, finder->linkinglength);
 

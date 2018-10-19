@@ -214,7 +214,7 @@ int main(int argc, char ** argv) {
     };
 
     if(CONF(prr, compute_potential)) {
-        config->ExtraAttributes |= PACK_POTENTIAL;
+        config->ExtraAttributes |= COLUMN_POTENTIAL;
     }
 
     run_fastpm(config, prr, comm);
@@ -949,7 +949,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         FastPMStore snapshot[1];
 
         fastpm_store_init(snapshot, p->np_upper,
-                p->attributes & ~PACK_ACC,
+                p->attributes & ~COLUMN_ACC,
                 FASTPM_MEMORY_FLOATING
             );
 
@@ -1182,7 +1182,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         fastpm_painter_init(painter, fastpm->basepm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
-        fastpm_paint(painter, rho_x, snapshot, 0);
+        fastpm_paint(painter, rho_x, snapshot, FASTPM_FIELD_DESCR_NONE);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
 
         write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->Nwriters);

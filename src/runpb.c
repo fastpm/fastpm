@@ -236,9 +236,9 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 
     int d;
     for(d = 0; d < 3; d++){
-        p->q_strides[d] = strides[d];
-        p->q_scale[d] = (1.0 * fastpm->config->boxsize) / fastpm->config->nc;
-        p->q_shift[d] = 0.5 * (1.0 * fastpm->config->boxsize) / fastpm->config->nc;
+        p->_q_strides[d] = strides[d];
+        p->_q_scale[d] = (1.0 * fastpm->config->boxsize) / fastpm->config->nc;
+        p->_q_shift[d] = 0.5 * (1.0 * fastpm->config->boxsize) / fastpm->config->nc;
     }
 
     /* RUN PB ic global shifting */

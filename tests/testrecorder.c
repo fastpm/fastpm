@@ -124,7 +124,7 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
     recorder->maxsteps = maxsteps;
     recorder->solver = solver;
     recorder->tape = calloc(maxsteps, sizeof(FastPMStore));
-    fastpm_store_init(recorder->bare, solver->p->np_upper, PACK_Q | PACK_ID);
+    fastpm_store_init(recorder->bare, solver->p->np_upper, COLUMN_Q | COLUMN_ID);
     fastpm_store_copy(solver->p, recorder->bare);
     fastpm_store_decompose(recorder->bare, target_func, solver->basepm, solver->comm);
 
@@ -135,7 +135,7 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
     for(step = 0; step < maxsteps; step ++) {
         FastPMStore * p = &recorder->tape[step];
         fastpm_store_init_evenly(p, np_total,
-            PACK_POS | PACK_VEL | PACK_ACC, 1.1, solver->comm);
+            COLUMN_POS | COLUMN_VEL | COLUMN_ACC, 1.1, solver->comm);
         p->np = recorder->bare->np;
         /* steal a reference from bare. Need to nullify the pointer before destroy the stores */
         p->q = recorder->bare->q;
@@ -146,7 +146,7 @@ void fastpm_recorder_init(FastPMRecorder * recorder, FastPMSolver * solver, int 
 void fastpm_recorder_record(FastPMRecorder * recorder, FastPMTransition * transition, FastPMStore * p)
 {
     /* according to the initial and final state of the transition, add / modify records in recorder.
-     * initialize new FastPMStore objects with PACK_X | PACK_V | PACK_Q | PACK_ACC if necessary.
+     * initialize new FastPMStore objects with COLUMN_X | COLUMN_V | COLUMN_Q | COLUMN_ACC if necessary.
      *
      * Important: We want to sort the particle into a particular order before saving them.
      * */
@@ -155,13 +155,13 @@ void fastpm_recorder_record(FastPMRecorder * recorder, FastPMTransition * transi
 
     switch(transition->action) {
         case FASTPM_ACTION_DRIFT:
-            fastpm_store_init(tmp, p->np_upper, PACK_POS | PACK_ID | PACK_Q);
+            fastpm_store_init(tmp, p->np_upper, COLUMN_POS | COLUMN_ID | COLUMN_Q);
         break;
         case FASTPM_ACTION_KICK:
-            fastpm_store_init(tmp, p->np_upper, PACK_VEL | PACK_ID | PACK_Q);
+            fastpm_store_init(tmp, p->np_upper, COLUMN_VEL | COLUMN_ID | COLUMN_Q);
         break;
         case FASTPM_ACTION_FORCE:
-            fastpm_store_init(tmp, p->np_upper, PACK_ACC | PACK_ID | PACK_Q);
+            fastpm_store_init(tmp, p->np_upper, COLUMN_ACC | COLUMN_ID | COLUMN_Q);
         break;
     }
     fastpm_store_copy(p, tmp);

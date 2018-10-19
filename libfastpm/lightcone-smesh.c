@@ -32,12 +32,12 @@ fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, dou
     mesh->layers = NULL;
     mesh->smoothing = smoothing;
     fastpm_store_init(mesh->last.p, 0,
-              PACK_ID
-            | PACK_POS
-            | PACK_POTENTIAL
-            | PACK_DENSITY
-            | PACK_TIDAL
-            | PACK_AEMIT,
+              COLUMN_ID
+            | COLUMN_POS
+            | COLUMN_POTENTIAL
+            | COLUMN_DENSITY
+            | COLUMN_TIDAL
+            | COLUMN_AEMIT,
             FASTPM_MEMORY_STACK);
 
     mesh->last.a_f = 0;
@@ -381,12 +381,12 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
     }
 
     fastpm_store_init(q, nactive,
-              PACK_ID
-            | PACK_POS
-            | PACK_POTENTIAL
-            | PACK_DENSITY
-            | PACK_TIDAL
-            | PACK_AEMIT,
+              COLUMN_ID
+            | COLUMN_POS
+            | COLUMN_POTENTIAL
+            | COLUMN_DENSITY
+            | COLUMN_TIDAL
+            | COLUMN_AEMIT,
             FASTPM_MEMORY_HEAP
     );
 
@@ -442,7 +442,7 @@ fastpm_smesh_compute_potential(
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
     fastpm_store_init(p_last_now, mesh->last.p->np_upper,
-                    mesh->last.p->attributes & ~ PACK_POS & ~ PACK_AEMIT & ~ PACK_ID,
+                    mesh->last.p->attributes & ~ COLUMN_POS & ~ COLUMN_AEMIT & ~ COLUMN_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
                     );
@@ -467,24 +467,28 @@ fastpm_smesh_compute_potential(
         /*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
 
         int d;
-        enum FastPMPackFields ACC[] = {
-                     PACK_DENSITY,
-                     PACK_POTENTIAL,
-                     PACK_TIDAL_XX, PACK_TIDAL_YY, PACK_TIDAL_ZZ,
-                     PACK_TIDAL_XY, PACK_TIDAL_YZ, PACK_TIDAL_ZX
-                    };
+        FastPMFieldDescr ACC[] = {
+         { COLUMN_DENSITY, 0 },
+         { COLUMN_POTENTIAL, 0},
+         { COLUMN_TIDAL, 0 },
+         { COLUMN_TIDAL, 1 },
+         { COLUMN_TIDAL, 2 },
+         { COLUMN_TIDAL, 3 },
+         { COLUMN_TIDAL, 4 },
+         { COLUMN_TIDAL, 5 },
+        };
 
-        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | PACK_POS);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | COLUMN_POS);
         PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes);
 
-        pm_ghosts_send(pgd_last_now, PACK_POS);
-        pm_ghosts_send(pgd_new_now, PACK_POS);
+        pm_ghosts_send(pgd_last_now, COLUMN_POS);
+        pm_ghosts_send(pgd_new_now, COLUMN_POS);
 
         for(d = 0; d < 8; d ++) {
             ENTER(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
-            if(ACC[d] == PACK_DENSITY) {
+            if(ACC[d].attribute == COLUMN_DENSITY) {
 //                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
             }
 

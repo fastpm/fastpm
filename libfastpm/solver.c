@@ -58,11 +58,11 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     if(config->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* Cola requires DX1 and DX2 to be permantly stored. */
-        config->ExtraAttributes |= PACK_DX1;
-        config->ExtraAttributes |= PACK_DX2;
+        config->ExtraAttributes |= COLUMN_DX1;
+        config->ExtraAttributes |= COLUMN_DX2;
     }
     fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
-          PACK_POS | PACK_VEL | PACK_ID | PACK_MASK | PACK_ACC
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC
         | config->ExtraAttributes,
         config->alloc_factor, comm);
 

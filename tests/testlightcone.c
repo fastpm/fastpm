@@ -179,7 +179,7 @@ int main(int argc, char * argv[]) {
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
         .nLPT = 2.5,
-        .ExtraAttributes = PACK_POTENTIAL,
+        .ExtraAttributes = COLUMN_POTENTIAL,
     };
     FastPMSolver solver[1];
 
