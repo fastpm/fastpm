@@ -287,6 +287,59 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm)
     return np;
 }
 
+void
+fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, enum FastPMPackFields attributes)
+{
+    int ci;
+    int i = 0;
+    plan->elsize = 0;
+    plan->attributes = attributes;
+    for (ci = 0; ci < 32; ci ++) {
+        if (!(p->column_info[ci].attribute & attributes)) continue;
+        plan->ci[i] = ci;
+        plan->offsets[ci] = plan->elsize;
+        plan->elsize += p->column_info[ci].elsize;
+        plan->column_info[ci] = p->column_info[ci];
+        i++;
+    }
+    plan->Ncolumns = i;
+}
+
+void
+fastpm_packing_plan_pack(FastPMPackingPlan * plan,
+            FastPMStore * p, ptrdiff_t i, void * packed)
+{
+    int t;
+    for (t = 0; t < plan->Ncolumns; t ++) {
+        int ci = plan->ci[t];
+        ptrdiff_t offset = plan->offsets[ci];
+        plan->column_info[ci].pack(p, i, ci,
+            ((char*) packed) + offset);
+    }
+}
+
+void
+fastpm_packing_plan_unpack(FastPMPackingPlan * plan,
+            FastPMStore * p, ptrdiff_t i, void * packed)
+{
+    int t;
+    for (t = 0; t < plan->Ncolumns; t ++) {
+        int ci = plan->ci[t];
+        fastpm_packing_plan_unpack_ci(plan, ci, p, i, packed);
+    }
+}
+
+/* unpack a single column from the offset in packed data. */
+void
+fastpm_packing_plan_unpack_ci(FastPMPackingPlan * plan, int ci,
+            FastPMStore * p, ptrdiff_t i, void * packed)
+{
+    ptrdiff_t offset = plan->offsets[ci];
+    plan->column_info[ci].unpack(p, i, ci,
+        ((char*) packed) + offset);
+}
+
+
 int
 fastpm_store_find_column_id(FastPMStore * p, enum FastPMPackFields attribute)
 {

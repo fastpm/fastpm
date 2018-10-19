@@ -35,7 +35,7 @@ struct FastPMStore {
 
     void * base; /* base pointer of all memory buffers */
 
-    struct {
+    struct FastPMColumnInfo {
         void   (*pack)   (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         void   (*unpack) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         void   (*pack_member)   (FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed);
@@ -86,6 +86,16 @@ struct FastPMStore {
 };
 
 typedef struct {
+    enum FastPMPackFields attributes;
+    int Ncolumns;
+    int elsize;
+    /* private : */
+    int ci[32];
+    int offsets[32];
+    struct FastPMColumnInfo column_info[32];
+} FastPMPackingPlan;
+
+typedef struct {
     enum FastPMPackFields attribute;
     int memb;
 } FastPMFieldDescr;
@@ -110,6 +120,21 @@ size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, enu
 void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
 
 int fastpm_store_find_column_id(FastPMStore *p, enum FastPMPackFields attribute);
+
+void
+fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, enum FastPMPackFields attributes);
+
+void
+fastpm_packing_plan_pack(FastPMPackingPlan * plan,
+            FastPMStore * p, ptrdiff_t i, void * packed);
+
+void
+fastpm_packing_plan_unpack(FastPMPackingPlan * plan,
+            FastPMStore * p, ptrdiff_t i, void * packed);
+
+void
+fastpm_packing_plan_unpack_ci(FastPMPackingPlan * plan, int ci,
+            FastPMStore * p, ptrdiff_t i, void * packed);
 
 void
 fastpm_store_destroy(FastPMStore * p);

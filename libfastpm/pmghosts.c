@@ -86,15 +86,17 @@ count_ghosts(PM * pm, PMGhostData * pgd, void * userdata)
     pgd->Nsend[pgd->rank] ++;
 }
 
-struct build_ghost_buffer_data {
-    enum FastPMPackFields attributes;
+struct ghost_buffer_data {
+    int Nci;
+    int ci[32];
+    int offsets[32];
     size_t elsize;
 };
 
 static void
 build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 {
-    struct build_ghost_buffer_data * data = userdata;
+    FastPMPackingPlan * plan = userdata;
 
 
     int ighost;
@@ -105,8 +107,8 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
 
     ighost = pgd->Osend[pgd->rank] + offset;
 
-    fastpm_store_pack(pgd->source, pgd->ipar,
-        (char*) pgd->send_buffer + ighost * data->elsize, data->attributes);
+    fastpm_packing_plan_pack(plan, pgd->source, pgd->ipar, 
+                (char*) pgd->send_buffer + ighost * plan->elsize);
 
     pgd->ighost_to_ipar[ighost] = pgd->ipar;
 }
@@ -179,23 +181,23 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
     Nsend = cumsum(pgd->Osend, pgd->Nsend, pm->NTask);
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
 
-    size_t elsize = fastpm_store_pack(pgd->source, 0, NULL, attributes);
+    FastPMPackingPlan plan[1];
+    fastpm_packing_plan_init(plan, pgd->p, attributes);
 
-    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * elsize, FASTPM_MEMORY_STACK);
-    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * elsize, FASTPM_MEMORY_STACK);
+    pgd->send_buffer = fastpm_memory_alloc(pm->mem, "SendBuf", Nsend * plan->elsize, FASTPM_MEMORY_STACK);
+    pgd->recv_buffer = fastpm_memory_alloc(pm->mem, "RecvBuf", Nrecv * plan->elsize, FASTPM_MEMORY_STACK);
 
     /* build buffer */
     memset(pgd->Nsend, 0, sizeof(pgd->Nsend[0]) * pm->NTask);
 
-    struct build_ghost_buffer_data data = {attributes, elsize};
-    pm_iter_ghosts(pm, pgd, build_ghost_buffer, &data);
+    pm_iter_ghosts(pm, pgd, build_ghost_buffer, plan);
 
     /* exchange */
 
     pgd->p->np = Nrecv;
 
     MPI_Datatype GHOST_TYPE;
-    MPI_Type_contiguous(elsize, MPI_BYTE, &GHOST_TYPE);
+    MPI_Type_contiguous(plan->elsize, MPI_BYTE, &GHOST_TYPE);
     MPI_Type_commit(&GHOST_TYPE);
     MPI_Alltoallv_sparse(pgd->send_buffer, pgd->Nsend, pgd->Osend, GHOST_TYPE,
                   pgd->recv_buffer, pgd->Nrecv, pgd->Orecv, GHOST_TYPE,
@@ -204,9 +206,9 @@ pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
 
 #pragma omp parallel for
     for(i = 0; i < Nrecv; i ++) {
-        fastpm_store_unpack(pgd->p, i,
-                (char*) pgd->recv_buffer + i * elsize,
-                        attributes);
+        fastpm_packing_plan_unpack(plan,
+                pgd->p, i,
+                (char*) pgd->recv_buffer + i * plan->elsize);
     }
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
     fastpm_memory_free(pm->mem, pgd->send_buffer);
