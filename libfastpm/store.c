@@ -157,7 +157,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(rho, PACK_DENSITY, "f4", 1);
     DEFINE_COLUMN(potential, PACK_POTENTIAL, "f4", 1);
     DEFINE_COLUMN(tidal, PACK_TIDAL, "f4", 6);
-    DEFINE_COLUMN(id, PACK_ID, "i8", 6);
+    DEFINE_COLUMN(id, PACK_ID, "i8", 1);
     DEFINE_COLUMN(mask, PACK_MASK, "i1", 1);
     DEFINE_COLUMN(minid, PACK_MINID, "i8", 1);
     DEFINE_COLUMN(task, PACK_TASK, "i4", 1);
