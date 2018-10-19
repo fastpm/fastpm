@@ -36,12 +36,20 @@ cumsum(int64_t offsets[], int N)
 }
 */
 
+struct sort_data {
+    FastPMStore * p; /* temporary store for decoding */
+    FastPMPackingPlan * plan;
+};
+
 void
 FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 {
-    FastPMStore * p = (FastPMStore *) arg;
+    struct sort_data * data = arg;
 
-    fastpm_store_unpack(p, 0, (void*) ptr, p->attributes);
+    FastPMStore * p = data->p;
+    FastPMPackingPlan * plan = data->plan;
+
+    fastpm_packing_plan_unpack_ci(plan, FASTPM_STORE_COLUMN_INDEX(id), p, 0, (void*) ptr);
 
     *((uint64_t*) radix) = p->id[0];
 }
@@ -49,9 +57,12 @@ FastPMSnapshotSortByID(const void * ptr, void * radix, void * arg)
 void
 FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg)
 {
-    FastPMStore * p = (FastPMStore *) arg;
+    struct sort_data * data = arg;
 
-    fastpm_store_unpack(p, 0, (void*) ptr, p->attributes);
+    FastPMStore * p = data->p;
+    FastPMPackingPlan * plan = data->plan;
+
+    fastpm_packing_plan_unpack_ci(plan, FASTPM_STORE_COLUMN_INDEX(length), p, 0, (void*) ptr);
 
     *((uint64_t*) radix) = -p->length[0];
 }
@@ -59,9 +70,12 @@ FastPMSnapshotSortByLength(const void * ptr, void * radix, void * arg)
 void
 FastPMSnapshotSortByAEmit(const void * ptr, void * radix, void * arg)
 {
-    FastPMStore * p = (FastPMStore *) arg;
+    struct sort_data * data = arg;
 
-    fastpm_store_unpack(p, 0, (void*) ptr, p->attributes);
+    FastPMStore * p = data->p;
+    FastPMPackingPlan * plan = data->plan;
+
+    fastpm_packing_plan_unpack_ci(plan, FASTPM_STORE_COLUMN_INDEX(aemit), p, 0, (void*) ptr);
 
     /* larger than 53 is probably good enough but perhaps should have used ldexp (>GLIBC 2.19)*/
     *((uint64_t*) radix) = p->aemit[0] * (1L << 60L);
@@ -97,13 +111,21 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     FastPMStore ptmp[1];
     fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
 
+    FastPMPackingPlan plan[1];
+    fastpm_packing_plan_init(plan, p, p->attributes);
+
     for(i = 0; i < p->np; i ++) {
-        fastpm_store_pack(p, i, (char*) send_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_pack(plan, p, i, send_buffer + i * plan->elsize);
     }
-    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, ptmp, comm);
+
+    struct sort_data data[1];
+    data->p = ptmp;
+    data->plan = plan;
+
+    mpsort_mpi_newarray(send_buffer, p->np, recv_buffer, localsize, elsize, sorter, 8, data, comm);
 
     for(i = 0; i < localsize; i ++) {
-        fastpm_store_unpack(p, i, (char*) recv_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_unpack(plan, p, i, recv_buffer + i * plan->elsize);
     }
     p->np = localsize;
     fastpm_store_destroy(ptmp);

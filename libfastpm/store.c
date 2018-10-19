@@ -173,11 +173,9 @@ fastpm_store_init_details(FastPMStore * p,
 
     /* first loop initialize the column_info struct for corresponding items in the pointer union; 
      * second loop initialize the pointers */
-    #define CI(column) (((char*) &(p->column) - (char*) &(p->columns[0])) / sizeof(p->columns[0]))
-
     #define DEFINE_COLUMN(column, attr_, dtype_, nmemb_) \
         { \
-            int ci = CI(column); \
+            int ci = FASTPM_STORE_COLUMN_INDEX(column); \
             if(attr_ != (1 << ci)) { fastpm_raise(-1, "attr and column are out of order for %s\n", # column ); } \
             strcpy(p->column_info[ci].dtype, dtype_);  \
             p->column_info[ci].elsize = sizeof(p->column[0]);  \
@@ -192,7 +190,7 @@ fastpm_store_init_details(FastPMStore * p,
             p->column_info[ci].to_double = NULL;  \
         }
 
-    #define COLUMN_INFO(column) (p->column_info[CI(column)])
+    #define COLUMN_INFO(column) (p->column_info[FASTPM_STORE_COLUMN_INDEX(column)])
 
     DEFINE_COLUMN(x, PACK_POS, "f8", 3);
     DEFINE_COLUMN(q, PACK_Q, "f4", 3);

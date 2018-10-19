@@ -84,6 +84,9 @@ struct FastPMStore {
     double q_scale[3];
     ptrdiff_t q_strides[3];
 };
+#define FASTPM_STORE_COLUMN_INDEX(column) (((char*) &(((FastPMStore *) NULL)->column) - (char*) &(((FastPMStore *)NULL)->columns[0])) \
+                        / sizeof(((FastPMStore *) NULL)->columns[0]))
+
 
 typedef struct {
     enum FastPMPackFields attributes;
