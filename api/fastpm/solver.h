@@ -47,7 +47,7 @@ typedef struct {
     int USE_DX1_ONLY;
     int USE_SHIFT;
 
-    enum FastPMPackFields ExtraAttributes;
+    FastPMColumnTags ExtraAttributes;
 
     double nLPT;
     FastPMPainterType PAINTER_TYPE;

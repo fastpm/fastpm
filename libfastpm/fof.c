@@ -887,7 +887,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
 
     MPI_Comm comm = finder->priv->comm;
 
-    enum FastPMPackFields attributes = finder->p->attributes;
+    FastPMColumnTags attributes = finder->p->attributes;
     attributes |= PACK_LENGTH | PACK_MINID | PACK_TASK;
     attributes |= PACK_RDISP | PACK_VDISP | PACK_RVDISP;
     attributes |= PACK_ACC; /* ACC used as the first particle position offset */

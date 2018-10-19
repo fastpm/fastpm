@@ -118,7 +118,7 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
  * */
 PMGhostData *
 pm_ghosts_create(PM * pm, FastPMStore * p,
-    enum FastPMPackFields attributes)
+    FastPMColumnTags attributes)
 {
     return pm_ghosts_create_full(pm, p, attributes, pm->Below, pm->Above);
 
@@ -126,7 +126,7 @@ pm_ghosts_create(PM * pm, FastPMStore * p,
 
 PMGhostData * 
 pm_ghosts_create_full(PM * pm, FastPMStore * p,
-        enum FastPMPackFields attributes,
+        FastPMColumnTags attributes,
         double below[],
         double above[]
         )
@@ -171,7 +171,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 }
 
 void
-pm_ghosts_send(PMGhostData * pgd, enum FastPMPackFields attributes)
+pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes)
 {
     PM * pm = pgd->pm;
     ptrdiff_t i;

@@ -92,8 +92,11 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     MPI_Comm_size(comm, &NTask);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-    size_t elsize = fastpm_store_pack(p, 0, NULL, p->attributes);
     size_t localsize = size * (ThisTask + 1) / NTask - size * ThisTask / NTask;
+
+    FastPMPackingPlan plan[1];
+    fastpm_packing_plan_init(plan, p, p->attributes);
+    size_t elsize = plan->elsize;
 
     if(redistribute) {
         if(MPIU_Any(comm, localsize > p->np_upper)) {
@@ -110,9 +113,6 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
 
     FastPMStore ptmp[1];
     fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
-
-    FastPMPackingPlan plan[1];
-    fastpm_packing_plan_init(plan, p, p->attributes);
 
     for(i = 0; i < p->np; i ++) {
         fastpm_packing_plan_pack(plan, p, i, send_buffer + i * plan->elsize);

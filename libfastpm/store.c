@@ -15,10 +15,6 @@ pack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
 {
     size_t elsize = p->column_info[ci].elsize;
     memcpy(packed, p->columns[ci] + index * elsize, elsize);
-
-    if(ci == 12) {
-        // printf("packing minid %ld\n", p->minid[index]);
-    }
 }
 
 static void
@@ -40,10 +36,6 @@ pack_member_any(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packe
     size_t membsize = p->column_info[ci].membsize;
 
     memcpy(packed, p->columns[ci] + index * elsize + membsize * memb, membsize);
-
-    if(ci == 6) {
-//        printf("packed into %g membsize = %d, memb = %d elsize = %d\n", *(float*) packed, membsize, memb, elsize);
-    }
 }
 
 static void
@@ -59,9 +51,6 @@ reduce_member_f4_add(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * 
     float * ptr = (float*) (p->columns[ci] + index * elsize);
     float * ptr_packed = (float*) packed;
 
-    if(ci == 6) {
- //       printf("reducing into %g %g, memb = %d elsize = %d\n", ptr[memb], ptr_packed[0], memb, elsize);
-    }
     ptr[memb] += ptr_packed[0];
 }
 
@@ -108,40 +97,6 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
     pos[2] = p->q[index][2];
 }
 
-size_t fastpm_store_pack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
-    int ci;
-    char * ptr = (char*) buf;
-    for(ci = 0; ci < 32; ci ++) {
-        if(flags & p->column_info[ci].attribute) {
-            if(buf) {
-                p->column_info[ci].pack(p, index, ci, ptr);
-            }
-            ptr += p->column_info[ci].elsize;
-            flags &= ~p->column_info[ci].attribute;
-        }
-    }
-
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
-    }
-    return (ptrdiff_t) (ptr - (char*) buf);
-}
-void fastpm_store_unpack(FastPMStore * p, ptrdiff_t index, void * buf, enum FastPMPackFields flags) {
-
-    int ci;
-    char * ptr = (char*) buf;
-    for(ci = 0; ci < 32; ci ++) {
-        if(flags & p->column_info[ci].attribute) {
-            p->column_info[ci].unpack(p, index, ci, ptr);
-            ptr += p->column_info[ci].elsize;
-            flags &= ~p->column_info[ci].attribute;
-        }
-    }
-
-    if(flags != 0) {
-        fastpm_raise(-1, "Runtime Error, unknown unpacking field: %08X\n", flags);
-    }
-}
 static ptrdiff_t
 _alignsize(ptrdiff_t size)
 {
@@ -152,7 +107,7 @@ _alignsize(ptrdiff_t size)
 void
 fastpm_store_init_details(FastPMStore * p,
                   size_t np_upper,
-                  enum FastPMPackFields attributes,
+                  FastPMColumnTags attributes,
                   enum FastPMMemoryLocation loc,
                   const char * file,
                   const int line)
@@ -252,7 +207,7 @@ fastpm_store_init_details(FastPMStore * p,
 }
 
 size_t 
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
@@ -286,7 +241,7 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm)
 }
 
 void
-fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, enum FastPMPackFields attributes)
+fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumnTags attributes)
 {
     int ci;
     int i = 0;
@@ -339,7 +294,7 @@ fastpm_packing_plan_unpack_ci(FastPMPackingPlan * plan, int ci,
 
 
 int
-fastpm_store_find_column_id(FastPMStore * p, enum FastPMPackFields attribute)
+fastpm_store_find_column_id(FastPMStore * p, FastPMColumnTags attribute)
 {
     int ci;
     for (ci = 0; ci < 32; ci ++) {
@@ -532,7 +487,11 @@ fastpm_store_decompose(FastPMStore * p,
 
     size_t Nsend = cumsum(sendoffset, sendcount, NTask);
     size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    size_t elsize = fastpm_store_pack(p, 0, NULL, p->attributes);
+    FastPMPackingPlan plan[1];
+
+    fastpm_packing_plan_init(plan, p, p->attributes);
+
+    size_t elsize = plan->elsize;
 
     volatile size_t neededsize = p->np + Nrecv - Nsend;
 
@@ -550,7 +509,7 @@ fastpm_store_decompose(FastPMStore * p,
     p->np -= Nsend;
 
     for(i = 0; i < Nsend; i ++) {
-        fastpm_store_pack(p, i + p->np, (char*) send_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_pack(plan, p, i + p->np, (char*) send_buffer + i * elsize);
     }
 
     MPI_Datatype PTYPE;
@@ -565,7 +524,7 @@ fastpm_store_decompose(FastPMStore * p,
     MPI_Type_free(&PTYPE);
 
     for(i = 0; i < Nrecv; i ++) {
-        fastpm_store_unpack(p, i + p->np, (char*) recv_buffer + i * elsize, p->attributes);
+        fastpm_packing_plan_unpack(plan, p, i + p->np, (char*) recv_buffer + i * elsize);
     }
 
     p->np += Nrecv;

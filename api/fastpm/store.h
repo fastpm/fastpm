@@ -5,7 +5,13 @@
 #include <stdint.h>
 
 FASTPM_BEGIN_DECLS
-enum FastPMPackFields {
+
+/*
+ * enum constants for naming the columns in the source code.
+ * Keep the value ordering in agreement with the ordering in FastPMStore struct;
+ * if mismatched, the code will issue an error at start up.
+ * */
+typedef enum FastPMColumnTags {
     PACK_MASK    =  1L << 0,
     PACK_POS   =  1L << 1,
     PACK_Q     =  1L << 2,
@@ -26,15 +32,17 @@ enum FastPMPackFields {
     PACK_RDISP =  1L << 15,
     PACK_VDISP =  1L << 16,
     PACK_RVDISP =  1L << 17,
-};
+
+} FastPMColumnTags;
 
 struct FastPMStore {
     FastPMMemory * mem;
 
-    enum FastPMPackFields attributes; /* bit flags of allocated attributes */
+    FastPMColumnTags attributes; /* bit flags of allocated attributes */
 
     void * base; /* base pointer of all memory buffers */
 
+    /* The ordering of the column_info array is the same as the columns array */
     struct FastPMColumnInfo {
         void   (*pack)   (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         void   (*unpack) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
@@ -47,7 +55,9 @@ struct FastPMStore {
         size_t elsize;
         size_t membsize;
         size_t nmemb;
-        enum FastPMPackFields attribute;
+
+        /* This is exactly 1 << item index. Ensured by DEFINE_COLUMN and values in FastPMColumnTags. */
+        FastPMColumnTags attribute;
     } column_info[32];
 
     union {
@@ -84,12 +94,15 @@ struct FastPMStore {
     double q_scale[3];
     ptrdiff_t q_strides[3];
 };
+
+/* convert a column name literal (e.g. x, id) to the column index in the column_info array */
 #define FASTPM_STORE_COLUMN_INDEX(column) (((char*) &(((FastPMStore *) NULL)->column) - (char*) &(((FastPMStore *)NULL)->columns[0])) \
                         / sizeof(((FastPMStore *) NULL)->columns[0]))
 
 
+/* */
 typedef struct {
-    enum FastPMPackFields attributes;
+    FastPMColumnTags attributes;
     int Ncolumns;
     int elsize;
     /* private : */
@@ -99,18 +112,18 @@ typedef struct {
 } FastPMPackingPlan;
 
 typedef struct {
-    enum FastPMPackFields attribute;
+    FastPMColumnTags attribute;
     int memb;
 } FastPMFieldDescr;
 
 const static FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 void
-fastpm_store_init_details(FastPMStore * p, size_t np_upper, enum FastPMPackFields attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
+fastpm_store_init_details(FastPMStore * p, size_t np_upper, FastPMColumnTags attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
 
 #define fastpm_store_init(p, np_upper, attributes, loc) fastpm_store_init_details(p, np_upper, attributes, loc, __FILE__, __LINE__)
 
 size_t
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, enum FastPMPackFields attributes,
+fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attributes,
     double alloc_factor, MPI_Comm comm);
 
 void
@@ -119,13 +132,13 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);
 void 
 fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
 
-size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
-void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, enum FastPMPackFields attributes);
+size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
+void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
 
-int fastpm_store_find_column_id(FastPMStore *p, enum FastPMPackFields attribute);
+int fastpm_store_find_column_id(FastPMStore *p, FastPMColumnTags attribute);
 
 void
-fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, enum FastPMPackFields attributes);
+fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumnTags attributes);
 
 void
 fastpm_packing_plan_pack(FastPMPackingPlan * plan,
