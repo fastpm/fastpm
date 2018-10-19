@@ -228,15 +228,21 @@ write_snapshot_data(FastPMStore * p,
     fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
     #define DEFINE_COLUMN_IO(name, dtype_, column) \
-        {name, dtype_, p->column, FASTPM_STORE_COLUMN_INFO(p, column).dtype, FASTPM_STORE_COLUMN_INFO(p, column).nmemb}
+        {name, dtype_, \
+                    FASTPM_STORE_COLUMN_INFO(p, column).dtype, \
+                    FASTPM_STORE_COLUMN_INFO(p, column).nmemb, \
+                    FASTPM_STORE_COLUMN_INFO(p, column).attribute, \
+                    FASTPM_STORE_COLUMN_INDEX(column) \
+                }
 
     struct {
         char * name;
         char * dtype_out;
-        void * fastpm;
         char * dtype;
         int nmemb;
-    } * bdesc, BLOCKS[] = {
+        FastPMColumnTags attribute;
+        int ci;
+    } * descr, BLOCKS[] = {
         DEFINE_COLUMN_IO("Position",        "f4", x),
         DEFINE_COLUMN_IO("InitialPosition", "f4", q),
         DEFINE_COLUMN_IO("DX1",             "f4", dx1),
@@ -263,16 +269,16 @@ write_snapshot_data(FastPMStore * p,
         }
         big_block_mpi_close(&bb, comm);
     }
-    for(bdesc = BLOCKS; bdesc->name; bdesc ++) {
-        if(bdesc->fastpm == NULL) continue;
+    for(descr = BLOCKS; descr->name; descr ++) {
+        if(p->columns[descr->ci] == NULL) continue;
 
-        fastpm_info("Writing block %s\n", bdesc->name);
+        fastpm_info("Writing block %s of (%s, %d)\n", descr->name, descr->dtype, descr->nmemb);
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
-        char * blockname = fastpm_strdup_printf("%s/%s", dataset, bdesc->name);
+        char * blockname = fastpm_strdup_printf("%s/%s", dataset, descr->name);
         if(!append) {
-            if(0 != big_file_mpi_create_block(bf, &bb, blockname, bdesc->dtype_out, bdesc->nmemb,
+            if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
                         Nfile, size, comm)) {
                 fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
             }
@@ -280,7 +286,7 @@ write_snapshot_data(FastPMStore * p,
         } else {
             if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
                 /* if open failed, create an empty block instead.*/
-                if(0 != big_file_mpi_create_block(bf, &bb, blockname, bdesc->dtype_out, bdesc->nmemb,
+                if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
                             0, 0, comm)) {
                     fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
                 }
@@ -290,8 +296,23 @@ write_snapshot_data(FastPMStore * p,
             big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
             big_block_seek(&bb, &ptr, oldsize);
         }
-        big_array_init(&array, bdesc->fastpm, bdesc->dtype, 2, (size_t[]) {p->np, bdesc->nmemb}, NULL );
+
+        /* packing the single column for IO */
+        FastPMPackingPlan plan[1];
+        fastpm_packing_plan_init(plan, p, descr->attribute);
+
+        size_t elsize = plan->elsize;
+        void * buffer = malloc(elsize * p->np);
+
+        ptrdiff_t i;
+        for(i = 0; i < p->np; i ++) {
+            fastpm_packing_plan_pack(plan, p, i, ((char *) buffer) + i * elsize);
+        }
+
+        big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
+        free(buffer);
+
         big_block_mpi_close(&bb, comm);
         free(blockname);
     }
