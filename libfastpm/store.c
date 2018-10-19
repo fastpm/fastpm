@@ -407,28 +407,6 @@ FastPMTargetPM (FastPMStore * p, ptrdiff_t i, PM * pm)
     return pm_pos_to_rank(pm, pos);
 }
 
-/*
-static void
-checkx(FastPMStore * p)
-{
-    ptrdiff_t i;
-
-    int j = 0;
-    for(i = 0; i < p->np; i ++) {
-        if(p->x[i][0] > 0) {
-            j = 1;
-        }
-        if(p->x[i][1] > 0) {
-            j = 1;
-        }
-        if(p->x[i][2] > 0) {
-            j = 1;
-        }
-    }
-    printf("%d\n", j);
-}
-*/
-
 int
 fastpm_store_decompose(FastPMStore * p,
     fastpm_store_target_func target_func,

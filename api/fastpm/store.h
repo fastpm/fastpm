@@ -98,7 +98,7 @@ struct FastPMStore {
 /* convert a column name literal (e.g. x, id) to the column index in the column_info array */
 #define FASTPM_STORE_COLUMN_INDEX(column) (((char*) &(((FastPMStore *) NULL)->column) - (char*) &(((FastPMStore *)NULL)->columns[0])) \
                         / sizeof(((FastPMStore *) NULL)->columns[0]))
-
+#define FASTPM_STORE_COLUMN_INFO(p, column) ((p)->_column_info[FASTPM_STORE_COLUMN_INDEX(column)])
 
 /* */
 typedef struct {

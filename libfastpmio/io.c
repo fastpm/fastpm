@@ -227,29 +227,32 @@ write_snapshot_data(FastPMStore * p,
 
     fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
+    #define DEFINE_COLUMN_IO(name, dtype_, column) \
+        {name, dtype_, p->column, FASTPM_STORE_COLUMN_INFO(p, column).dtype, FASTPM_STORE_COLUMN_INFO(p, column).nmemb}
+
     struct {
         char * name;
+        char * dtype_out;
         void * fastpm;
         char * dtype;
         int nmemb;
-        char * dtype_out;
     } * bdesc, BLOCKS[] = {
-        {"Position", p->x, "f8", 3, "f4"},
-        {"InitialPosition", p->q, "f4", 3, "f4"},
-        {"DX1", p->dx1, "f4", 3, "f4"},
-        {"DX2", p->dx2, "f4", 3, "f4"},
-        {"Velocity", p->v, "f4", 3, "f4"},
-        {"ID", p->id, "i8", 1, "i8"},
-        {"Aemit", p->aemit, "f4", 1, "f4"},
-        {"Potential", p->potential, "f4", 1, "f4"},
-        {"Density", p->rho, "f4", 1, "f4"},
-        {"Tidal", p->tidal, "f4", 6, "f4"},
-        {"Length", p->length, "i4", 1, "i4"},
-        {"MinID",p->minid, "i8", 1, "i8"},
-        {"Task", p->task, "i4", 1, "i4"},
-        {"Rdisp",p->rdisp, "f4", 6, "f4"},
-        {"Vdisp", p->vdisp, "f4", 6, "f4"},
-        {"RVdisp", p->rvdisp, "f4", 9, "f4"},
+        DEFINE_COLUMN_IO("Position",        "f4", x),
+        DEFINE_COLUMN_IO("InitialPosition", "f4", q),
+        DEFINE_COLUMN_IO("DX1",             "f4", dx1),
+        DEFINE_COLUMN_IO("DX2",             "f4", dx2),
+        DEFINE_COLUMN_IO("Velocity",        "f4", v),
+        DEFINE_COLUMN_IO("ID",              "i8", id),
+        DEFINE_COLUMN_IO("Aemit",           "f4", aemit),
+        DEFINE_COLUMN_IO("Potential",       "f4", potential),
+        DEFINE_COLUMN_IO("Density",         "f4", rho),
+        DEFINE_COLUMN_IO("Tidal",           "f4", tidal),
+        DEFINE_COLUMN_IO("Length",          "i4", length),
+        DEFINE_COLUMN_IO("MinID",           "i8", minid),
+        DEFINE_COLUMN_IO("Task",            "i4", task),
+        DEFINE_COLUMN_IO("Rdisp",           "f4", rdisp),
+        DEFINE_COLUMN_IO("Vdisp",           "f4", vdisp),
+        DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
         {NULL, },
     };
     if (!append) {
