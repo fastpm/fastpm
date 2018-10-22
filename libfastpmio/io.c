@@ -220,13 +220,19 @@ write_snapshot_data(FastPMStore * p,
 
     if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
-    int Nfile = size / (32 * 1024 * 1024);
-    if(Nfile < 1) Nfile = 1;
-
-    if(Nwriters > Nfile * 16) Nwriters = Nfile * 16;
+    size_t items_per_file = 32 * 1024 * 1024;
+    size_t writers_per_file = 16; /* at least use this many on small datasets */
+    size_t max_elsize = 36; /* FIXME: find this from all columns */
 
     /* for smaller data sets, aggregate and write. (way faster) */
-    big_file_mpi_set_aggregated_threshold(1024 * 1024 * 64);
+    /* 12 is a number to adjust for slight imbalance between nodes */
+    big_file_mpi_set_aggregated_threshold((items_per_file / writers_per_file + 12) * max_elsize);
+
+    int Nfile = size / items_per_file;
+
+    if(Nfile < 1) Nfile = 1;
+
+    if(Nwriters > Nfile * writers_per_file) Nwriters = Nfile * writers_per_file;
 
 
     fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
