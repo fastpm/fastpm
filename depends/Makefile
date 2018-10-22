@@ -56,7 +56,7 @@ $(KDCOUNT_LIBS:%.a=install/lib/%.a): .kdcount
 $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
 .pfft:
-	($(MAKE) "CPPFLAGS=" "OPENMP=$(OPENMP)" "CC=$(CC)" -f Makefile.pfft "PFFT_CONFIGURE_FLAGS=$(PFFT_CONFIGURE_FLAGS)" PFFT_CFLAGS=$(PFFT_CFLAGS))
+	($(MAKE) "CPPFLAGS=" "OPENMP=$(OPENMP)" "CC=$(CC)" -f Makefile.pfft "PFFT_CONFIGURE_FLAGS=$(PFFT_CONFIGURE_FLAGS)" "PFFT_CFLAGS=$(PFFT_CFLAGS)")
 
 clean:
 	rm -f libfastpm-dep.a
