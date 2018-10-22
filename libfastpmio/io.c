@@ -228,7 +228,7 @@ write_snapshot_data(FastPMStore * p,
     /* 12 is a number to adjust for slight imbalance between nodes */
     big_file_mpi_set_aggregated_threshold((items_per_file / writers_per_file + 12) * max_elsize);
 
-    int Nfile = size / items_per_file;
+    int Nfile = (size + items_per_file - 1) / items_per_file;
 
     if(Nfile < 1) Nfile = 1;
 
