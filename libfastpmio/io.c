@@ -206,24 +206,28 @@ write_snapshot_data(FastPMStore * p,
         MPI_Comm comm
 )
 {
-    /* for smaller data sets, aggregate and write. (way faster) */
-    big_file_mpi_set_aggregated_threshold(1024 * 1024 * 64);
-
     int64_t size = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
-
-    int Nfile = size / (32 * 1024 * 1024);
-
-    if(Nfile < 1) Nfile = 1;
+    int NTask;
+    MPI_Comm_size(comm, &NTask);
 
     /* at most 16 writers per file;
      * this would mean each writer writes about 2 M items and would trigger
      * aggregated IO when Nfile is very small. (items are typically less than 12 byes each.
      * */
 
-    if(Nwriters > Nfile * 8) Nwriters = Nfile * 8;
+    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
+
+    int Nfile = size / (32 * 1024 * 1024);
+    if(Nfile < 1) Nfile = 1;
+
+    if(Nwriters > Nfile * 16) Nwriters = Nfile * 16;
+
+    /* for smaller data sets, aggregate and write. (way faster) */
+    big_file_mpi_set_aggregated_threshold(1024 * 1024 * 64);
+
 
     fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
@@ -328,7 +332,6 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 {
     CLOCK(meta);
 
-    int NTask = fastpm->NTask;
     int ThisTask = fastpm->ThisTask;
     MPI_Comm comm = fastpm->comm;
 
@@ -339,8 +342,6 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
     LEAVE(meta);
 
     MPI_Barrier(comm);
-
-    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
     BigFile bf;
     if(0 != big_file_mpi_create(&bf, filebase, comm)) {
@@ -366,7 +367,6 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 {
     CLOCK(meta);
 
-    int NTask = fastpm->NTask;
     int ThisTask = fastpm->ThisTask;
     MPI_Comm comm = fastpm->comm;
 
@@ -376,8 +376,6 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
     MPI_Barrier(comm);
     LEAVE(meta);
 
-
-    if(Nwriters == 0 || Nwriters > NTask) Nwriters = NTask;
 
     BigFile bf;
     if(0 != big_file_mpi_open(&bf, filebase, comm)) {
