@@ -1562,8 +1562,6 @@ attrset_write_attr_set_v2(BigAttrSet * attrset, const char * basename)
         int ldata = itemsize * a->nmemb;
 
         char * rawdata = malloc(ldata * 2 + 1);
-        char * textual = malloc(a->nmemb * 32 + 1);
-        textual[0] = 0;
         unsigned char * adata = (unsigned char*) a->data;
         int j, k; 
         for(j = 0, k = 0; k < ldata; k ++, j+=2) {
@@ -1571,25 +1569,34 @@ attrset_write_attr_set_v2(BigAttrSet * attrset, const char * basename)
             rawdata[j + 1] = conv[adata[k] % 16];
         }
         rawdata[j] = 0;
-        for(j = 0; j < a->nmemb; j ++) {
-            if(a->dtype[1] != 'a' && 
-              !(a->dtype[1] == 'S' && dtype_itemsize(a->dtype) == 1))
-            {
-                char buf[128];
-                dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
-                strcat(textual, buf);
-                if(j != a->nmemb - 1) {
-                    strcat(textual, " ");
+
+        char * textual;
+        /* skip textual representation for very long columns */
+        if(ldata > 128) {
+            textual = strdup("... (Too Long) ");
+        } else {
+            textual = malloc(a->nmemb * 32 + 1);
+            textual[0] = 0;
+            for(j = 0; j < a->nmemb; j ++) {
+                if(a->dtype[1] != 'a' &&
+                  !(a->dtype[1] == 'S' && dtype_itemsize(a->dtype) == 1))
+                {
+                    char buf[128];
+                    dtype_format(buf, a->dtype, &adata[j * itemsize], NULL);
+                    strcat(textual, buf);
+                    if(j != a->nmemb - 1) {
+                        strcat(textual, " ");
+                    }
+                } else { /* pretty print string encoded as a1 or S1. */
+                    char buf[] = {adata[j], 0};
+                    if(buf[0] == '\n') {
+                        strcat(textual, "...");
+                        break;
+                    } if(buf[0] == 0) {
+                        break;
+                    }
+                    strcat(textual, buf);
                 }
-            } else { /* pretty print string encoded as a1 or S1. */
-                char buf[] = {adata[j], 0};
-                if(buf[0] == '\n') {
-                    strcat(textual, "...");
-                    break;
-                } if(buf[0] == 0) {
-                    break;
-                }
-                strcat(textual, buf);
             }
         }
         int rt = fprintf(fattr, "%s %s %d %s #HUMANE [ %s ]\n", 

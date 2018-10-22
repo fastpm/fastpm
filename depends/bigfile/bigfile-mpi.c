@@ -9,8 +9,12 @@
 static size_t _BigFileAggThreshold = 0;
 
 static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm);
-static void big_file_mpi_broadcast_error(int root, MPI_Comm comm);
+static int big_file_mpi_broadcast_anyerror(int rt, MPI_Comm comm);
 
+#define BCAST_AND_RAISEIF(rt, comm) \
+    if(0 != (rt = big_file_mpi_broadcast_anyerror(rt, comm))) { \
+        return rt; \
+    } \
 
 void
 big_file_mpi_set_aggregated_threshold(size_t bytes)
@@ -34,12 +38,11 @@ int big_file_mpi_open(BigFile * bf, const char * basename, MPI_Comm comm) {
     } else {
         /* FIXME : */
         bf->basename = strdup(basename);
+        rt = 0;
     }
 
-    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
-    if(rt != 0) {
-        big_file_mpi_broadcast_error(0, comm);
-    }
+    BCAST_AND_RAISEIF(rt, comm);
+
     return rt;
 }
 
@@ -53,11 +56,10 @@ int big_file_mpi_create(BigFile * bf, const char * basename, MPI_Comm comm) {
     } else {
         /* FIXME : */
         bf->basename = strdup(basename);
+        rt = 0;
     }
-    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
-    if(rt != 0) {
-        big_file_mpi_broadcast_error(0, comm);
-    }
+    BCAST_AND_RAISEIF(rt, comm);
+
     return rt;
 }
 
@@ -84,12 +86,12 @@ int big_file_mpi_create_block(BigFile * bf, BigBlock * block, const char * block
     int rt = 0;
     if (rank == 0) {
         rt = _big_file_mksubdir_r(bf->basename, blockname);
+    } else {
+        rt = 0;
     }
-    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
-    if(rt != 0) {
-        big_file_mpi_broadcast_error(0, comm);
-        return -1;
-    }
+
+    BCAST_AND_RAISEIF(rt, comm);
+
     char * basename = alloca(strlen(bf->basename) + strlen(blockname) + 128);
     sprintf(basename, "%s/%s/", bf->basename, blockname);
     return big_block_mpi_create(block, basename, dtype, nmemb, Nfile, fsize, comm);
@@ -124,12 +126,12 @@ int big_block_mpi_open(BigBlock * bb, const char * basename, MPI_Comm comm) {
     int rt;
     if(rank == 0) { 
         rt = big_block_open(bb, basename);
+    } else {
+        rt = 0;
     }
-    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
-    if(rt) {
-        big_file_mpi_broadcast_error(0, comm);
-        return rt;
-    }
+
+    BCAST_AND_RAISEIF(rt, comm);
+
     big_block_mpi_broadcast(bb, 0, comm);
     return 0;
 }
@@ -146,12 +148,12 @@ int big_block_mpi_create(BigBlock * bb, const char * basename, const char * dtyp
 
     if(rank == 0) {
         rt = _big_block_create_internal(bb, basename, dtype, nmemb, Nfile, fsize);
+    } else {
+        rt = 0;
     }
-    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
-    if(rt) {
-        big_file_mpi_broadcast_error(0, comm);
-        return rt;
-    }
+
+    BCAST_AND_RAISEIF(rt, comm);
+
     big_block_mpi_broadcast(bb, 0, comm);
 
     int i;
@@ -163,12 +165,10 @@ int big_block_mpi_create(BigBlock * bb, const char * basename, const char * dtyp
         }
         fclose(fp);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &rt, 1, MPI_INT, MPI_LOR, comm);
-    if(rt != 0) {
-        big_file_mpi_broadcast_error(0, comm);
-        return -1;
-    }
-    return 0;
+
+    BCAST_AND_RAISEIF(rt, comm);
+
+    return rt;
 }
 
 int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_Comm comm) {
@@ -185,13 +185,12 @@ int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_C
 
     if(rank == 0) {
         rt = _big_block_grow_internal(bb, Nfile_grow, fsize_grow);
+    } else {
+        rt = 0;
     }
 
-    MPI_Bcast(&rt, 1, MPI_INT, 0, comm);
-    if(rt) {
-        big_file_mpi_broadcast_error(0, comm);
-        return rt;
-    }
+    BCAST_AND_RAISEIF(rt, comm);
+
     if(rank != 0) {
         /* closed on non-root because we will bcast.*/
         _big_block_close_internal(bb);
@@ -207,12 +206,10 @@ int big_block_mpi_grow(BigBlock * bb, int Nfile_grow, size_t fsize_grow[], MPI_C
         }
         fclose(fp);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &rt, 1, MPI_INT, MPI_LOR, comm);
-    if(rt != 0) {
-        big_file_mpi_broadcast_error(0, comm);
-        return -1;
-    }
-    return 0;
+
+    BCAST_AND_RAISEIF(rt, comm);
+
+    return rt;
 }
 
 int big_block_mpi_close(BigBlock * block, MPI_Comm comm) {
@@ -243,23 +240,49 @@ int big_block_mpi_close(BigBlock * block, MPI_Comm comm) {
     return 0;
 }
 
-static void big_file_mpi_broadcast_error(int root, MPI_Comm comm) {
+static int
+big_file_mpi_broadcast_anyerror(int rt, MPI_Comm comm)
+{
     int rank;
     MPI_Comm_rank(comm, &rank);
+
+    struct {
+        int value;
+        int loc;
+    } ii = {rt != 0, rank};
+
+    MPI_Allreduce(MPI_IN_PLACE, &ii, 1, MPI_2INT, MPI_MAXLOC, comm);
+
+    if (ii.value == 0) {
+        /* no errors */
+        return 0;
+    }
+    int root = ii.loc;
+
     char * error = big_file_get_error_message();
+
     int errorlen;
     if(rank == root) {
         errorlen = strlen(error);
     }
     MPI_Bcast(&errorlen, 1, MPI_INT, root, comm);
+
     if(rank != root) {
-        error = alloca(errorlen + 1);
+        error = malloc(errorlen + 1);
     }
+
     MPI_Bcast(error, errorlen + 1, MPI_BYTE, root, comm);
+
     if(rank != root) {
         big_file_set_error_message(error);
+        free(error);
     }
+
+    MPI_Bcast(&rt, 1, MPI_INT, root, comm);
+
+    return rt;
 }
+
 static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm) {
     int rank;
     MPI_Comm_rank(comm, &rank);
