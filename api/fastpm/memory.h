@@ -62,6 +62,9 @@ fastpm_memory_alloc_details(FastPMMemory * m, const char * name, size_t s, enum 
 void
 fastpm_memory_dump_status(FastPMMemory * m, int fd);
 
+void
+fastpm_memory_dump_status_str(FastPMMemory * m, char * buf, int n);
+
 #define fastpm_memory_alloc(m, name, s, loc) fastpm_memory_alloc_details(m, name, s, loc, __FILE__, __LINE__)
 
 FASTPM_END_DECLS

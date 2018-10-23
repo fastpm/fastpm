@@ -36,12 +36,13 @@ _default_abort(FastPMMemory * m, void * userdata)
     abort();
 }
 
+/*
 static void
 _default_peak(FastPMMemory * m, void * userdata)
 {
     fastpm_memory_dump_status(m, 1);
 }
-
+*/
 void
 fastpm_memory_init(FastPMMemory * m, size_t total_bytes)
 {
@@ -49,8 +50,8 @@ fastpm_memory_init(FastPMMemory * m, size_t total_bytes)
     for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
         m->pools[pool] = &head;
     }
-    m->abortfunc = _default_abort;
-    m->peakfunc = _default_peak;
+    m->abortfunc = NULL;
+    m->peakfunc = NULL;
     m->userdata = NULL;
 
     if(total_bytes > 0) {
@@ -78,10 +79,8 @@ fastpm_memory_set_handlers(FastPMMemory * m,
         fastpm_memory_func peakfunc, 
         void * userdata)
 {
-    if(abortfunc)
-        m->abortfunc = abortfunc;
-    if(peakfunc)
-        m->peakfunc = peakfunc;
+    m->abortfunc = abortfunc;
+    m->peakfunc = peakfunc;
 
     m->userdata = userdata;
 }
@@ -89,7 +88,11 @@ fastpm_memory_set_handlers(FastPMMemory * m,
 static void
 _sys_abort(FastPMMemory * m)
 {
-    m->abortfunc(m, m->userdata);
+    if(m->abortfunc) {
+        m->abortfunc(m, m->userdata);
+    } else {
+        _default_abort(m, m->userdata);
+    }
 }
 
 void
@@ -127,6 +130,27 @@ fastpm_memory_destroy(FastPMMemory * m)
 }
 
 void
+fastpm_memory_dump_status_str(FastPMMemory * m, char * buffer, int n)
+{
+    /* avoid stdio / malloc. sprintf may still do malloc unfortunately.*/
+    MemoryBlock * entry;
+    char * buf = buffer;
+
+    n --;
+    buf[n] = 0;
+
+    const char P[] = "SHF??????";
+    int pool;
+    for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
+        for(entry = m->pools[pool]; entry != &head; entry = entry->prev) {
+            snprintf(buf, n, "%c 0x%016tx : %010td : %s\n", P[pool], (ptrdiff_t) entry->p, entry->size, entry->tag);
+            buf += strlen(buf);
+            n -= strlen(buf);
+            if(n < 0) break;
+        }
+    }
+}
+void
 fastpm_memory_dump_status(FastPMMemory * m, int fd)
 {
     /* avoid stdio / malloc. sprintf may still do malloc unfortunately.*/
@@ -137,7 +161,7 @@ fastpm_memory_dump_status(FastPMMemory * m, int fd)
     int pool;
     for(pool = 0; pool < FASTPM_MEMORY_MAX; pool++) {
         for(entry = m->pools[pool]; entry != &head; entry = entry->prev) {
-            sprintf(buf, "%c 0x%016tx : %010d : %s\n", P[pool], (ptrdiff_t) entry->p, entry->size, entry->tag);
+            sprintf(buf, "%c 0x%016tx : %010td : %s\n", P[pool], (ptrdiff_t) entry->p, entry->size, entry->tag);
             write(fd, buf, strlen(buf));
         }
     }
@@ -165,7 +189,8 @@ fastpm_memory_alloc0(FastPMMemory * m, size_t s, enum FastPMMemoryLocation pool)
     m->free_bytes -= s;
     if(m->used_bytes > m->peak_bytes) {
         m->peak_bytes = m->used_bytes;
-        m->peakfunc(m, m->userdata);
+        if(m->peakfunc)
+            m->peakfunc(m, m->userdata);
     }
     MemoryBlock * entry = _sys_malloc(m, sizeof(head));
 
