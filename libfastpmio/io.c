@@ -311,6 +311,7 @@ write_snapshot_data(FastPMStore * p,
         FastPMPackingPlan plan[1];
         fastpm_packing_plan_init(plan, p, descr->attribute);
 
+        /*
         size_t elsize = plan->elsize;
         void * buffer = malloc(elsize * p->np);
 
@@ -318,11 +319,15 @@ write_snapshot_data(FastPMStore * p,
         for(i = 0; i < p->np; i ++) {
             fastpm_packing_plan_pack(plan, p, i, ((char *) buffer) + i * elsize);
         }
+        */
+        /* use the stored buffer before we switch to compressed internal representations;
+         * this saves quite a bit of memory. */
+        void * buffer = p->columns[descr->ci];
 
         big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
         big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
-        free(buffer);
 
+        /* free(buffer); */
         big_block_mpi_close(&bb, comm);
         free(blockname);
     }
