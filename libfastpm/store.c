@@ -312,14 +312,6 @@ fastpm_store_destroy(FastPMStore * p)
     fastpm_memory_free(p->mem, p->_base);
 }
 
-void fastpm_store_read(FastPMStore * p, char * datasource) {
-    /* parse data soure and read */
-}
-
-void fastpm_store_write(FastPMStore * p, char * datasource) {
-    /* parse data soure and write */
-}
-
 static void permute(void * data, int np, size_t elsize, int * ind) {
     void * tmp = malloc(elsize * np);
     if(!tmp) {

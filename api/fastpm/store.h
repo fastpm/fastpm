@@ -184,10 +184,6 @@ fastpm_store_get_np_total(FastPMStore * p, MPI_Comm comm);
 size_t
 fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm);
 
-/* Generic IO; unimplemented */
-void fastpm_store_read(FastPMStore * p, char * datasource);
-void fastpm_store_write(FastPMStore * p, char * datasource);
-
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,

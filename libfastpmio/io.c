@@ -143,8 +143,15 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
 
 void
 write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
-    BigFile * bf, MPI_Comm comm)
+    const char * filebase, MPI_Comm comm)
 {
+    BigFile bf[1];
+    if(0 != big_file_mpi_open(bf, filebase, comm)) {
+        if(0 != big_file_mpi_create(bf, filebase, comm)) {
+            fastpm_raise(-1, "Failed to create or open the file: %s\n", big_file_get_error_message());
+        }
+    }
+
     BigBlock bb;
     if(0 != big_file_mpi_create_block(bf, &bb, "Header", "i8", 0, 1, 0, comm)) {
         fastpm_raise(-1, "Failed to create the header block: %s\n", big_file_get_error_message());
@@ -195,14 +202,16 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     big_block_set_attr(&bb, "UnitMass_in_g", &UnitMass_in_g, "f8", 1);
     big_block_set_attr(&bb, "UnitVelocity_in_cm_per_s", &UnitVelocity_in_cm_per_s, "f8", 1);
     big_block_mpi_close(&bb, comm);
+
+    big_file_mpi_close(bf, comm);
 }
 
 int
-write_snapshot_data(FastPMStore * p,
-        int Nwriters,
-        int append,
-        BigFile * bf,
+fastpm_store_write(FastPMStore * p,
+        const char * filebase,
         const char * dataset,
+        const char * mode,
+        int Nwriters,
         MPI_Comm comm
 )
 {
@@ -210,8 +219,17 @@ write_snapshot_data(FastPMStore * p,
 
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
 
+    int append;
+    if(0 == strcmp(mode, "w")) {
+        append = 0;
+    } else {
+        append = 1;
+    }
+
     int NTask;
     MPI_Comm_size(comm, &NTask);
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
 
     /* at most 16 writers per file;
      * this would mean each writer writes about 2 M items and would trigger
@@ -234,6 +252,27 @@ write_snapshot_data(FastPMStore * p,
 
     if(Nwriters > Nfile * writers_per_file) Nwriters = Nfile * writers_per_file;
 
+
+    CLOCK(meta);
+    ENTER(meta);
+    if (ThisTask == 0)
+        fastpm_path_ensure_dirname(filebase);
+
+    MPI_Barrier(comm);
+    LEAVE(meta);
+
+
+    BigFile bf[1];
+    if(0 != big_file_mpi_open(bf, filebase, comm)) {
+        if(0 != big_file_mpi_create(bf, filebase, comm)) {
+            fastpm_raise(-1, "Failed to create or open the file: %s\n", big_file_get_error_message());
+        }
+    }
+    if(append) {
+        fastpm_info("Appending a catalog to %s [%s]\n", filebase, dataset);
+    } else {
+        fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
+    }
 
     fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
@@ -332,6 +371,8 @@ write_snapshot_data(FastPMStore * p,
         free(blockname);
     }
 
+    big_file_mpi_close(bf, comm);
+
     return 0;
 }
 
@@ -341,31 +382,11 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * dataset,
         int Nwriters)
 {
-    CLOCK(meta);
-
-    int ThisTask = fastpm->ThisTask;
-    MPI_Comm comm = fastpm->comm;
-
-    ENTER(meta);
-    if (ThisTask == 0)
-        fastpm_path_ensure_dirname(filebase);
-
-    LEAVE(meta);
-
-    MPI_Barrier(comm);
-
-    BigFile bf;
-    if(0 != big_file_mpi_create(&bf, filebase, comm)) {
-        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
-    }
-
-    write_snapshot_header(fastpm, p, &bf, comm);
+    write_snapshot_header(fastpm, p, filebase, fastpm->comm);
 
     fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
 
-    write_snapshot_data(p,  Nwriters, 0, &bf, dataset, comm);
-
-    big_file_mpi_close(&bf, comm);
+    fastpm_store_write(p, filebase, dataset, "w", Nwriters, fastpm->comm);
 
     return 0;
 }
@@ -376,27 +397,8 @@ append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         const char * dataset,
         int Nwriters)
 {
-    CLOCK(meta);
 
-    int ThisTask = fastpm->ThisTask;
-    MPI_Comm comm = fastpm->comm;
-
-    ENTER(meta);
-    if (ThisTask == 0)
-        fastpm_path_ensure_dirname(filebase);
-    MPI_Barrier(comm);
-    LEAVE(meta);
-
-
-    BigFile bf;
-    if(0 != big_file_mpi_open(&bf, filebase, comm)) {
-        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
-    }
-
-    fastpm_info("Appending a catalog to %s [%s]\n", filebase, dataset);
-    write_snapshot_data(p, Nwriters, 1, &bf, dataset, comm);
-
-    big_file_mpi_close(&bf, comm);
+    fastpm_store_write(p, filebase, dataset, "a", Nwriters, fastpm->comm);
 
     return 0;
 }
