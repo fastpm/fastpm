@@ -7,7 +7,6 @@
 #include <mpi.h>
 #include <math.h>
 #include <signal.h>
-#include <getopt.h>
 #include <limits.h>
 
 #include <fastpm/libfastpm.h>
@@ -23,44 +22,18 @@
 #include <omp.h>
 #endif
 #include "lua-config.h"
+#include "param.h"
 
 /* c99 has no pi. */
 #ifndef M_PI
 #define M_PI (3.14159265358979323846264338327950288)
 #endif
 
-typedef struct {
-    int UseFFTW;
-    int NprocY;
-    int Nwriters;
-    size_t MemoryPerRank;
-    LuaConfig * config;
-    char * string;
-} Parameters;
-
-extern char * 
-lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
-
 extern void
 init_stacktrace();
 
-#define CONF(prr, name) lua_config_get_ ## name (prr->config)
-#define HAS(prr, name) lua_config_has_ ## name (prr->config)
-
-/* command-line arguments */
-static char * ParamFileName;
-
 static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
-
-static Parameters *
-parse_args_mpi(int argc, char ** argv, char ** error, MPI_Comm comm);
-
-static void
-free_parameters(Parameters * prr);
-
-static Parameters *
-parse_args(int argc, char ** argv, char ** error);
 
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
@@ -1402,128 +1375,6 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
         fastpm_powerspectrum_scale(ps, pow(sigma8 / sigma8_input, 2));
     }
     return 0;
-}
-
-
-static 
-Parameters *
-parse_args_mpi(int argc, char ** argv, char **error, MPI_Comm comm)
-{
-    int ThisTask;
-
-    MPI_Comm_rank(comm, &ThisTask);
-
-    Parameters * prr = NULL;
-
-    *error = NULL;
-
-    if(ThisTask == 0) {
-        prr = parse_args(argc, argv, error);
-    } else {
-        prr = malloc(sizeof(prr[0]));
-    }
-
-    if(MPIU_Any(comm, prr == NULL)) {
-        if(prr != NULL) {
-            free(prr);
-        }
-
-        if(MPIU_Any(comm, *error != NULL)) {
-            *error = MPIU_Bcast_string(comm, *error, 0, free);
-        }
-        return NULL;
-    }
-
-    MPI_Bcast(prr, sizeof(prr[0]), MPI_BYTE, 0, comm);
-
-    prr->string = MPIU_Bcast_string(comm, prr->string, 0, free);
-
-    prr->config = lua_config_new(prr->string);
-
-    int Nwriters = prr->Nwriters;
-    if(Nwriters == 0) {
-        MPI_Comm_size(comm, &Nwriters);
-        prr->Nwriters = Nwriters;
-    }
-    return prr;
-}
-
-static Parameters *
-parse_args(int argc, char ** argv, char ** error)
-{
-    Parameters * prr = malloc(sizeof(prr[0]));
-    *error = NULL;
-    int opt;
-    extern int optind;
-    extern char * optarg;
-    prr->UseFFTW = 0;
-    ParamFileName = NULL;
-    prr->NprocY = 0;
-    prr->Nwriters = 0;
-    prr->MemoryPerRank = 0;
-    while ((opt = getopt(argc, argv, "h?y:fW:m:")) != -1) {
-        switch(opt) {
-            case 'y':
-                prr->NprocY = atoi(optarg);
-            break;
-            case 'f':
-                prr->UseFFTW = 1;
-            break;
-            case 'W':
-                prr->Nwriters = atoi(optarg);
-            break;
-            case 'm':
-                prr->MemoryPerRank = atoi(optarg);
-            break;
-            case 'h':
-            case '?':
-            default:
-                goto usage;
-            break;
-        }
-    }
-    if(optind >= argc) {
-        goto usage;
-    }
-
-    ParamFileName = (argv)[optind];
-    argv += optind;
-    argc -= optind; 
-
-    char * confstr = lua_config_parse("_parse", ParamFileName, argc, argv, error);
-    if(confstr == NULL) {
-        free(prr);
-        return NULL;
-    }
-
-    prr->config = lua_config_new(confstr);
-
-    if(lua_config_error(prr->config)) {
-        *error = strdup(lua_config_error(prr->config));
-        free(prr);
-        return NULL;
-    }
-
-    prr->string = strdup(confstr);
-    free(confstr);
-
-    return prr;
-
-usage:
-    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
-    "-f Use FFTW \n"
-    "-y Set the number of processes in the 2D mesh\n"
-    "-n Throttle IO (bigfile only) \n"
-);
-    free(prr);
-    return NULL;
-}
-
-static void
-free_parameters(Parameters * param)
-{
-    lua_config_free(param->config);
-    free(param->string);
 }
 
 
