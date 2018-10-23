@@ -604,6 +604,7 @@ _usmesh_ready_handler_free(void * userdata) {
 static void
 _smesh_ready_handler_free(void * userdata) {
     struct smesh_ready_handler_data * data = userdata;
+    free(data->slices);
     free(data->aedges);
     free(data->hist);
     free(data);

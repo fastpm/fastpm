@@ -280,6 +280,7 @@ fastpm_smesh_destroy(FastPMSMesh * mesh)
                 free(layer->ra);
                 free(layer->dec);
                 free(layer->vec);
+                free(layer->pix);
             break;
         }
         free(layer->a);
