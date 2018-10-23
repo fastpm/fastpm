@@ -292,3 +292,29 @@ pm_compute_variance(PM * pm, FastPMFloat * complx)
     v = v / pm_norm(pm);
     return v;
 }
+
+PM *
+fastpm_create_pm(int Ngrid, int NprocY, int transposed, double BoxSize, MPI_Comm comm)
+{
+    PM * pm = malloc(sizeof(PM));
+
+    PMInit pminit = {
+        .Nmesh = Ngrid,
+        .BoxSize = BoxSize,
+        .NprocY = NprocY,
+        .transposed = transposed,
+        .use_fftw = 0,
+    };
+
+    pm_init(pm, &pminit, comm);
+    return pm;
+}
+
+
+void
+fastpm_free_pm(PM * pm)
+{
+    pm_destroy(pm);
+    free(pm);
+}
+

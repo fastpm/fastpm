@@ -327,21 +327,6 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
 }
 
 void 
-pm_init_simple(PM * pm, int Ngrid, double BoxSize, MPI_Comm comm)
-{
-    PMInit pminit = {
-        .Nmesh = Ngrid,
-        .BoxSize = BoxSize,
-        .NprocY = 0, /* 0 for auto, 1 for slabs */
-        .transposed = 0,
-        .use_fftw = 0,
-    };
-
-    pm_init(pm, &pminit, comm);
-
-}
-
-void 
 pm_destroy(PM * pm) 
 {
     int d;

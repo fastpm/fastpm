@@ -95,4 +95,10 @@ pm_r2c(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void 
 pm_c2r(PM * pm, FastPMFloat * inplace);
 
+PM *
+fastpm_create_pm(int Ngrid, int NprocY, int transposed, double BoxSize, MPI_Comm comm);
+
+void
+fastpm_free_pm(PM * pm);
+
 FASTPM_END_DECLS
