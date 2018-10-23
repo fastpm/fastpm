@@ -241,6 +241,9 @@ static void
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
 static void
+report_memory(MPI_Comm);
+
+static void
 prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh,
         FastPMSMesh ** smesh);
@@ -342,20 +345,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     fastpm_solver_destroy(fastpm);
 
-    {
-        FastPMMemory * g = _libfastpm_get_gmem();
-        double max_used_bytes;
-        double min_used_bytes;
-
-        MPIU_stats(comm, g->peak_bytes, "<>",
-                &min_used_bytes,
-                &max_used_bytes);
-
-        fastpm_log(INFO, "Peak memory usage max: %g MB min : %g MB\n",
-                max_used_bytes / 1024. / 1024,
-                min_used_bytes / 1024. / 1024
-            );
-    }
+    report_memory(comm);
 
     fastpm_clock_stat(comm);
 
@@ -1273,22 +1263,53 @@ print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameter
             trans->end->v,
             trans->end->force,
             trans->a.i, trans->a.f, trans->a.r, action, trans->action);
+    report_memory(fastpm->comm);
     return 0;
 }
 
+static char PEAK_ALLOC_STATUS[8192];
+static size_t PEAK_ALLOC_BYTES;
 static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata)
 {
-    MPI_Comm comm = *(MPI_Comm*) userdata;
+    PEAK_ALLOC_BYTES = mem->peak_bytes;
+
+    fastpm_memory_dump_status_str(mem, PEAK_ALLOC_STATUS, 8192);
+}
+
+static void
+report_memory(MPI_Comm comm)
+{
+    static double oldpeak = 0;
+    static int oldrank = -1;
+
+    double max_used_bytes;
+    double min_used_bytes;
+    int max_rank;
+    int min_rank;
 
     int ThisTask;
     MPI_Comm_rank(comm, &ThisTask);
 
-    if(ThisTask == 0) {
-        fastpm_ilog(INFO, "Peak memory usage on rank %d: %g MB\n", ThisTask, mem->peak_bytes / 1024. / 1024);
-        fastpm_ilog(INFO, "Allocation Table\n");
-        fastpm_memory_dump_status(mem, 1);
+
+    MPIU_stats(comm, PEAK_ALLOC_BYTES, "<,>.",
+            &min_used_bytes,
+            &min_rank,
+            &max_used_bytes,
+            &max_rank);
+
+    if(max_used_bytes != oldpeak || max_rank != oldrank) {
+        if(max_rank == ThisTask) {
+            fastpm_ilog(INFO, "Task %d Peak memory usage max: %g MB min : %g MB\n",
+                ThisTask,
+                max_used_bytes / 1024. / 1024,
+                min_used_bytes / 1024. / 1024
+            );
+            fastpm_ilog(INFO, PEAK_ALLOC_STATUS);
+        }
     }
+    oldpeak = max_used_bytes;
+    oldrank = max_rank;
 }
 
 static int
