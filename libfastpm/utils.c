@@ -295,9 +295,11 @@ MPIU_All(MPI_Comm comm, int value)
 /*
  * Compute the standard statistics of a value over communicator.
  * fmt is a string, describing the list of stats to return:
- *  < : minimum
- *  > : maximum
- *  - : mean
+ *  < : minimum  (double)
+ *  , : rank of minimum (int)
+ *  > : maximum  (double)
+ *  . : rank of maximum (int)
+ *  - : mean  (double)
  *  s : std (biased standard derivation)
  *  v : variance (biased variance)
  *  S : unbiased std
@@ -323,16 +325,22 @@ MPIU_stats(MPI_Comm comm,
 
     int NTask;
     MPI_Comm_size(comm, &NTask);
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
 
     double sum = value;
-    double min = value;
-    double max = value;
+    struct {
+        double value;
+        int rank;
+    } min = {value, ThisTask},
+      max = {value, ThisTask};
+
     double sumsq = value * value;
 
     MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_DOUBLE, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &sumsq, 1, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &min, 1, MPI_DOUBLE, MPI_MIN, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &max, 1, MPI_DOUBLE, MPI_MAX, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &min, 1, MPI_DOUBLE_INT, MPI_MINLOC, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &max, 1, MPI_DOUBLE_INT, MPI_MAXLOC, comm);
 
     double avg = (sum) / NTask;
     double avg_sq = (sumsq) / NTask;
@@ -342,30 +350,38 @@ MPIU_stats(MPI_Comm comm,
     int i;
     int c;
     for(i = 0; i < strlen(fmt); i ++) {
-        double * r = va_arg(va, double *);
+        void * r = va_arg(va, void *);
+        int * ir = (int * ) r;
+        double * dr = (double * ) r;
 
         c++;
         switch(fmt[i]) {
             case '-':
-                *r = avg;
+                *dr = avg;
                 break;
             case '<':
-                *r = min;
+                *dr = min.value;
                 break;
             case '>':
-                *r = max;
+                *dr = max.value;
+                break;
+            case ',':
+                *ir = min.rank;
+                break;
+            case '.':
+                *ir = max.rank;
                 break;
             case 's':
-                *r = std;
+                *dr = std;
                 break;
             case 'S':
-                *r = std * sqrt(1.0 * NTask / (NTask - 1.0));
+                *dr = std * sqrt(1.0 * NTask / (NTask - 1.0));
                 break;
             case 'v':
-                *r = var;
+                *dr = var;
                 break;
             case 'V':
-                *r = var * 1.0 * NTask / (NTask - 1.0);
+                *dr = var * 1.0 * NTask / (NTask - 1.0);
                 break;
             default:
                 c--;
