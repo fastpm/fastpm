@@ -53,11 +53,14 @@ static char * ParamFileName;
 static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
 
-static void 
-parse_args(int * argc, char *** argv, Parameters * prr);
+static Parameters *
+parse_args_mpi(int argc, char ** argv, char ** error, MPI_Comm comm);
 
 static void
 free_parameters(Parameters * prr);
+
+static Parameters *
+parse_args(int argc, char ** argv, char ** error);
 
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
@@ -103,9 +106,6 @@ int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
 
 int
-read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm);
-
-int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
@@ -149,26 +149,28 @@ int main(int argc, char ** argv) {
 
     MPI_Init(&argc, &argv);
 
-    Parameters * prr = alloca(sizeof(prr[0]));
-
-    parse_args(&argc, &argv, prr);
+    libfastpm_init();
 
     MPI_Comm comm = MPI_COMM_WORLD; 
-
-    int Nwriters = prr->Nwriters;
-    if(Nwriters == 0) {
-        MPI_Comm_size(comm, &Nwriters);
-        prr->Nwriters = Nwriters;
-    }
-    libfastpm_init();
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
     fastpm_info("This is FastPM, with libfastpm version %s.\n", LIBFASTPM_VERSION);
 
+    char * error;
+    Parameters * prr = parse_args_mpi(argc, argv, &error, comm);
+
+    if(prr) {
+        fastpm_info("Configuration %s\n", prr->string);
+    } else {
+
+        fastpm_info("Parsing configuration failed with error: %s\n", error);
+
+        MPI_Finalize();
+        exit(1);
+    }
+
     libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024);
     fastpm_memory_set_handlers(_libfastpm_get_gmem(), NULL, _memory_peak_handler, &comm);
-
-    read_parameters(ParamFileName, prr, argc, argv, comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
     VPMInit * vpminit = NULL;
@@ -1403,9 +1405,54 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
 }
 
 
-static void 
-parse_args(int * argc, char *** argv, Parameters * prr) 
+static 
+Parameters *
+parse_args_mpi(int argc, char ** argv, char **error, MPI_Comm comm)
 {
+    int ThisTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+
+    Parameters * prr = NULL;
+
+    *error = NULL;
+
+    if(ThisTask == 0) {
+        prr = parse_args(argc, argv, error);
+    } else {
+        prr = malloc(sizeof(prr[0]));
+    }
+
+    if(MPIU_Any(comm, prr == NULL)) {
+        if(prr != NULL) {
+            free(prr);
+        }
+
+        if(MPIU_Any(comm, *error != NULL)) {
+            *error = MPIU_Bcast_string(comm, *error, 0, free);
+        }
+        return NULL;
+    }
+
+    MPI_Bcast(prr, sizeof(prr[0]), MPI_BYTE, 0, comm);
+
+    prr->string = MPIU_Bcast_string(comm, prr->string, 0, free);
+
+    prr->config = lua_config_new(prr->string);
+
+    int Nwriters = prr->Nwriters;
+    if(Nwriters == 0) {
+        MPI_Comm_size(comm, &Nwriters);
+        prr->Nwriters = Nwriters;
+    }
+    return prr;
+}
+
+static Parameters *
+parse_args(int argc, char ** argv, char ** error)
+{
+    Parameters * prr = malloc(sizeof(prr[0]));
+    *error = NULL;
     int opt;
     extern int optind;
     extern char * optarg;
@@ -1414,7 +1461,7 @@ parse_args(int * argc, char *** argv, Parameters * prr)
     prr->NprocY = 0;
     prr->Nwriters = 0;
     prr->MemoryPerRank = 0;
-    while ((opt = getopt(*argc, *argv, "h?y:fW:m:")) != -1) {
+    while ((opt = getopt(argc, argv, "h?y:fW:m:")) != -1) {
         switch(opt) {
             case 'y':
                 prr->NprocY = atoi(optarg);
@@ -1435,14 +1482,32 @@ parse_args(int * argc, char *** argv, Parameters * prr)
             break;
         }
     }
-    if(optind >= *argc) {
+    if(optind >= argc) {
         goto usage;
     }
 
-    ParamFileName = (*argv)[optind];
-    *argv += optind;
-    *argc -= optind; 
-    return;
+    ParamFileName = (argv)[optind];
+    argv += optind;
+    argc -= optind; 
+
+    char * confstr = lua_config_parse("_parse", ParamFileName, argc, argv, error);
+    if(confstr == NULL) {
+        free(prr);
+        return NULL;
+    }
+
+    prr->config = lua_config_new(confstr);
+
+    if(lua_config_error(prr->config)) {
+        *error = strdup(lua_config_error(prr->config));
+        free(prr);
+        return NULL;
+    }
+
+    prr->string = strdup(confstr);
+    free(confstr);
+
+    return prr;
 
 usage:
     printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
@@ -1450,45 +1515,8 @@ usage:
     "-y Set the number of processes in the 2D mesh\n"
     "-n Throttle IO (bigfile only) \n"
 );
-    MPI_Finalize();
-    exit(1);
-}
-
-int read_parameters(char * filename, Parameters * param, int argc, char ** argv, MPI_Comm comm)
-{
-    int ThisTask;
-    MPI_Comm_rank(comm, &ThisTask);
-
-    /* read the configuration file */
-    char * confstr;
-    int confstr_len;
-
-    /* run the parameter file on root rank.
-     * other ranks use the serialized string to avoid duplicated
-     * error reports */
-    if(ThisTask == 0) {
-        char * error;
-        confstr = lua_config_parse("_parse", filename, argc, argv, &error);
-        if(confstr == NULL) {
-            fastpm_raise(-1, "%s\n", error);
-        }
-        confstr_len = strlen(confstr) + 1;
-        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
-        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-    } else {
-        MPI_Bcast(&confstr_len, 1, MPI_INT, 0, comm);
-        confstr = malloc(confstr_len);
-        MPI_Bcast(confstr, confstr_len, MPI_BYTE, 0, comm);
-    }
-
-    fastpm_info("Configuration %s\n", confstr);
-
-    param->config = lua_config_new(confstr);
-    param->string = confstr;
-    if(lua_config_error(param->config)) {
-        fastpm_raise(-1, "error: %s\n", lua_config_error(param->config));
-    }
-    return 0;
+    free(prr);
+    return NULL;
 }
 
 static void
