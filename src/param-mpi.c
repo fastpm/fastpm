@@ -10,19 +10,19 @@
 #include "lua-config.h"
 #include "param.h"
 
-Parameters *
-parse_args_mpi(int argc, char ** argv, char **error, MPI_Comm comm)
+LUAParameters *
+parse_config_mpi(char * filename, int argc, char ** argv, char ** error, MPI_Comm comm)
 {
     int ThisTask;
 
     MPI_Comm_rank(comm, &ThisTask);
 
-    Parameters * prr = NULL;
+    LUAParameters * prr = NULL;
 
     *error = NULL;
 
     if(ThisTask == 0) {
-        prr = parse_args(argc, argv, error);
+        prr = parse_config(filename, argc, argv, error);
     } else {
         prr = malloc(sizeof(prr[0]));
     }
@@ -44,6 +44,14 @@ parse_args_mpi(int argc, char ** argv, char **error, MPI_Comm comm)
 
     prr->config = lua_config_new(prr->string);
 
+    return prr;
+}
+
+CLIParameters *
+parse_cli_args_mpi(int argc, char ** argv, MPI_Comm comm)
+{
+    CLIParameters * prr = parse_cli_args(argc, argv);
+
     int Nwriters = prr->Nwriters;
     if(Nwriters == 0) {
         MPI_Comm_size(comm, &Nwriters);
@@ -51,4 +59,3 @@ parse_args_mpi(int argc, char ** argv, char **error, MPI_Comm comm)
     }
     return prr;
 }
-

@@ -29,6 +29,12 @@
 #define M_PI (3.14159265358979323846264338327950288)
 #endif
 
+typedef struct {
+    CLIParameters * cli;
+    LUAParameters * lua;
+} Parameters;
+
+
 extern void
 init_stacktrace();
 
@@ -105,8 +111,8 @@ _write_parameters(const char * filebase, const char * dataset, Parameters * prr,
         fastpm_raise(-1, "Failed to open the dataset : %s\n", big_file_get_error_message());
     }
 
-    big_block_set_attr(&bb, "ParamFile", prr->string, "S1", strlen(prr->string) + 1);
-    double ParticleFraction = CONF(prr, particle_fraction);
+    big_block_set_attr(&bb, "ParamFile", prr->lua->string, "S1", strlen(prr->lua->string) + 1);
+    double ParticleFraction = CONF(prr->lua, particle_fraction);
     big_block_set_attr(&bb, "ParticleFraction", &ParticleFraction, "f8", 1);
 
     big_block_mpi_close(&bb, comm);
@@ -130,35 +136,36 @@ int main(int argc, char ** argv) {
     fastpm_info("This is FastPM, with libfastpm version %s.\n", LIBFASTPM_VERSION);
 
     char * error;
-    Parameters * prr = parse_args_mpi(argc, argv, &error, comm);
+    CLIParameters * cli = parse_cli_args_mpi(argc, argv, comm);
+    LUAParameters * lua = parse_config_mpi(cli->argv[0], cli->argc, cli->argv, &error, comm);
 
-    if(prr) {
-        fastpm_info("Configuration %s\n", prr->string);
+    Parameters prr[1] = {{cli, lua}};
+
+    if(prr->lua) {
+        fastpm_info("Configuration %s\n", prr->lua->string);
     } else {
-
         fastpm_info("Parsing configuration failed with error: %s\n", error);
-
         MPI_Finalize();
         exit(1);
     }
 
-    libfastpm_set_memory_bound(prr->MemoryPerRank * 1024 * 1024);
+    libfastpm_set_memory_bound(prr->cli->MemoryPerRank * 1024 * 1024);
     fastpm_memory_set_handlers(_libfastpm_get_gmem(), NULL, _memory_peak_handler, &comm);
 
     /* convert parameter files pm_nc_factor into VPMInit */
     VPMInit * vpminit = NULL;
-    if(CONF(prr, ndim_pm_nc_factor) == 0) {
+    if(CONF(prr->lua, ndim_pm_nc_factor) == 0) {
         vpminit = (VPMInit[]) {
-            {.a_start = 0, .pm_nc_factor = CONF(prr, pm_nc_factor)[0] },
+            {.a_start = 0, .pm_nc_factor = CONF(prr->lua, pm_nc_factor)[0] },
             {.a_start = 1, .pm_nc_factor = 0},
             };
     } else
-    if(CONF(prr, ndim_pm_nc_factor) == 2) {
-        vpminit = alloca(sizeof(VPMInit) * (CONF(prr, shape_pm_nc_factor)[0] + 1));
+    if(CONF(prr->lua, ndim_pm_nc_factor) == 2) {
+        vpminit = alloca(sizeof(VPMInit) * (CONF(prr->lua, shape_pm_nc_factor)[0] + 1));
         int i;
-        for(i = 0; i < CONF(prr, n_pm_nc_factor); i ++) {
-            vpminit[i].a_start = CONF(prr, pm_nc_factor)[2 * i];
-            vpminit[i].pm_nc_factor = CONF(prr, pm_nc_factor)[2 * i + 1];
+        for(i = 0; i < CONF(prr->lua, n_pm_nc_factor); i ++) {
+            vpminit[i].a_start = CONF(prr->lua, pm_nc_factor)[2 * i];
+            vpminit[i].pm_nc_factor = CONF(prr->lua, pm_nc_factor)[2 * i + 1];
         }
         /* mark the end */
         vpminit[i].pm_nc_factor = 0;
@@ -166,37 +173,38 @@ int main(int argc, char ** argv) {
         fastpm_raise(-1, "Unknown format of pm_nc_factor, either a scalar or a 2d array. ");
     }
 
-    fastpm_info("np_alloc_factor = %g\n", CONF(prr, np_alloc_factor));
+    fastpm_info("np_alloc_factor = %g\n", CONF(prr->lua, np_alloc_factor));
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = CONF(prr, nc),
-        .alloc_factor = CONF(prr, np_alloc_factor),
+        .nc = CONF(prr->lua, nc),
+        .alloc_factor = CONF(prr->lua, np_alloc_factor),
         .vpminit = vpminit,
-        .boxsize = CONF(prr, boxsize),
-        .omega_m = CONF(prr, omega_m),
-        .hubble_param = CONF(prr, h),
-        .USE_DX1_ONLY = CONF(prr, za),
+        .boxsize = CONF(prr->lua, boxsize),
+        .omega_m = CONF(prr->lua, omega_m),
+        .hubble_param = CONF(prr->lua, h),
+        .USE_DX1_ONLY = CONF(prr->lua, za),
         .nLPT = -2.5f,
-        .USE_SHIFT = CONF(prr, shift),
-        .FORCE_TYPE = CONF(prr, force_mode),
-        .KERNEL_TYPE = CONF(prr, kernel_type),
-        .DEALIASING_TYPE = CONF(prr, dealiasing_type),
-        .PAINTER_TYPE = CONF(prr, painter_type),
-        .painter_support = CONF(prr, painter_support),
-        .NprocY = prr->NprocY,
-        .UseFFTW = prr->UseFFTW,
+        .USE_SHIFT = CONF(prr->lua, shift),
+        .FORCE_TYPE = CONF(prr->lua, force_mode),
+        .KERNEL_TYPE = CONF(prr->lua, kernel_type),
+        .DEALIASING_TYPE = CONF(prr->lua, dealiasing_type),
+        .PAINTER_TYPE = CONF(prr->lua, painter_type),
+        .painter_support = CONF(prr->lua, painter_support),
+        .NprocY = prr->cli->NprocY,
+        .UseFFTW = prr->cli->UseFFTW,
         .ExtraAttributes = 0,
     };
 
-    if(CONF(prr, compute_potential)) {
+    if(CONF(prr->lua, compute_potential)) {
         config->ExtraAttributes |= COLUMN_POTENTIAL;
     }
 
     run_fastpm(config, prr, comm);
 
-    libfastpm_cleanup();
+    free_lua_parameters(prr->lua);
+    free_cli_parameters(prr->cli);
 
-    free_parameters(prr);
+    libfastpm_cleanup();
 
     MPI_Finalize();
 
@@ -237,8 +245,8 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     CLOCK(indexing);
 
     const double rho_crit = 27.7455;
-    const double M0 = CONF(prr, omega_m) * rho_crit
-                    * pow(CONF(prr, boxsize) / CONF(prr, nc), 3.0);
+    const double M0 = CONF(prr->lua, omega_m) * rho_crit
+                    * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
     fastpm_info("mass of a particle is %g 1e10 Msun/h\n", M0); 
 
     MPI_Barrier(comm);
@@ -274,11 +282,11 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     /* initialize the lightcone */
     FastPMLightCone lc[1] = {{
-        .speedfactor = CONF(prr, dh_factor),
+        .speedfactor = CONF(prr->lua, dh_factor),
         .cosmology = fastpm->cosmology,
-        .fov = CONF(prr, lc_fov),
+        .fov = CONF(prr->lua, lc_fov),
         .octants = {0, 0, 0, 0, 0, 0, 0, 0},
-        .tol = 2. / CONF(prr, nc) / CONF(prr, lc_smesh_fraction),
+        .tol = 2. / CONF(prr->lua, nc) / CONF(prr->lua, lc_smesh_fraction),
     }};
 
     FastPMUSMesh * usmesh = NULL;
@@ -291,7 +299,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
 
-    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr, particle_fraction), fastpm->p->mask, comm);
+    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr->lua, particle_fraction), fastpm->p->mask, comm);
 
     fastpm_info("dx1  : %g %g %g %g\n", 
             fastpm->info.dx1[0], fastpm->info.dx1[1], fastpm->info.dx1[2],
@@ -304,7 +312,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
     ENTER(evolve);
-    fastpm_solver_evolve(fastpm, CONF(prr, time_step), CONF(prr, n_time_step));
+    fastpm_solver_evolve(fastpm, CONF(prr->lua, time_step), CONF(prr->lua, n_time_step));
     LEAVE(evolve);
 
     if(smesh)
@@ -331,7 +339,7 @@ static void
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
 {
     /* we may need a read gadget ic here too */
-    if(CONF(prr, read_runpbic)) {
+    if(CONF(prr->lua, read_runpbic)) {
         FastPMStore * p = fastpm->p;
         int temp_dx1 = 0;
         int temp_dx2 = 0;
@@ -344,8 +352,8 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
             temp_dx2 = 1;
         }
 
-        read_runpb_ic(fastpm, fastpm->p, CONF(prr, read_runpbic));
-        fastpm_solver_setup_ic(fastpm, NULL, CONF(prr, time_step)[0]);
+        read_runpb_ic(fastpm, fastpm->p, CONF(prr->lua, read_runpbic));
+        fastpm_solver_setup_ic(fastpm, NULL, CONF(prr->lua, time_step)[0]);
         if(temp_dx2) {
             fastpm_memory_free(p->mem, p->dx2);
             p->dx2 = NULL;
@@ -360,33 +368,33 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     /* at this point generating the ic involves delta_k */
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
-    if(CONF(prr, read_lineark)) {
-        fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr, read_lineark));
-        read_complex(fastpm->basepm, delta_k, CONF(prr, read_lineark), "LinearDensityK", prr->Nwriters);
+    if(CONF(prr->lua, read_lineark)) {
+        fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr->lua, read_lineark));
+        read_complex(fastpm->basepm, delta_k, CONF(prr->lua, read_lineark), "LinearDensityK", prr->cli->Nwriters);
 
-        if(CONF(prr, inverted_ic)) {
+        if(CONF(prr->lua, inverted_ic)) {
             fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
         }
         goto produce;
     }
 
     /* at this power we need a powerspectrum file to convolve the guassian */
-    if(!CONF(prr, read_powerspectrum)) {
+    if(!CONF(prr->lua, read_powerspectrum)) {
         fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
     }
 
     FastPMPowerSpectrum linear_powerspectrum;
 
-    read_powerspectrum(&linear_powerspectrum, CONF(prr, read_powerspectrum), CONF(prr, sigma8), comm);
+    read_powerspectrum(&linear_powerspectrum, CONF(prr->lua, read_powerspectrum), CONF(prr->lua, sigma8), comm);
 
-    if(CONF(prr, read_grafic)) {
-        fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr, read_grafic));
+    if(CONF(prr->lua, read_grafic)) {
+        fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr->lua, read_grafic));
         fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
         fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
 
         FastPMFloat * g_x = pm_alloc(fastpm->basepm);
 
-        read_grafic_gaussian(fastpm->basepm, g_x, CONF(prr, read_grafic));
+        read_grafic_gaussian(fastpm->basepm, g_x, CONF(prr->lua, read_grafic));
 
         /* r2c will reduce the variance. Compensate here.*/
         fastpm_apply_multiply_transfer(fastpm->basepm, g_x, g_x, sqrt(pm_norm(fastpm->basepm)));
@@ -397,34 +405,34 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         goto induce;
     }
 
-    if(CONF(prr, read_whitenoisek)) {
-        fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr, read_whitenoisek));
+    if(CONF(prr->lua, read_whitenoisek)) {
+        fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr->lua, read_whitenoisek));
 
-        read_complex(fastpm->basepm, delta_k, CONF(prr, read_whitenoisek), "WhiteNoiseK", prr->Nwriters);
+        read_complex(fastpm->basepm, delta_k, CONF(prr->lua, read_whitenoisek), "WhiteNoiseK", prr->cli->Nwriters);
         goto induce;
     }
 
     /* Nothing to read from, just generate a gadget IC with the seed. */
-    fastpm_ic_fill_gaussiank(fastpm->basepm, delta_k, CONF(prr, random_seed), FASTPM_DELTAK_GADGET);
+    fastpm_ic_fill_gaussiank(fastpm->basepm, delta_k, CONF(prr->lua, random_seed), FASTPM_DELTAK_GADGET);
 
 induce:
-    if(CONF(prr, remove_cosmic_variance)) {
+    if(CONF(prr->lua, remove_cosmic_variance)) {
         fastpm_info("Remove Cosmic variance from initial condition.\n");
         fastpm_ic_remove_variance(fastpm->basepm, delta_k);
     }
 
-    if(CONF(prr, set_mode)) {
+    if(CONF(prr->lua, set_mode)) {
         int method = 0;
         /* FIXME: use enums */
-        if(0 == strcmp(CONF(prr, set_mode_method), "add")) {
+        if(0 == strcmp(CONF(prr->lua, set_mode_method), "add")) {
             method = 1;
             fastpm_info("SetMode is add\n");
         } else {
             fastpm_info("SetMode is override\n");
         }
         int i;
-        double * c = CONF(prr, set_mode);
-        for(i = 0; i < CONF(prr, n_set_mode); i ++) {
+        double * c = CONF(prr->lua, set_mode);
+        for(i = 0; i < CONF(prr->lua, n_set_mode); i ++) {
             ptrdiff_t mode[4] = {
                 c[i * 5 + 0],
                 c[i * 5 + 1],
@@ -438,38 +446,38 @@ induce:
         }
     }
 
-    if(CONF(prr, inverted_ic)) {
+    if(CONF(prr->lua, inverted_ic)) {
         fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
     }
 
     double variance = pm_compute_variance(fastpm->basepm, delta_k);
     fastpm_info("Variance of input white noise is %0.8f, expectation is %0.8f\n", variance, 1.0 - 1.0 / pm_norm(fastpm->basepm));
 
-    if(CONF(prr, write_whitenoisek)) {
-        fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr, write_whitenoisek));
-        write_complex(fastpm->basepm, delta_k, CONF(prr, write_whitenoisek), "WhiteNoiseK", prr->Nwriters);
+    if(CONF(prr->lua, write_whitenoisek)) {
+        fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr->lua, write_whitenoisek));
+        write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_whitenoisek), "WhiteNoiseK", prr->cli->Nwriters);
     }
 
     /* introduce correlation */
-    if(CONF(prr, f_nl_type) == FASTPM_FNL_NONE) {
+    if(CONF(prr->lua, f_nl_type) == FASTPM_FNL_NONE) {
         fastpm_info("Inducing correlation to the white noise.\n");
 
         fastpm_ic_induce_correlation(fastpm->basepm, delta_k,
             (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
     } else {
         double kmax_primordial;
-        kmax_primordial = CONF(prr, nc) / 2.0 * 2.0*M_PI/CONF(prr, boxsize) * CONF(prr, kmax_primordial_over_knyquist);
+        kmax_primordial = CONF(prr->lua, nc) / 2.0 * 2.0*M_PI/CONF(prr->lua, boxsize) * CONF(prr->lua, kmax_primordial_over_knyquist);
         fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
         FastPMPNGaussian png = {
-            .fNL = CONF(prr, f_nl),
-            .type = CONF(prr, f_nl_type),
+            .fNL = CONF(prr->lua, f_nl),
+            .type = CONF(prr->lua, f_nl_type),
             .kmax_primordial = kmax_primordial,
             .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
             .pkdata = &linear_powerspectrum,
-            .h = CONF(prr, h),
-            .scalar_amp = CONF(prr, scalar_amp),
-            .scalar_spectral_index = CONF(prr, scalar_spectral_index),
-            .scalar_pivot = CONF(prr, scalar_pivot)
+            .h = CONF(prr->lua, h),
+            .scalar_amp = CONF(prr->lua, scalar_amp),
+            .scalar_spectral_index = CONF(prr->lua, scalar_spectral_index),
+            .scalar_pivot = CONF(prr->lua, scalar_pivot)
         };
         fastpm_info("Inducing non gaussian correlation to the white noise.\n");
         fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
@@ -479,7 +487,7 @@ induce:
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
     {
-        double linear_density_redshift = CONF(prr, linear_density_redshift);
+        double linear_density_redshift = CONF(prr->lua, linear_density_redshift);
         double linear_evolve = fastpm_solver_growth_factor(fastpm, 1.0) /
                                fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
 
@@ -494,18 +502,18 @@ induce:
     fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
 
     /* add constraints */
-    if(CONF(prr, constraints)) {
+    if(CONF(prr->lua, constraints)) {
         FastPM2PCF xi;
 
-        fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, CONF(prr, boxsize), CONF(prr, nc));
+        fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, CONF(prr->lua, boxsize), CONF(prr->lua, nc));
 
         FastPMConstrainedGaussian cg = {
-            .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr, n_constraints) + 1)),
+            .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr->lua, n_constraints) + 1)),
         };
-        fastpm_info("Applying %d constraints.\n", CONF(prr, n_constraints));
+        fastpm_info("Applying %d constraints.\n", CONF(prr->lua, n_constraints));
         int i;
-        for(i = 0; i < CONF(prr, n_constraints); i ++) {
-            double * c = CONF(prr, constraints);
+        for(i = 0; i < CONF(prr->lua, n_constraints); i ++) {
+            double * c = CONF(prr->lua, constraints);
             cg.constraints[i].x[0] = c[4 * i + 0];
             cg.constraints[i].x[1] = c[4 * i + 1];
             cg.constraints[i].x[2] = c[4 * i + 2];
@@ -517,9 +525,9 @@ induce:
         cg.constraints[i].x[2] = -1;
         cg.constraints[i].c = -1;
 
-        if(CONF(prr, write_lineark)) {
-            fastpm_info("Writing fourier space linear field before constraints to %s\n", CONF(prr, write_lineark));
-            write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "UnconstrainedLinearDensityK", prr->Nwriters);
+        if(CONF(prr->lua, write_lineark)) {
+            fastpm_info("Writing fourier space linear field before constraints to %s\n", CONF(prr->lua, write_lineark));
+            write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_lineark), "UnconstrainedLinearDensityK", prr->cli->Nwriters);
         }
         fastpm_cg_apply_constraints(&cg, fastpm->basepm, &xi, delta_k);
 
@@ -531,27 +539,27 @@ induce:
     /* our write out and clean up stuff.*/
 produce:
 
-    if(CONF(prr, write_lineark)) {
-        fastpm_info("Writing fourier space linear field to %s\n", CONF(prr, write_lineark));
-        write_complex(fastpm->basepm, delta_k, CONF(prr, write_lineark), "LinearDensityK", prr->Nwriters);
+    if(CONF(prr->lua, write_lineark)) {
+        fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
+        write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
     }
 
-    if(CONF(prr, write_powerspectrum)) {
+    if(CONF(prr->lua, write_powerspectrum)) {
         FastPMPowerSpectrum ps;
         /* calculate the power spectrum */
         fastpm_powerspectrum_init_from_delta(&ps, fastpm->basepm, delta_k, delta_k);
 
         char buf[1024];
-        sprintf(buf, "%s_linear.txt", CONF(prr, write_powerspectrum));
+        sprintf(buf, "%s_linear.txt", CONF(prr->lua, write_powerspectrum));
         fastpm_info("writing linear power spectrum to %s\n", buf);
         if(fastpm->ThisTask == 0) {
-            fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
+            fastpm_path_ensure_dirname(CONF(prr->lua, write_powerspectrum));
             fastpm_powerspectrum_write(&ps, buf, pow(fastpm->config->nc, 3.0));
         }
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    fastpm_solver_setup_ic(fastpm, delta_k, CONF(prr, time_step)[0]);
+    fastpm_solver_setup_ic(fastpm, delta_k, CONF(prr->lua, time_step)[0]);
 
     pm_free(fastpm->basepm, delta_k);
 }
@@ -592,15 +600,15 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         FastPMSMesh ** smesh)
 {
     {
-        if(CONF(prr, ndim_lc_glmatrix) != 2 ||
-           CONF(prr, shape_lc_glmatrix)[0] != 4 ||
-           CONF(prr, shape_lc_glmatrix)[1] != 4
+        if(CONF(prr->lua, ndim_lc_glmatrix) != 2 ||
+           CONF(prr->lua, shape_lc_glmatrix)[0] != 4 ||
+           CONF(prr->lua, shape_lc_glmatrix)[1] != 4
         ) {
             fastpm_raise(-1, "GL Matrix must be a 4x4 matrix\n");
         }
 
         int i, j;
-        double * c = CONF(prr, lc_glmatrix);
+        double * c = CONF(prr->lua, lc_glmatrix);
 
         for (i = 0; i < 4; i ++) {
             for (j = 0; j < 4; j ++) {
@@ -614,8 +622,8 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
     {
         int i;
-        for(i = 0; i < CONF(prr, n_lc_octants); i ++) {
-            int oct = CONF(prr, lc_octants)[i];
+        for(i = 0; i < CONF(prr->lua, n_lc_octants); i ++) {
+            int oct = CONF(prr->lua, lc_octants)[i];
             lc->octants[oct % 8] = 1;
             fastpm_info("Using Octant %d\n", oct);
         }
@@ -624,17 +632,17 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
     fastpm_lc_init(lc);
 
 
-    double lc_amin = HAS(prr, lc_amin)?CONF(prr, lc_amin):CONF(prr, time_step)[0];
+    double lc_amin = HAS(prr->lua, lc_amin)?CONF(prr->lua, lc_amin):CONF(prr->lua, time_step)[0];
 
-    double lc_amax = HAS(prr, lc_amax)?CONF(prr, lc_amax):CONF(prr, time_step)[CONF(prr, n_time_step) - 1];
+    double lc_amax = HAS(prr->lua, lc_amax)?CONF(prr->lua, lc_amax):CONF(prr->lua, time_step)[CONF(prr->lua, n_time_step) - 1];
 
     fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", lc_amin, lc_amax);
 
     *smesh = NULL;
-    if(CONF(prr, lc_write_smesh)) {
+    if(CONF(prr->lua, lc_write_smesh)) {
         *smesh = malloc(sizeof(FastPMSMesh));
 
-        double n = CONF(prr, nc) / CONF(prr, boxsize) * CONF(prr, lc_smesh_fraction);
+        double n = CONF(prr->lua, nc) / CONF(prr->lua, boxsize) * CONF(prr->lua, lc_smesh_fraction);
 
         fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, 1 / n);
 
@@ -644,11 +652,11 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             fastpm_smesh_add_layers_healpix(*smesh,
                     n * n, n * n * n,
                     lc_amin, lc_amax,
-                    CONF(prr, lc_smesh_max_nside),
+                    CONF(prr->lua, lc_smesh_max_nside),
                     fastpm->comm);
         } else {
             /* FIXME: use n, not nc */
-            ptrdiff_t Nc1[3] = {CONF(prr, nc), CONF(prr, nc), CONF(prr, nc)};
+            ptrdiff_t Nc1[3] = {CONF(prr->lua, nc), CONF(prr->lua, nc), CONF(prr->lua, nc)};
             fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, lc_amin, lc_amax);
         }
 
@@ -684,22 +692,22 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
     }
 
     *usmesh = NULL;
-    if(CONF(prr, lc_write_usmesh)) {
+    if(CONF(prr->lua, lc_write_usmesh)) {
         *usmesh = malloc(sizeof(FastPMUSMesh));
 
         double (*tiles)[3];
         int ntiles;
 
-        if(CONF(prr, ndim_lc_usmesh_tiles) != 2 ||
-           CONF(prr, shape_lc_usmesh_tiles)[1] != 3
+        if(CONF(prr->lua, ndim_lc_usmesh_tiles) != 2 ||
+           CONF(prr->lua, shape_lc_usmesh_tiles)[1] != 3
         ) {
             fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
         }
 
-        ntiles = CONF(prr, shape_lc_usmesh_tiles)[0];
+        ntiles = CONF(prr->lua, shape_lc_usmesh_tiles)[0];
         tiles = malloc(sizeof(tiles[0]) * ntiles);
         int i, j;
-        double * c = CONF(prr, lc_usmesh_tiles);
+        double * c = CONF(prr->lua, lc_usmesh_tiles);
 
         for (i = 0; i < ntiles; i ++) {
             for (j = 0; j < 3; j ++) {
@@ -710,7 +718,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
-                CONF(prr, lc_usmesh_alloc_factor) * fastpm->p->np_upper,
+                CONF(prr->lua, lc_usmesh_alloc_factor) * fastpm->p->np_upper,
                 tiles, ntiles, lc_amin, lc_amax);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
@@ -734,8 +742,8 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             data->Nedges = Nedges;
             free(slices);
         } else {
-            double amin = CONF(prr, lc_amin);
-            double amax = CONF(prr, lc_amax);
+            double amin = CONF(prr->lua, lc_amin);
+            double amax = CONF(prr->lua, lc_amax);
             fastpm_info("No structured mesh requested, generating an AemitIndex with 128 layers for usmesh. \n");
 
             int nedges = 128;
@@ -779,7 +787,7 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
 
     fastpm_info("Structured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
 
-    char * fn = fastpm_strdup_printf(CONF(prr, lc_write_smesh));
+    char * fn = fastpm_strdup_printf(CONF(prr->lua, lc_write_smesh));
 
     ENTER(sort);
     fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
@@ -789,7 +797,7 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", fn);
 
-        write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
+        write_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
         _write_parameters(fn, "Header", prr, solver->comm);
 
         double * aemit = malloc(sizeof(double) * (data->Nslices));
@@ -811,7 +819,7 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
         free(aemit);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
+        append_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
     }
 
     LEAVE(io);
@@ -842,7 +850,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 
     fastpm_info("Unstructured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
 
-    char * fn = fastpm_strdup_printf(CONF(prr, lc_write_usmesh));
+    char * fn = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
 
     write_usmesh_fof(solver, lcevent->p, fn, prr, lcevent, tail, mesh->lc);
 
@@ -856,11 +864,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     ENTER(io);
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
+        write_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
         _write_parameters(fn, "Header", prr, solver->comm);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", prr->Nwriters);
+        append_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
     }
 
     LEAVE(io);
@@ -899,8 +907,8 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
     FastPMStore * p = fastpm->p;
-    int nout = CONF(prr, n_aout);
-    double * aout= CONF(prr, aout);
+    int nout = CONF(prr->lua, n_aout);
+    double * aout= CONF(prr->lua, aout);
 
     int iout;
     for(iout = 0; iout < nout; iout ++) {
@@ -924,10 +932,10 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
         fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
 
-        if(CONF(prr, write_fof)) {
+        if(CONF(prr->lua, write_fof)) {
             char filebase[1024];
 
-            sprintf(filebase, "%s_%0.04f", CONF(prr, write_fof), aout[iout]);
+            sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_fof), aout[iout]);
 
             write_fof(fastpm, snapshot, filebase, prr);
         }
@@ -952,10 +960,10 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     ENTER(fof);
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
-        .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
+        .linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc),
         .periodic = 1,
-        .nmin = CONF(prr, fof_nmin),
-        .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
+        .nmin = CONF(prr->lua, fof_nmin),
+        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
     fastpm_fof_init(&fof, snapshot, fastpm->basepm);
@@ -973,8 +981,8 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
     LEAVE(sort);
 
     ENTER(io);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
-    write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    write_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
     _write_parameters(filebase, "Header", prr, fastpm->comm);
 
     free(dataset);
@@ -1048,7 +1056,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
     CLOCK(sort);
 
     int append = !lcevent->is_first;
-    double maxhalosize = CONF(prr, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
+    double maxhalosize = CONF(prr->lua, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
     ptrdiff_t i;
 
@@ -1069,10 +1077,10 @@ write_usmesh_fof(FastPMSolver * fastpm,
 
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
-        .linkinglength = CONF(prr, fof_linkinglength) * CONF(prr, boxsize) / CONF(prr, nc),
+        .linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc),
         .periodic = 0,
-        .nmin = CONF(prr, fof_nmin),
-        .kdtree_thresh = CONF(prr, fof_kdtree_thresh),
+        .nmin = CONF(prr->lua, fof_nmin),
+        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
     fastpm_fof_init(&fof, snapshot, fastpm->basepm);
@@ -1103,12 +1111,12 @@ write_usmesh_fof(FastPMSolver * fastpm,
     LEAVE(sort);
 
     ENTER(io);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr, fof_linkinglength));
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
     if(!append) {
-        write_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
+        write_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
         _write_parameters(filebase, "Header", prr, fastpm->comm);
     } else {
-        append_snapshot(fastpm, halos, filebase, dataset, prr->Nwriters);
+        append_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
     }
     free(dataset);
     LEAVE(io);
@@ -1139,8 +1147,8 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
     CLOCK(sort);
 
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
-    if(CONF(prr, write_nonlineark)) {
-        char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr, write_nonlineark), aout);
+    if(CONF(prr->lua, write_nonlineark)) {
+        char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr->lua, write_nonlineark), aout);
         FastPMPainter painter[1];
 
         FastPMFloat * rho_x = pm_alloc(fastpm->basepm);
@@ -1151,23 +1159,23 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         fastpm_paint(painter, rho_x, snapshot, FASTPM_FIELD_DESCR_NONE);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
 
-        write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->Nwriters);
+        write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->cli->Nwriters);
 
         pm_free(fastpm->basepm, rho_k);
         pm_free(fastpm->basepm, rho_x);
         free(filename);
     }
 
-    if(CONF(prr, write_snapshot)) {
+    if(CONF(prr->lua, write_snapshot)) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
-        sprintf(filebase, "%s_%0.04f", CONF(prr, write_snapshot), aout);
+        sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_snapshot), aout);
 
         fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
-                filebase, z_out, aout, prr->Nwriters);
+                filebase, z_out, aout, prr->cli->Nwriters);
 
         ENTER(sort);
-        if(CONF(prr, sort_snapshot)) {
+        if(CONF(prr->lua, sort_snapshot)) {
             fastpm_info("Snapshot is sorted by ID.\n");
             fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 1);
         } else {
@@ -1175,17 +1183,17 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
         }
         LEAVE(sort);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, "1", prr->Nwriters);
+        write_snapshot(fastpm, snapshot, filebase, "1", prr->cli->Nwriters);
         _write_parameters(filebase, "Header", prr, fastpm->comm);
         LEAVE(io);
 
         fastpm_info("snapshot %s written\n", filebase);
     }
-    if(CONF(prr, write_runpb_snapshot)) {
+    if(CONF(prr->lua, write_runpb_snapshot)) {
         char filebase[1024];
         double z_out= 1.0/aout - 1.0;
 
-        sprintf(filebase, "%s_%0.04f.bin", CONF(prr, write_runpb_snapshot), aout);
+        sprintf(filebase, "%s_%0.04f.bin", CONF(prr->lua, write_runpb_snapshot), aout);
 
         ENTER(io);
         write_runpb_snapshot(fastpm, snapshot, filebase);
@@ -1291,7 +1299,7 @@ static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
 {
 
-    int K_LINEAR = CONF(prr, enforce_broadband_kmax);
+    int K_LINEAR = CONF(prr->lua, enforce_broadband_kmax);
 
     CLOCK(compute);
     CLOCK(io);
@@ -1322,12 +1330,12 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
     MPI_Barrier(fastpm->comm);
 
     ENTER(io);
-    if(CONF(prr, write_powerspectrum)) {
+    if(CONF(prr->lua, write_powerspectrum)) {
         char buf[1024];
-        sprintf(buf, "%s_%0.04f.txt", CONF(prr, write_powerspectrum), event->a_f);
+        sprintf(buf, "%s_%0.04f.txt", CONF(prr->lua, write_powerspectrum), event->a_f);
         fastpm_info("writing power spectrum to %s\n", buf);
         if(fastpm->ThisTask == 0) {
-            fastpm_path_ensure_dirname(CONF(prr, write_powerspectrum));
+            fastpm_path_ensure_dirname(CONF(prr->lua, write_powerspectrum));
             fastpm_powerspectrum_write(&ps, buf, event->N);
         }
     }

@@ -12,17 +12,15 @@
 extern char * 
 lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
 
-Parameters *
-parse_args(int argc, char ** argv, char ** error)
+CLIParameters *
+parse_cli_args(int argc, char ** argv)
 {
-    char * ParamFileName;
-    Parameters * prr = malloc(sizeof(prr[0]));
-    *error = NULL;
+    CLIParameters * prr = malloc(sizeof(prr[0]));
+
     int opt;
     extern int optind;
     extern char * optarg;
     prr->UseFFTW = 0;
-    ParamFileName = NULL;
     prr->NprocY = 0;
     prr->Nwriters = 0;
     prr->MemoryPerRank = 0;
@@ -51,11 +49,28 @@ parse_args(int argc, char ** argv, char ** error)
         goto usage;
     }
 
-    ParamFileName = (argv)[optind];
-    argv += optind;
-    argc -= optind; 
+    prr->argv = argv + optind;
+    prr->argc = argc - optind;
 
-    char * confstr = lua_config_parse("_parse", ParamFileName, argc, argv, error);
+    return prr;
+
+usage:
+    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
+    "-f Use FFTW \n"
+    "-y Set the number of processes in the 2D mesh\n"
+    "-n Throttle IO (bigfile only) \n"
+);
+    free(prr);
+    return NULL;
+}
+
+LUAParameters *
+parse_config(char * filename, int argc, char ** argv, char ** error)
+{
+    *error = NULL;
+
+    LUAParameters * prr = malloc(sizeof(prr[0]));
+    char * confstr = lua_config_parse("_parse", filename, argc, argv, error);
     if(confstr == NULL) {
         free(prr);
         return NULL;
@@ -71,23 +86,20 @@ parse_args(int argc, char ** argv, char ** error)
 
     prr->string = strdup(confstr);
     free(confstr);
-
     return prr;
-
-usage:
-    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
-    "-f Use FFTW \n"
-    "-y Set the number of processes in the 2D mesh\n"
-    "-n Throttle IO (bigfile only) \n"
-);
-    free(prr);
-    return NULL;
 }
 
 void
-free_parameters(Parameters * param)
+free_lua_parameters(LUAParameters * param)
 {
     lua_config_free(param->config);
     free(param->string);
+    free(param);
+}
+
+void
+free_cli_parameters(CLIParameters * param)
+{
+    free(param);
 }
 
