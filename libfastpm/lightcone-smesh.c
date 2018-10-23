@@ -214,9 +214,9 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
 
     double line_density = volume_density / surface_density;
 
-    int Na = ceil((zmax - zmin) / line_density) + 1;
+    int Na = ceil((zmax - zmin) * line_density) + 1;
     
-    if(Na < 1) Na = 1; /* at least one layer */
+    if(Na < 1) Na = 1;
 
     double * a = malloc(sizeof(double) * Na);
     size_t * nside = malloc(sizeof(size_t) * Na);
