@@ -50,6 +50,9 @@ MPIU_All(MPI_Comm comm, int value);
 
 int
 MPIU_stats(MPI_Comm comm, double value, const char * fmt, ...);
-    
+
+char *
+MPIU_Bcast_string(MPI_Comm comm, char * src, int root, void (*free)(void * ptr));
+
 FASTPM_END_DECLS
 

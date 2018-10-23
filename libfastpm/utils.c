@@ -391,3 +391,39 @@ MPIU_stats(MPI_Comm comm,
 
     return c;
 }
+
+/*
+ *
+ * create a copy of string src and broadcast it to all ranks.
+ *
+ * Every rank receives a copy of src as the return value, including the root.
+ *
+ * if free is not NULL, the function is called as free(src)
+ * */
+char *
+MPIU_Bcast_string(MPI_Comm comm, char * src, int root, void(*free)(void * ptr))
+{
+    int srcNULL = src == NULL;
+    MPI_Bcast(&srcNULL, 1, MPI_INT, root, comm);
+
+    if(srcNULL) return NULL;
+
+    int rank;
+    int N;
+    MPI_Comm_rank(comm, &rank);
+
+    if(rank == root) {
+        N = strlen(src) + 1;
+    }
+    MPI_Bcast(&N, 1, MPI_INT, root, comm);
+
+    char * ret = malloc(N);
+    if(rank == root) {
+        strcpy(ret, src);
+    }
+
+    if(free && rank == root) free(src);
+    MPI_Bcast(ret, N, MPI_BYTE, root, comm);
+
+    return ret;
+}
