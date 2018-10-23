@@ -105,6 +105,9 @@ apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double 
             to[ind + 0] *= fac;
             to[ind + 1] *= fac;
         }
+        for(d = 0; d < 3; d ++) {
+            free(kernel[d]);
+        }
     }
 }
 static double
