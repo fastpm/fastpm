@@ -112,15 +112,43 @@ static double now()
     return now.tv_sec + now.tv_usec * 1e-6;
 }
 
-static char * process(const char * fmt) {
-    char buf[128];
+static char * process(const char * buffer) {
+    char header[128];
 
     static double t0 = -1.0;
     if(t0 < 0) t0 = now();
-    sprintf(buf, "[ %012.04f ]: ", now() - t0);
-    char * ret = malloc(strlen(fmt) + strlen(buf) + 1);
-    strcpy(ret, buf);
-    strcat(ret, fmt);
+    sprintf(header, "[ %012.04f ]: ", now() - t0);
+
+    int Nlines = 0;
+    const char * p;
+    for(p = buffer; *p; p ++) {
+        if(*p == '\n') Nlines ++;
+    }
+    int need_newline = 0;
+    /* at least 1 char and not ending with \n*/
+    if(p != buffer && *(p - 1) != '\n') {
+        need_newline = 1;
+        Nlines ++;
+    }
+    char * ret = malloc(strlen(buffer) + strlen(header) * Nlines + need_newline + 1);
+    char * q = ret;
+
+    strcpy(q, header);
+    q += strlen(header);
+
+    for(p = buffer; *p; p ++) {
+        *q = *p;
+        q ++;
+        if (*p == '\n' && *(p+1) != 0) {
+            strcpy(q, header);
+            q += strlen(header);
+        }
+    }
+    if(need_newline) {
+        *q = '\n';
+        q ++;
+    }
+    *q = 0;
     return ret;
 }
 
@@ -129,15 +157,15 @@ void fastpm_log2(const enum FastPMLogLevel level,
             const enum FastPMLogType type,
             const int code, 
             const char * fmt, va_list argp) {
-    char * newfmt = process(fmt);
 
     if (handler_data.handler == NULL) {
         fastpm_set_msg_handler(fastpm_default_msg_handler, MPI_COMM_WORLD, NULL);
     }
 
-    char * buffer = fastpm_strdup_vprintf(newfmt, argp);
-    handler_data.handler(level, type, code, buffer, handler_data.comm, handler_data.userdata);
-    free(newfmt);
+    char * buffer = fastpm_strdup_vprintf(fmt, argp);
+    char * processed = process(buffer);
+    handler_data.handler(level, type, code, processed, handler_data.comm, handler_data.userdata);
+    free(processed);
     free(buffer);
 }
 
