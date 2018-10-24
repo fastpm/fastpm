@@ -210,20 +210,21 @@ int
 fastpm_store_write(FastPMStore * p,
         const char * filebase,
         const char * dataset,
-        const char * mode,
+        const char * modestr,
         int Nwriters,
         MPI_Comm comm
 )
 {
-    int64_t size = p->np;
 
-    MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
+    enum {READ, WRITE, APPEND } mode;
 
-    int append;
-    if(0 == strcmp(mode, "w")) {
-        append = 0;
+
+    if(0 == strcmp(modestr, "w")) {
+        mode = WRITE;
+    } else if(0 == strcmp(modestr, "r")) {
+        mode = READ;
     } else {
-        append = 1;
+        mode = APPEND;
     }
 
     int NTask;
@@ -246,13 +247,6 @@ fastpm_store_write(FastPMStore * p,
     /* 12 is a number to adjust for slight imbalance between nodes */
     big_file_mpi_set_aggregated_threshold((items_per_file / writers_per_file + 12) * max_elsize);
 
-    int Nfile = (size + items_per_file - 1) / items_per_file;
-
-    if(Nfile < 1) Nfile = 1;
-
-    if(Nwriters > Nfile * writers_per_file) Nwriters = Nfile * writers_per_file;
-
-
     CLOCK(meta);
     ENTER(meta);
     if (ThisTask == 0)
@@ -261,6 +255,17 @@ fastpm_store_write(FastPMStore * p,
     MPI_Barrier(comm);
     LEAVE(meta);
 
+    switch(mode) {
+        case READ:
+            fastpm_info("Reading a catalog from %s [%s]\n", filebase, dataset);
+            break;
+        case APPEND:
+            fastpm_info("Appending a catalog to %s [%s]\n", filebase, dataset);
+            break;
+        case WRITE:
+            fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
+            break;
+    }
 
     BigFile bf[1];
     if(0 != big_file_mpi_open(bf, filebase, comm)) {
@@ -268,13 +273,6 @@ fastpm_store_write(FastPMStore * p,
             fastpm_raise(-1, "Failed to create or open the file: %s\n", big_file_get_error_message());
         }
     }
-    if(append) {
-        fastpm_info("Appending a catalog to %s [%s]\n", filebase, dataset);
-    } else {
-        fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
-    }
-
-    fastpm_info("Writing %ld objects to %d files with %d writers\n", size, Nfile, Nwriters);
 
     #define DEFINE_COLUMN_IO(name, dtype_, column) \
         {name, dtype_, \
@@ -310,7 +308,9 @@ fastpm_store_write(FastPMStore * p,
         DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
         {NULL, },
     };
-    if (!append) {
+    int64_t size = fastpm_store_get_np_total(p, comm);
+
+    if (mode == WRITE) {
         BigBlock bb;
         /* create the root block for the dataset attributes specific to this dataset. */
         if(0 != big_file_mpi_create_block(bf, &bb, dataset, NULL, 0, 0, 0, comm)) {
@@ -318,55 +318,118 @@ fastpm_store_write(FastPMStore * p,
         }
         big_block_mpi_close(&bb, comm);
     }
+
+    if (mode != READ) {
+        fastpm_info("Writing %s objects.\n", size);
+    }
+
     for(descr = BLOCKS; descr->name; descr ++) {
         if(p->columns[descr->ci] == NULL) continue;
 
-        fastpm_info("Writing block %s of (%s, %d)\n", descr->name, descr->dtype, descr->nmemb);
+
         BigBlock bb;
         BigArray array;
         BigBlockPtr ptr;
         char * blockname = fastpm_strdup_printf("%s/%s", dataset, descr->name);
-        if(!append) {
-            if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
-                        Nfile, size, comm)) {
-                fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
-            }
-            big_block_seek(&bb, &ptr, 0);
-        } else {
-            if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
-                /* if open failed, create an empty block instead.*/
+
+        int Nfile;
+
+        switch(mode) {
+            case WRITE:
+            case APPEND:
+                Nfile = (size + items_per_file - 1) / items_per_file;
+                if(Nfile < 1) Nfile = 1;
+                break;
+            case READ:
+                break;
+        }
+
+        switch(mode) {
+            case READ:
+                if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
+                    /* if open failed, create an empty block instead.*/
+                    fastpm_raise(-1, "Failed to open the block: %s\n", big_file_get_error_message());
+                }
+                size_t localsize = (ThisTask + 1) * bb.size / NTask - ThisTask * bb.size / NTask;
+
+                if(localsize > p->np_upper) {
+                    fastpm_raise(-1, "block: %s requesting %td items > np_upper = %td\n",
+                            blockname, localsize, p->np_upper);
+                }
+                if(size == 0) {
+                    p->np = localsize;
+                    size = bb.size;
+                } else {
+                    if(size != bb.size) {
+                        fastpm_raise(-1, "block: %s size mismatched; expecting %ld; got %ld\n",
+                                blockname, size, bb.size);
+                    }
+                }
+
+                Nfile = bb.Nfile;
+                break;
+            case WRITE:
                 if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
-                            0, 0, comm)) {
+                            Nfile, size, comm)) {
                     fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
                 }
-            }
-            size_t oldsize = bb.size;
-            /* FIXME : check the dtype and nmemb are consistent */
-            big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
-            big_block_seek(&bb, &ptr, oldsize);
+                big_block_seek(&bb, &ptr, 0);
+                break;
+            case APPEND:
+                if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
+                    /* if open failed, create an empty block instead.*/
+                    if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
+                                0, 0, comm)) {
+                        fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+                    }
+                }
+                size_t oldsize = bb.size;
+                /* FIXME : check the dtype and nmemb are consistent */
+                big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
+                big_block_seek(&bb, &ptr, oldsize);
+                break;
         }
 
-        /* packing the single column for IO */
-        FastPMPackingPlan plan[1];
-        fastpm_packing_plan_init(plan, p, descr->attribute);
+        if(Nwriters > Nfile * writers_per_file) Nwriters = Nfile * writers_per_file;
 
-        /*
-        size_t elsize = plan->elsize;
-        void * buffer = malloc(elsize * p->np);
+        void * buffer;
+        switch(mode) {
+            case WRITE:
+            case APPEND:
+                fastpm_info("Writing block %s of (%s, %d) from %d files with %d writers\n", descr->name, descr->dtype, descr->nmemb, Nfile, Nwriters);
 
-        ptrdiff_t i;
-        for(i = 0; i < p->np; i ++) {
-            fastpm_packing_plan_pack(plan, p, i, ((char *) buffer) + i * elsize);
+                /* packing the single column for IO */
+                FastPMPackingPlan plan[1];
+                fastpm_packing_plan_init(plan, p, descr->attribute);
+
+                buffer = p->columns[descr->ci];
+
+                big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
+
+
+                /*
+                size_t elsize = plan->elsize;
+                void * buffer = malloc(elsize * p->np);
+
+                ptrdiff_t i;
+                for(i = 0; i < p->np; i ++) {
+                    fastpm_packing_plan_pack(plan, p, i, ((char *) buffer) + i * elsize);
+                }
+                */
+                /* use the stored buffer before we switch to compressed internal representations;
+                 * this saves quite a bit of memory. */
+                big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
+                /* free(buffer); */
+                break;
+            case READ:
+                fastpm_info("Reading block %s of (%s, %d) from %d files with %d writers\n", descr->name, descr->dtype, descr->nmemb, Nfile, Nwriters);
+                buffer = p->columns[descr->ci];
+
+                big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
+
+                big_block_mpi_read(&bb, &ptr, &array, Nwriters, comm);
+                break;
         }
-        */
-        /* use the stored buffer before we switch to compressed internal representations;
-         * this saves quite a bit of memory. */
-        void * buffer = p->columns[descr->ci];
-
-        big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
-        big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
-
-        /* free(buffer); */
         big_block_mpi_close(&bb, comm);
         free(blockname);
     }
