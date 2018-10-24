@@ -20,7 +20,7 @@ LUASOURCES = \
 	lua-runtime-config.lua \
 	lua-runtime-fastpm.lua \
 
-LIBFASTPM_LIBS = ../libfastpm/libfastpm.a ../libfastpmio/libfastpm-io.a ../depends/libfastpm-dep.a
+LIBFASTPM_LIBS = ../libfastpmio/libfastpm-io.a ../libfastpm/libfastpm.a ../depends/libfastpm-dep.a
 
 all: fastpm-lua \
      fastpm \
@@ -29,7 +29,7 @@ fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ $(LDFLAGS) -lm 
 
 fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS)
-	$(CC) $(OPTIMIZE) $(OPENMP) -o fastpm $^ $(LDFLAGS) $(GSL_LIBS) -lm
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ $(LDFLAGS) $(GSL_LIBS) -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 
