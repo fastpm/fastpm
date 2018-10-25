@@ -320,7 +320,7 @@ fastpm_store_write(FastPMStore * p,
     }
 
     if (mode != READ) {
-        fastpm_info("Writing %s objects.\n", size);
+        fastpm_info("Writing %ld objects.\n", size);
     }
 
     for(descr = BLOCKS; descr->name; descr ++) {
@@ -367,6 +367,7 @@ fastpm_store_write(FastPMStore * p,
                 }
 
                 Nfile = bb.Nfile;
+                big_block_seek(&bb, &ptr, 0);
                 break;
             case WRITE:
                 if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
