@@ -89,6 +89,15 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a
     FastPMConfig * config = fastpm->config;
     FastPMStore * p = fastpm->p;
 
+    double rho_crit = 27.7455; /* 1e10 Msun /h*/
+
+    double BoxSize = fastpm->config->boxsize;
+    uint64_t NC = fastpm->config->nc;
+    double OmegaM = fastpm->cosmology->OmegaM;
+    double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+
+    p->meta.M0 = M0;
+
     int temp_dx1 = 0;
     int temp_dx2 = 0;
     if(p->dx1 == NULL) {

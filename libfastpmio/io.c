@@ -171,11 +171,9 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     double OmegaLambda = fastpm->cosmology->OmegaLambda;
     double HubbleParam = fastpm->config->hubble_param;
     double BoxSize = fastpm->config->boxsize;
-    double rho_crit = 27.7455; /* 1e10 Msun /h*/
     uint64_t NC = fastpm->config->nc;
 
-    double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
-    double MassTable[6] = {0, M0, 0, 0, 0, 0};
+    double MassTable[6] = {0, p->meta.M0, 0, 0, 0, 0};
     uint64_t TotNumPart[6] = {0, fastpm_store_get_np_total(p, comm), 0, 0, 0, 0};
 
     /* FIXME: move some of these to fastpm.c; see if we can reduce the number of entries in fastpm->config. */
@@ -186,7 +184,6 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
     big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
     big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
-    big_block_set_attr(&bb, "M0", &M0, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
 
     /* Compatibility with MP-Gadget */
@@ -325,6 +322,7 @@ fastpm_store_write(FastPMStore * p,
         big_block_set_attr(&bb, "q.shift", p->meta._q_shift, "f8", 3);
         big_block_set_attr(&bb, "a.x", &p->meta.a_x, "f8", 1);
         big_block_set_attr(&bb, "a.v", &p->meta.a_v, "f8", 1);
+        big_block_set_attr(&bb, "M0", &p->meta.M0, "f8", 1);
 
         big_block_mpi_close(&bb, comm);
     }
@@ -340,7 +338,7 @@ fastpm_store_write(FastPMStore * p,
         big_block_get_attr(&bb, "q.scale", p->meta._q_scale, "f8", 3);
         big_block_get_attr(&bb, "q.shift", p->meta._q_shift, "f8", 3);
         big_block_get_attr(&bb, "a.x", &p->meta.a_x, "f8", 1);
-        big_block_get_attr(&bb, "a.v", &p->meta.a_v, "f8", 1);
+        big_block_get_attr(&bb, "M0", &p->meta.M0, "f8", 1);
 
         big_block_mpi_close(&bb, comm);
     }

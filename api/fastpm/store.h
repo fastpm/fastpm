@@ -64,6 +64,7 @@ struct FastPMStore {
     struct {
         double a_x;
         double a_v;
+        double M0;
 
         double _q_shift[3];
         double _q_scale[3];
