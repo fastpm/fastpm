@@ -882,22 +882,20 @@ write_aemit_hist(const char * filebase, const char * dataset,
     big_block_remove_attr(&bb, "aemitIndex.size");
     big_block_set_attr(&bb, "aemitIndex.size", hist, "i8", nedges + 1);
 
-    int64_t * offset = malloc(sizeof(int64_t) * (nedges + 1));
-    int64_t * size = malloc(sizeof(int64_t) * nedges);
+    int64_t * offset = malloc(sizeof(int64_t) * (nedges + 2));
 
     /* the starting particles offset for each layer */
     offset[0] = 0;
     int i;
-    for(i = 1; i < nedges + 1; i ++) {
-        offset[i] = offset[i - 1] + hist[i];
+    for(i = 1; i < nedges + 2; i ++) {
+        offset[i] = offset[i - 1] + hist[i - 1];
     }
     big_block_remove_attr(&bb, "aemitIndex.offset");
-    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", nedges + 1);
+    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", nedges + 2);
 
     big_block_mpi_close(&bb, comm);
     big_file_mpi_close(&bf, comm);
 
     free(offset);
-    free(size);
 }
 
