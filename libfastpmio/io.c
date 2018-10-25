@@ -157,14 +157,16 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
         fastpm_raise(-1, "Failed to create the header block: %s\n", big_file_get_error_message());
     }
 
+    double aout = p->meta.a_x;
+
     double H0 = 100.;
     /* Conversion from peculiar velocity to RSD,
      * http://mwhite.berkeley.edu/Talks/SantaFe12_RSD.pdf */
-    double RSD = 1.0 / (H0 * p->a_x * HubbleEa(p->a_x, fastpm->cosmology));
+    double RSD = 1.0 / (H0 * aout * HubbleEa(aout, fastpm->cosmology));
 
     fastpm_info("RSD factor %e\n", RSD);
 
-    double ScalingFactor = p->a_x;
+    double ScalingFactor = aout;
     double OmegaM = fastpm->cosmology->OmegaM;
     double OmegaLambda = fastpm->cosmology->OmegaLambda;
     double HubbleParam = fastpm->config->hubble_param;
@@ -318,9 +320,11 @@ fastpm_store_write(FastPMStore * p,
             fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
         }
 
-        big_block_set_attr(&bb, "q.strides", p->_q_strides, "i8", 3);
-        big_block_set_attr(&bb, "q.scale", p->_q_scale, "f8", 3);
-        big_block_set_attr(&bb, "q.shift", p->_q_shift, "f8", 3);
+        big_block_set_attr(&bb, "q.strides", p->meta._q_strides, "i8", 3);
+        big_block_set_attr(&bb, "q.scale", p->meta._q_scale, "f8", 3);
+        big_block_set_attr(&bb, "q.shift", p->meta._q_shift, "f8", 3);
+        big_block_set_attr(&bb, "a.x", &p->meta.a_x, "f8", 1);
+        big_block_set_attr(&bb, "a.v", &p->meta.a_v, "f8", 1);
 
         big_block_mpi_close(&bb, comm);
     }
@@ -332,9 +336,11 @@ fastpm_store_write(FastPMStore * p,
             fastpm_raise(-1, "Failed to open the block: %s\n", big_file_get_error_message());
         }
 
-        big_block_get_attr(&bb, "q.strides", p->_q_strides, "i8", 3);
-        big_block_get_attr(&bb, "q.scale", p->_q_scale, "f8", 3);
-        big_block_get_attr(&bb, "q.shift", p->_q_shift, "f8", 3);
+        big_block_get_attr(&bb, "q.strides", p->meta._q_strides, "i8", 3);
+        big_block_get_attr(&bb, "q.scale", p->meta._q_scale, "f8", 3);
+        big_block_get_attr(&bb, "q.shift", p->meta._q_shift, "f8", 3);
+        big_block_get_attr(&bb, "a.x", &p->meta.a_x, "f8", 1);
+        big_block_get_attr(&bb, "a.v", &p->meta.a_v, "f8", 1);
 
         big_block_mpi_close(&bb, comm);
     }

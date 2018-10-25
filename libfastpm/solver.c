@@ -461,7 +461,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     }
 
     po->np = p->np;
-    po->a_x = po->a_v = aout;
 
     fastpm_store_wrap(po, pm->BoxSize);
 

@@ -163,6 +163,6 @@ pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
                 p->v[i][d] = (p->dx1[i][d]* Dv1 + p->dx2[i][d]*Dv2);
         }
     }
-    p->a_x = p->a_v = aout;
+    p->meta.a_x = p->meta.a_v = aout;
 }
 

@@ -60,6 +60,16 @@ struct FastPMStore {
         FastPMColumnTags attribute;
     } _column_info[32];
 
+    /* meta-data*/
+    struct {
+        double a_x;
+        double a_v;
+
+        double _q_shift[3];
+        double _q_scale[3];
+        ptrdiff_t _q_strides[3];
+    } meta;
+
     union {
         char * columns[32];
         struct {
@@ -87,12 +97,6 @@ struct FastPMStore {
     };
     size_t np;
     size_t np_upper;
-    double a_x;
-    double a_v;
-
-    double _q_shift[3];
-    double _q_scale[3];
-    ptrdiff_t _q_strides[3];
 };
 
 /* convert a column name literal (e.g. x, id) to the column index in the column_info array */

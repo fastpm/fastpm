@@ -525,13 +525,13 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
 
     int d;
     for(d = 0; d < 3; d++) {
-        pabs[d] = id / p->_q_strides[d];
-        id -= pabs[d] * p->_q_strides[d];
+        pabs[d] = id / p->meta._q_strides[d];
+        id -= pabs[d] * p->meta._q_strides[d];
     }
 
     for(d = 0; d < 3; d++) {
-        q[d] = pabs[d] * p->_q_scale[d];
-        q[d] += p->_q_shift[d];
+        q[d] = pabs[d] * p->meta._q_scale[d];
+        q[d] += p->meta._q_shift[d];
     }
 }
 
@@ -557,16 +557,16 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 
     for(d = 0; d < 3; d ++) {
         if(shift) 
-            p->_q_shift[d] = shift[d];
+            p->meta._q_shift[d] = shift[d];
         else
-            p->_q_shift[d] = 0;
+            p->meta._q_shift[d] = 0;
 
-        p->_q_scale[d] = pm->BoxSize[d] / Nc[d];
+        p->meta._q_scale[d] = pm->BoxSize[d] / Nc[d];
     }
 
-    p->_q_strides[0] = Nc[1] * Nc[2];
-    p->_q_strides[1] = Nc[2];
-    p->_q_strides[2] = 1;
+    p->meta._q_strides[0] = Nc[1] * Nc[2];
+    p->meta._q_strides[1] = Nc[2];
+    p->meta._q_strides[2] = 1;
 
     PMXIter iter;
     for(pm_xiter_init(pm, &iter);
@@ -585,9 +585,9 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
         for(kk = pabs_start[2]; kk < pabs_end[2]; kk ++) {
             ptrdiff_t pabs[3] = {ii, jj, kk};
 
-            uint64_t id = pabs[2] * p->_q_strides[2] +
-                         pabs[1] * p->_q_strides[1] +
-                         pabs[0] * p->_q_strides[0] ;
+            uint64_t id = pabs[2] * p->meta._q_strides[2] +
+                          pabs[1] * p->meta._q_strides[1] +
+                          pabs[0] * p->meta._q_strides[0] ;
 
             if(p->id) p->id[ptr] = id;
             if(p->mask) p->mask[ptr] = 0;
@@ -611,7 +611,7 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
             pm->IRegion.size[2]
             );
     }
-    p->a_x = p->a_v = 0.;
+    p->meta.a_x = p->meta.a_v = 0.;
 }
 
 void 
@@ -669,13 +669,7 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
 
     }
     po->np = offset + ncopy;
-    po->a_x = p->a_x;
-    po->a_v = p->a_v;
-    if(po != p) {
-        memcpy(po->_q_strides, p->_q_strides, 3 * sizeof(p->_q_strides[0]));
-        memcpy(po->_q_scale, p->_q_scale, 3 * sizeof(p->_q_scale[0]));
-        memcpy(po->_q_shift, p->_q_shift, 3 * sizeof(p->_q_shift[0]));
-    }
+    po->meta = p->meta;
 }
 
 void
@@ -756,14 +750,7 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
     }
 
     po->np = j;
-    po->a_x = p->a_x;
-    po->a_v = p->a_v;
-
-    if(po != p) {
-        memcpy(po->_q_strides, p->_q_strides, 3 * sizeof(p->_q_strides[0]));
-        memcpy(po->_q_scale, p->_q_scale, 3 * sizeof(p->_q_scale[0]));
-        memcpy(po->_q_shift, p->_q_shift, 3 * sizeof(p->_q_shift[0]));
-    }
+    po->meta = p->meta;
 }
 
 

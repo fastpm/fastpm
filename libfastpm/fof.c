@@ -914,8 +914,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
             FASTPM_MEMORY_HEAP);
 
     halos->np = nhalos;
-    halos->a_x = finder->p->a_x;
-    halos->a_v = finder->p->a_v;
+    halos->meta = finder->p->meta;
 
     ptrdiff_t i;
     for(i = 0; i < halos->np; i++) {

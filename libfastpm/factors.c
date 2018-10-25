@@ -133,10 +133,10 @@ fastpm_kick_store(FastPMKickFactor * kick,
     FastPMStore * pi, FastPMStore * po, double af)
 {
 
-    if(kick->ai != pi->a_v) {
+    if(kick->ai != pi->meta.a_v) {
         fastpm_raise(-1, "kick is inconsitant with state.\n");
     }
-    if(kick->ac != pi->a_x) {
+    if(kick->ac != pi->meta.a_x) {
         fastpm_raise(-1, "kick is inconsitant with state.\n");
     }
     int np = pi->np;
@@ -156,7 +156,7 @@ fastpm_kick_store(FastPMKickFactor * kick,
     }
 
     //velocity is now at a= avel1
-    po->a_v = af;
+    po->meta.a_v = af;
 }
 
 static double G_p(double a, FastPMCosmology * c)
@@ -260,10 +260,10 @@ fastpm_drift_store(FastPMDriftFactor * drift,
                FastPMStore * pi, FastPMStore * po,
                double af)
 {
-    if(drift->ai != pi->a_x) {
+    if(drift->ai != pi->meta.a_x) {
         fastpm_raise(-1, "drift is inconsitant with state.\n");
     }
-    if(drift->ac != pi->a_v) {
+    if(drift->ac != pi->meta.a_v) {
         fastpm_raise(-1, "drift is inconsitant with state.\n");
     }
     int np = pi->np;
@@ -279,7 +279,7 @@ fastpm_drift_store(FastPMDriftFactor * drift,
             po->x[i][d] = xo[d];
         }
     }
-    po->a_x = af;
+    po->meta.a_x = af;
 }
 
 //
