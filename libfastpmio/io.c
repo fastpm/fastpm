@@ -310,12 +310,32 @@ fastpm_store_write(FastPMStore * p,
     };
     int64_t size = fastpm_store_get_np_total(p, comm);
 
+    /* basic meta data of the block */
     if (mode == WRITE) {
         BigBlock bb;
         /* create the root block for the dataset attributes specific to this dataset. */
         if(0 != big_file_mpi_create_block(bf, &bb, dataset, NULL, 0, 0, 0, comm)) {
             fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
         }
+
+        big_block_set_attr(&bb, "q.strides", p->_q_strides, "i8", 3);
+        big_block_set_attr(&bb, "q.scale", p->_q_scale, "f8", 3);
+        big_block_set_attr(&bb, "q.shift", p->_q_shift, "f8", 3);
+
+        big_block_mpi_close(&bb, comm);
+    }
+
+    if (mode == READ) {
+        BigBlock bb;
+        /* create the root block for the dataset attributes specific to this dataset. */
+        if(0 != big_file_mpi_open_block(bf, &bb, dataset, comm)) {
+            fastpm_raise(-1, "Failed to open the block: %s\n", big_file_get_error_message());
+        }
+
+        big_block_get_attr(&bb, "q.strides", p->_q_strides, "i8", 3);
+        big_block_get_attr(&bb, "q.scale", p->_q_scale, "f8", 3);
+        big_block_get_attr(&bb, "q.shift", p->_q_shift, "f8", 3);
+
         big_block_mpi_close(&bb, comm);
     }
 
