@@ -309,38 +309,36 @@ fastpm_store_write(FastPMStore * p,
     };
     int64_t size = fastpm_store_get_np_total(p, comm);
 
-    /* basic meta data of the block */
-    if (mode == WRITE) {
+    {
         BigBlock bb;
-        /* create the root block for the dataset attributes specific to this dataset. */
-        if(0 != big_file_mpi_create_block(bf, &bb, dataset, NULL, 0, 0, 0, comm)) {
-            fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+        int (* attr_func)(BigBlock * bb, const char * attrname, void * buf, const char * dtype, int nmemb) = NULL;
+
+        /* basic meta data of the block */
+        if (mode == WRITE) {
+            /* create the root block for the dataset attributes specific to this dataset. */
+            if(0 != big_file_mpi_create_block(bf, &bb, dataset, NULL, 0, 0, 0, comm)) {
+                fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
+            }
+            attr_func = (void*) big_block_set_attr;
+        }
+        if (mode == READ) {
+            if(0 != big_file_mpi_open_block(bf, &bb, dataset, comm)) {
+                fastpm_raise(-1, "Failed to open the block: %s\n", big_file_get_error_message());
+            }
+
+            attr_func = (void*) big_block_get_attr;
         }
 
-        big_block_set_attr(&bb, "q.strides", p->meta._q_strides, "i8", 3);
-        big_block_set_attr(&bb, "q.scale", p->meta._q_scale, "f8", 3);
-        big_block_set_attr(&bb, "q.shift", p->meta._q_shift, "f8", 3);
-        big_block_set_attr(&bb, "a.x", &p->meta.a_x, "f8", 1);
-        big_block_set_attr(&bb, "a.v", &p->meta.a_v, "f8", 1);
-        big_block_set_attr(&bb, "M0", &p->meta.M0, "f8", 1);
+        if(attr_func) {
+            attr_func(&bb, "q.strides", p->meta._q_strides, "i8", 3);
+            attr_func(&bb, "q.scale", p->meta._q_scale, "f8", 3);
+            attr_func(&bb, "q.shift", p->meta._q_shift, "f8", 3);
+            attr_func(&bb, "a.x", &p->meta.a_x, "f8", 1);
+            attr_func(&bb, "a.v", &p->meta.a_v, "f8", 1);
+            attr_func(&bb, "M0", &p->meta.M0, "f8", 1);
 
-        big_block_mpi_close(&bb, comm);
-    }
-
-    if (mode == READ) {
-        BigBlock bb;
-        /* create the root block for the dataset attributes specific to this dataset. */
-        if(0 != big_file_mpi_open_block(bf, &bb, dataset, comm)) {
-            fastpm_raise(-1, "Failed to open the block: %s\n", big_file_get_error_message());
+            big_block_mpi_close(&bb, comm);
         }
-
-        big_block_get_attr(&bb, "q.strides", p->meta._q_strides, "i8", 3);
-        big_block_get_attr(&bb, "q.scale", p->meta._q_scale, "f8", 3);
-        big_block_get_attr(&bb, "q.shift", p->meta._q_shift, "f8", 3);
-        big_block_get_attr(&bb, "a.x", &p->meta.a_x, "f8", 1);
-        big_block_get_attr(&bb, "M0", &p->meta.M0, "f8", 1);
-
-        big_block_mpi_close(&bb, comm);
     }
 
     if (mode != READ) {
