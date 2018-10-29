@@ -145,6 +145,8 @@ void
 write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     const char * filebase, MPI_Comm comm)
 {
+    fastpm_info("Writing a snapshot header to %s\n", filebase);
+
     BigFile bf[1];
     if(0 != big_file_mpi_open(bf, filebase, comm)) {
         if(0 != big_file_mpi_create(bf, filebase, comm)) {
@@ -262,7 +264,7 @@ fastpm_store_write(FastPMStore * p,
             fastpm_info("Appending a catalog to %s [%s]\n", filebase, dataset);
             break;
         case WRITE:
-            fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
+            fastpm_info("Writing a catalog to %s [%s]\n", filebase, dataset);
             break;
     }
 
@@ -408,7 +410,7 @@ fastpm_store_write(FastPMStore * p,
                 }
                 size_t oldsize = bb.size;
                 /* FIXME : check the dtype and nmemb are consistent */
-                big_file_mpi_grow_block(bf, &bb, Nfile, size, comm);
+                big_block_mpi_grow_simple(&bb, Nfile, size, comm);
                 big_block_seek(&bb, &ptr, oldsize);
                 break;
         }
@@ -469,8 +471,6 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
         int Nwriters)
 {
     write_snapshot_header(fastpm, p, filebase, fastpm->comm);
-
-    fastpm_info("Writring a catalog to %s [%s] with\n", filebase, dataset);
 
     fastpm_store_write(p, filebase, dataset, "w", Nwriters, fastpm->comm);
 
