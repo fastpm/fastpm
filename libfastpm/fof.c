@@ -23,6 +23,8 @@
 #include <fastpm/string.h>
 #include <bigfile-mpi.h>
 
+//#define FASTPM_FOF_DEBUG
+
 struct FastPMFOFFinderPrivate {
     int ThisTask;
     int NTask;
@@ -209,11 +211,6 @@ _merge(FastPMStore * remote, ptrdiff_t i, FastPMStore * fofhead, ptrdiff_t j)
     if(remote->minid[i] < fofhead->minid[j]) {
         merge = 1;
     }
-    if(remote->minid[i] == fofhead->minid[j] &&
-       remote->task[i] != fofhead->task[j] &&
-       remote->task[i] >= 0) {
-        merge = 1;
-    }
 
     if(merge) {
         fofhead->minid[j] = remote->minid[i];
@@ -247,6 +244,10 @@ _fof_global_merge(
     for(i = 0; i < p->np; i ++) {
         /* assign unique ID to each particle; could use a better scheme with true offsets */
         savebuff->minid[i] = i + finder->priv->ThisTask * npmax;
+        #ifdef FASTPM_FOF_DEBUG
+        /* for debugging, overwrite the previous unique ID with the true ID of particles */
+        savebuff->minid[i] = p->id[i];
+        #endif
         savebuff->task[i] = finder->priv->ThisTask;
     }
 
@@ -259,17 +260,34 @@ _fof_global_merge(
 
     for(i = 0; i < pgd->p->np; i ++) {
         savebuff->minid[i + p->np] = pgd->p->minid[i];
-        savebuff->task[i + p->np] = -1; /* ghosts we do not yet know their host task */
+        savebuff->task[i + p->np] = pgd->p->task[i];
     }
 
     /* reduce the minid of the head items according to the local connection. */
 
-    for(i = 0; i < p->np + pgd->p->np; i ++) {
-        _merge(savebuff, i, savebuff, head[i]);
+    while(1) {
+        size_t nmerge = 0;
+        for(i = 0; i < p->np + pgd->p->np; i ++) {
+            nmerge += _merge(savebuff, i, savebuff, head[i]);
+        }
+        if(nmerge == 0) break;
     }
 
-    /* at this point all items with head[i] = i have local minid and task */
+#ifdef FASTPM_FOF_DEBUG
+    {
+        FILE * fp = fopen(fastpm_strdup_printf("dump-pos-%d.f8", finder->priv->ThisTask), "w");
+        fwrite(p->x, p->np, sizeof(double) * 3, fp);
+        fwrite(pgd->p->x, pgd->p->np, sizeof(double) * 3, fp);
+        fclose(fp);
+    }
+    {
+        FILE * fp = fopen(fastpm_strdup_printf("dump-id-%d.f8", finder->priv->ThisTask), "w");
+        fwrite(p->id, p->np, sizeof(int64_t), fp);
+        fwrite(pgd->p->id, pgd->p->np, sizeof(int64_t) * 3, fp);
+        fclose(fp);
+    }
 
+#endif
     int iter = 0;
 
     while(1) {
@@ -277,28 +295,42 @@ _fof_global_merge(
         /* prepare the communication buffer, every particle has
          * the minid and task of the current head. such that
          * they will connect to the other ranks correctly */
-        for(i = 0; i < p->np + pgd->p->np; i ++) {
+
+        
+        /* we use commbuff as a temporary 'overwritable' for reusing the reduce
+         * code to do the reduction. This is a two attribute reduction and we do not
+         * have the API for it yet.
+         *
+         * need to write the current values to commbuf, in case they do not have a ghost; */
+
+        for(i = 0; i < p->np; i ++) {
             commbuff->minid[i] = savebuff->minid[head[i]];
-            commbuff->task[i] = savebuff->task[head[i]];
+            commbuff->task[i]  = savebuff->task[head[i]];
         }
 
-        /* at this point all items on fofcomm have local minid and task, ready to send */
+        for(i = 0; i < pgd->p->np; i ++) {
+            pgd->p->minid[i] = savebuff->minid[head[i + p->np]];
+            pgd->p->task[i] = savebuff->task[head[i + p->np]];
+        }
+        /* at this point all items on ghosts have local minid and task, ready to reduce */
 
         p->minid = commbuff->minid;
         p->task = commbuff->task;
-        pm_ghosts_send(pgd, COLUMN_MINID | COLUMN_TASK);
+
+        FastPMFieldDescr fields[] = {
+            {COLUMN_MINID, 0},
+            {COLUMN_TASK, 0},
+        };
+        pm_ghosts_reduce(pgd, fields[0]);
+        pm_ghosts_reduce(pgd, fields[1]);
 
         p->minid = NULL;
         p->task = NULL;
 
-        /* flatten the fof data received from the ghosts */
-        /* FIXME: use reduce? */ 
-        for(i = p->np; i < p->np + pgd->p->np; i ++) {
-            commbuff->minid[i] = pgd->p->minid[i - p->np];
-            commbuff->task[i] = pgd->p->task[i - p->np];
-        }
+        /* merge commbuff into the savebuff, reducing the MINID on savebuff */
         size_t nmerged = 0;
-        for(i = p->np; i < p->np + pgd->p->np; i ++) {
+
+        for(i = 0; i < p->np; i ++) {
             int m = _merge(commbuff, i, savebuff, head[i]);
             nmerged += m;
         }
@@ -322,24 +354,42 @@ _fof_global_merge(
         iter++;
     }
 
-    for(i = 0; i < p->np; i ++) {
+    /* previous loop only updated head[i]; now make sure every particles has the correct minid. */
+    for(i = 0; i < p->np + pgd->p->np; i ++) {
         if(commbuff->task[i] == -1) {
             fastpm_raise(-1, "undeterimined particle %d id = %03td head = %03td head[%03d/%03d] : id = %03td task = %03d\n",
                 finder->priv->ThisTask, p->id[i], p->id[head[i]], i, p->np, commbuff->minid[i], commbuff->task[i]);
         }
-        savebuff->minid[i] = commbuff->minid[i];
-        savebuff->task[i] = commbuff->task[i];
+        savebuff->minid[i] = savebuff->minid[head[i]];
+        savebuff->task[i] = savebuff->task[head[i]];
     }
+
+    #ifdef FASTPM_FOF_DEBUG
+    {
+    for(i = 0; i < p->np + pgd->p->np ; i ++) {
+        uint64_t id = i <p->np?p->id[i]:pgd->p->id[i - p->np];
+        if(savebuff->minid[i] == 88) {
+            fastpm_ilog(INFO, "%d MINID == %ld ID = %ld headminid == %ld i = %td / %td head=%td", finder->priv->ThisTask,
+                savebuff->minid[i], id, savebuff->minid[head[i]], i, p->np, head[i]);
+        }
+        if(id == 88 || id == 96 || id == 152 || id == 160) {
+            fastpm_ilog(INFO, "%d MINID == %ld ID = %ld headminid == %ld i = %td / %td head=%td", finder->priv->ThisTask,
+                savebuff->minid[i], id, savebuff->minid[head[i]], i, p->np, head[i]);
+        }
+    }
+    }
+    #endif
+/*
     for(i = p->np; i < p->np + pgd->p->np; i ++) {
         savebuff->task[i] = -1;
     }
-
+*/
     fastpm_store_destroy(commbuff);
 }
 
 /* set head[i] to hid*/
 static size_t
-_assign_halo_attr(FastPMFOFFinder * finder, ptrdiff_t * head, size_t np, size_t np_ghosts, int nmin)
+_assign_halo_attr(FastPMFOFFinder * finder, PMGhostData * pgd, ptrdiff_t * head, size_t np, size_t np_ghosts, int nmin)
 {
     ptrdiff_t * offset = fastpm_memory_alloc(finder->p->mem, "FOFOffset", sizeof(offset[0]) * (np + np_ghosts), FASTPM_MEMORY_STACK);
     uint8_t * has_remote = fastpm_memory_alloc(finder->p->mem, "FOFHasRemote", sizeof(has_remote[0]) * (np + np_ghosts), FASTPM_MEMORY_STACK);
@@ -360,7 +410,17 @@ _assign_halo_attr(FastPMFOFFinder * finder, ptrdiff_t * head, size_t np, size_t 
     for(i = 0; i < np; i ++) {
         has_local[head[i]] = 1;
     }
+
     /* if the group is connected to a remote component */
+    /* if the particle has a ghost, then */
+    pm_ghosts_has_ghosts(pgd, has_remote);
+
+    /* if connected to a particle that has ghost */
+    for(i = 0; i < np; i ++) {
+        if(has_remote[i]) has_remote[head[i]] = 1;
+    }
+
+    /* if connected to a ghost */
     for(i = np; i < np + np_ghosts; i ++) {
         has_remote[head[i]] = 1;
     }
@@ -495,6 +555,23 @@ FastPMTargetTask(FastPMStore * store, ptrdiff_t i, void * userdata)
     return store->task[i];
 }
 
+/* for debugging, move particles to a spatially unrelated rank */
+static int
+FastPMTargetFOF(FastPMStore * store, ptrdiff_t i, void * userdata)
+{
+#ifdef FASTPM_FOF_DEBUG
+    PM * pm = userdata;
+    int NTask;
+    MPI_Comm_size(pm_comm(pm), &NTask);
+    const uint32_t GOLDEN32 = 2654435761ul;
+    /* const uint64_t GOLDEN64 = 11400714819323198549; */
+    /* may over flow, but should be okay here as the periodicity is ggt NTask */
+    int key = (store->id[i] * GOLDEN32) % (unsigned) NTask;
+    return key;
+#else
+    return FastPMTargetPM(store, i, userdata);
+#endif
+}
 /*
  * This function group halos by halos->minid[i].
  *
@@ -946,19 +1023,20 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
         npmin, npmax, npmean, npstd
         );
 
+#if 1
     /* still route particles to the pm pencils as if they are periodic. */
     if(0 != fastpm_store_decompose(p,
-                (fastpm_store_target_func) FastPMTargetPM,
-                pm, comm)
+                (fastpm_store_target_func) FastPMTargetFOF, pm, comm)
     ) {
         fastpm_raise(-1, "out of storage space decomposing for FOF\n");
     }
-
+#endif
     MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
     fastpm_info("load balance after first decompose : min = %g max = %g mean = %g std = %g\n",
         npmin, npmax, npmean, npstd
         );
+
     /* create ghosts mesh size is usually > ll so we are OK here. */
     double below[3], above[3];
 
@@ -978,6 +1056,10 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     size_t np_and_ghosts = p->np + pgd->p->np;
 
+    #ifdef FASTPM_FOF_DEBUG
+    fastpm_ilog(INFO, "Rank %d has %td particles including ghost\n", finder->priv->ThisTask, np_and_ghosts);
+    #endif
+
     ptrdiff_t * head = fastpm_memory_alloc(p->mem, "FOFHead",
                     sizeof(head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
 
@@ -989,15 +1071,13 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     _fof_global_merge (finder, pgd, savebuff, head);
 
     /* assign halo attr entries. This will keep only candidates that can possibly reach to nmin */
-    size_t nhalos = _assign_halo_attr(finder, head, p->np, pgd->p->np, finder->nmin);
+    size_t nhalos = _assign_halo_attr(finder, pgd, head, p->np, pgd->p->np, finder->nmin);
 
     fastpm_info("Found %td halos segments >= %d particles; or cross linked. \n", nhalos, finder->nmin);
-
     pm_ghosts_free(pgd);
 
     /* create local halos and modify head to index the local halos */
     fastpm_fof_create_local_halos(finder, halos, nhalos);
-
     /* remove halos without any local particles */
     fastpm_fof_remove_empty_halos(finder, halos, savebuff, head);
 
@@ -1005,6 +1085,15 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     /* reduce the primary halo attrs */
     fastpm_fof_compute_halo_attrs(finder, halos, head, _convert_basic_halo_attrs, _add_basic_halo_attrs, _reduce_basic_halo_attrs);
+
+    #ifdef FASTPM_FOF_DEBUG
+    {
+        int i;
+        for(i  = 0; i < nhalos; i ++) {
+            fastpm_ilog(INFO, "Task = %d, Halo[%d] = %d mask=%d MINID=%ld\n", finder->priv->ThisTask, i, halos->length[i], halos->mask[i], halos->minid[i]);
+        }
+    }
+    #endif
 
     /* apply length cut */
     fastpm_fof_apply_length_cut(finder, halos, head);
