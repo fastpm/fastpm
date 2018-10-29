@@ -40,5 +40,5 @@ write_runpb_snapshot= "nbodykit/tpm"
 write_snapshot= "nbodykit/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "pm/powerspec"
-write_fof = "nbodykit/fof"
+write_fof = "nbodykit/fastpm"
 
