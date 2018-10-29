@@ -434,6 +434,12 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     PM * pm = fastpm->basepm;
     int np = p->np;
 
+    fastpm_store_init(po, p->np_upper,
+            p->attributes & ~COLUMN_ACC,
+            FASTPM_MEMORY_HEAP
+        );
+
+
     /* first copy, then overwrite a few columns*/
     fastpm_store_copy(fastpm->p, po);
 
