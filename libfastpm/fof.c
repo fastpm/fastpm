@@ -214,8 +214,6 @@ _merge(FastPMStore * remote, ptrdiff_t i, FastPMStore * fofhead, ptrdiff_t j)
 
     if(merge) {
         fofhead->minid[j] = remote->minid[i];
-        fofhead->task[j] = remote->task[i];
-
     }
     return merge;
 }
@@ -234,7 +232,7 @@ _fof_global_merge(
 
     FastPMStore commbuff[1];
 
-    fastpm_store_init(commbuff, p->np + pgd->p->np, COLUMN_MINID | COLUMN_TASK, FASTPM_MEMORY_STACK);
+    fastpm_store_init(commbuff, p->np + pgd->p->np, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
     size_t npmax = p->np;
 
@@ -248,19 +246,15 @@ _fof_global_merge(
         /* for debugging, overwrite the previous unique ID with the true ID of particles */
         savebuff->minid[i] = p->id[i];
         #endif
-        savebuff->task[i] = finder->priv->ThisTask;
     }
 
     /* send minid */
     p->minid = savebuff->minid;
-    p->task = savebuff->task;
-    pm_ghosts_send(pgd, COLUMN_MINID | COLUMN_TASK);
+    pm_ghosts_send(pgd, COLUMN_MINID);
     p->minid = NULL;
-    p->task = NULL;
 
     for(i = 0; i < pgd->p->np; i ++) {
         savebuff->minid[i + p->np] = pgd->p->minid[i];
-        savebuff->task[i + p->np] = pgd->p->task[i];
     }
 
     /* reduce the minid of the head items according to the local connection. */
@@ -305,27 +299,21 @@ _fof_global_merge(
 
         for(i = 0; i < p->np; i ++) {
             commbuff->minid[i] = savebuff->minid[head[i]];
-            commbuff->task[i]  = savebuff->task[head[i]];
         }
 
         for(i = 0; i < pgd->p->np; i ++) {
             pgd->p->minid[i] = savebuff->minid[head[i + p->np]];
-            pgd->p->task[i] = savebuff->task[head[i + p->np]];
         }
         /* at this point all items on ghosts have local minid and task, ready to reduce */
 
         p->minid = commbuff->minid;
-        p->task = commbuff->task;
 
         FastPMFieldDescr fields[] = {
             {COLUMN_MINID, 0},
-            {COLUMN_TASK, 0},
         };
         pm_ghosts_reduce(pgd, fields[0]);
-        pm_ghosts_reduce(pgd, fields[1]);
 
         p->minid = NULL;
-        p->task = NULL;
 
         /* merge commbuff into the savebuff, reducing the MINID on savebuff */
         size_t nmerged = 0;
@@ -356,12 +344,7 @@ _fof_global_merge(
 
     /* previous loop only updated head[i]; now make sure every particles has the correct minid. */
     for(i = 0; i < p->np + pgd->p->np; i ++) {
-        if(commbuff->task[i] == -1) {
-            fastpm_raise(-1, "undeterimined particle %d id = %03td head = %03td head[%03d/%03d] : id = %03td task = %03d\n",
-                finder->priv->ThisTask, p->id[i], p->id[head[i]], i, p->np, commbuff->minid[i], commbuff->task[i]);
-        }
         savebuff->minid[i] = savebuff->minid[head[i]];
-        savebuff->task[i] = savebuff->task[head[i]];
     }
 
     #ifdef FASTPM_FOF_DEBUG
@@ -379,11 +362,7 @@ _fof_global_merge(
     }
     }
     #endif
-/*
-    for(i = p->np; i < p->np + pgd->p->np; i ++) {
-        savebuff->task[i] = -1;
-    }
-*/
+
     fastpm_store_destroy(commbuff);
 }
 
@@ -1048,7 +1027,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     }
 
     PMGhostData * pgd = pm_ghosts_create_full(pm, p,
-            COLUMN_POS | COLUMN_ID | COLUMN_MINID | COLUMN_TASK,
+            COLUMN_POS | COLUMN_ID | COLUMN_MINID,
             below, above
         );
 
@@ -1064,7 +1043,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                     sizeof(head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
 
     FastPMStore savebuff[1];
-    fastpm_store_init(savebuff, np_and_ghosts, COLUMN_MINID | COLUMN_TASK, FASTPM_MEMORY_STACK);
+    fastpm_store_init(savebuff, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
     _fof_local_find(finder, p, pgd, head, finder->linkinglength);
 
