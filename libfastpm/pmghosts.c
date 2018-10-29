@@ -164,6 +164,20 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 }
 
 void
+pm_ghosts_has_ghosts(PMGhostData * pgd, uint8_t * has_ghosts)
+{
+    size_t Nsend = cumsum(NULL, pgd->Nsend, pgd->pm->NTask);
+
+    ptrdiff_t i;
+    for(i = 0; i < pgd->p->np; i ++) {
+        has_ghosts[i] = 0;
+    }
+    for(i = 0; i < Nsend; i ++) {
+        has_ghosts[pgd->ighost_to_ipar[i]] = 1;
+    }
+}
+
+void
 pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes)
 {
     PM * pm = pgd->pm;

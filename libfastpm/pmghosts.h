@@ -37,3 +37,5 @@ void pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field);
 
 void pm_ghosts_free(PMGhostData * pgd);
 
+void
+pm_ghosts_has_ghosts(PMGhostData * pgd, uint8_t * has_ghosts);
