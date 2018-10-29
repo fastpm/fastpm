@@ -42,7 +42,7 @@ static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr);
+take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, double aout, Parameters * prr);
 
 static void
 smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh);
@@ -88,7 +88,7 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr);
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr);
 
 static void
 write_usmesh_fof(FastPMSolver * fastpm,
@@ -896,8 +896,6 @@ smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh
 static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr)
 {
-    CLOCK(io);
-
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
         event->a1, event->a2,
         event->kick->af, event->kick->ai, event->kick->ac,
@@ -906,7 +904,6 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
-    FastPMStore * p = fastpm->p;
     int nout = CONF(prr->lua, n_aout);
     double * aout= CONF(prr->lua, aout);
 
@@ -921,11 +918,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         }
 
         FastPMStore snapshot[1];
-
-        fastpm_store_init(snapshot, p->np_upper,
-                p->attributes & ~COLUMN_ACC,
-                FASTPM_MEMORY_FLOATING
-            );
+        FastPMStore halos[1];
 
         fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
@@ -933,18 +926,15 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
 
         if(CONF(prr->lua, write_fof)) {
-            char filebase[1024];
-
-            sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_fof), aout[iout]);
-
-            write_fof(fastpm, snapshot, filebase, prr);
+            run_fof(fastpm, snapshot, halos, prr);
         }
 
         /* in place subsampling to avoid creating another store, we trash it immediately anyways. */
         fastpm_store_subsample(snapshot, snapshot->mask, snapshot);
 
-        take_a_snapshot(fastpm, snapshot, aout[iout], prr);
+        take_a_snapshot(fastpm, snapshot, halos, aout[iout], prr);
 
+        fastpm_store_destroy(halos);
         fastpm_store_destroy(snapshot);
 
     }
@@ -952,12 +942,10 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 }
 
 static void
-write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parameters * prr)
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr)
 {
     CLOCK(fof);
-    CLOCK(io);
-    CLOCK(sort);
-    ENTER(fof);
+
     FastPMFOFFinder fof = {
         /* convert from fraction of mean separation to simulation distance units. */
         .linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc),
@@ -968,27 +956,12 @@ write_fof(FastPMSolver * fastpm, FastPMStore * snapshot, char * filebase, Parame
 
     fastpm_fof_init(&fof, snapshot, fastpm->basepm);
 
-    FastPMStore halos[1];
-
     ENTER(fof);
 
     fastpm_fof_execute(&fof, halos);
 
     LEAVE(fof);
 
-    ENTER(sort);
-    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
-    LEAVE(sort);
-
-    ENTER(io);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    write_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
-    _write_parameters(filebase, "Header", prr, fastpm->comm);
-
-    free(dataset);
-    LEAVE(io);
-
-    fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);
 }
 
@@ -1141,11 +1114,12 @@ write_usmesh_fof(FastPMSolver * fastpm,
 }
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Parameters * prr) 
+take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, double aout, Parameters * prr) 
 {
+    double z_out= 1.0/aout - 1.0;
+
     CLOCK(io);
     CLOCK(sort);
-
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
     if(CONF(prr->lua, write_nonlineark)) {
         char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr->lua, write_nonlineark), aout);
@@ -1168,30 +1142,52 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
     if(CONF(prr->lua, write_snapshot)) {
         char filebase[1024];
-        double z_out= 1.0/aout - 1.0;
         sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_snapshot), aout);
 
-        fastpm_info("Writing snapshot %s at z = %6.4f a = %6.4f with %d writers\n", 
-                filebase, z_out, aout, prr->cli->Nwriters);
-
         ENTER(sort);
+
         if(CONF(prr->lua, sort_snapshot)) {
-            fastpm_info("Snapshot is sorted by ID.\n");
             fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 1);
-        } else {
-            fastpm_info("Snapshot is not sorted by ID.\n");
         }
+
         LEAVE(sort);
         ENTER(io);
         write_snapshot(fastpm, snapshot, filebase, "1", prr->cli->Nwriters);
         _write_parameters(filebase, "Header", prr, fastpm->comm);
         LEAVE(io);
 
-        fastpm_info("snapshot %s written\n", filebase);
+        fastpm_info("snapshot %s [%s] written at z = %6.4f z = %6.4f \n", filebase, "1", z_out, aout);
     }
+
+    if(CONF(prr->lua, write_fof)) {
+        char filebase[1024];
+        sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_fof), aout);
+
+        char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+
+        ENTER(sort);
+        fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
+        LEAVE(sort);
+
+        ENTER(io);
+
+        if(CONF(prr->lua, write_snapshot) &&
+           0 == strcmp(CONF(prr->lua, write_fof), CONF(prr->lua, write_snapshot))) {
+            /* Writing to the same place as the snapshot; thus skip headers*/
+            fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
+        } else {
+            /* Writing to a new place, thus need its own header */
+            write_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
+            _write_parameters(filebase, "Header", prr, fastpm->comm);
+        }
+        LEAVE(io);
+
+        fastpm_info("fof %s [%s] written at z = %6.4f z = %6.4f \n", filebase, dataset, z_out, aout);
+        free(dataset);
+    }
+
     if(CONF(prr->lua, write_runpb_snapshot)) {
         char filebase[1024];
-        double z_out= 1.0/aout - 1.0;
 
         sprintf(filebase, "%s_%0.04f.bin", CONF(prr->lua, write_runpb_snapshot), aout);
 
@@ -1200,7 +1196,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, double aout, Para
 
         LEAVE(io);
 
-        fastpm_info("snapshot %s written z = %6.4f a = %6.4f\n", 
+        fastpm_info("runpb snapshot %s written z = %6.4f a = %6.4f\n", 
                 filebase, z_out, aout);
 
     }
