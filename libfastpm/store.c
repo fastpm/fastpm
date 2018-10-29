@@ -39,6 +39,15 @@ pack_member_any(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packe
 }
 
 static void
+reduce_member_any_overwrite(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
+{
+    size_t elsize = p->_column_info[ci].elsize;
+    size_t membsize = p->_column_info[ci].membsize;
+
+    memcpy(p->columns[ci] + index * elsize + membsize * memb, packed, membsize);
+}
+
+static void
 reduce_member_f4_add(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
 {
     size_t nmemb = p->_column_info[ci].nmemb ;
@@ -179,6 +188,9 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(potential).from_double = from_double_f4;
     COLUMN_INFO(tidal).reduce_member = reduce_member_f4_add;
     COLUMN_INFO(tidal).from_double = from_double_f4;
+
+    COLUMN_INFO(minid).reduce_member = reduce_member_any_overwrite;
+    COLUMN_INFO(task).reduce_member = reduce_member_any_overwrite;
 
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
