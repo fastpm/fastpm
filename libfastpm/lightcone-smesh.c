@@ -506,12 +506,15 @@ fastpm_smesh_compute_potential(
             fastpm_readout_local(reader, canvas, pgd_new_now->p, pgd_new_now->p->np, ACC[d]);
             LEAVE(readout);
 
-            ENTER(reduce);
+        }
+
+        ENTER(reduce);
+        for(d = 0; d < 8; d++) {
             pm_ghosts_reduce(pgd_last_now, ACC[d]);
             pm_ghosts_reduce(pgd_new_now, ACC[d]);
-            LEAVE(reduce);
-
         }
+        LEAVE(reduce);
+
 
         pm_ghosts_free(pgd_new_now);
         pm_ghosts_free(pgd_last_now);

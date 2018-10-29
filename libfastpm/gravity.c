@@ -330,10 +330,17 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         fastpm_readout_local(reader, canvas, pgd->p, pgd->p->np, ACC[d]);
         LEAVE(readout);
 
-        ENTER(reduce);
-        pm_ghosts_reduce(pgd, ACC[d]);
-        LEAVE(reduce);
     }
+    
+    ENTER(reduce);
+    for(d = 0; d < 3; d++) {
+        pm_ghosts_reduce(pgd, ACC[d]);
+    }
+    if(p->potential != NULL) {
+        pm_ghosts_reduce(pgd, ACC[3]);
+    }
+
+    LEAVE(reduce);
 
     pm_free(pm, canvas);
 
