@@ -475,16 +475,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
         }
     }
 
-    po->np = p->np;
-
     fastpm_store_wrap(po, pm->BoxSize);
-
-    /* FIXME: why do we need to decompose the snapshot like this here? */
-    if(0 != fastpm_store_decompose(po,
-            (fastpm_store_target_func) FastPMTargetPM, pm,
-            fastpm->comm)
-    ) {
-        fastpm_raise(-1, "out of particle storage during snapshot creation.\n");
-    }
 }
 
