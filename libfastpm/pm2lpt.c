@@ -113,11 +113,8 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         fastpm_readout_local(painter, workspace, pgd->p, pgd->p->np, DX2[d]);
     }
 
-    for(d = 0; d < 3; d++) {
-        pm_ghosts_reduce(pgd, DX1[d]);
-        pm_ghosts_reduce(pgd, DX2[d]);
-    }
-
+    pm_ghosts_reduce(pgd, COLUMN_DX1);
+    pm_ghosts_reduce(pgd, COLUMN_DX2);
 
 #ifdef PM_2LPT_DUMP
     fwrite(p->dx1, sizeof(p->dx1[0]), p->np, fopen("dx1.f4x3", "w"));

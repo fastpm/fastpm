@@ -509,10 +509,13 @@ fastpm_smesh_compute_potential(
         }
 
         ENTER(reduce);
-        for(d = 0; d < 8; d++) {
-            pm_ghosts_reduce(pgd_last_now, ACC[d]);
-            pm_ghosts_reduce(pgd_new_now, ACC[d]);
-        }
+        pm_ghosts_reduce(pgd_last_now, COLUMN_DENSITY);
+        pm_ghosts_reduce(pgd_last_now, COLUMN_POTENTIAL);
+        pm_ghosts_reduce(pgd_last_now, COLUMN_TIDAL);
+        pm_ghosts_reduce(pgd_new_now, COLUMN_DENSITY);
+        pm_ghosts_reduce(pgd_new_now, COLUMN_POTENTIAL);
+        pm_ghosts_reduce(pgd_new_now, COLUMN_TIDAL);
+
         LEAVE(reduce);
 
 

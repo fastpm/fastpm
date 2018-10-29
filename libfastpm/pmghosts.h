@@ -33,7 +33,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 void
 pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes);
 
-void pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field);
+void pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute);
 
 void pm_ghosts_free(PMGhostData * pgd);
 

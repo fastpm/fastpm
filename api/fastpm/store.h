@@ -46,8 +46,7 @@ struct FastPMStore {
     struct FastPMColumnInfo {
         void   (*pack)   (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         void   (*unpack) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
-        void   (*pack_member)   (FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed);
-        void   (*reduce_member) (FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed);
+        void   (*reduce) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         double (*to_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb);
         void   (*from_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value);
 

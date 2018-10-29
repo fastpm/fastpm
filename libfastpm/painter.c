@@ -371,17 +371,3 @@ fastpm_readout_local(FastPMPainter * painter, FastPMFloat * canvas,
         p->_column_info[ci].from_double(p, i, ci, field.memb, weight);
     }
 }
-
-void
-fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
-    FastPMStore * p, FastPMFieldDescr field)
-{
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes);
-    pm_ghosts_send(pgd, p->attributes);
-
-    fastpm_readout_local(painter, canvas, p, p->np, field);
-    fastpm_readout_local(painter, canvas, pgd->p, pgd->p->np, field);
-
-    pm_ghosts_reduce(pgd, field);
-    pm_ghosts_free(pgd);
-}

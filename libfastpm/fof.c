@@ -308,10 +308,7 @@ _fof_global_merge(
 
         p->minid = commbuff->minid;
 
-        FastPMFieldDescr fields[] = {
-            {COLUMN_MINID, 0},
-        };
-        pm_ghosts_reduce(pgd, fields[0]);
+        pm_ghosts_reduce(pgd, COLUMN_MINID);
 
         p->minid = NULL;
 

@@ -34,8 +34,4 @@ void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
         FastPMStore * p, FastPMFieldDescr field);
 
-void
-fastpm_readout(FastPMPainter * painter, FastPMFloat * canvas,
-        FastPMStore * p, FastPMFieldDescr field);
-
 FASTPM_END_DECLS

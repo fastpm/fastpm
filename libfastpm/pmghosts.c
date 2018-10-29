@@ -222,13 +222,10 @@ pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes)
 }
 
 void
-pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
+pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute)
 {
 
-    int ci;
-    for(ci = 0; ci < 32; ci ++) {
-        if(field.attribute == pgd->p->_column_info[ci].attribute) break;
-    }
+    int ci = fastpm_store_find_column_id(pgd->p, attribute);
 
     PM * pm = pgd->pm;
 
@@ -245,7 +242,7 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
 
 #pragma omp parallel for
     for(i = 0; i < pgd->p->np; i ++) {
-        pgd->p->_column_info[ci].pack_member(pgd->p, i, ci, field.memb,
+        pgd->p->_column_info[ci].pack(pgd->p, i, ci,
             (char*) pgd->recv_buffer + i * elsize);
     }
 
@@ -266,8 +263,8 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMFieldDescr field)
      * but unlikly worth the effort.
      * */
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        pgd->p->_column_info[ci].reduce_member(pgd->source,
-            pgd->ighost_to_ipar[ighost], ci, field.memb,
+        pgd->p->_column_info[ci].reduce(pgd->source,
+            pgd->ighost_to_ipar[ighost], ci,
             pgd->send_buffer + ighost * elsize);
     }
     fastpm_memory_free(pm->mem, pgd->send_buffer);

@@ -25,42 +25,27 @@ unpack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
 }
 
 static void
-pack_member_any(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
+reduce_any_overwrite(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
 {
-    size_t nmemb = p->_column_info[ci].nmemb ;
-    if(memb > nmemb) {
-        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
-    }
-
     size_t elsize = p->_column_info[ci].elsize;
-    size_t membsize = p->_column_info[ci].membsize;
 
-    memcpy(packed, p->columns[ci] + index * elsize + membsize * memb, membsize);
+    memcpy(p->columns[ci] + index * elsize, packed, elsize);
 }
 
 static void
-reduce_member_any_overwrite(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
-{
-    size_t elsize = p->_column_info[ci].elsize;
-    size_t membsize = p->_column_info[ci].membsize;
-
-    memcpy(p->columns[ci] + index * elsize + membsize * memb, packed, membsize);
-}
-
-static void
-reduce_member_f4_add(FastPMStore * p, ptrdiff_t index, int ci, int memb, void * packed)
+reduce_f4_add(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
 {
     size_t nmemb = p->_column_info[ci].nmemb ;
-    if(memb > nmemb || memb < 0) {
-        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
-    }
 
     size_t elsize = p->_column_info[ci].elsize;
 
     float * ptr = (float*) (p->columns[ci] + index * elsize);
     float * ptr_packed = (float*) packed;
 
-    ptr[memb] += ptr_packed[0];
+    int d;
+    for(d = 0; d < nmemb; d ++) {
+        ptr[d] += ptr_packed[d];
+    }
 }
 
 static double
@@ -148,8 +133,7 @@ fastpm_store_init_details(FastPMStore * p,
             p->_column_info[ci].attribute = attr_;  \
             p->_column_info[ci].pack = pack_any;  \
             p->_column_info[ci].unpack = unpack_any;  \
-            p->_column_info[ci].pack_member = pack_member_any; \
-            p->_column_info[ci].reduce_member = NULL;  \
+            p->_column_info[ci].reduce = NULL;  \
             p->_column_info[ci].from_double = NULL;  \
             p->_column_info[ci].to_double = NULL;  \
         }
@@ -175,22 +159,22 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
 
-    COLUMN_INFO(rho).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(rho).reduce = reduce_f4_add;
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(rho).to_double = to_double_f4;
-    COLUMN_INFO(acc).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(acc).reduce = reduce_f4_add;
     COLUMN_INFO(acc).from_double = from_double_f4;
-    COLUMN_INFO(dx1).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(dx1).reduce = reduce_f4_add;
     COLUMN_INFO(dx1).from_double = from_double_f4;
-    COLUMN_INFO(dx2).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(dx2).reduce = reduce_f4_add;
     COLUMN_INFO(dx2).from_double = from_double_f4;
-    COLUMN_INFO(potential).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(potential).reduce = reduce_f4_add;
     COLUMN_INFO(potential).from_double = from_double_f4;
-    COLUMN_INFO(tidal).reduce_member = reduce_member_f4_add;
+    COLUMN_INFO(tidal).reduce = reduce_f4_add;
     COLUMN_INFO(tidal).from_double = from_double_f4;
 
-    COLUMN_INFO(minid).reduce_member = reduce_member_any_overwrite;
-    COLUMN_INFO(task).reduce_member = reduce_member_any_overwrite;
+    COLUMN_INFO(minid).reduce = reduce_any_overwrite;
+    COLUMN_INFO(task).reduce = reduce_any_overwrite;
 
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
