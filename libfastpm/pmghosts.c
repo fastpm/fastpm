@@ -257,6 +257,9 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute,
                     pm->Comm2D);
     MPI_Type_free(&GHOST_TYPE);
 
+    FastPMStore q[1];
+    fastpm_store_init(q, Nsend, attribute, FASTPM_MEMORY_HEAP);
+
     /* now reduce the attributes. */
     int ighost;
 
@@ -266,9 +269,16 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute,
      * but unlikly worth the effort.
      * */
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        reduce(pgd->source, pgd->ighost_to_ipar[ighost], ci,
-                pgd->send_buffer + ighost * elsize, userdata);
+        pgd->p->_column_info[ci].unpack(q, ighost, ci,
+            (char*) pgd->send_buffer + ighost * elsize);
     }
+
+    for(ighost = 0; ighost < Nsend; ighost ++) {
+        reduce(q, ighost, pgd->source, pgd->ighost_to_ipar[ighost],
+                ci, userdata);
+    }
+
+    fastpm_store_destroy(q);
     fastpm_memory_free(pm->mem, pgd->send_buffer);
     fastpm_memory_free(pm->mem, pgd->recv_buffer);
 }

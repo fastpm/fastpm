@@ -179,13 +179,7 @@ FastPMLocalSortByID(const int i1,
                     FastPMStore * p);
 
 void
-FastPMReduceAddFloat(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata);
-
-void
-FastPMReduceOverwriteAny(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata);
-
-void
-FastPMReduceMinUInt64(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata);
+FastPMReduceAddFloat(FastPMStore * src, ptrdiff_t isrc, FastPMStore * dest, ptrdiff_t idest, int ci, void * userdata);
 
 void
 fastpm_store_sort(FastPMStore * p, int (*cmpfunc)(const int i1, const int i2, FastPMStore * p));

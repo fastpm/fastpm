@@ -1,8 +1,9 @@
 typedef void (*reduce_func)(
-    FastPMStore * store,
-    ptrdiff_t index,
+    FastPMStore * src,
+    ptrdiff_t isrc,
+    FastPMStore * dest,
+    ptrdiff_t idest,
     int ci,
-    void * packed,
     void * userdata);
 
 typedef struct PMGhostData {

@@ -33,43 +33,18 @@ FastPMReduceOverwriteAny(FastPMStore * p, ptrdiff_t index, int ci, void * packed
 }
 
 void
-FastPMReduceMinUInt64(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
+FastPMReduceAddFloat(FastPMStore * src, ptrdiff_t isrc, FastPMStore * dest, ptrdiff_t idest, int ci, void * userdata)
 {
-    /* if any member of the vector is less than the current value, */
-    size_t elsize = p->_column_info[ci].elsize;
-    size_t nmemb = p->_column_info[ci].nmemb ;
+    size_t nmemb = dest->_column_info[ci].nmemb ;
 
-    uint64_t * ptr = (uint64_t *) (p->columns[ci] + index * elsize);
-    uint64_t * ptr_packed = (uint64_t *) packed;
+    size_t elsize = dest->_column_info[ci].elsize;
 
-    int d;
-    int e;
-    e = 0;
-    for(d = 0; d < nmemb; d ++) {
-        if(ptr_packed[d] > ptr[d]) break;
-
-        if(ptr_packed[d] < ptr[d]) {
-            for(e = 0; e < nmemb; e ++) {
-                ptr_packed[e] = ptr[e];
-            }
-            break;
-        }
-    }
-}
-
-void
-FastPMReduceAddFloat(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
-{
-    size_t nmemb = p->_column_info[ci].nmemb ;
-
-    size_t elsize = p->_column_info[ci].elsize;
-
-    float * ptr = (float*) (p->columns[ci] + index * elsize);
-    float * ptr_packed = (float*) packed;
+    float * pdest = (float*) (dest->columns[ci] + idest * elsize);
+    float * psrc  = (float*) (src ->columns[ci] + isrc * elsize);
 
     int d;
     for(d = 0; d < nmemb; d ++) {
-        ptr[d] += ptr_packed[d];
+        pdest[d] += psrc[d];
     }
 }
 

@@ -205,15 +205,16 @@ _fof_local_find(FastPMFOFFinder * finder,
 }
 
 static int
-_merge(FastPMStore * remote, ptrdiff_t i, FastPMStore * fofhead, ptrdiff_t j)
+_merge(FastPMStore * src, ptrdiff_t isrc, FastPMStore * dest, ptrdiff_t idest, ptrdiff_t * head)
 {
     int merge = 0;
-    if(remote->minid[i] < fofhead->minid[j]) {
+    ptrdiff_t j = head[idest];
+    if(src->minid[isrc] < dest->minid[j]) {
         merge = 1;
     }
 
     if(merge) {
-        fofhead->minid[j] = remote->minid[i];
+        dest->minid[j] = src->minid[isrc];
     }
     return merge;
 }
@@ -221,25 +222,15 @@ _merge(FastPMStore * remote, ptrdiff_t i, FastPMStore * fofhead, ptrdiff_t j)
 struct reduce_fof_data {
     ptrdiff_t * head;
     size_t nmerged;
-    uint64_t * minid;
 };
 
 static void
-FastPMReduceFOF(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
+FastPMReduceFOF(FastPMStore * src, ptrdiff_t isrc, FastPMStore * dest, ptrdiff_t idest, int ci, void * userdata)
 {
 
     struct reduce_fof_data * data = userdata;
 
-    uint64_t * ptr_packed = (uint64_t *) packed;
-
-    int merge = 0;
-    if(*ptr_packed < data->minid[data->head[index]]) {
-        merge = 1;
-    }
-    if(merge) {
-        data->minid[data->head[index]] = *ptr_packed;
-    }
-    data->nmerged += merge;
+    data->nmerged += _merge(src, isrc, dest, idest, data->head);
 }
 
 
@@ -272,7 +263,6 @@ _fof_global_merge(
     /* send minid */
     p->minid = savebuff->minid;
     pm_ghosts_send(pgd, COLUMN_MINID);
-    p->minid = NULL;
 
     for(i = 0; i < pgd->p->np; i ++) {
         savebuff->minid[i + p->np] = pgd->p->minid[i];
@@ -283,7 +273,7 @@ _fof_global_merge(
     while(1) {
         size_t nmerge = 0;
         for(i = 0; i < p->np + pgd->p->np; i ++) {
-            nmerge += _merge(savebuff, i, savebuff, head[i]);
+            nmerge += _merge(savebuff, i, savebuff, i, head);
         }
         if(nmerge == 0) break;
     }
@@ -320,7 +310,6 @@ _fof_global_merge(
         struct reduce_fof_data data = {
             .head = head,
             .nmerged = 0,
-            .minid = savebuff->minid,
         };
 
         /* merge ghosts into the savebuff, reducing the MINID on savebuff */
@@ -347,6 +336,9 @@ _fof_global_merge(
 
         iter++;
     }
+
+    /* done with ghosts, detach the MINID */
+    p->minid = NULL;
 
     /* previous loop only updated head[i]; now make sure every particles has the correct minid. */
     for(i = 0; i < p->np + pgd->p->np; i ++) {
