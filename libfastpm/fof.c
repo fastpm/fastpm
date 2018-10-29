@@ -308,7 +308,7 @@ _fof_global_merge(
 
         p->minid = commbuff->minid;
 
-        pm_ghosts_reduce(pgd, COLUMN_MINID);
+        pm_ghosts_reduce(pgd, COLUMN_MINID, FastPMReduceOverwriteAny, NULL);
 
         p->minid = NULL;
 

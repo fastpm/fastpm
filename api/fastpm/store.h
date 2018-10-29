@@ -46,7 +46,6 @@ struct FastPMStore {
     struct FastPMColumnInfo {
         void   (*pack)   (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         void   (*unpack) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
-        void   (*reduce) (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
         double (*to_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb);
         void   (*from_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value);
 
@@ -178,6 +177,15 @@ int
 FastPMLocalSortByID(const int i1,
                     const int i2,
                     FastPMStore * p);
+
+void
+FastPMReduceAddFloat(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata);
+
+void
+FastPMReduceOverwriteAny(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata);
+
+void
+FastPMReduceMinUInt64(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata);
 
 void
 fastpm_store_sort(FastPMStore * p, int (*cmpfunc)(const int i1, const int i2, FastPMStore * p));

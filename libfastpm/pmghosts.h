@@ -1,3 +1,10 @@
+typedef void (*reduce_func)(
+    FastPMStore * store,
+    ptrdiff_t index,
+    int ci,
+    void * packed,
+    void * userdata);
+
 typedef struct PMGhostData {
     PM * pm;
     FastPMStore * source; /* original particles */
@@ -33,7 +40,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 void
 pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes);
 
-void pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute);
+void pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute, reduce_func reduce, void * userdata);
 
 void pm_ghosts_free(PMGhostData * pgd);
 

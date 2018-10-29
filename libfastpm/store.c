@@ -24,16 +24,41 @@ unpack_any(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
     memcpy(p->columns[ci] + index * elsize, packed, elsize);
 }
 
-static void
-reduce_any_overwrite(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
+void
+FastPMReduceOverwriteAny(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
 {
     size_t elsize = p->_column_info[ci].elsize;
 
     memcpy(p->columns[ci] + index * elsize, packed, elsize);
 }
 
-static void
-reduce_f4_add(FastPMStore * p, ptrdiff_t index, int ci, void * packed)
+void
+FastPMReduceMinUInt64(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
+{
+    /* if any member of the vector is less than the current value, */
+    size_t elsize = p->_column_info[ci].elsize;
+    size_t nmemb = p->_column_info[ci].nmemb ;
+
+    uint64_t * ptr = (uint64_t *) (p->columns[ci] + index * elsize);
+    uint64_t * ptr_packed = (uint64_t *) packed;
+
+    int d;
+    int e;
+    e = 0;
+    for(d = 0; d < nmemb; d ++) {
+        if(ptr_packed[d] > ptr[d]) break;
+
+        if(ptr_packed[d] < ptr[d]) {
+            for(e = 0; e < nmemb; e ++) {
+                ptr_packed[e] = ptr[e];
+            }
+            break;
+        }
+    }
+}
+
+void
+FastPMReduceAddFloat(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
 {
     size_t nmemb = p->_column_info[ci].nmemb ;
 
@@ -133,7 +158,6 @@ fastpm_store_init_details(FastPMStore * p,
             p->_column_info[ci].attribute = attr_;  \
             p->_column_info[ci].pack = pack_any;  \
             p->_column_info[ci].unpack = unpack_any;  \
-            p->_column_info[ci].reduce = NULL;  \
             p->_column_info[ci].from_double = NULL;  \
             p->_column_info[ci].to_double = NULL;  \
         }
@@ -159,22 +183,13 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
 
-    COLUMN_INFO(rho).reduce = reduce_f4_add;
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(rho).to_double = to_double_f4;
-    COLUMN_INFO(acc).reduce = reduce_f4_add;
     COLUMN_INFO(acc).from_double = from_double_f4;
-    COLUMN_INFO(dx1).reduce = reduce_f4_add;
     COLUMN_INFO(dx1).from_double = from_double_f4;
-    COLUMN_INFO(dx2).reduce = reduce_f4_add;
     COLUMN_INFO(dx2).from_double = from_double_f4;
-    COLUMN_INFO(potential).reduce = reduce_f4_add;
     COLUMN_INFO(potential).from_double = from_double_f4;
-    COLUMN_INFO(tidal).reduce = reduce_f4_add;
     COLUMN_INFO(tidal).from_double = from_double_f4;
-
-    COLUMN_INFO(minid).reduce = reduce_any_overwrite;
-    COLUMN_INFO(task).reduce = reduce_any_overwrite;
 
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;

@@ -222,7 +222,10 @@ pm_ghosts_send(PMGhostData * pgd, FastPMColumnTags attributes)
 }
 
 void
-pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute)
+pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute,
+    reduce_func reduce,
+    void * userdata
+)
 {
 
     int ci = fastpm_store_find_column_id(pgd->p, attribute);
@@ -263,9 +266,8 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute)
      * but unlikly worth the effort.
      * */
     for(ighost = 0; ighost < Nsend; ighost ++) {
-        pgd->p->_column_info[ci].reduce(pgd->source,
-            pgd->ighost_to_ipar[ighost], ci,
-            pgd->send_buffer + ighost * elsize);
+        reduce(pgd->source, pgd->ighost_to_ipar[ighost], ci,
+                pgd->send_buffer + ighost * elsize, userdata);
     }
     fastpm_memory_free(pm->mem, pgd->send_buffer);
     fastpm_memory_free(pm->mem, pgd->recv_buffer);

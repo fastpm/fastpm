@@ -331,12 +331,12 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         LEAVE(readout);
 
     }
-    
+
     ENTER(reduce);
-    pm_ghosts_reduce(pgd, COLUMN_ACC);
+    pm_ghosts_reduce(pgd, COLUMN_ACC, FastPMReduceAddFloat, NULL);
 
     if(p->potential != NULL) {
-        pm_ghosts_reduce(pgd, COLUMN_POTENTIAL);
+        pm_ghosts_reduce(pgd, COLUMN_POTENTIAL, FastPMReduceAddFloat, NULL);
     }
 
     LEAVE(reduce);
