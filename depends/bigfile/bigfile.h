@@ -68,51 +68,31 @@ typedef struct BigArrayIter {
 
 int big_file_set_buffer_size(size_t bytes);
 char * big_file_get_error_message(void);
-void big_file_clear_error_message();
 void big_file_set_error_message(char * msg);
-void big_file_checksum(unsigned int * sum, void * buf, size_t size);
 
 /** Open a Bigfile: this stats the directory tree, but does not open the file.
  * It initialises the BigFile structure.
  * Arguments:
  * @param BigFile bf - pointer to uninitialised structure.
  * @param const char * basename - String containing directory to put snapshot in.*/
-int big_file_open(BigFile * bf, const char * basename);
+int big_file_open(BigFile * bf, const char * basename); /* raises */
 
 /** Create a Bigfile: this makes the directory tree and initialises the BigFile structure.
  * Arguments:
  * @param BigFile bf - pointer to uninitialised structure.
  * @param const char * basename - String containing directory to put snapshot in.*/
-int big_file_create(BigFile * bf, const char * basename);
+int big_file_create(BigFile * bf, const char * basename); /* raises */
 int big_file_list(BigFile * bf, char *** blocknames, int * Nblocks);
-int big_file_open_block(BigFile * bf, BigBlock * block, const char * blockname);
-int big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
-int big_file_close(BigFile * bf);
-int big_block_flush(BigBlock * block);
+int big_file_open_block(BigFile * bf, BigBlock * block, const char * blockname); /* raises*/
+int big_file_create_block(BigFile * bf, BigBlock * block, const char * blockname, const char * dtype, int nmemb, int Nfile, const size_t fsize[]); /* raises */
+int big_file_close(BigFile * bf); /* raises */
+
+int big_block_close(BigBlock * block); /* raises */
+int big_block_grow(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]); /* raises */
+int big_block_flush(BigBlock * block); /* raises */
+
 void big_block_set_dirty(BigBlock * block, int value);
-int _big_file_mksubdir_r(const char * pathname, const char * subdir);
-
-int big_block_open(BigBlock * bb, const char * basename);
-int big_block_clear_checksum(BigBlock * bb);
-int big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
-int big_block_close(BigBlock * block);
-int big_block_grow(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]);
-
-/* The internal code creates the meta data but not the physical back-end storage files */
-int _big_block_create_internal(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]);
-
-/* the internal code to free meta-data associated with a block. */
-void _big_block_close_internal(BigBlock * block);
-
-/* The internal code grows the internal meta data but not the physical back-end stroage files */
-int _big_block_grow_internal(BigBlock * bb, int Nfile_grow, const size_t fsize_grow[]);
-
-/* The internal routine to open a physical file */
-FILE * _big_file_open_a_file(const char * basename, int fileid, char * mode);
-
-void * big_attrset_pack(BigAttrSet * attrset, size_t * bytes);
 void big_attrset_set_dirty(BigAttrSet * attrset, int value);
-BigAttrSet * big_attrset_unpack(void * p);
 
 /** Initialise BigBlockPtr to the place in the BigBlock offset elements from the beginning of the block.
  * This allows you to write into the BigBlock at a position other than the beginning.
@@ -120,8 +100,8 @@ BigAttrSet * big_attrset_unpack(void * p);
  *                 If offset < 0, seek to size + offset.
  *
  */
-int big_block_seek(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t offset);
-int big_block_seek_rel(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t rel);
+int big_block_seek(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t offset); /* raises */
+int big_block_seek_rel(BigBlock * bb, BigBlockPtr * ptr, ptrdiff_t rel); /* raises */
 
 /** Detect for end of file 
  *
@@ -135,7 +115,7 @@ int big_block_eof(BigBlock * bb, BigBlockPtr * ptr);
  * @param array - An array specifying the number of items to read.
  *
  */
-int big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
+int big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array); /* raises */
 
 /** Read from a block and create a BigArray 
  *  array->buf shall be freed with the C free() function.
@@ -150,7 +130,7 @@ int big_block_read(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
  *  number of items read will be in array->dims[0].
  *
  * */
-int big_block_read_simple(BigBlock * bb, ptrdiff_t start, ptrdiff_t size, BigArray * array, const char * dtype);
+int big_block_read_simple(BigBlock * bb, ptrdiff_t start, ptrdiff_t size, BigArray * array, const char * dtype); /* raises */
 
 /** Write data stored in a BigArray to a BigBlock.
  * You cannot write beyond the end of the size of the block.
@@ -160,8 +140,7 @@ int big_block_read_simple(BigBlock * bb, ptrdiff_t start, ptrdiff_t size, BigArr
  * @param ptr - Absolute position to write to in the file. Construct this with a call to big_block_seek.
  * @param array - BigArray containing the data which should be written.
  * @returns 0 if successful. */
-int big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
-int big_block_remove_attr(BigBlock * block, const char * attrname);
+int big_block_write(BigBlock * bb, BigBlockPtr * ptr, BigArray * array); /* raisees*/
 
 /** Set an attribute on a BigBlock: attributes are plaintext key-value pairs stored in a special file in the Block directory.
  * The value may be a (small) array.
@@ -172,7 +151,7 @@ int big_block_remove_attr(BigBlock * block, const char * attrname);
  * @param dtype - Type of data array in the format used by dtype.
  * @param nmemb - Number of members in the data array.
  * @returns 0 if successful. */
-int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb);
+int big_block_set_attr(BigBlock * block, const char * attrname, const void * data, const char * dtype, int nmemb); /* raises */
 
 /** Get an attribute on a BigBlock: attributes are plaintext key-value pairs stored in a special file in the Block directory.
  * Attribute value is stored in the memory pointed to by data, so make sure it is big enough!
@@ -183,7 +162,11 @@ int big_block_set_attr(BigBlock * block, const char * attrname, const void * dat
  * @param dtype - Type of data array in the format used by dtype.
  * @param nmemb - Number of members to get. Must be equal to number of members
  * originally stored or an error is raised and -1 returned.*/
-int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb);
+int big_block_get_attr(BigBlock * block, const char * attrname, void * data, const char * dtype, int nmemb); /* raises */
+
+/* remove an attribute */
+int big_block_remove_attr(BigBlock * block, const char * attrname); /* raises */
+
 BigAttr * big_block_lookup_attr(BigBlock * block, const char * attrname);
 BigAttr * big_block_list_attrs(BigBlock * block, size_t * count);
 
@@ -209,12 +192,15 @@ BigAttr * big_block_list_attrs(BigBlock * block, size_t * count);
  *
  */
 
-void dtype_format(char * buffer, const char * dtype, const void * data, const char * flags);
-void dtype_parse(const char * buffer, const char * dtype, void * data, const char * fmt);
-int dtype_itemsize(const char * dtype);
-int dtype_normalize(char * dst, const char * src);
+int big_file_dtype_itemsize(const char * dtype);
+int big_file_dtype_kind(const char * dtype);
+void big_file_dtype_format(char * buffer, const char * dtype, const void * data, const char * flags);
+/* Parse a string into a memory location according to dtype; returns non-zero on error */
+int big_file_dtype_parse(const char * buffer, const char * dtype, void * data, const char * fmt);
 
-int _dtype_convert(BigArrayIter * dst, BigArrayIter * src, size_t nmemb);
+#define dtype_itemsize big_file_dtype_itemsize
+#define dtype_format big_file_dtype_format
+#define dtype_parse big_file_dtype_parse
 
 /** Create a BigArray from raw memory.
  *
