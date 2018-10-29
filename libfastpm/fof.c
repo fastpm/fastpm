@@ -218,6 +218,31 @@ _merge(FastPMStore * remote, ptrdiff_t i, FastPMStore * fofhead, ptrdiff_t j)
     return merge;
 }
 
+struct reduce_fof_data {
+    ptrdiff_t * head;
+    size_t nmerged;
+    uint64_t * minid;
+};
+
+static void
+FastPMReduceFOF(FastPMStore * p, ptrdiff_t index, int ci, void * packed, void * userdata)
+{
+
+    struct reduce_fof_data * data = userdata;
+
+    uint64_t * ptr_packed = (uint64_t *) packed;
+
+    int merge = 0;
+    if(*ptr_packed < data->minid[data->head[index]]) {
+        merge = 1;
+    }
+    if(merge) {
+        data->minid[data->head[index]] = *ptr_packed;
+    }
+    data->nmerged += merge;
+}
+
+
 static void
 _fof_global_merge(
     FastPMFOFFinder * finder,
@@ -229,10 +254,6 @@ _fof_global_merge(
     ptrdiff_t i;
     FastPMStore * p = finder->p;
     MPI_Comm comm = finder->priv->comm;
-
-    FastPMStore commbuff[1];
-
-    fastpm_store_init(commbuff, p->np + pgd->p->np, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
     size_t npmax = p->np;
 
@@ -286,39 +307,27 @@ _fof_global_merge(
 
     while(1) {
 
-        /* prepare the communication buffer, every particle has
+        /* prepare the communication buffer, every ghost has
          * the minid and task of the current head. such that
          * they will connect to the other ranks correctly */
-
-        
-        /* we use commbuff as a temporary 'overwritable' for reusing the reduce
-         * code to do the reduction. This is a two attribute reduction and we do not
-         * have the API for it yet.
-         *
-         * need to write the current values to commbuf, in case they do not have a ghost; */
-
-        for(i = 0; i < p->np; i ++) {
-            commbuff->minid[i] = savebuff->minid[head[i]];
-        }
 
         for(i = 0; i < pgd->p->np; i ++) {
             pgd->p->minid[i] = savebuff->minid[head[i + p->np]];
         }
+
         /* at this point all items on ghosts have local minid and task, ready to reduce */
 
-        p->minid = commbuff->minid;
+        struct reduce_fof_data data = {
+            .head = head,
+            .nmerged = 0,
+            .minid = savebuff->minid,
+        };
 
-        pm_ghosts_reduce(pgd, COLUMN_MINID, FastPMReduceOverwriteAny, NULL);
+        /* merge ghosts into the savebuff, reducing the MINID on savebuff */
 
-        p->minid = NULL;
+        pm_ghosts_reduce(pgd, COLUMN_MINID, FastPMReduceFOF, &data);
 
-        /* merge commbuff into the savebuff, reducing the MINID on savebuff */
-        size_t nmerged = 0;
-
-        for(i = 0; i < p->np; i ++) {
-            int m = _merge(commbuff, i, savebuff, head[i]);
-            nmerged += m;
-        }
+        size_t nmerged = data.nmerged;
 
         /* at this point all items on savebuff->fof with head[i] = i have present minid and task */
 
@@ -360,7 +369,6 @@ _fof_global_merge(
     }
     #endif
 
-    fastpm_store_destroy(commbuff);
 }
 
 /* set head[i] to hid*/
