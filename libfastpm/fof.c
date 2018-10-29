@@ -262,11 +262,11 @@ _fof_global_merge(
     }
 
     /* send minid */
-    p->minid = minid;
+    p->minid = minid; /* only send up to p->np */
     pm_ghosts_send(pgd, COLUMN_MINID);
     p->minid = NULL;
 
-    /* copy over to minid for storage */
+    /* copy over to minid for storage; FIXME: allow overriding  */
     for(i = 0; i < pgd->p->np; i ++) {
         minid[i + p->np] = pgd->p->minid[i];
     }
@@ -317,7 +317,7 @@ _fof_global_merge(
 
         /* merge ghosts into the p, reducing the MINID on p */
 
-        p->minid = minid;
+        p->minid = minid; /* only update up to p->np */
         pm_ghosts_reduce(pgd, COLUMN_MINID, FastPMReduceFOF, &data);
         p->minid = NULL;
 
@@ -597,11 +597,6 @@ fastpm_fof_reduce_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos,
         }
     }
 
-    void * minid = halos->minid;
-    void * task = halos->task;
-    void * id = halos->id;
-    void * mask = halos->mask;
-
     /* use permute to replicate the first halo attr to the rest:
      *
      * we do not want to replicate
@@ -613,6 +608,11 @@ fastpm_fof_reduce_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos,
      * original ranks will be violated.
      *   */
 
+    FastPMStore save[1];
+
+    /* FIXME: add a method for this! */
+    memcpy(save->columns, halos->columns, sizeof(save->columns));
+
     halos->minid = NULL;
     halos->task = NULL;
     halos->id = NULL;
@@ -620,10 +620,7 @@ fastpm_fof_reduce_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos,
 
     fastpm_store_permute(halos, ind);
 
-    halos->minid = minid;
-    halos->task = task;
-    halos->id = id;
-    halos->mask = mask;
+    memcpy(halos->columns, save->columns, sizeof(save->columns));
 
     for(i = 0; i < halos->np; i++) {
         reduce_func(finder, halos, i);

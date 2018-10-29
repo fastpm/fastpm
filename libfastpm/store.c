@@ -820,4 +820,3 @@ fastpm_store_histogram_aemit_sorted(FastPMStore * store,
 
     free(hist1);
 }
-
