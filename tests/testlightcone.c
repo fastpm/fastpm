@@ -16,10 +16,10 @@ smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver
     char * fn = fastpm_strdup_printf("lightcone_struct");
     if(lcevent->is_first) {
         fastpm_info("First iteration\n");
-        write_snapshot(solver, lcevent->p, fn, "1", 1);
+        fastpm_store_write(lcevent->p, fn, "1", "w", 1, solver->comm);
     } else {
         fastpm_info("not first iteration\n");
-        append_snapshot(solver, lcevent->p, fn, "1", 1);
+        fastpm_store_write(lcevent->p, fn, "1", "a", 1, solver->comm);
     }
     free(fn);
 }

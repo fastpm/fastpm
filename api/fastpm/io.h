@@ -26,14 +26,6 @@ write_snapshot(FastPMSolver * fastpm,
     );
 
 int
-append_snapshot(FastPMSolver * fastpm,
-        FastPMStore * p,
-        const char * filebase,
-        const char * dataset,
-        int Nwriters
-    );
-
-int
 fastpm_store_write(FastPMStore * p,
         const char * filebase,
         const char * dataset,

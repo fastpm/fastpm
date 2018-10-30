@@ -45,7 +45,7 @@ static int
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, double aout, Parameters * prr);
 
 static void
-smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh);
+smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, FastPMSMesh * smesh);
 
 struct smesh_ready_handler_data {
     FastPMSolver * fastpm;
@@ -91,10 +91,10 @@ static void
 run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr);
 
 static void
-write_usmesh_fof(FastPMSolver * fastpm,
-        FastPMStore * snapshot,
-        char * filebase, Parameters * prr,
+run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
+        FastPMStore * halos,
+        Parameters * prr,
         FastPMStore * tail,
         FastPMLightCone * lc);
 
@@ -779,26 +779,26 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     CLOCK(sort);
     CLOCK(indexing);
 
-    FastPMSolver * solver = data->fastpm;
+    FastPMSolver * fastpm = data->fastpm;
     Parameters * prr = data->prr;
 
     int64_t np = lcevent->p->np;
-    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
     fastpm_info("Structured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
 
-    char * fn = fastpm_strdup_printf(CONF(prr->lua, lc_write_smesh));
+    char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_smesh));
 
     ENTER(sort);
-    fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
+    fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
 
     ENTER(io);
     if(lcevent->is_first) {
-        fastpm_info("Creating smesh catalog in %s\n", fn);
+        fastpm_info("Creating smesh catalog in %s\n", filebase);
 
-        write_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
-        _write_parameters(fn, "Header", prr, solver->comm);
+        write_snapshot(fastpm, lcevent->p, filebase, "1", prr->cli->Nwriters);
+        _write_parameters(filebase, "Header", prr, fastpm->comm);
 
         double * aemit = malloc(sizeof(double) * (data->Nslices));
         double * r = malloc(sizeof(double) * (data->Nslices));
@@ -810,28 +810,28 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
             nside[i] = data->slices[i].nside;
             r[i] = data->slices[i].distance;
         }
-        write_snapshot_attr(fn, "Header", "SMeshLayers.aemit", aemit, "f8", data->Nslices, solver->comm);
-        write_snapshot_attr(fn, "Header", "SMeshLayers.nside", nside, "i4", data->Nslices, solver->comm);
-        write_snapshot_attr(fn, "Header", "SMeshLayers.distance", r, "f8", data->Nslices, solver->comm);
+        write_snapshot_attr(filebase, "Header", "SMeshLayers.aemit", aemit, "f8", data->Nslices, fastpm->comm);
+        write_snapshot_attr(filebase, "Header", "SMeshLayers.nside", nside, "i4", data->Nslices, fastpm->comm);
+        write_snapshot_attr(filebase, "Header", "SMeshLayers.distance", r, "f8", data->Nslices, fastpm->comm);
 
         free(nside);
         free(r);
         free(aemit);
     } else {
-        fastpm_info("Appending smesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
+        fastpm_info("Appending smesh catalog to %s\n", filebase);
+        fastpm_store_write(lcevent->p, filebase, "1", "a", prr->cli->Nwriters, fastpm->comm);
     }
 
     LEAVE(io);
     ENTER(indexing);
 
-    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
 
-    write_aemit_hist(fn, "1/.", data->hist, data->aedges, data->Nedges, solver->comm);
+    write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
 
     LEAVE(indexing);
 
-    free(fn);
+    free(filebase);
 }
 
 static void
@@ -841,51 +841,65 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     CLOCK(sort);
     CLOCK(indexing);
 
-    FastPMSolver * solver = data->fastpm;
+    FastPMSolver * fastpm = data->fastpm;
     Parameters * prr = data->prr;
     FastPMStore * tail = data->tail;
 
+    FastPMStore halos[1];
+
     int64_t np = lcevent->p->np;
-    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, solver->comm);
+    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
     fastpm_info("Unstructured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
 
-    char * fn = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
+    char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
 
-    write_usmesh_fof(solver, lcevent->p, fn, prr, lcevent, tail, mesh->lc);
+    run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc);
 
     /* subsample, this will remove the tail particles that were appended. */
     fastpm_store_subsample(lcevent->p, lcevent->p->mask, lcevent->p);
 
     ENTER(sort);
-    fastpm_sort_snapshot(lcevent->p, solver->comm, FastPMSnapshotSortByAEmit, 1);
+    fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
 
     ENTER(io);
     if(lcevent->is_first) {
-        fastpm_info("Creating usmesh catalog in %s\n", fn);
-        write_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
-        _write_parameters(fn, "Header", prr, solver->comm);
+        fastpm_info("Creating usmesh catalog in %s\n", filebase);
+        write_snapshot(fastpm, lcevent->p, filebase, "1", prr->cli->Nwriters);
+        _write_parameters(filebase, "Header", prr, fastpm->comm);
     } else {
-        fastpm_info("Appending usmesh catalog to %s\n", fn);
-        append_snapshot(solver, lcevent->p, fn, "1", prr->cli->Nwriters);
+        fastpm_info("Appending usmesh catalog to %s\n", filebase);
+        fastpm_store_write(lcevent->p, filebase, "1", "a", prr->cli->Nwriters, fastpm->comm);
     }
+
+    /* halos */
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    if(lcevent->is_first) {
+        fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
+    } else {
+        fastpm_store_write(halos, filebase, dataset, "a", prr->cli->Nwriters, fastpm->comm);
+    }
+    free(dataset);
+    LEAVE(io);
 
     LEAVE(io);
     ENTER(indexing);
 
-    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, solver->comm);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
 
-    write_aemit_hist(fn, "1/.", data->hist, data->aedges, data->Nedges, solver->comm);
+    write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
 
     LEAVE(indexing);
 
-    free(fn);
+    fastpm_store_destroy(halos);
+
+    free(filebase);
 }
 
 /* bridging force event to smesh interpolation */
 static void
-smesh_force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
+smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, FastPMSMesh * smesh)
 {
     CLOCK(potential);
     ENTER(potential);
@@ -1017,10 +1031,10 @@ _halos_ready (FastPMFOFFinder * finder,
 
 
 static void
-write_usmesh_fof(FastPMSolver * fastpm,
-        FastPMStore * snapshot,
-        char * filebase, Parameters * prr,
+run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
+        FastPMStore * halos,
+        Parameters * prr,
         FastPMStore * tail,
         FastPMLightCone * lc)
 {
@@ -1028,7 +1042,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     CLOCK(io);
     CLOCK(sort);
 
-    int append = !lcevent->is_first;
     double maxhalosize = CONF(prr->lua, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
     ptrdiff_t i;
@@ -1044,7 +1057,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
     fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/
-    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np_upper, FASTPM_MEMORY_HEAP);
+    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
 
     ENTER(fof);
 
@@ -1056,7 +1069,7 @@ write_usmesh_fof(FastPMSolver * fastpm,
         .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
-    fastpm_fof_init(&fof, snapshot, fastpm->basepm);
+    fastpm_fof_init(&fof, p, fastpm->basepm);
 
     double rmin = lc->speedfactor * HorizonDistance(lcevent->a1, lc->horizon);
 
@@ -1066,7 +1079,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     userdata[2] = lc;
     userdata[3] = keep_for_tail;
 
-    FastPMStore halos[1];
     fastpm_add_event_handler(&fof.event_handlers,
         FASTPM_EVENT_HALO,
         FASTPM_EVENT_STAGE_AFTER,
@@ -1082,19 +1094,6 @@ write_usmesh_fof(FastPMSolver * fastpm,
     ENTER(sort);
     fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
-
-    ENTER(io);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    if(!append) {
-        write_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
-        _write_parameters(filebase, "Header", prr, fastpm->comm);
-    } else {
-        append_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
-    }
-    free(dataset);
-    LEAVE(io);
-
-    fastpm_store_destroy(halos);
 
     fastpm_fof_destroy(&fof);
 

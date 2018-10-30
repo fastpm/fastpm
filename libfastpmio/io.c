@@ -478,18 +478,6 @@ write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
 }
 
 int
-append_snapshot(FastPMSolver * fastpm, FastPMStore * p,
-        const char * filebase,
-        const char * dataset,
-        int Nwriters)
-{
-
-    fastpm_store_write(p, filebase, dataset, "a", Nwriters, fastpm->comm);
-
-    return 0;
-}
-
-int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase)
 {
     return 0;
