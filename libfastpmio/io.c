@@ -465,19 +465,6 @@ fastpm_store_write(FastPMStore * p,
 }
 
 int
-write_snapshot(FastPMSolver * fastpm, FastPMStore * p,
-        const char * filebase,
-        const char * dataset,
-        int Nwriters)
-{
-    write_snapshot_header(fastpm, p, filebase, fastpm->comm);
-
-    fastpm_store_write(p, filebase, dataset, "w", Nwriters, fastpm->comm);
-
-    return 0;
-}
-
-int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase)
 {
     return 0;

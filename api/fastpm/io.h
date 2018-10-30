@@ -18,14 +18,6 @@ void
 fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter, int redistribute);
 
 int
-write_snapshot(FastPMSolver * fastpm,
-        FastPMStore * p,
-        const char * filebase,
-        const char * dataset,
-        int Nwriters
-    );
-
-int
 fastpm_store_write(FastPMStore * p,
         const char * filebase,
         const char * dataset,

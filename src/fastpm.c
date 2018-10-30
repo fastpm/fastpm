@@ -68,6 +68,8 @@ struct usmesh_ready_handler_data {
     int64_t * hist_fof;
     double * aedges;
     int Nedges;
+    int Nslices;
+    FastPMSMeshSlice * slices; /*NULL if no smesh is available */
 };
 
 static void
@@ -100,7 +102,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLightCone * lc);
 
 static void
-_write_parameters(const char * filebase, const char * dataset, Parameters * prr, MPI_Comm comm)
+write_parameters(const char * filebase, const char * dataset, Parameters * prr, MPI_Comm comm)
 {
     BigFile bf;
     BigBlock bb;
@@ -568,6 +570,7 @@ produce:
 static void
 _usmesh_ready_handler_free(void * userdata) {
     struct usmesh_ready_handler_data * data = userdata;
+    if(data->slices) free(data->slices);
     fastpm_store_destroy(data->tail);
     free(data->aedges);
     free(data->hist);
@@ -741,11 +744,15 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             size_t Nedges = Nslices - 1;
             data->aedges = aedges;
             data->Nedges = Nedges;
-            free(slices);
+            data->slices = slices;
+            data->Nslices = Nslices;
         } else {
             double amin = CONF(prr->lua, lc_amin);
             double amax = CONF(prr->lua, lc_amax);
             fastpm_info("No structured mesh requested, generating an AemitIndex with 128 layers for usmesh. \n");
+
+            data->slices = NULL;
+            data->Nslices = 0;
 
             int nedges = 128;
             double * edges = malloc(sizeof(double) * (nedges));
@@ -775,6 +782,28 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 }
 
 static void
+write_smesh_layers(const char * filebase, FastPMSMeshSlice * slices, size_t Nslices, MPI_Comm comm)
+{
+        double * aemit = malloc(sizeof(double) * (Nslices));
+        double * r = malloc(sizeof(double) * (Nslices));
+        int * nside = malloc(sizeof(int) * (Nslices));
+
+        int i;
+        for(i = 0; i < Nslices; i ++) {
+            aemit[i] = slices[i].aemit;
+            nside[i] = slices[i].nside;
+            r[i] = slices[i].distance;
+        }
+        write_snapshot_attr(filebase, "Header", "SMeshLayers.aemit", aemit, "f8", Nslices, comm);
+        write_snapshot_attr(filebase, "Header", "SMeshLayers.nside", nside, "i4", Nslices, comm);
+        write_snapshot_attr(filebase, "Header", "SMeshLayers.distance", r, "f8", Nslices, comm);
+
+        free(nside);
+        free(r);
+        free(aemit);
+}
+
+static void
 smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_ready_handler_data * data)
 {
     CLOCK(io);
@@ -799,26 +828,12 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", filebase);
 
-        write_snapshot(fastpm, lcevent->p, filebase, "1", prr->cli->Nwriters);
-        _write_parameters(filebase, "Header", prr, fastpm->comm);
+        write_snapshot_header(fastpm, lcevent->p, filebase, fastpm->comm);
+        write_parameters(filebase, "Header", prr, fastpm->comm);
+        write_smesh_layers(filebase, data->slices, data->Nslices, fastpm->comm);
 
-        double * aemit = malloc(sizeof(double) * (data->Nslices));
-        double * r = malloc(sizeof(double) * (data->Nslices));
-        int * nside = malloc(sizeof(int) * (data->Nslices));
+        fastpm_store_write(lcevent->p, filebase, "1", "w", prr->cli->Nwriters, fastpm->comm);
 
-        int i;
-        for(i = 0; i < data->Nslices; i ++) {
-            aemit[i] = data->slices[i].aemit;
-            nside[i] = data->slices[i].nside;
-            r[i] = data->slices[i].distance;
-        }
-        write_snapshot_attr(filebase, "Header", "SMeshLayers.aemit", aemit, "f8", data->Nslices, fastpm->comm);
-        write_snapshot_attr(filebase, "Header", "SMeshLayers.nside", nside, "i4", data->Nslices, fastpm->comm);
-        write_snapshot_attr(filebase, "Header", "SMeshLayers.distance", r, "f8", data->Nslices, fastpm->comm);
-
-        free(nside);
-        free(r);
-        free(aemit);
     } else {
         fastpm_info("Appending smesh catalog to %s\n", filebase);
         fastpm_store_write(lcevent->p, filebase, "1", "a", prr->cli->Nwriters, fastpm->comm);
@@ -1063,7 +1078,6 @@ run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLightCone * lc)
 {
     CLOCK(fof);
-    CLOCK(io);
     CLOCK(sort);
 
     double maxhalosize = CONF(prr->lua, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
@@ -1115,10 +1129,6 @@ run_usmesh_fof(FastPMSolver * fastpm,
 
     LEAVE(fof);
 
-    ENTER(sort);
-    fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
-    LEAVE(sort);
-
     fastpm_fof_destroy(&fof);
 
     uint64_t ntail = 0;
@@ -1163,20 +1173,20 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
         free(filename);
     }
 
+    if(CONF(prr->lua, sort_snapshot)) {
+        ENTER(sort);
+        fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 1);
+        LEAVE(sort);
+    }
+
     if(CONF(prr->lua, write_snapshot)) {
         char filebase[1024];
         sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_snapshot), aout);
 
-        ENTER(sort);
-
-        if(CONF(prr->lua, sort_snapshot)) {
-            fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 1);
-        }
-
-        LEAVE(sort);
         ENTER(io);
-        write_snapshot(fastpm, snapshot, filebase, "1", prr->cli->Nwriters);
-        _write_parameters(filebase, "Header", prr, fastpm->comm);
+        write_snapshot_header(fastpm, halos, filebase, fastpm->comm);
+        write_parameters(filebase, "Header", prr, fastpm->comm);
+        fastpm_store_write(snapshot, filebase, "1", "w", prr->cli->Nwriters, fastpm->comm);
         LEAVE(io);
 
         fastpm_info("snapshot %s [%s] written at z = %6.4f z = %6.4f \n", filebase, "1", z_out, aout);
@@ -1197,12 +1207,13 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
         if(CONF(prr->lua, write_snapshot) &&
            0 == strcmp(CONF(prr->lua, write_fof), CONF(prr->lua, write_snapshot))) {
             /* Writing to the same place as the snapshot; thus skip headers*/
-            fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
         } else {
-            /* Writing to a new place, thus need its own header */
-            write_snapshot(fastpm, halos, filebase, dataset, prr->cli->Nwriters);
-            _write_parameters(filebase, "Header", prr, fastpm->comm);
+            write_snapshot_header(fastpm, halos, filebase, fastpm->comm);
+            write_parameters(filebase, "Header", prr, fastpm->comm);
         }
+
+        fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
+
         LEAVE(io);
 
         fastpm_info("fof %s [%s] written at z = %6.4f z = %6.4f \n", filebase, dataset, z_out, aout);
@@ -1216,7 +1227,6 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
 
         ENTER(io);
         write_runpb_snapshot(fastpm, snapshot, filebase);
-
         LEAVE(io);
 
         fastpm_info("runpb snapshot %s written z = %6.4f a = %6.4f\n", 
