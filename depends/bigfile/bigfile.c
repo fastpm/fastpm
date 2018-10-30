@@ -106,7 +106,7 @@ void
 big_file_set_error_message(char * msg)
 {
     char * errorstr;
-    if(msg != NULL) msg = strdup(msg);
+    if(msg != NULL) msg = _strdup(msg);
 
 #if __STDC_VERSION__ >= 201112L
     errorstr = atomic_exchange(&ERRORSTR, msg);
@@ -161,12 +161,12 @@ __raise__(const char * msg, const char * file, const int line, ...)
     char * mymsg;
     if(!msg) {
         if(ERRORSTR) {
-            mymsg = strdup(ERRORSTR);
+            mymsg = _strdup(ERRORSTR);
         } else {
-            mymsg = strdup("UNKNOWN ERROR");
+            mymsg = _strdup("UNKNOWN ERROR");
         }
     } else {
-        mymsg = strdup(msg);
+        mymsg = _strdup(msg);
     }
 
     char * errorstr = malloc(strlen(mymsg) + 512);
@@ -193,7 +193,7 @@ big_file_open(BigFile * bf, const char * basename)
             ex_stat,
             "Big File `%s' does not exist (%s)", basename,
             strerror(errno));
-    bf->basename = strdup(basename);
+    bf->basename = _strdup(basename);
     return 0;
 ex_stat:
     return -1;
@@ -201,7 +201,7 @@ ex_stat:
 
 int big_file_create(BigFile * bf, const char * basename) {
     memset(bf, 0, sizeof(bf[0]));
-    bf->basename = strdup(basename);
+    bf->basename = _strdup(basename);
     RAISEIF(0 != _big_file_mksubdir_r(NULL, basename),
         ex_subdir,
         NULL);
@@ -273,7 +273,7 @@ big_file_list(BigFile * bf, char *** blocknames, int * Nblocks)
     *Nblocks = N;
     *blocknames = malloc(sizeof(char*) * N);
     for(i = 0; i < N; i ++) {
-        (*blocknames)[i] = strdup(bblist->blockname);
+        (*blocknames)[i] = _strdup(bblist->blockname);
         p = bblist;
         bblist = bblist->next;
         free(p); 
@@ -322,7 +322,7 @@ _big_block_open(BigBlock * bb, const char * basename)
 {
     memset(bb, 0, sizeof(bb[0]));
     if(basename == NULL) basename = "/.";
-    bb->basename = strdup(basename);
+    bb->basename = _strdup(basename);
     bb->dirty = 0;
 
     bb->attrset = attrset_create();
@@ -490,7 +490,7 @@ _big_block_create_internal(BigBlock * bb, const char * basename, const char * dt
       "Column name cannot contain blanks (space, tab or newline)"
     );
 
-    bb->basename = strdup(basename);
+    bb->basename = _strdup(basename);
 
     bb->attrset = attrset_create();
     bb->attrset->dirty = 1;
@@ -1590,7 +1590,7 @@ attrset_write_attr_set_v2(BigAttrSet * attrset, const char * basename)
         char * textual;
         /* skip textual representation for very long columns */
         if(ldata > 128) {
-            textual = strdup("... (Too Long) ");
+            textual = _strdup("... (Too Long) ");
         } else {
             textual = malloc(a->nmemb * 32 + 1);
             textual[0] = 0;
@@ -1887,7 +1887,7 @@ _big_block_unpack(BigBlock * block, void * buf)
     block->foffset = calloc(Nfile + 1, sizeof(size_t));
     block->fchecksum = calloc(Nfile + 1, sizeof(int));
 
-    block->basename = strdup(ptr);
+    block->basename = _strdup(ptr);
     ptr += strlen(ptr) + 1;
     if(block->fsize)
         memcpy(block->fsize, ptr, (Nfile + 1) * sizeof(block->fsize[0]));
@@ -1972,7 +1972,7 @@ ex_mkdir:
 int
 _big_file_mksubdir_r(const char * pathname, const char * subdir)
 {
-    char * subdirname = strdup(subdir);
+    char * subdirname = _strdup(subdir);
     char * p;
 
     char * mydirname;

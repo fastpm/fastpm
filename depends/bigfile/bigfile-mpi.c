@@ -38,7 +38,7 @@ int big_file_mpi_open(BigFile * bf, const char * basename, MPI_Comm comm) {
         rt = big_file_open(bf, basename);
     } else {
         /* FIXME : */
-        bf->basename = strdup(basename);
+        bf->basename = _strdup(basename);
         rt = 0;
     }
 
@@ -56,7 +56,7 @@ int big_file_mpi_create(BigFile * bf, const char * basename, MPI_Comm comm) {
         rt = big_file_create(bf, basename);
     } else {
         /* FIXME : */
-        bf->basename = strdup(basename);
+        bf->basename = _strdup(basename);
         rt = 0;
     }
     BCAST_AND_RAISEIF(rt, comm);

@@ -27,3 +27,13 @@ int _dtype_normalize(char * dst, const char * src);
 
 int _big_block_open(BigBlock * bb, const char * basename); /* raises */
 int _big_block_create(BigBlock * bb, const char * basename, const char * dtype, int nmemb, int Nfile, const size_t fsize[]); /* raises*/
+
+/* strdup is not in c99 */
+static inline char *
+_strdup(const char * s)
+{
+    size_t l = strlen(s);
+    char * r = malloc(l + 1);
+    strcpy(r, s);
+    return r;
+}
