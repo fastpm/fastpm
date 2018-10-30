@@ -46,7 +46,7 @@ LUAParameters * read_lua_parameters_mpi(const char * filebase, char ** error, MP
     prr->config = lua_config_new(confstr);
 
     if(lua_config_error(prr->config)) {
-        *error = strdup(lua_config_error(prr->config));
+        *error = fastpm_strdup_printf("%s", lua_config_error(prr->config));
         free(prr);
         return NULL;
     }
