@@ -60,7 +60,10 @@ $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
 clean:
 	rm -f libfastpm-dep.a
-	rm -f install/lib/*.a
+	rm -f install/lib/libbigfile*.a
+	rm -f install/lib/libradix*.a
+	rm -f install/lib/libmpsort*.a
+	rm -f install/lib/libkdcount*.a
 	(cd kdcount; $(MAKE) clean)
 	(cd bigfile; $(MAKE) clean)
 	(cd mpsort; $(MAKE) clean)
