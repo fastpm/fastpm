@@ -65,6 +65,7 @@ struct usmesh_ready_handler_data {
     Parameters * prr;
     FastPMStore tail[1];
     int64_t * hist;
+    int64_t * hist_fof;
     double * aedges;
     int Nedges;
 };
@@ -761,6 +762,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         }
 
         data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
+        data->hist_fof = calloc(data->Nedges + 1, sizeof(int64_t));
 
         fastpm_store_init(data->tail, 0, 0, FASTPM_MEMORY_FLOATING);
 
@@ -863,6 +865,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
     LEAVE(sort);
 
+    ENTER(indexing);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
+    fastpm_store_histogram_aemit_sorted(halos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
+    LEAVE(indexing);
+
     ENTER(io);
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", filebase);
@@ -872,25 +879,24 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_info("Appending usmesh catalog to %s\n", filebase);
         fastpm_store_write(lcevent->p, filebase, "1", "a", prr->cli->Nwriters, fastpm->comm);
     }
+    write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
+    LEAVE(io);
 
     /* halos */
+    ENTER(io);
     char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    char * dataset_attrs = fastpm_strdup_printf("LL-%05.3f/.", CONF(prr->lua, fof_linkinglength));
     if(lcevent->is_first) {
         fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
     } else {
         fastpm_store_write(halos, filebase, dataset, "a", prr->cli->Nwriters, fastpm->comm);
     }
+
+    write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
+
     free(dataset);
+    free(dataset_attrs);
     LEAVE(io);
-
-    LEAVE(io);
-    ENTER(indexing);
-
-    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
-
-    write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
-
-    LEAVE(indexing);
 
     fastpm_store_destroy(halos);
 
