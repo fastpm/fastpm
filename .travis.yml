@@ -18,6 +18,7 @@ addons:
             - libopenmpi-dev
             - openmpi-bin
             - libgsl0-dev
+            - elfutils
 #            - python-numpy
 #            - python-matplotlib
 
