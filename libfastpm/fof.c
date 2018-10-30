@@ -939,6 +939,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     MPI_Comm comm = finder->priv->comm;
 
     FastPMColumnTags attributes = finder->p->attributes;
+    attributes |= COLUMN_MASK;
     attributes |= COLUMN_LENGTH | COLUMN_MINID | COLUMN_TASK;
     attributes |= COLUMN_RDISP | COLUMN_VDISP | COLUMN_RVDISP;
     attributes |= COLUMN_ACC; /* ACC used as the first particle position offset */

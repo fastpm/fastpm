@@ -98,7 +98,7 @@ main(int argc, char * argv[])
     FastPMStore snapshot[1];
 
     fastpm_store_init_evenly(snapshot, pow(1.0 * CONF(lua, nc), 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC,
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID,
         CONF(lua, np_alloc_factor), comm);
 
     PM * basepm = fastpm_create_pm(CONF(lua, nc), cli->NprocY, 1, CONF(lua, boxsize), comm);
