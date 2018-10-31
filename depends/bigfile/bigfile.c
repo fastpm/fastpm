@@ -123,7 +123,7 @@ big_file_set_error_message(char * msg)
     #warning "enable -std=c11 or -std=gnu11, or luse gcc for thread friendly error handling"
 #endif
 
-    if(errorstr) free(ERRORSTR);
+    if(errorstr) free(errorstr);
 }
 
 
