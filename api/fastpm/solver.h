@@ -154,6 +154,8 @@ void fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, d
 
 double
 fastpm_solver_growth_factor(FastPMSolver * fastpm, double a);
+double
+fastpm_solver_growth_rate(FastPMSolver * fastpm, double a);
 
 void 
 fastpm_kick_store(FastPMKickFactor * kick,

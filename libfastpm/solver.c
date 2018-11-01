@@ -478,3 +478,14 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     fastpm_store_wrap(po, pm->BoxSize);
 }
 
+double
+fastpm_solver_growth_factor(FastPMSolver * fastpm, double a)
+{
+    return GrowthFactor(a, fastpm->cosmology);
+}
+
+double
+fastpm_solver_growth_rate(FastPMSolver * fastpm, double a)
+{
+    return DLogGrowthFactor(a, fastpm->cosmology);
+}

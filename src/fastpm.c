@@ -947,10 +947,10 @@ smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, FastPMSMesh
 static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr)
 {
-    fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f %0.4f %0.4f) D(%0.4f %0.4f %0.4f)\n",
+    fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f->%0.4f|%0.4f) D(%0.4f->%0.4f|%0.4f)\n",
         event->a1, event->a2,
-        event->kick->af, event->kick->ai, event->kick->ac,
-        event->drift->af, event->drift->ai, event->drift->ac
+        event->kick->ai, event->kick->af, event->kick->ac,
+        event->drift->ai, event->drift->af, event->drift->ac
     );
 
     /* interpolate and write snapshots, assuming p 
@@ -971,8 +971,9 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         FastPMStore snapshot[1];
         FastPMStore halos[1];
 
-        fastpm_info("Setting up snapshot at a = %6.4f (z=%6.4f)\n", aout[iout], 1.0f/aout[iout]-1);
+        fastpm_info("Current a_x = %6.4f, a_v = %6.4f \n", fastpm->p->meta.a_x, fastpm->p->meta.a_v);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
+        fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_rate(fastpm, aout[iout]), aout[iout]);
 
         fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
 

@@ -38,12 +38,6 @@ Sq(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_
 static double 
 Sphi(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_NONSTDDA);
 
-double
-fastpm_solver_growth_factor(FastPMSolver * fastpm, double a)
-{
-    return GrowthFactor(a, fastpm->cosmology);
-}
-
 inline void
 fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
 {
