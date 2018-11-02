@@ -59,6 +59,32 @@ def read_cat(ns, nmin=None):
     cat['RSDPosition'] = cat['Position'] + cat.attrs['RSDFactor'] * cat['Velocity'] * [0, 0, 1]
     return cat
 
+# use bisection to find the nmin to match the number of nsel
+
+def read_cat_nsel(ns, nsel, nmin0, nmin1):
+    cat = BigFileCatalog(ns.catalog, header='Header', dataset=ns.dataset)
+    volume = cat.attrs['BoxSize'][0] ** 3
+
+    if 'Length' in cat.columns:
+        while nmin1 - nmin0 > 1:
+            nminc = (nmin1 + nmin0) / 2
+
+            sel = True
+            sel = sel & (cat['Length'] >= nminc)
+
+            nsel1 = cat.comm.allreduce(sel.sum().compute())
+            if nsel1 < nsel: # too few
+                nmin1 = nminc
+            else:
+                nmin0 = nminc
+
+        if cat.comm.rank == 0:
+            print('found nmin', nmin1, nmin0, 'nsel is', nsel1, 'target is', nsel)
+
+        cat['Selection'] = sel
+    cat['RSDPosition'] = cat['Position'] + cat.attrs['RSDFactor'] * cat['Velocity'] * [0, 0, 1]
+    return cat
+
 def main(ns, ns1, ns2):
     if ns.verbose:
         setup_logging('info')
@@ -69,6 +95,8 @@ def main(ns, ns1, ns2):
         dk = None
 
     cat1 = read_cat(ns1)
+    cat2 = read_cat(ns2)
+
     nmin = numpy.unique(numpy.int32(numpy.logspace(numpy.log10(ns.nmin), numpy.log10(ns.nmax), ns.nn, endpoint=True)))
     if 'Length' in cat1.columns:
         nmin0 = cat1.comm.allreduce(cat1['Length'].min().compute() if cat1.size > 0 else 10000000, MPI.MIN)
@@ -78,12 +106,20 @@ def main(ns, ns1, ns2):
     else:
         nmin = [0]
 
+    if 'Length' in cat2.columns:
+        nmin2 = cat2.comm.allreduce(cat2['Length'].min().compute() if cat2.size > 0 else 10000000, MPI.MIN)
+        nmax2 = cat2.comm.allreduce(cat2['Length'].max().compute() if cat2.size > 0 else 0, MPI.MAX)
+    else:
+        nmin2 = 0
+        nmax2 = 1
+
     if cat1.comm.rank == 0:
         os.makedirs(os.path.dirname(ns.output), exist_ok=True)
 
     for nmin1 in nmin:
         cat1 = read_cat(ns1, nmin1)
-        cat2 = read_cat(ns2, nmin1)
+        nsel = cat1.comm.allreduce(cat1['Selection'].sum().compute())
+        cat2 = read_cat_nsel(ns2, nsel, nmin2, nmax2)
 
         mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
         mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
