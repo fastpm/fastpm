@@ -104,7 +104,7 @@ def main(ns, ns1, ns2):
         mesh3 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='Position')
 
         r_rsd = FFTPower(mesh1, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
-        r_read = FFTPower(mesh1, second=mesh3, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
+        r_real = FFTPower(mesh1, second=mesh3, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
 
         r.append(r_rsd)
 
