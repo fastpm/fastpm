@@ -23,7 +23,7 @@ import os
 ap = argparse.ArgumentParser()
 ap.add_argument("output", help='e.g. power.json (FFTPower.load) or power.txt (numpy.loadtxt)')
 ap.add_argument("--nmin", default=8, type=int)
-ap.add_argument("--kmax", default=0.04, type=float, help="cut to stop using kmax, scale where kaiser is bad")
+ap.add_argument("--kmax", default=None, type=float, help="cut to stop using kmax, scale where kaiser is bad")
 ap.add_argument("--nmax", default=1000, type=int)
 ap.add_argument("--nn", default=10, type=int)
 ap.add_argument("--unique-k", action='store_true', default=False, help='compute for all unique k values.')
@@ -88,58 +88,15 @@ def main(ns, ns1, ns2):
         mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
         mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
 
-        r1 = FFTPower(mesh1, second=mesh1, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
-        r2 = FFTPower(mesh2, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
-        rx = FFTPower(mesh1, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
+        r1 = FFTPower(mesh1, second=mesh1, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax)
+        r2 = FFTPower(mesh2, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax)
+        rx = FFTPower(mesh1, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax)
 
         save_bs(ns.output, 'nmin-%05d-r1' % nmin1, r1)
         save_bs(ns.output, 'nmin-%05d-r2' % nmin1, r2)
         save_bs(ns.output, 'nmin-%05d-rx' % nmin1, rx)
         if cat1.comm.rank == 0:
             print("nmin = ", nmin1, "finished")
-
-def fit_bias(r_rsd, r_real, rm, kmax):
-    # fit bias with real cross power
-    #
-    # then fit RSD with
-    #
-    # d_h^rsd = d_h^real + f mu^2 d_m
-    #
-    # this enhances variance cancallation, at the non-linear order.
-
-    mu = rm.power['mu']
-    mask = rm.power['k'] < kmax
-
-    def loss_b(b):
-        with numpy.errstate(all='ignore'):
-            model = b * rm.power['power']
-            res = (r_real.power['power'].real - model.real)
-
-        res[numpy.isnan(res)] = 0
-        res *= rm.power['modes']
-        res *= mask
-
-        return numpy.sum(res ** 2)
-
-    def loss_f(f):
-        with numpy.errstate(all='ignore'):
-            model = r_real.power['power'] + (f * mu ** 2) * rm.power['power']
-            res = (r_rsd.power['power'].real - model.real)
-
-        res[numpy.isnan(res)] = 0
-        res *= rm.power['modes']
-        res *= mask
-
-        return numpy.sum(res ** 2)
-
-    from scipy.optimize import minimize
-    res = minimize(lambda x: loss_b(x[0]), x0=(1,), method='Nelder-Mead')
-
-    b = res.x[0]
-
-    res = minimize(lambda x: loss_f(x[0]), x0=(0.), method='Nelder-Mead')
-    f = res.x[0]
-    return b, f
 
 def save_bs(filename, dataset, r):
 
