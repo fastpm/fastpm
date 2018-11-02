@@ -101,11 +101,15 @@ def main(ns, ns1, ns2):
     for nmin1 in nmin:
         cat2 = read_cat(ns2, nmin1)
         mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
+        mesh3 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='Position')
 
-        r.append(FFTPower(mesh1, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10))
+        r_rsd = FFTPower(mesh1, second=mesh2, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
+        r_read = FFTPower(mesh1, second=mesh3, mode='2d', dk=dk, Nmu=10, kmax=ns.kmax * 10)
+
+        r.append(r_rsd)
 
         save_bs(ns.output, 'x-nmin-%05d' % nmin1, r[-1])
-        bias, gr = fit_bias(r[-1], rm, ns.kmax)
+        bias, gr = fit_bias(r_rsd, r_real, rm, ns.kmax)
         abundance = r[-1].attrs['N2'] / cat2.attrs['BoxSize'][0] ** 3
         b.append(bias)
         a.append(abundance)
@@ -123,31 +127,48 @@ def main(ns, ns1, ns2):
             figure = make_plot(rm, r, nmin, b, f, ns.kmax)
             figure.savefig(basename + '.png')
 
-def fit_bias(r, rm, kmax):
-    def loss(b, f):
-        if 'mu' in rm.power:
-            mu = rm.power['mu']
-        else:
-            mu = 0
+def fit_bias(r_rsd, r_real, rm, kmax):
+    # fit bias with real cross power
+    #
+    # then fit RSD with
+    #
+    # d_h^rsd = d_h^real + f mu^2 d_m
+    #
+    # this enhances variance cancallation, at the non-linear order.
 
+    mu = rm.power['mu']
+    mask = rm.power['k'] < kmax
+
+    def loss_b(b):
         with numpy.errstate(all='ignore'):
-            model = (b + f * mu ** 2) * rm.power['power']
-            res = (r.power['power'].real - model.real)
+            model = b * rm.power['power']
+            res = (r_real.power['power'].real - model.real)
 
         res[numpy.isnan(res)] = 0
-        res *= r.power['modes']
-        mask = r.power['k'] < kmax
-#        if (r.power['modes'][mask]).sum() < r.power['modes'][:5].sum():
-#            mask = r.power['k'] <= r.power['k'][5]
+        res *= rm.power['modes']
+        res *= mask
 
+        return numpy.sum(res ** 2)
+
+    def loss_f(f):
+        with numpy.errstate(all='ignore'):
+            model = r_real.power['power'] + (f * mu ** 2) * rm.power['power']
+            res = (r_rsd.power['power'].real - model.real)
+
+        res[numpy.isnan(res)] = 0
+        res *= rm.power['modes']
         res *= mask
 
         return numpy.sum(res ** 2)
 
     from scipy.optimize import minimize
-    res = minimize(lambda x: loss(x[0], x[1]), x0=(1, 0), method='Nelder-Mead')
+    res = minimize(lambda x: loss_b(x[0]), x0=(1,), method='Nelder-Mead')
 
-    return res.x[0], res.x[1]
+    b = res.x[0]
+
+    res = minimize(lambda x: loss_f(x[0]), x0=(0.), method='Nelder-Mead')
+    f = res.x[0]
+    return b, f
 
 def save_bs(filename, dataset, r):
 
