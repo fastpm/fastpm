@@ -44,8 +44,13 @@ _memory_peak_handler(FastPMMemory * mem, void * userdata);
 static int 
 take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, double aout, Parameters * prr);
 
+struct smesh_force_handler_data {
+    FastPMSMesh * smesh;
+    Parameters * prr;
+};
+
 static void
-smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, FastPMSMesh * smesh);
+smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, struct smesh_force_handler_data * userdata);
 
 struct smesh_ready_handler_data {
     FastPMSolver * fastpm;
@@ -338,6 +343,180 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     return 0;
 }
 
+static void
+prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, Parameters * prr, double aout)
+{
+    /* at this point generating the ic involves delta_k */
+
+    if(CONF(prr->lua, read_lineark)) {
+        fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr->lua, read_lineark));
+        read_complex(pm, delta_k, CONF(prr->lua, read_lineark), "LinearDensityK", prr->cli->Nwriters);
+
+        if(CONF(prr->lua, inverted_ic)) {
+            fastpm_apply_multiply_transfer(pm, delta_k, delta_k, -1);
+        }
+        return;
+    }
+
+    /* at this power we need a powerspectrum file to convolve the guassian */
+    if(!CONF(prr->lua, read_powerspectrum)) {
+        fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
+    }
+
+    FastPMPowerSpectrum linear_powerspectrum;
+
+    read_powerspectrum(&linear_powerspectrum, CONF(prr->lua, read_powerspectrum), CONF(prr->lua, sigma8), pm_comm(pm));
+
+    if(CONF(prr->lua, read_grafic)) {
+        fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr->lua, read_grafic));
+        fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
+        fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
+
+        FastPMFloat * g_x = pm_alloc(pm);
+
+        read_grafic_gaussian(pm, g_x, CONF(prr->lua, read_grafic));
+
+        /* r2c will reduce the variance. Compensate here.*/
+        fastpm_apply_multiply_transfer(pm, g_x, g_x, sqrt(pm_norm(pm)));
+        pm_r2c(pm, g_x, delta_k);
+
+        pm_free(pm, g_x);
+
+        goto induce;
+    }
+
+    if(CONF(prr->lua, read_whitenoisek)) {
+        fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr->lua, read_whitenoisek));
+
+        read_complex(pm, delta_k, CONF(prr->lua, read_whitenoisek), "WhiteNoiseK", prr->cli->Nwriters);
+        goto induce;
+    }
+
+    /* Nothing to read from, just generate a gadget IC with the seed. */
+    fastpm_ic_fill_gaussiank(pm, delta_k, CONF(prr->lua, random_seed), FASTPM_DELTAK_GADGET);
+
+induce:
+    if(CONF(prr->lua, remove_cosmic_variance)) {
+        fastpm_info("Remove Cosmic variance from initial condition.\n");
+        fastpm_ic_remove_variance(pm, delta_k);
+    }
+
+    if(CONF(prr->lua, set_mode)) {
+        int method = 0;
+        /* FIXME: use enums */
+        if(0 == strcmp(CONF(prr->lua, set_mode_method), "add")) {
+            method = 1;
+            fastpm_info("SetMode is add\n");
+        } else {
+            fastpm_info("SetMode is override\n");
+        }
+        int i;
+        double * c = CONF(prr->lua, set_mode);
+        for(i = 0; i < CONF(prr->lua, n_set_mode); i ++) {
+            ptrdiff_t mode[4] = {
+                c[i * 5 + 0],
+                c[i * 5 + 1],
+                c[i * 5 + 2],
+                c[i * 5 + 3],
+            };
+            double value = c[i * 5 + 4];
+            fastpm_apply_set_mode_transfer(pm, delta_k, delta_k, mode, value, method);
+            double result = fastpm_apply_get_mode_transfer(pm, delta_k, mode);
+            fastpm_info("SetMode %d : %td %td %td %td value = %g, to = %g\n", i, mode[0], mode[1], mode[2], mode[3], value, result);
+        }
+    }
+
+    if(CONF(prr->lua, inverted_ic)) {
+        fastpm_apply_multiply_transfer(pm, delta_k, delta_k, -1);
+    }
+
+    double variance = pm_compute_variance(pm, delta_k);
+    fastpm_info("Variance of input white noise is %0.8f, expectation is %0.8f\n", variance, 1.0 - 1.0 / pm_norm(pm));
+
+    if(CONF(prr->lua, write_whitenoisek)) {
+        fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr->lua, write_whitenoisek));
+        write_complex(pm, delta_k, CONF(prr->lua, write_whitenoisek), "WhiteNoiseK", prr->cli->Nwriters);
+    }
+
+    /* introduce correlation */
+    if(CONF(prr->lua, f_nl_type) == FASTPM_FNL_NONE) {
+        fastpm_info("Inducing correlation to the white noise.\n");
+
+        fastpm_ic_induce_correlation(pm, delta_k,
+            (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
+    } else {
+        double kmax_primordial;
+        kmax_primordial = CONF(prr->lua, nc) / 2.0 * 2.0*M_PI/CONF(prr->lua, boxsize) * CONF(prr->lua, kmax_primordial_over_knyquist);
+        fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
+        FastPMPNGaussian png = {
+            .fNL = CONF(prr->lua, f_nl),
+            .type = CONF(prr->lua, f_nl_type),
+            .kmax_primordial = kmax_primordial,
+            .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
+            .pkdata = &linear_powerspectrum,
+            .h = CONF(prr->lua, h),
+            .scalar_amp = CONF(prr->lua, scalar_amp),
+            .scalar_spectral_index = CONF(prr->lua, scalar_spectral_index),
+            .scalar_pivot = CONF(prr->lua, scalar_pivot)
+        };
+        fastpm_info("Inducing non gaussian correlation to the white noise.\n");
+        fastpm_png_induce_correlation(&png, pm, delta_k);
+    }
+
+    /* The linear density field is not redshift zero, then evolve it with the model cosmology to 
+     * redshift zero.
+     * This matches the linear power at the given redshift, not necessarily redshift 0. */
+    {
+        double linear_density_redshift = CONF(prr->lua, linear_density_redshift);
+        double linear_evolve = fastpm_solver_growth_factor(fastpm, aout) /
+                               fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
+
+        fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift 0.\n", linear_density_redshift, linear_evolve);
+
+        fastpm_apply_multiply_transfer(pm, delta_k, delta_k, linear_evolve);
+    }
+
+    /* set the mean to 1.0 */
+    ptrdiff_t mode[4] = { 0, 0, 0, 0, };
+
+    fastpm_apply_modify_mode_transfer(pm, delta_k, delta_k, mode, 1.0);
+
+    /* add constraints */
+    if(CONF(prr->lua, constraints)) {
+        FastPM2PCF xi;
+
+        fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, CONF(prr->lua, boxsize), CONF(prr->lua, nc));
+
+        FastPMConstrainedGaussian cg = {
+            .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr->lua, n_constraints) + 1)),
+        };
+        fastpm_info("Applying %d constraints.\n", CONF(prr->lua, n_constraints));
+        int i;
+        for(i = 0; i < CONF(prr->lua, n_constraints); i ++) {
+            double * c = CONF(prr->lua, constraints);
+            cg.constraints[i].x[0] = c[4 * i + 0];
+            cg.constraints[i].x[1] = c[4 * i + 1];
+            cg.constraints[i].x[2] = c[4 * i + 2];
+            cg.constraints[i].c = c[4 * i + 3];
+            fastpm_info("Constraint %d : %g %g %g peak-sigma = %g\n", i, c[4 * i + 0], c[4 * i + 1], c[4 * i + 2], c[4 * i + 3]);
+        }
+        cg.constraints[i].x[0] = -1;
+        cg.constraints[i].x[1] = -1;
+        cg.constraints[i].x[2] = -1;
+        cg.constraints[i].c = -1;
+
+        if(CONF(prr->lua, write_lineark)) {
+            fastpm_info("Writing fourier space linear field before constraints to %s\n", CONF(prr->lua, write_lineark));
+            write_complex(pm, delta_k, CONF(prr->lua, write_lineark), "UnconstrainedLinearDensityK", prr->cli->Nwriters);
+        }
+        fastpm_cg_apply_constraints(&cg, pm, &xi, delta_k);
+
+        free(cg.constraints);
+    }
+
+    fastpm_powerspectrum_destroy(&linear_powerspectrum);
+}
+
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
 {
@@ -368,179 +547,11 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         return;
     } 
 
-    /* at this point generating the ic involves delta_k */
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
-    if(CONF(prr->lua, read_lineark)) {
-        fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr->lua, read_lineark));
-        read_complex(fastpm->basepm, delta_k, CONF(prr->lua, read_lineark), "LinearDensityK", prr->cli->Nwriters);
-
-        if(CONF(prr->lua, inverted_ic)) {
-            fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
-        }
-        goto produce;
-    }
-
-    /* at this power we need a powerspectrum file to convolve the guassian */
-    if(!CONF(prr->lua, read_powerspectrum)) {
-        fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
-    }
-
-    FastPMPowerSpectrum linear_powerspectrum;
-
-    read_powerspectrum(&linear_powerspectrum, CONF(prr->lua, read_powerspectrum), CONF(prr->lua, sigma8), comm);
-
-    if(CONF(prr->lua, read_grafic)) {
-        fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr->lua, read_grafic));
-        fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
-        fastpm_info("The simulation will be transformed x->z y->y z->x.\n");
-
-        FastPMFloat * g_x = pm_alloc(fastpm->basepm);
-
-        read_grafic_gaussian(fastpm->basepm, g_x, CONF(prr->lua, read_grafic));
-
-        /* r2c will reduce the variance. Compensate here.*/
-        fastpm_apply_multiply_transfer(fastpm->basepm, g_x, g_x, sqrt(pm_norm(fastpm->basepm)));
-        pm_r2c(fastpm->basepm, g_x, delta_k);
-
-        pm_free(fastpm->basepm, g_x);
-
-        goto induce;
-    }
-
-    if(CONF(prr->lua, read_whitenoisek)) {
-        fastpm_info("Reading Fourier white noise file from '%s'.\n", CONF(prr->lua, read_whitenoisek));
-
-        read_complex(fastpm->basepm, delta_k, CONF(prr->lua, read_whitenoisek), "WhiteNoiseK", prr->cli->Nwriters);
-        goto induce;
-    }
-
-    /* Nothing to read from, just generate a gadget IC with the seed. */
-    fastpm_ic_fill_gaussiank(fastpm->basepm, delta_k, CONF(prr->lua, random_seed), FASTPM_DELTAK_GADGET);
-
-induce:
-    if(CONF(prr->lua, remove_cosmic_variance)) {
-        fastpm_info("Remove Cosmic variance from initial condition.\n");
-        fastpm_ic_remove_variance(fastpm->basepm, delta_k);
-    }
-
-    if(CONF(prr->lua, set_mode)) {
-        int method = 0;
-        /* FIXME: use enums */
-        if(0 == strcmp(CONF(prr->lua, set_mode_method), "add")) {
-            method = 1;
-            fastpm_info("SetMode is add\n");
-        } else {
-            fastpm_info("SetMode is override\n");
-        }
-        int i;
-        double * c = CONF(prr->lua, set_mode);
-        for(i = 0; i < CONF(prr->lua, n_set_mode); i ++) {
-            ptrdiff_t mode[4] = {
-                c[i * 5 + 0],
-                c[i * 5 + 1],
-                c[i * 5 + 2],
-                c[i * 5 + 3],
-            };
-            double value = c[i * 5 + 4];
-            fastpm_apply_set_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, value, method);
-            double result = fastpm_apply_get_mode_transfer(fastpm->basepm, delta_k, mode);
-            fastpm_info("SetMode %d : %td %td %td %td value = %g, to = %g\n", i, mode[0], mode[1], mode[2], mode[3], value, result);
-        }
-    }
-
-    if(CONF(prr->lua, inverted_ic)) {
-        fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, -1);
-    }
-
-    double variance = pm_compute_variance(fastpm->basepm, delta_k);
-    fastpm_info("Variance of input white noise is %0.8f, expectation is %0.8f\n", variance, 1.0 - 1.0 / pm_norm(fastpm->basepm));
-
-    if(CONF(prr->lua, write_whitenoisek)) {
-        fastpm_info("Writing Fourier white noise to file '%s'.\n", CONF(prr->lua, write_whitenoisek));
-        write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_whitenoisek), "WhiteNoiseK", prr->cli->Nwriters);
-    }
-
-    /* introduce correlation */
-    if(CONF(prr->lua, f_nl_type) == FASTPM_FNL_NONE) {
-        fastpm_info("Inducing correlation to the white noise.\n");
-
-        fastpm_ic_induce_correlation(fastpm->basepm, delta_k,
-            (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum);
-    } else {
-        double kmax_primordial;
-        kmax_primordial = CONF(prr->lua, nc) / 2.0 * 2.0*M_PI/CONF(prr->lua, boxsize) * CONF(prr->lua, kmax_primordial_over_knyquist);
-        fastpm_info("Will set Phi_Gaussian(k)=0 for k>=%f.\n", kmax_primordial);
-        FastPMPNGaussian png = {
-            .fNL = CONF(prr->lua, f_nl),
-            .type = CONF(prr->lua, f_nl_type),
-            .kmax_primordial = kmax_primordial,
-            .pkfunc = (fastpm_fkfunc) fastpm_powerspectrum_eval2,
-            .pkdata = &linear_powerspectrum,
-            .h = CONF(prr->lua, h),
-            .scalar_amp = CONF(prr->lua, scalar_amp),
-            .scalar_spectral_index = CONF(prr->lua, scalar_spectral_index),
-            .scalar_pivot = CONF(prr->lua, scalar_pivot)
-        };
-        fastpm_info("Inducing non gaussian correlation to the white noise.\n");
-        fastpm_png_induce_correlation(&png, fastpm->basepm, delta_k);
-    }
-
-    /* The linear density field is not redshift zero, then evolve it with the model cosmology to 
-     * redshift zero.
-     * This matches the linear power at the given redshift, not necessarily redshift 0. */
-    {
-        double linear_density_redshift = CONF(prr->lua, linear_density_redshift);
-        double linear_evolve = fastpm_solver_growth_factor(fastpm, 1.0) /
-                               fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
-
-        fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift 0.\n", linear_density_redshift, linear_evolve);
-
-        fastpm_apply_multiply_transfer(fastpm->basepm, delta_k, delta_k, linear_evolve);
-    }
-
-    /* set the mean to 1.0 */
-    ptrdiff_t mode[4] = { 0, 0, 0, 0, };
-
-    fastpm_apply_modify_mode_transfer(fastpm->basepm, delta_k, delta_k, mode, 1.0);
-
-    /* add constraints */
-    if(CONF(prr->lua, constraints)) {
-        FastPM2PCF xi;
-
-        fastpm_2pcf_from_powerspectrum(&xi, (fastpm_fkfunc) fastpm_powerspectrum_eval2, &linear_powerspectrum, CONF(prr->lua, boxsize), CONF(prr->lua, nc));
-
-        FastPMConstrainedGaussian cg = {
-            .constraints = malloc(sizeof(FastPMConstraint) * (CONF(prr->lua, n_constraints) + 1)),
-        };
-        fastpm_info("Applying %d constraints.\n", CONF(prr->lua, n_constraints));
-        int i;
-        for(i = 0; i < CONF(prr->lua, n_constraints); i ++) {
-            double * c = CONF(prr->lua, constraints);
-            cg.constraints[i].x[0] = c[4 * i + 0];
-            cg.constraints[i].x[1] = c[4 * i + 1];
-            cg.constraints[i].x[2] = c[4 * i + 2];
-            cg.constraints[i].c = c[4 * i + 3];
-            fastpm_info("Constraint %d : %g %g %g peak-sigma = %g\n", i, c[4 * i + 0], c[4 * i + 1], c[4 * i + 2], c[4 * i + 3]);
-        }
-        cg.constraints[i].x[0] = -1;
-        cg.constraints[i].x[1] = -1;
-        cg.constraints[i].x[2] = -1;
-        cg.constraints[i].c = -1;
-
-        if(CONF(prr->lua, write_lineark)) {
-            fastpm_info("Writing fourier space linear field before constraints to %s\n", CONF(prr->lua, write_lineark));
-            write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_lineark), "UnconstrainedLinearDensityK", prr->cli->Nwriters);
-        }
-        fastpm_cg_apply_constraints(&cg, fastpm->basepm, &xi, delta_k);
-
-        free(cg.constraints);
-    }
-
-    fastpm_powerspectrum_destroy(&linear_powerspectrum);
+    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0);
 
     /* our write out and clean up stuff.*/
-produce:
 
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
@@ -664,10 +675,15 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
             fastpm_smesh_add_layer_pm(*smesh, fastpm->basepm, NULL, Nc1, lc_amin, lc_amax);
         }
 
-        fastpm_add_event_handler(&fastpm->event_handlers,
+        struct smesh_force_handler_data * data1 = malloc(sizeof(data1));
+
+        data1->smesh = *smesh;
+        data1->prr = prr;
+
+        fastpm_add_event_handler_free(&fastpm->event_handlers,
                 FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
                 (FastPMEventHandlerFunction) smesh_force_handler,
-                *smesh);
+                data1, free);
 
         size_t Nslices;
         FastPMSMeshSlice * slices = fastpm_smesh_get_aemit(*smesh, &Nslices);
@@ -936,11 +952,25 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 
 /* bridging force event to smesh interpolation */
 static void
-smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, FastPMSMesh * smesh)
+smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, struct smesh_force_handler_data * userdata)
 {
+    FastPMSMesh * smesh = userdata->smesh;
+    Parameters * prr = userdata->prr;
+
     CLOCK(potential);
     ENTER(potential);
-    fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+    if(CONF(prr->lua, lc_smesh_use_linear_fields)) {
+        FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
+
+        /* generate linear field at this time */
+        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, event->a_f);
+
+        fastpm_smesh_compute_potential(smesh, fastpm->basepm, event->gravity, delta_k, event->a_f, event->a_n);
+
+        pm_free(fastpm->basepm, delta_k);
+    } else {
+        fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+    }
     LEAVE(potential);
 }
 
