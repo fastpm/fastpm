@@ -73,7 +73,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
             .Nmesh = config->nc,
             .BoxSize = config->boxsize,
             .NprocY = config->NprocY, /* 0 for auto, 1 for slabs */
-            .transposed = 1,
+            .transposed = 0, /* use untransposed to make sure we see all kz on a rank; this speeds up IC */
             .use_fftw = config->UseFFTW,
         };
 
