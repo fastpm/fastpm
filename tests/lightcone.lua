@@ -64,7 +64,9 @@ lc_smesh_max_nside= 32
 lc_amin = 0.1
 lc_amax = 1.0
 lc_smesh_fraction = 1.0
---
+
+-- lc_smesh_use_linear_fields = true
+
 lc_usmesh_tiles = fastpm.outerproduct({-1, 0}, {-1, 0}, {-1, 0})
 lc_usmesh_fof_padding = 10.0
 lc_usmesh_alloc_factor = 10.0
