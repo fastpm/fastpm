@@ -81,6 +81,8 @@ int big_block_mpi_grow_simple(BigBlock * block, int Nfile_grow, size_t fsize_gro
 void big_file_mpi_set_aggregated_threshold(size_t bytes);
 size_t big_file_mpi_get_aggregated_threshold();
 
+void big_file_mpi_set_verbose(int verbose);
+
 /** Write data stored in a BigArray to a BigBlock.
  * You cannot write beyond the end of the size of the block.
  * The value may be a (small) array.

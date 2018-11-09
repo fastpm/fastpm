@@ -8,6 +8,7 @@
 
 /* disable aggregation by default */
 static size_t _BigFileAggThreshold = 0;
+static int _big_file_mpi_verbose = 0;
 
 static int big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm);
 static int big_file_mpi_broadcast_anyerror(int rt, MPI_Comm comm);
@@ -16,6 +17,12 @@ static int big_file_mpi_broadcast_anyerror(int rt, MPI_Comm comm);
     if(0 != (rt = big_file_mpi_broadcast_anyerror(rt, comm))) { \
         return rt; \
     } \
+
+void
+big_file_mpi_set_verbose(int verbose)
+{
+    _big_file_mpi_verbose = verbose;
+}
 
 void
 big_file_mpi_set_aggregated_threshold(size_t bytes)
@@ -335,29 +342,38 @@ big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm)
     return 0;
 }
 
-typedef struct ThrottlePlan {
-    MPI_Comm group;
-    int GroupSize;
-    int GroupRank;
-    size_t offset;
-    size_t totalsize;
-    size_t localsize;
-    size_t grouptotalsize;
-    size_t elsize;
-    MPI_Datatype mpidtype;
-    BigBlock * block;
-    int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array);
-    int (*execute)(struct ThrottlePlan * plan, BigBlockPtr * ptr, BigArray * array);
-} ThrottlePlan;
+static int
+_assign_colors(size_t glocalsize, size_t * sizes, int * color, int NTask)
+{
+    int i;
+
+    size_t current_size = 0;
+    int current_color = 0;
+    for(i = 0; i < NTask; i ++) {
+        current_size += sizes[i];
+        color[i] = current_color;
+        if(current_size > glocalsize) {
+            current_size = 0;
+            current_color ++;
+        }
+    }
+    return color[NTask - 1] + 1;
+}
 
 static int
-_throttle_plan_execute_agg(ThrottlePlan * plan,
-            BigBlockPtr * ptr, BigArray * array);
+_aggregated(
+            BigBlock * block,
+            BigBlockPtr * ptr,
+            ptrdiff_t offset, /* offset of the entire comm */
+            size_t localsize,
+            BigArray * array,
+            int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array),
+            MPI_Comm comm);
+
 static int
-_throttle_plan_execute_turns(ThrottlePlan * plan,
-            BigBlockPtr * ptr, BigArray * array);
-static int
-_throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, BigBlock * block, size_t localsize,
+_throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
+    BigBlockPtr * ptr,
+    BigArray * array,
     int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array)
 )
 {
@@ -370,14 +386,12 @@ _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, BigBl
         concurrency = NTask;
     }
 
-    int color = (ptrdiff_t) ThisTask * concurrency / NTask;
-    MPI_Comm_split(MPI_COMM_WORLD, color, ThisTask, &plan->group);
-    MPI_Comm_size(plan->group, &plan->GroupSize);
-    MPI_Comm_rank(plan->group, &plan->GroupRank);
-    MPI_Allreduce(MPI_IN_PLACE, &plan->GroupSize, 1, MPI_INT, MPI_MAX, comm);
+    ptrdiff_t * sizes = malloc(sizeof(sizes[0]) * NTask);
+    size_t * offsets = malloc(sizeof(offsets[0]) * (NTask + 1));
 
-    ptrdiff_t offsets[NTask + 1], sizes[NTask];
-    ptrdiff_t grouptotalsize;
+    ptrdiff_t totalsize;
+
+    sizes[ThisTask] = array->dims[0];
 
     MPI_Datatype MPI_PTRDIFFT;
 
@@ -389,45 +403,123 @@ _throttle_plan_create(ThrottlePlan * plan, MPI_Comm comm, int concurrency, BigBl
         /* Weird architecture indeed. */
         abort();
     }
-    sizes[ThisTask] = localsize;
 
-    MPI_Allreduce(&localsize, &grouptotalsize, 1, MPI_PTRDIFFT, MPI_SUM, plan->group);
+
+    MPI_Allreduce(&sizes[ThisTask], &totalsize, 1, MPI_PTRDIFFT, MPI_SUM, comm);
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_PTRDIFFT, comm);
-    offsets[0] = 0;
+
+    /* divide into groups of this size */
+
+    ptrdiff_t glocalsize = totalsize / concurrency + 1;
+
+    if (glocalsize > _BigFileAggThreshold) {
+        glocalsize = _BigFileAggThreshold;
+    }
+
+    int * segid = malloc(sizeof(segid[0]) * NTask);
+    int Nsegid = _assign_colors(glocalsize, sizes, segid, NTask);
+
+    int * seg_writer = malloc(sizeof(seg_writer[0]) * Nsegid);
     int i;
+
+    for(i = 0; i < Nsegid; i ++) {
+        seg_writer[i] = i * concurrency / Nsegid;
+    }
+
+    int WriterID = seg_writer[segid[ThisTask]];
+    MPI_Comm WriterGroup;
+    int WriterGroupSize;
+    int WriterGroupRank;
+
+    MPI_Comm_split(comm, WriterID, ThisTask, &WriterGroup);
+
+    MPI_Comm_size(WriterGroup, &WriterGroupSize);
+    MPI_Comm_rank(WriterGroup, &WriterGroupRank);
+
+    /* compute the unique segments on this writer */
+    int Nseg_this_writer = 0;
+
+    for(i = 0; i < Nsegid; i ++) {
+        if(seg_writer[i] == WriterID) {
+            Nseg_this_writer ++;
+        }
+    }
+
+    int * unique_segs = malloc(sizeof(int) * Nseg_this_writer);
+
+    Nseg_this_writer = 0;
+    for(i = 0; i < Nsegid; i ++) {
+        if(seg_writer[i] == WriterID) {
+            unique_segs[Nseg_this_writer] = i;
+            Nseg_this_writer ++;
+        }
+    }
+
+    if (_big_file_mpi_verbose) {
+        if (WriterGroupRank == 0) {
+            printf("WriterGroup = %d WriterGroupSize = %d segs = [ ", WriterID, WriterGroupSize);
+            for(i = 0; i < Nseg_this_writer; i ++) {
+                printf("%d ", unique_segs[i]);
+            }
+            printf("] \n");
+        }
+    }
+
+    /* offsets */
+    offsets[0] = 0;
     for(i = 0; i < NTask; i ++) {
         offsets[i + 1] = offsets[i] + sizes[i];
     }
-    plan->offset = offsets[ThisTask];
-    plan->totalsize = offsets[NTask];
-    plan->localsize = localsize;
-    plan->grouptotalsize = grouptotalsize;
-    plan->elsize = big_file_dtype_itemsize(block->dtype) * block->nmemb;
-    plan->action = action;
-    plan->block = block;
 
-    MPI_Type_contiguous(plan->elsize, MPI_BYTE, &plan->mpidtype);
-    MPI_Type_commit(&plan->mpidtype);
+    MPI_Comm SegGroup;
 
-    size_t gbytes = plan->grouptotalsize * plan->elsize;
-    if(gbytes <= _BigFileAggThreshold) {
-        plan->execute = _throttle_plan_execute_agg;
-    } else {
-        plan->execute = _throttle_plan_execute_turns;
+    MPI_Comm_split(WriterGroup, segid[ThisTask], ThisTask, &SegGroup);
+
+    int rt = 0;
+    int active;
+    for(active = 0; active < Nseg_this_writer; active++) {
+
+        MPI_Barrier(WriterGroup);
+
+        if(0 != (rt = big_file_mpi_broadcast_anyerror(rt, WriterGroup))) {
+            /* failed , abort. */
+            continue;
+        } 
+        if(segid[ThisTask] != unique_segs[active]) continue;
+
+        /* offset on the root of SegGroup matters */
+        rt = _aggregated(block, ptr, offsets[ThisTask], sizes[ThisTask], array, action, SegGroup);
+
     }
-    return 0;
-}
 
-static void _throttle_plan_destroy(ThrottlePlan * plan)
-{
-    MPI_Comm_free(&plan->group);
-    MPI_Type_free(&plan->mpidtype);
+    free(segid);
+    free(seg_writer);
+    free(unique_segs);
+    free(sizes);
+    free(offsets);
+
+    MPI_Comm_free(&SegGroup);
+    MPI_Comm_free(&WriterGroup);
+
+    if(0 == (rt = big_file_mpi_broadcast_anyerror(rt, comm))) {
+        /* no errors*/
+        big_block_seek_rel(block, ptr, totalsize);
+    }
+    return rt;
 }
 
 static int
-_throttle_plan_execute_agg(ThrottlePlan * plan,
-            BigBlockPtr * ptr, BigArray * array)
+_aggregated(
+            BigBlock * block,
+            BigBlockPtr * ptr,
+            ptrdiff_t offset, /* offset of the entire comm */
+            size_t localsize, /* offset of the entire comm */
+            BigArray * array,
+            int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array),
+            MPI_Comm comm)
 {
+    size_t elsize = big_file_dtype_itemsize(block->dtype) * block->nmemb;
+
     /* This will aggregate to the root and write */
     BigBlockPtr ptr1[1];
     /* use memcpy because older compilers doesn't like *ptr assignments */
@@ -435,100 +527,81 @@ _throttle_plan_execute_agg(ThrottlePlan * plan,
 
     int i;
     int e = 0;
+    int rank;
+    int nrank;
+
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &nrank);
+
     BigArray garray[1], larray[1];
     BigArrayIter iarray[1], ilarray[1];
-    void * lbuf = malloc(plan->elsize * plan->localsize);
+    void * lbuf = malloc(elsize * localsize);
     void * gbuf = NULL;
 
-    int recvcounts[plan->GroupSize];
-    int recvdispls[plan->GroupSize + 1];
+    int recvcounts[nrank];
+    int recvdispls[nrank + 1];
 
     recvdispls[0] = 0;
-    recvcounts[plan->GroupRank] = plan->localsize;
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, recvcounts, 1, MPI_INT, plan->group);
+    recvcounts[rank] = localsize;
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, recvcounts, 1, MPI_INT, comm);
 
-    for(i = 0; i < plan->GroupSize; i ++) {
+    int grouptotalsize = localsize;
+
+    MPI_Allreduce(MPI_IN_PLACE, &grouptotalsize, 1, MPI_INT, MPI_SUM, comm);
+
+    for(i = 0; i < nrank; i ++) {
         recvdispls[i + 1] = recvdispls[i] + recvcounts[i];
     }
 
-    big_array_init(larray, lbuf, plan->block->dtype, 2, (size_t[]){plan->localsize, plan->block->nmemb}, NULL);
+    MPI_Datatype mpidtype;
+    MPI_Type_contiguous(elsize, MPI_BYTE, &mpidtype);
+    MPI_Type_commit(&mpidtype);
+
+    big_array_init(larray, lbuf, block->dtype, 2, (size_t[]){localsize, block->nmemb}, NULL);
 
     big_array_iter_init(iarray, array);
     big_array_iter_init(ilarray, larray);
 
-    if(plan->GroupRank == 0) {
-        gbuf = malloc(plan->grouptotalsize * plan->elsize);
-        big_array_init(garray, gbuf, plan->block->dtype, 2, (size_t[]){plan->grouptotalsize, plan->block->nmemb}, NULL);
+    if(rank == 0) {
+        gbuf = malloc(grouptotalsize * elsize);
+        big_array_init(garray, gbuf, block->dtype, 2, (size_t[]){grouptotalsize, block->nmemb}, NULL);
     }
 
-    if(plan->action == big_block_write) {
-        _dtype_convert(ilarray, iarray, plan->localsize * plan->block->nmemb);
-        MPI_Gatherv(lbuf, recvcounts[plan->GroupRank], plan->mpidtype,
-                    gbuf, recvcounts, recvdispls, plan->mpidtype, 0, plan->group);
+    if(action == big_block_write) {
+        _dtype_convert(ilarray, iarray, localsize * block->nmemb);
+        MPI_Gatherv(lbuf, recvcounts[rank], mpidtype,
+                    gbuf, recvcounts, recvdispls, mpidtype, 0, comm);
     }
-    if(plan->GroupRank == 0) {
-        big_block_seek_rel(plan->block, ptr1, plan->offset);
-        e = plan->action(plan->block, ptr1, garray);
+    if(rank == 0) {
+        big_block_seek_rel(block, ptr1, offset);
+        e = action(block, ptr1, garray);
     }
-    if(plan->action == big_block_read) {
-        MPI_Scatterv(gbuf, recvcounts, recvdispls, plan->mpidtype,
-                    lbuf, plan->localsize, plan->mpidtype, 0, plan->group);
-        _dtype_convert(iarray, ilarray, plan->localsize * plan->block->nmemb);
+    if(action == big_block_read) {
+        MPI_Scatterv(gbuf, recvcounts, recvdispls, mpidtype,
+                    lbuf, localsize, mpidtype, 0, comm);
+        _dtype_convert(iarray, ilarray, localsize * block->nmemb);
     }
-    if(plan->GroupRank == 0) {
+
+    if(rank == 0) {
         free(gbuf);
     }
     free(lbuf);
 
-    big_block_seek_rel(plan->block, ptr, plan->totalsize);
-    return e;
-}
+    MPI_Type_free(&mpidtype);
 
-static int
-_throttle_plan_execute_turns(ThrottlePlan * plan,
-            BigBlockPtr * ptr, BigArray * array)
-{
-    int i;
-    int e = 0;
-
-    BigBlockPtr ptr1[1];
-    /* use memcpy because older compilers doesn't like *ptr assignments */
-    memcpy(ptr1, ptr, sizeof(BigBlockPtr));
-
-    for(i = 0; i < plan->GroupSize; i ++) {
-        MPI_Allreduce(MPI_IN_PLACE, &e, 1, MPI_INT, MPI_LOR, plan->group);
-        if (e) continue;
-        if (i != plan->GroupRank) continue;
-        big_block_seek_rel(plan->block, ptr1, plan->offset);
-        e = plan->action(plan->block, ptr1, array);
-    }
-
-    big_block_seek_rel(plan->block, ptr, plan->totalsize);
-    return e;
+    return big_file_mpi_broadcast_anyerror(e, comm);
 }
 
 int
 big_block_mpi_write(BigBlock * block, BigBlockPtr * ptr, BigArray * array, int concurrency, MPI_Comm comm)
 {
-    /* FIXME: make the exception collective */
-    ThrottlePlan plan[1];
-    _throttle_plan_create(plan, comm, concurrency, block, array->dims[0], big_block_write);
-
-    int rt = plan->execute(plan, ptr, array);
-
-    _throttle_plan_destroy(plan);
+    int rt = _throttle_action(comm, concurrency, block, ptr, array, big_block_write);
     return rt;
 }
 
 int
 big_block_mpi_read(BigBlock * block, BigBlockPtr * ptr, BigArray * array, int concurrency, MPI_Comm comm)
 {
-    /* FIXME: make the exception collective */
-    ThrottlePlan plan[1];
-
-    _throttle_plan_create(plan, comm, concurrency, block, array->dims[0], big_block_read);
-    int rt = plan->execute(plan, ptr, array);
-
-    _throttle_plan_destroy(plan);
+    int rt = _throttle_action(comm, concurrency, block, ptr, array, big_block_read);
     return rt;
 }
