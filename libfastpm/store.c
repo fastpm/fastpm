@@ -642,7 +642,7 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
         fastpm_raise(-1, "Copy out of bounds from source FastPMStore: asking for %td but has %td\n", ncopy + start, p->np);
     }
     if(ncopy + offset > po->np_upper) {
-        fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", p->np, po->np_upper);
+        fastpm_raise(-1, "Not enough storage in target FastPMStore: asking for %td but has %td\n", ncopy + offset, po->np_upper);
     }
 
     int c;
