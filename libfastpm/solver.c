@@ -292,6 +292,11 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
+    /* Prepare for the event; apply CIC correction for the painting, such that
+     * the event has a compensated power spectrum. See e.g. MP-Gadget's gravpm.c */
+
+    /* FIXME: the compensation transfer shall be a method of the painter. */
+    fastpm_apply_decic_transfer(pm, delta_k, delta_k);
 
     FastPMForceEvent event[1];
     event->delta_k = delta_k;
