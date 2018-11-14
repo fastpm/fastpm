@@ -489,6 +489,9 @@ fastpm_smesh_compute_potential(
             ENTER(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
+            /* deconvolve the readout CIC. Event already deconvolved the painting CIC. need the power at high k */
+            fastpm_apply_decic_transfer(pm, canvas, canvas);
+
             if(ACC[d].attribute == COLUMN_DENSITY) {
 //                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
             }
