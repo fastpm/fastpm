@@ -39,6 +39,6 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 write_runpb_snapshot= "nbodykit/tpm"
 write_snapshot= "nbodykit/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
-write_powerspectrum = "pm/powerspec"
+write_powerspectrum = "nbodykit/powerspec"
 write_fof = "nbodykit/fastpm"
 
