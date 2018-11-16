@@ -399,8 +399,16 @@ fastpm_store_write(FastPMStore * p,
                     fastpm_raise(-1, "Failed to create the block: %s\n", big_file_get_error_message());
                 }
                 big_block_seek(&bb, &ptr, 0);
+
+                /* nothing to write close directly; (APPEND won't even open, and we must sync WRITE and APPEND ops) */
+                if(size == 0) {
+                    big_block_mpi_close(&bb, comm);
+                }
                 break;
             case APPEND:
+                /* nothing to write */
+                if(size == 0) break;
+
                 if(0 != big_file_mpi_open_block(bf, &bb, blockname, comm)) {
                     /* if open failed, create an empty block instead.*/
                     if(0 != big_file_mpi_create_block(bf, &bb, blockname, descr->dtype_out, descr->nmemb,
@@ -421,8 +429,10 @@ fastpm_store_write(FastPMStore * p,
         switch(mode) {
             case WRITE:
             case APPEND:
-                fastpm_info("Writing block %s of (%s, %d) from %d files with %d writers\n", descr->name, descr->dtype, descr->nmemb, Nfile, Nwriters);
 
+                if(size == 0) break; /* nothing to write, block is not even open. */
+
+                fastpm_info("Writing block %s of (%s, %d) from %d files with %d writers\n", descr->name, descr->dtype, descr->nmemb, Nfile, Nwriters);
                 /* packing the single column for IO */
                 FastPMPackingPlan plan[1];
                 fastpm_packing_plan_init(plan, p, descr->attribute);
@@ -444,7 +454,10 @@ fastpm_store_write(FastPMStore * p,
                 /* use the stored buffer before we switch to compressed internal representations;
                  * this saves quite a bit of memory. */
                 big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
+
                 /* free(buffer); */
+
+                big_block_mpi_close(&bb, comm);
                 break;
             case READ:
                 fastpm_info("Reading block %s of (%s, %d) from %d files with %d writers\n", descr->name, descr->dtype, descr->nmemb, Nfile, Nwriters);
@@ -453,9 +466,10 @@ fastpm_store_write(FastPMStore * p,
                 big_array_init(&array, buffer, descr->dtype, 2, (size_t[]) {p->np, descr->nmemb}, NULL );
 
                 big_block_mpi_read(&bb, &ptr, &array, Nwriters, comm);
+
+                big_block_mpi_close(&bb, comm);
                 break;
         }
-        big_block_mpi_close(&bb, comm);
         free(blockname);
     }
 
