@@ -1866,7 +1866,7 @@ _big_block_pack(BigBlock * block, size_t * bytes)
         memcpy(ptr, block->foffset, (Nfile + 1) * sizeof(block->foffset[0]));
     ptr += (Nfile + 1) * sizeof(block->foffset[0]);
     if(block->fchecksum)
-        memcpy(ptr, block->fchecksum, (Nfile + 1j) * sizeof(block->fchecksum[0]));
+        memcpy(ptr, block->fchecksum, (Nfile + 1) * sizeof(block->fchecksum[0]));
     ptr += (Nfile + 1) * sizeof(block->fchecksum[0]);
     memcpy(ptr, attrset, attrsize);
     ptr += attrsize;

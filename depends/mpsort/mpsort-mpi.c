@@ -205,7 +205,7 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t a
 
     /* assign segments to groups.
      * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
-    descr->GroupID = descr->ThisSegment * Ngroup / descr->Nsegments;
+    descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
 
     descr->Ngroup = Ngroup;
 
