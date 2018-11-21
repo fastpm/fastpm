@@ -111,7 +111,7 @@ static struct TIMER {
 } _TIMERS[512];
 
 static int
-_assign_colors(size_t glocalsize, size_t * sizes, int * ncolor, MPI_Comm comm)
+_assign_colors(size_t glocalsize, size_t * sizes, size_t * outsizes, int * ncolor, MPI_Comm comm)
 {
     int NTask;
     int ThisTask;
@@ -121,10 +121,12 @@ _assign_colors(size_t glocalsize, size_t * sizes, int * ncolor, MPI_Comm comm)
     int i;
     int mycolor;
     size_t current_size = 0;
+    size_t current_outsize = 0;
     int current_color = 0;
     int lastcolor = 0;
     for(i = 0; i < NTask; i ++) {
         current_size += sizes[i];
+        current_outsize += outsizes[i];
 
         lastcolor = current_color;
 
@@ -132,8 +134,9 @@ _assign_colors(size_t glocalsize, size_t * sizes, int * ncolor, MPI_Comm comm)
             mycolor = lastcolor;
         }
 
-        if(current_size > glocalsize) {
+        if(current_size > glocalsize || current_outsize > glocalsize) {
             current_size = 0;
+            current_outsize = 0;
             current_color ++;
         }
     }
@@ -193,7 +196,7 @@ struct SegmentGroupDescr {
 };
 
 static void
-_create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t avgsegsize, int Ngroup, MPI_Comm comm)
+_create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t * outsizes, size_t avgsegsize, int Ngroup, MPI_Comm comm)
 {
     int i;
     int ThisTask, NTask;
@@ -201,7 +204,7 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t a
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
 
-    descr->ThisSegment = _assign_colors(avgsegsize, sizes, &descr->Nsegments, comm);
+    descr->ThisSegment = _assign_colors(avgsegsize, sizes, outsizes, &descr->Nsegments, comm);
 
     /* assign segments to groups.
      * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
@@ -300,8 +303,11 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     int NTask;
     MPI_Comm_size(comm, &NTask);
     size_t sizes[NTask];
+    size_t outsizes[NTask];
     size_t myoffset;
+    size_t myoutoffset;
     size_t totalsize = _collect_sizes(mynmemb, sizes, &myoffset, comm);
+    size_t totaloutsize = _collect_sizes(myoutnmemb, outsizes, &myoutoffset, comm);
 
     size_t avgsegsize = NTask; /* combine very small ranks to segments */
     if (avgsegsize * elsize > 4 * 1024 * 1024) {
@@ -317,7 +323,7 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     }
 
     /* use as many groups as possible (some will be empty) but at most 1 segment per group */
-    _create_segment_group(seggrp, sizes, avgsegsize, NTask, comm);
+    _create_segment_group(seggrp, sizes, outsizes, avgsegsize, NTask, comm);
 
     /* group comm == seg comm */
 
