@@ -321,19 +321,24 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
 
     /* group comm == seg comm */
 
-    void * mysegmentbase;
-    void * myoutsegmentbase;
+    void * mysegmentbase = NULL;
+    void * myoutsegmentbase = NULL;
     size_t mysegmentnmemb;
     size_t myoutsegmentnmemb;
 
     int groupsize;
-    MPI_Comm_size(comm, &groupsize);
+    int grouprank;
+    MPI_Comm_size(seggrp->Group, &groupsize);
+    MPI_Comm_rank(seggrp->Group, &grouprank);
+
     MPI_Allreduce(&mynmemb, &mysegmentnmemb, 1, MPI_TYPE_PTRDIFF, MPI_SUM, seggrp->Group);
     MPI_Allreduce(&myoutnmemb, &myoutsegmentnmemb, 1, MPI_TYPE_PTRDIFF, MPI_SUM, seggrp->Group);
 
     if (groupsize > 1) {
-        mysegmentbase = malloc(mysegmentnmemb * elsize);
-        myoutsegmentbase = malloc(myoutsegmentnmemb * elsize);
+        if(grouprank == 0) {
+            mysegmentbase = malloc(mysegmentnmemb * elsize);
+            myoutsegmentbase = malloc(myoutsegmentnmemb * elsize);
+        }
         MPIU_Gather(seggrp->Group, 0, mybase, mysegmentbase, mynmemb, elsize, NULL);
     } else {
         mysegmentbase = mybase;
@@ -361,11 +366,12 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
 
     MPI_Bcast(tmr, sizeof(tmr), MPI_BYTE, 0, seggrp->Group);
 
-    if(mysegmentbase != mybase)
-        free(mysegmentbase);
-    if(myoutsegmentbase != myoutbase)
-        free(myoutsegmentbase);
-
+    if(grouprank == 0) {
+        if(mysegmentbase != mybase)
+            free(mysegmentbase);
+        if(myoutsegmentbase != myoutbase)
+            free(myoutsegmentbase);
+    }
 }
 
 static void *
