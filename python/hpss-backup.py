@@ -1,8 +1,6 @@
-# !/usr/bin/python
+#! /usr/bin/python -u
 #SBATCH -q xfer
-#SBATCH -J hpss-xfer
-#SBATCH -o hpss-xfer.%j
-#SBATCH -n 1
+#SBATCH -o %x.%j
 #SBATCH -t 24:00:00
 
 """
@@ -153,8 +151,10 @@ def backup(ns):
                 relpath=True,
                 leaflist=['[0-9]', 'LL-*'])
 
-        extrafiles.remove("backup.files")
-        extrafiles.remove("backup.tars")
+        if "backup.files" in extrafiles:
+            extrafiles.remove("backup.files")
+        if "backup.tars" in extrafiles:
+            extrafiles.remove("backup.tars")
 
         print("# saving meta data for recovery:")
 
