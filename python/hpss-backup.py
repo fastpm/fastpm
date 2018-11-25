@@ -3,6 +3,7 @@
 #SBATCH -o %x.%j
 #SBATCH -t 24:00:00
 
+from __future__ import print_function
 """
 A script to backup / restore FastPM snapshots to / from HPSS.
 
@@ -17,6 +18,10 @@ Other files are directly copied as files to the HPSS.
 """
 
 from argparse import ArgumentParser
+
+def print(*args, **kwargs):
+    from __builtin__ import print
+    return print('hpss-backup: ', *args, **kwargs)
 
 ap = ArgumentParser()
 ap.add_argument("-r", "--restore", action='store_true', default=False,
@@ -37,7 +42,7 @@ ap.add_argument("dest", help="location on hpss system that will receive the back
 import os
 
 from fnmatch import fnmatch
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, CalledProcessError
 import subprocess
 
 def find_tarables(rootdir, relpath=True, leaflist=[]):
@@ -112,24 +117,39 @@ def hget(workdir, targetdir, files, verbose=False):
         files=' '.join(files))
         ], cwd=workdir, stderr=subprocess.STDOUT)
 
-def htar(workdir, target, src, verbose=False):
+def hexists(workdir, file, verbose=False):
     if verbose:
         run = check_call
     else:
         run = check_output
-    return run(["htar", "-q", "-P", "-cf" if not verbose else "-cvf", target, src], cwd=workdir, stderr=subprocess.STDOUT)
 
-def huntar(workdir, target, src, verbose=False):
+    try:
+        run(["hsi" , "-q", "ls %(file)s" % dict(
+            file=file)
+            ], cwd=workdir, stderr=subprocess.STDOUT)
+    except CalledProcessError as e:
+        return False
+
+    return True
+
+def htar(mode, workdir, target, src, verbose=False):
+    """ mode can be c, t, x """
     if verbose:
         run = check_call
     else:
         run = check_output
-    return run(["htar", "-q", "-xf" if not verbose else "-xvf", target, src], cwd=workdir, stderr=subprocess.STDOUT)
+
+    if verbose:
+        verbose = "v"
+    else:
+        verbose = ""
+
+    return run(["htar", "-q", "-P", "-%s%sf" % (mode, verbose), target, src], cwd=workdir, stderr=subprocess.STDOUT)
 
 def backup(ns):
-    print("# FastPM snapshots on local systems at:")
+    print("FastPM snapshots on local systems at:")
     print(ns.src)
-    print("# HPSS target location:")
+    print("HPSS target location:")
     print(ns.dest )
 
     if ns.restore:
@@ -156,7 +176,7 @@ def backup(ns):
         if "backup.tars" in extrafiles:
             extrafiles.remove("backup.tars")
 
-        print("# saving meta data for recovery:")
+        print("saving meta data for recovery ...")
 
         with open(os.path.join(ns.src, "backup.files"), 'w') as ff:
             for file in extrafiles:
@@ -166,7 +186,7 @@ def backup(ns):
             for file in tarables:
                 ff.write("%s\n" % file)
 
-        hput(ns.src, ns.dest, ["backup.files", "backup.tars"], verbose=ns.debug)
+        hput(ns.src, ns.dest, ["backup.files", "backup.tars"], verbose=True)
 
     print("Found %d extra files" % len(extrafiles))
     print("Found %d tarable directories" % len(tarables))
@@ -176,7 +196,7 @@ def backup(ns):
     if ns.tar_end is None or ns.tar_end > len(tarables):
         ns.tar_end = len(tarables)
 
-    chunksize=32
+    chunksize = 32
     for i in range(ns.file_start, ns.file_end, chunksize):
         i1 = i + chunksize
         if i1 > ns.file_end:
@@ -192,18 +212,19 @@ def backup(ns):
         tarable = tarables[i]
         if ns.restore:
             print("Retreving tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
-
-            huntar(ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
+            htar('x', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
         else:
             print("Creating tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
 
-            htar(ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
+            if hexists(ns.src, os.path.join(ns.dest, "%s.tar" % tarable)):
+                print("File %s already exists with the following contenxt. Delete it if you want to overwrite it." % os.path.join(ns.dest, "%s.tar" % tarable))
+                # use verbose to obtain list of files on stdout
+                htar('t', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=True)
+            else:
+                htar('c', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
 
 if __name__ == "__main__":
     ns = ap.parse_args()
 
     backup(ns)
-
-#print('\n'.join(tarables))
-#print('\n'.join(extrafiles))
 
