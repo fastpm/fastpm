@@ -95,6 +95,12 @@ def find_tarables(rootdir, relpath=True, leaflist=[]):
     return sorted(tarables), sorted(extrafiles)
 
 
+def hpathnames(files):
+    if isinstance(files, (list, tuple)):
+        return [hpathnames(f) for f in files]
+    else:
+        return '%s : %s' % (files, files)
+
 def hput(workdir, targetdir, files, verbose=False):
     if verbose:
         run = check_call
@@ -103,7 +109,7 @@ def hput(workdir, targetdir, files, verbose=False):
 
     return run(["hsi" , "-q", "mkdir -p %(hpss)s; cd %(hpss)s; put -P %(files)s" % dict(
         hpss=targetdir,
-        files=' '.join(files))
+        files=' '.join(hpathnames(files)))
         ], cwd=workdir, stderr=subprocess.STDOUT)
 
 def hget(workdir, targetdir, files, verbose=False):
@@ -114,7 +120,7 @@ def hget(workdir, targetdir, files, verbose=False):
 
     return run(["hsi" , "-q", "cd %(hpss)s; get %(files)s" % dict(
         hpss=targetdir,
-        files=' '.join(files))
+        files=' '.join(hpathnames(files)))
         ], cwd=workdir, stderr=subprocess.STDOUT)
 
 def hexists(workdir, file, verbose=False):
@@ -216,7 +222,7 @@ def backup(ns):
         else:
             print("Creating tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
 
-            if hexists(ns.src, os.path.join(ns.dest, "%s.tar" % tarable)):
+            if hexists(ns.src, os.path.join(ns.dest, "%s.tar.idx" % tarable)):
                 print("File %s already exists with the following contenxt. Delete it if you want to overwrite it." % os.path.join(ns.dest, "%s.tar" % tarable))
                 # use verbose to obtain list of files on stdout
                 htar('t', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=True)
