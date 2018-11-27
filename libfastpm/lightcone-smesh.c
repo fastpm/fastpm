@@ -31,13 +31,15 @@ fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, dou
     mesh->np_upper = np_upper;
     mesh->layers = NULL;
     mesh->smoothing = smoothing;
-    fastpm_store_init(mesh->last.p, 0,
-              COLUMN_ID
+    mesh->attributes = COLUMN_ID
             | COLUMN_POS
             | COLUMN_POTENTIAL
             | COLUMN_DENSITY
-            | COLUMN_TIDAL
-            | COLUMN_AEMIT,
+//            | COLUMN_TIDAL /* disable TIDAL as we can always finite diff the potential map. */
+            | COLUMN_AEMIT;
+
+    fastpm_store_init(mesh->last.p, 0,
+            mesh->attributes,
             FASTPM_MEMORY_STACK);
 
     mesh->last.a_f = 0;
@@ -381,15 +383,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
         nactive += fastpm_smesh_layer_select_active(mesh, layer, a0, a1, NULL);
     }
 
-    fastpm_store_init(q, nactive,
-              COLUMN_ID
-            | COLUMN_POS
-            | COLUMN_POTENTIAL
-            | COLUMN_DENSITY
-            | COLUMN_TIDAL
-            | COLUMN_AEMIT,
-            FASTPM_MEMORY_HEAP
-    );
+    fastpm_store_init(q, nactive, mesh->attributes, FASTPM_MEMORY_HEAP);
 
     for(layer = mesh->layers; layer; layer = layer->next) {
         fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q);
@@ -443,7 +437,7 @@ fastpm_smesh_compute_potential(
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
     fastpm_store_init(p_last_now, mesh->last.p->np_upper,
-                    mesh->last.p->attributes & ~ COLUMN_POS & ~ COLUMN_AEMIT & ~ COLUMN_ID,
+                    mesh->attributes & ~ COLUMN_POS & ~ COLUMN_AEMIT & ~ COLUMN_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
                     );
@@ -485,16 +479,25 @@ fastpm_smesh_compute_potential(
         pm_ghosts_send(pgd_last_now, COLUMN_POS);
         pm_ghosts_send(pgd_new_now, COLUMN_POS);
 
-        for(d = 0; d < 8; d ++) {
+        int dmax;
+        if(COLUMN_TIDAL & mesh->attributes) {
+            dmax = 8;
+        } else {
+            dmax = 2;
+        }
+
+        for(d = 0; d < dmax; d ++) {
             ENTER(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
-            /* deconvolve the readout CIC. Event already deconvolved the painting CIC. need the power at high k */
-            fastpm_apply_decic_transfer(pm, canvas, canvas);
-
-            if(ACC[d].attribute == COLUMN_DENSITY) {
-//                fastpm_apply_smoothing_transfer(pm, canvas, canvas, mesh->smoothing);
-            }
+            /* I find there is no need to deconvolve the CIC again:
+             *   fastpm_apply_decic_transfer(pm, canvas, canvas);
+             *           density fields matches direct P(k) integration at high redshift without it.
+             *           potential field is not affected as it is smooth; 
+             *
+             *           potential field is not matching at high l, due to some other effect, yet to be find.
+             *           very large dynamic range.
+             *           */
 
             LEAVE(transfer);
 
@@ -514,11 +517,15 @@ fastpm_smesh_compute_potential(
         ENTER(reduce);
         pm_ghosts_reduce(pgd_last_now, COLUMN_DENSITY, FastPMReduceAddFloat, NULL);
         pm_ghosts_reduce(pgd_last_now, COLUMN_POTENTIAL, FastPMReduceAddFloat, NULL);
-        pm_ghosts_reduce(pgd_last_now, COLUMN_TIDAL, FastPMReduceAddFloat, NULL);
         pm_ghosts_reduce(pgd_new_now, COLUMN_DENSITY, FastPMReduceAddFloat, NULL);
         pm_ghosts_reduce(pgd_new_now, COLUMN_POTENTIAL, FastPMReduceAddFloat, NULL);
-        pm_ghosts_reduce(pgd_new_now, COLUMN_TIDAL, FastPMReduceAddFloat, NULL);
 
+        if (COLUMN_TIDAL & p_last_now->attributes) {
+            pm_ghosts_reduce(pgd_last_now, COLUMN_TIDAL, FastPMReduceAddFloat, NULL);
+        }
+        if (COLUMN_TIDAL & p_new_now->attributes) {
+            pm_ghosts_reduce(pgd_new_now, COLUMN_TIDAL, FastPMReduceAddFloat, NULL);
+        }
         LEAVE(reduce);
 
 
@@ -580,14 +587,16 @@ fastpm_smesh_compute_potential(
         p_last_then->potential[i] *= potfactor / a_emit;
 
         INTERP(rho[i]);
-        int j;
-        for(j = 0; j < 6; j ++) {
-            INTERP(tidal[i][j]);
-            p_last_then->tidal[i][j] *= potfactor / a_emit;
+
+        if(p_last_then->tidal) {
+            int j;
+            for(j = 0; j < 6; j ++) {
+                INTERP(tidal[i][j]);
+                p_last_then->tidal[i][j] *= potfactor / a_emit;
+            }
+
+            _rotate_tidal(mesh->lc->glmatrix, &p_last_then->tidal[i][0]);
         }
-
-        _rotate_tidal(mesh->lc->glmatrix, &p_last_then->tidal[i][0]);
-
     }
     LEAVE(interp);
 

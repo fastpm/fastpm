@@ -40,6 +40,7 @@ typedef struct FastPMSMesh {
     FastPMLightCone * lc;
 
     double smoothing;
+    FastPMColumnTags attributes;
 
     struct FastPMSMeshLayer {
         enum {
