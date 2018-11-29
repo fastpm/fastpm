@@ -7,16 +7,14 @@ import os
 
 # usage:
 #
-# python paint.py output --nmesh x --nn x dmcatalog
-#
-# python halobias.py test.json --with-plot ../tests/nbodykit/fastpm_1.0000/ --dataset=1 -- ../tests/nbodykit/fof_1.0000/ --dataset=LL-0.200
+# python paint-dm.py output --nmesh x --nn x dmcatalog
 
 # for matter
-# python halobias.py test.json --with-plot ../tests/nbodykit/fastpm_1.0000/ --dataset=1 -- ../tests/nbodykit/fof_1.0000/ --dataset=1
+# python paint-dm.py ../fastpm_1.0000/1-mesh ../tests/nbodykit/fastpm_1.0000/ --dataset=1
 
 ap = argparse.ArgumentParser()
 ap.add_argument("output", help='e.g. power.json (FFTPower.load) or power.txt (numpy.loadtxt)')
-ap.add_argument("dataset", help='output dataset')
+ap.add_argument("--dataset", default=None, help='output dataset, default to N%04d where %04d is nmesh ')
 ap.add_argument("--nmesh", type=int, default=256, help='mesh resolution')
 ap.add_argument("--verbose", action='store_true', default=False, help='print progress')
 
@@ -40,6 +38,10 @@ def main(ns, ns1):
 
     cat1 = read_cat(ns1)
     mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
+
+    if ns.dataset is None:
+        ns.dataset = 'N%04d' % ns.nmesh
+
     mesh1.save(ns.output, dataset=ns.dataset)
 
 main(ns, ns1)
