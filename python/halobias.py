@@ -1,4 +1,4 @@
-from nbodykit.lab import FFTPower, BigFileCatalog
+from nbodykit.lab import FFTPower, BigFileCatalog, BigFileMesh
 from nbodykit import setup_logging
 import numpy
 import argparse
@@ -35,6 +35,7 @@ cat_ap = argparse.ArgumentParser()
 
 cat_ap.add_argument("catalog", help='e.g. fastpm_1.0000 or fof_1.0000')
 cat_ap.add_argument("--dataset", default='LL-0.200', help='data set to select; for a dm catalog, use 1 for a halo catalog, usually LL-0.200')
+cat_ap.add_argument("--mesh", action='store_true', default=False, help='data set is a BigFileMesh')
 
 ns, args = ap.parse_known_args()
 
@@ -46,7 +47,25 @@ else:
     ns1 = cat_ap.parse_args(args)
     ns2 = ns1
 
-def read_cat(ns, nmin=None):
+def read_cat1(ns, nmin=None):
+    if ns.mesh:
+        mesh = BigFileMesh(ns.catalog, dataset=ns.dataset)
+    else:
+        cat = BigFileCatalog(ns.catalog, header='Header', dataset=ns.dataset)
+        volume = cat.attrs['BoxSize'][0] ** 3
+
+        if nmin is not None and nmin != 0:
+            sel = True
+            sel = sel & (cat['Length'] >= nmin)
+
+            cat['Selection'] = sel
+        cat['RSDPosition'] = cat['Position'] + cat.attrs['RSDFactor'] * cat['Velocity'] * [0, 0, 1]
+
+        mesh = cat.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
+
+    return mesh
+
+def read_cat2(ns, nmin=None):
     cat = BigFileCatalog(ns.catalog, header='Header', dataset=ns.dataset)
     volume = cat.attrs['BoxSize'][0] ** 3
 
@@ -55,8 +74,6 @@ def read_cat(ns, nmin=None):
         sel = sel & (cat['Length'] >= nmin)
 
         cat['Selection'] = sel
-#        cat = cat[sel]
-
     cat['RSDPosition'] = cat['Position'] + cat.attrs['RSDFactor'] * cat['Velocity'] * [0, 0, 1]
     return cat
 
@@ -64,9 +81,11 @@ def main(ns, ns1, ns2):
     if ns.verbose:
         setup_logging('info')
 
-    cat1 = read_cat(ns1)
-    mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh).paint(mode='complex')
-    cat2 = read_cat(ns2)
+    cat1 = read_cat1(ns1)
+
+    mesh1 = cat1.paint(mode='complex')
+
+    cat2 = read_cat2(ns2)
 
     if ns.unique_k:
         dk = 0
@@ -88,7 +107,9 @@ def main(ns, ns1, ns2):
     if cat1.comm.rank == 0:
         print('Using %d modes to estimate bias and growth rate' % Nmodes)
 
-        os.makedirs(os.path.dirname(ns.output), exist_ok=True)
+        dirname = os.path.dirname(ns.output)
+        if len(dirname) > 0:
+            os.makedirs(dirname, exist_ok=True)
 
     save_bs(ns.output, 'a-matter', rm)
 
@@ -99,7 +120,7 @@ def main(ns, ns1, ns2):
     if cat1.comm.rank == 0:
         print('# Nmin bias growthrate abundance')
     for nmin1 in nmin:
-        cat2 = read_cat(ns2, nmin1)
+        cat2 = read_cat2(ns2, nmin1)
         mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
         mesh3 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='Position')
 
