@@ -14,7 +14,7 @@ import os
 
 ap = argparse.ArgumentParser()
 ap.add_argument("output", help='e.g. power.json (FFTPower.load) or power.txt (numpy.loadtxt)')
-ap.add_argument("--dataset", default=None, help='output dataset, default to N%04d where %04d is nmesh ')
+ap.add_argument("--output-dataset", default=None, help='output dataset, default to N%04d where %04d is nmesh ')
 ap.add_argument("--nmesh", type=int, default=256, help='mesh resolution')
 ap.add_argument("--verbose", action='store_true', default=False, help='print progress')
 
@@ -39,9 +39,9 @@ def main(ns, ns1):
     cat1 = read_cat(ns1)
     mesh1 = cat1.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh)
 
-    if ns.dataset is None:
-        ns.dataset = 'N%04d' % ns.nmesh
+    if ns.output_dataset is None:
+        ns.output_dataset = 'N%04d' % ns.nmesh
 
-    mesh1.save(ns.output, dataset=ns.dataset)
+    mesh1.save(ns.output, dataset=ns.output_dataset)
 
 main(ns, ns1)
