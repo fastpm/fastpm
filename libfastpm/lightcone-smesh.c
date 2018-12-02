@@ -206,7 +206,7 @@ fastpm_smesh_add_layer_healpix(FastPMSMesh * mesh,
  * surface number density of mesh points */
 void
 fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
-        double surface_density, double volume_density,
+        double surface_density, double line_density,
         double amin, double amax, int maxnside,
         MPI_Comm comm)
 {
@@ -214,10 +214,8 @@ fastpm_smesh_add_layers_healpix(FastPMSMesh * mesh,
     double zmin = mesh->lc->speedfactor * HorizonDistance(amax, mesh->lc->horizon);
     double zmax = mesh->lc->speedfactor * HorizonDistance(amin, mesh->lc->horizon);
 
-    double line_density = volume_density / surface_density;
-
     int Na = ceil((zmax - zmin) * line_density) + 1;
-    
+
     if(Na < 1) Na = 1;
 
     double * a = malloc(sizeof(double) * Na);
@@ -490,14 +488,17 @@ fastpm_smesh_compute_potential(
             ENTER(transfer);
             gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
 
-            /* I find there is no need to deconvolve the CIC again:
-             *   fastpm_apply_decic_transfer(pm, canvas, canvas);
-             *           density fields matches direct P(k) integration at high redshift without it.
-             *           potential field is not affected as it is smooth; 
+            fastpm_apply_decic_transfer(pm, canvas, canvas);
+            /* This is inconclusive. Currently it appears this deconvolve is necessary
+             * when I checked reading from a linear field. 
              *
-             *           potential field is not matching at high l, due to some other effect, yet to be find.
-             *           very large dynamic range.
-             *           */
+             * However, it is important to include many radial sample points,
+             * otherwise we get an increase of high-l power.
+             *
+             * Previously I thought removing decic helps just becuase it was compensating for
+             * this effect (insufficient radial sampling)
+             *
+             * */
 
             LEAVE(transfer);
 
