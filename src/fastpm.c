@@ -658,7 +658,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         *smesh = malloc(sizeof(FastPMSMesh));
 
         double n = CONF(prr->lua, nc) / CONF(prr->lua, boxsize) * CONF(prr->lua, lc_smesh_fraction);
-        double n1 = CONF(prr->lua, nc) * CONF(prr->lua, pm_nc_factor)[0] / CONF(prr->lua, boxsize);
+        double n1 = CONF(prr->lua, nc) / CONF(prr->lua, boxsize);
         fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, 1 / n);
 
         if(lc->fov > 0) {
