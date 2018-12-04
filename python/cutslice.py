@@ -84,6 +84,8 @@ def main(ns, ns1, ns2):
 
     catsel.attrs['BoxCenter'] = pos
 
-    catsel.save(ns.output, columns=catsel.columns, dataset=ns.output_dataset)
+    columns = set(catsel.columns) - set(['Weight', 'Selection', 'Value'])
+
+    catsel.save(ns.output, columns=columns, dataset=ns.output_dataset)
 
 main(ns, ns1, ns2)
