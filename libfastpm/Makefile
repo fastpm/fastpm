@@ -26,6 +26,7 @@ LIBSOURCES = libfastpm.c \
     lightcone-smesh.c \
     timemachine.c \
     cosmology.c \
+    horizon.c \
     powerspectrum.c \
     logging.c \
     prof.c \

@@ -67,6 +67,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "painter.h"
 
 #include "cosmology.h"
+#include "horizon.h"
 #include "transfer.h"
 #include "initialcondition.h"
 #include "pngaussian.h"
