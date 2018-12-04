@@ -1,0 +1,1 @@
+extern double Ftable[4][10000];
