@@ -62,14 +62,15 @@ def main(ns, ns1, ns2):
     else:
         pos = numpy.empty((3))
 
-    pos = cat1.comm.allreduce(pos)
+
+    BoxSize = cat2.attrs['BoxSize']
+
+    pos = cat1.comm.allreduce(pos) % BoxSize
 
     if cat1.comm.rank == 0:
         cat1.logger.info('Center position for halo %d is at %s' % (ns.haloid, str(pos)))
 
     r = (cat2['Position'] - pos)
-
-    BoxSize = cat2.attrs['BoxSize']
 
     r = r + ((r > BoxSize * 0.5) * -BoxSize
           + (r < -BoxSize * 0.5) * BoxSize)
