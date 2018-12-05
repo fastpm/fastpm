@@ -55,12 +55,11 @@ def main(ns, ns1, ns2):
     cat2 = read_cat(ns2)
 
     mask = (cat1.Index == ns.haloid).nonzero()[0]
-
     pos = (cat1['Position'][mask]).compute()
     if len(pos) > 0:
         pos = pos[0]
     else:
-        pos = numpy.empty((3))
+        pos = numpy.zeros((3))
 
 
     BoxSize = cat2.attrs['BoxSize']
@@ -85,8 +84,10 @@ def main(ns, ns1, ns2):
 
     catsel.attrs['BoxCenter'] = pos
 
-    columns = set(catsel.columns) - set(['Weight', 'Selection', 'Value'])
+    columns = sorted(set(catsel.columns) - set(['Weight', 'Selection', 'Value']))
 
     catsel.save(ns.output, columns=columns, dataset=ns.output_dataset)
 
+    if catsel.comm.rank == 0:
+        catsel.logger.info('saved to %s : %s' % (ns.output, ns.output_dataset))
 main(ns, ns1, ns2)
