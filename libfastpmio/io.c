@@ -175,8 +175,8 @@ write_snapshot_header(FastPMSolver * fastpm,
     double D1 = GrowthFactor(aout, fastpm->cosmology);
     double f1 = DLogGrowthFactor(aout, fastpm->cosmology);
     double Ea = HubbleEa(aout, fastpm->cosmology);
-    double OmegaM = fastpm->cosmology->OmegaM;
-    double OmegaLambda = fastpm->cosmology->OmegaLambda;
+    double Omega_cdm = fastpm->cosmology->Omega_cdm;
+    double OmegaLambda = fastpm->cosmology->Omega_Lambda;
     double HubbleParam = fastpm->config->hubble_param;
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
@@ -205,7 +205,8 @@ write_snapshot_header(FastPMSolver * fastpm,
     big_block_set_attr(&bb, "GrowthRate", &f1, "f8", 1);
     big_block_set_attr(&bb, "HubbleE", &Ea, "f8", 1);
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
-    big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
+    big_block_set_attr(&bb, "Omega_cdm", &Omega_cdm, "f8", 1);
+    big_block_set_attr(&bb, "OmegaM", &Omega_cdm, "f8", 1);    //will change later
     big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
     big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
@@ -216,7 +217,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
     int UsePeculiarVelocity = 1;
 
-    big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
+    big_block_set_attr(&bb, "Omega0", &Omega_cdm, "f8", 1);
     big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 6);
     big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
     big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);

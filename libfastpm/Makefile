@@ -25,6 +25,7 @@ LIBSOURCES = libfastpm.c \
     constrainedgaussian.c \
     lightcone-usmesh.c \
     timemachine.c \
+    Ftable.c \
     cosmology.c \
     horizon.c \
     powerspectrum.c \

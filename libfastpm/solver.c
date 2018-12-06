@@ -28,8 +28,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->config[0] = *config;
 
     fastpm->cosmology[0] = (FastPMCosmology) {
-        .OmegaM = config->omega_m,
-        .OmegaLambda = 1.0 - config->omega_m,
+        .Omega_cdm = config->omega_m,
+        .Omega_Lambda = 1.0 - config->omega_m,
+	.h = config->hubble_param,
     };
 
     if(config->pgdc)
@@ -615,7 +616,7 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {

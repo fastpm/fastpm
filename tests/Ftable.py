@@ -1,5 +1,4 @@
 #Integral for Fermi-Dirac. Using M. Zennaro
-#I use SI units. Maybe silly? Anyway, final returns are unitless.
 
 import os
 import numpy as np
@@ -67,7 +66,9 @@ table[:,2] = solve_integral(dIdy, y_arr)       #F'
 table[:,3] = solve_integral(d2Idy2, y_arr)     #F'' 
 
 filename = "Ftable"
-array_init = "double Ftable[%d][%d]" % (Ncols, Na)   #swapped for .T                  #might wanna add more cols. could generalise and loop above
+array_init = "double Ftable[%d][%d]" % (Ncols, Na)   #swapped for .T
+size_defn = "#define Fsize (%d)\n" % Na
+
 #output to .c file
 with open(filename+".c", "w+") as file:
     
@@ -85,6 +86,7 @@ with open(filename+".c", "w+") as file:
 #make .h file with matching variable names to .c
 #makefile has certain directories to take a .h, otherwise it'll be unhappy, so put it in the api dir with all the other .h's
 with open("../api/fastpm/"+filename+".h", "w+") as file:
+    file.write(size_defn)
     file.write("extern ")
     file.write(array_init)
     file.write(";")
