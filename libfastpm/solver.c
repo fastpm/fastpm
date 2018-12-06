@@ -118,8 +118,9 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
 
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
-    double OmegaM = fastpm->cosmology->OmegaM;
-    double M0 = OmegaM * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+
+    double Omega_cdm = fastpm->cosmology->Omega_cdm;
+    double M0 = Omega_cdm * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
 
     p->meta.M0 = M0;
 
