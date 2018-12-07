@@ -9,8 +9,8 @@ struct FastPMCosmology {
     double Omega_Lambda;
     double T_cmb;    /*related to omegaR*/
     double N_eff;  //N_ur;      /*this is N_eff*/ //actually i might just make this number o fmassless neutrinos, just adds to rad
-    double M_nu; ///    m_ncdm[3]; for now assume 3 nus of same mass
-    int N_nu;  //N_ncdm;
+    double M_nu[3]; ///    m_ncdm[3]; for now assume 3 nus of same mass
+    int N_nu;  //N_ncdm; must be less than 3 + 1.
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);

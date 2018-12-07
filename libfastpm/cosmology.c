@@ -86,12 +86,17 @@ double Fconst(FastPMCosmology * c)
     To be clear, evaluate F at Fconst*a
     */
     
-    if (c->T_cmb == 0.){
+    if (c->T_cmb == 0. || c->N_nu == 0) {
         return 0.;                 //really get infinity, but no gamma means no nu, so effectively F_const=0. Exact value doesnt matter, because the Omega_g factor in Omega_nu will make it 0 regarldess of  what F gives, just need to avoif nan.
     }else{
         double Gamma_nu = pow(c->N_eff / c->N_nu, 1./4.) * pow( 4./11., 1./3.);   //nu to photon temp ratio today
         double T_nu = Gamma_nu * c->T_cmb;
-        return c->M_nu / c->N_nu / (kB * T_nu);
+        double rt = 0;
+        int i;
+        for (i = 0 ; i < c->N_nu; i ++) {
+            rt += c->M_nu[i] / (kB * T_nu);
+        }
+        return rt;
     }
 }
 

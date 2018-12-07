@@ -267,7 +267,7 @@ int main(int argc, char * argv[]) {
         .Omega_Lambda=0.7,
         .T_cmb=0.,//2.73,
         .N_eff=3.046,
-        .M_nu=0.,               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
+        .M_nu={0., 0, 0},               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
         .N_nu=3
     }};
 

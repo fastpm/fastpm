@@ -168,13 +168,31 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr->lua, np_alloc_factor));
 
+    FastPMCosmology cosmology [1] = {{
+        .h = CONF(prr->lua, h),
+        .Omega_cdm = CONF(prr->lua, Omega_cdm),
+        .Omega_Lambda = 1 - CONF(prr->lua, Omega_cdm),
+        .T_cmb = CONF(prr->lua, T_cmb),
+        .N_eff = CONF(prr->lua, N_eff),
+        .N_nu = CONF(prr->lua, n_M_nu),
+    }};
+
+    {
+        /* copy the neutrino masses, if any. */
+        int i;
+        for(i = 0; i < CONF(prr->lua, n_M_nu); i ++) {
+            cosmology->M_nu[i] = CONF(prr->lua, M_nu)[i];
+        }
+    }
+
+    /* FIXME: call fastpm_cosmology_init_flat_lcdm() here to set Oemga_Lambda properly for flat */
+
     FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr->lua, nc),
         .alloc_factor = CONF(prr->lua, np_alloc_factor),
         .vpminit = vpminit,
         .boxsize = CONF(prr->lua, boxsize),
-        .omega_m = CONF(prr->lua, omega_m),
-        .hubble_param = CONF(prr->lua, h),
+        .cosmology = cosmology,
         .USE_DX1_ONLY = CONF(prr->lua, za),
         .nLPT = -2.5f,
         .USE_SHIFT = CONF(prr->lua, shift),

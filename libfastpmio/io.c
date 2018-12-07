@@ -177,7 +177,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     double Ea = HubbleEa(aout, fastpm->cosmology);
     double Omega_cdm = fastpm->cosmology->Omega_cdm;
     double OmegaLambda = fastpm->cosmology->Omega_Lambda;
-    double HubbleParam = fastpm->config->hubble_param;
+    double HubbleParam = fastpm->cosmology->h;
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
 

@@ -27,11 +27,22 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->config[0] = *config;
 
-    fastpm->cosmology[0] = (FastPMCosmology) {
-        .Omega_cdm = config->omega_m,
-        .Omega_Lambda = 1.0 - config->omega_m,
-	.h = config->hubble_param,
-    };
+    if(config->cosmology == NULL) {
+        /* Use a default fiducial cosmology */
+        FastPMCosmology c[1] = {{
+            .h=0.6772,
+            .Omega_cdm=0.3,
+            .Omega_Lambda=0.7,
+            .T_cmb=2.725,
+            .N_eff=3.046,
+            .M_nu= {1., 0, 0, },               // (assuming 3 nus of mass 1ev, this is the sum of their masses)
+            .N_nu = 3,
+        }};
+        memcpy(fastpm->cosmology, c, sizeof(c[0]));
+    } else {
+        /* use the provided cosmology */
+        memcpy(fastpm->cosmology, config->cosmology, sizeof(config->cosmology[0]));
+    }
 
     if(config->pgdc)
     {

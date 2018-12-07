@@ -33,7 +33,20 @@ function schema.output_redshifts.action(output_redshifts)
     end
 end
 
-schema.declare{name='omega_m',           type='number', required=true, default=0.3, help='cdm + baryon density parameter at z=0'}
+schema.declare{name='Omega_cdm',      type='number', required=false}
+schema.declare{name='omega_m',           type='number', required=false, default=0.3, help='cdm + baryon density parameter at z=0'}  --remove
+schema.declare{name='omega_ncdm',           type='number', required=false, default=0.0, help='ncdm density parameter at z=0'}
+schema.declare{name='N_eff',          type='number', required=false, default=3.046}
+schema.declare{name='M_nu',           type='array:number', required=false, default={}, help="neutrino mass in eV. empty for no massive neutrinoes."}   --merge with m_ncdm below
+schema.declare{name='T_cmb',           type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation. a common value is 2.725." }
+
+
+function schema.omega_m.action(value)
+    if value ~= nil then
+        schema.Omega_cdm.default = value
+    end
+end
+
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
