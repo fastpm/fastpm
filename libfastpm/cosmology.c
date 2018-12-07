@@ -293,7 +293,7 @@ double DLogGrowthFactor(double a, FastPMCosmology * c) {
 
 double GrowthFactor2(double a, FastPMCosmology * c) {
     /* Normalised D2. Is this correct???*/
-    double d0 = growth(1., c);  //0 for today
+    // double d0 = growth(1., c);  //0 for today
     return growth2(a, c) / growth2(1., c); //(d0*d0); // ??????????????????;
 }
 

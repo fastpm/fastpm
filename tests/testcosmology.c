@@ -37,15 +37,7 @@ Had to change the syntax comapred to cosmology.h version use typedef and put nam
 This removes error
 */
 
-typedef struct {
-    double h;
-    double Omega_cdm;
-    double Omega_Lambda;
-    double T_cmb;    /*related to omegaR*/
-    double N_eff;  //N_ur;      /*this is N_eff*/ //actually i might just make this number o fmassless neutrinos, just adds to rad
-    double M_nu; ///    m_ncdm[3]; for now assume 3 nus of same mass
-    int N_nu;  //N_ncdm;
-} FastPMCosmologyNu;
+typedef FastPMCosmology FastPMCosmologyNu;
 
 
 double HubbleEaNu(double a, FastPMCosmologyNu * c)
@@ -193,7 +185,7 @@ double DLogGrowthFactorNu(double a, FastPMCosmologyNu * c) {
 
 double GrowthFactor2Nu(double a, FastPMCosmologyNu * c) {
     /* Normalised D2. Is this correct???*/
-    double d0 = growthNu(1., c);  //0 for today
+    // double d0 = growthNu(1., c);  //0 for today
     return growth2Nu(a, c) / growth2Nu(1., c); //(d0*d0); // ??????????????????;
 }
 
@@ -301,49 +293,6 @@ int main(int argc, char * argv[]) {
             DLogGrowthFactor(a, c)
             );
     }
-    
-    //FOR NUUUUU
-    /*understand this piece of code, what is [1]? why {{}}? etc. print cNu maybe?*/ 
-    //Initialize cNu. Values not important and will be changed in a sec
-    FastPMCosmologyNu cNu[1] ={{
-        .h=0.6772,
-        .Omega_cdm=0.3,
-        .Omega_Lambda=0.7,
-        .T_cmb=0.,//2.73,
-        .N_eff=3.046,
-        .M_nu=0.,               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
-        .N_nu=3
-    }};
-    
-    /*Insert a new for loop? Think of how best to output.*/
-    printf("NU \n");
-    printf("OmegaM X D dD/da d2D/da2 D2 E dE/dA d2E/da2 f1 f2 OmegaG\n");
-    for(cNu->Omega_cdm = 0.1; cNu->Omega_cdm < 0.6; cNu->Omega_cdm += 0.1) {
-        //cNu->Omega_Lambda = 0;  //initialize it
-        cNu->Omega_Lambda = 1 - cNu->Omega_cdm - Omega_g(cNu) - OmegaNuTimesHubbleEaSq(1,cNu);
-        double a = 0.8;
-        printf("%g %g %g %g %g %g %g %g %g %g %g %g \n",
-            cNu->Omega_cdm,
-           
-            ComovingDistanceNu(a, cNu),
-            //growthNu(a, cNu),
-            GrowthFactorNu(a, cNu),
-            DGrowthFactorDaNu(a, cNu),
-            D2GrowthFactorDa2Nu(a, cNu),
-
-            GrowthFactor2Nu(a, cNu),
-            HubbleEaNu(a, cNu),
-            DHubbleEaDaNu(a, cNu),
-            D2HubbleEaDa2Nu(a, cNu),
-               
-            DLogGrowthFactor2Nu(a, cNu),
-            DLogGrowthFactorNu(a, cNu),
-               
-            Omega_g(cNu)
-            //OmegaSum(a, cNu),
-            //OmegaSum(1, cNu),
-            );
-    }
 
     /*
     double xa[100];
@@ -354,7 +303,6 @@ int main(int argc, char * argv[]) {
     }
     printf("%g",interpolate(xa,ya,4.3));
     */
-    
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;
