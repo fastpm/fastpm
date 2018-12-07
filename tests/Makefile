@@ -32,7 +32,7 @@ testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
-testcosmology : .objs/testcosmology.o .objs/Ftable.o $(LIBFASTPM_LIBS)
+testcosmology : .objs/testcosmology.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
