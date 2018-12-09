@@ -49,7 +49,7 @@ struct FastPMStore {
         double (*to_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb);
         void   (*from_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value);
 
-        char name[8];
+        char name[32];
         char dtype[8];
         size_t elsize;
         size_t membsize;
