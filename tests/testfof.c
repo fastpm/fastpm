@@ -53,12 +53,6 @@ int main(int argc, char * argv[]) {
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
     fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
 
-    fastpm_info("dx1  : %g %g %g %g\n",
-            solver->info.dx1[0], solver->info.dx1[1], solver->info.dx1[2],
-            (solver->info.dx1[0] + solver->info.dx1[1] + solver->info.dx1[2]) / 3.0);
-    fastpm_info("dx2  : %g %g %g %g\n",
-            solver->info.dx2[0], solver->info.dx2[1], solver->info.dx2[2],
-            (solver->info.dx2[0] + solver->info.dx2[1] + solver->info.dx2[2]) / 3.0);
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
 
