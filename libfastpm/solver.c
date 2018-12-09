@@ -277,28 +277,13 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     PM * pm = fastpm->pm;
 
     FastPMFloat * delta_k = pm_alloc(pm);
-    ENTER(decompose);
-    fastpm_decompose(fastpm);
-    LEAVE(decompose);
 
-    ENTER(force);
-
-    fastpm_gravity_calculate(gravity, pm, fastpm->p, delta_k);
-    LEAVE(force);
-
-    ENTER(event);
+    FastPMForceEvent event[1];
 
     int64_t N = fastpm->p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
-    /* Prepare for the event; apply CIC correction for the painting, such that
-     * the event has a compensated power spectrum. See e.g. MP-Gadget's gravpm.c */
-
-    /* FIXME: the compensation transfer shall be a method of the painter. */
-    fastpm_apply_decic_transfer(pm, delta_k, delta_k);
-
-    FastPMForceEvent event[1];
     event->delta_k = delta_k;
     event->a_f = trans->a.f;
     event->pm = pm;
@@ -317,6 +302,24 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
         }
         event->a_n = next->a.f;
     }
+
+    ENTER(decompose);
+    fastpm_decompose(fastpm);
+    LEAVE(decompose);
+
+    fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
+
+    ENTER(force);
+    fastpm_gravity_calculate(gravity, pm, fastpm->p, delta_k);
+    LEAVE(force);
+
+    ENTER(event);
+
+    /* Prepare for the event; apply CIC correction for the painting, such that
+     * the event has a compensated power spectrum. See e.g. MP-Gadget's gravpm.c */
+
+    /* FIXME: the compensation transfer shall be a method of the painter. */
+    fastpm_apply_decic_transfer(pm, delta_k, delta_k);
 
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
     LEAVE(event);
