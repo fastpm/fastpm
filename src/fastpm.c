@@ -228,6 +228,9 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 static int 
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
 
+static int 
+report_force(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
+
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
@@ -269,6 +272,13 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 #endif
 
     LEAVE(init);
+
+    fastpm_add_event_handler(&fastpm->event_handlers,
+        FASTPM_EVENT_FORCE,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) report_force,
+        prr);
+
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_FORCE,
@@ -1357,6 +1367,17 @@ report_memory(MPI_Comm comm)
 }
 
 static int
+report_force(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
+{
+    fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
+
+    fastpm_info("Load imbalance: min = %g max = %g std = %g\n",
+        fastpm->info.imbalance.min, fastpm->info.imbalance.max, fastpm->info.imbalance.std);
+
+    return 0;
+}
+
+static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
 {
 
@@ -1365,12 +1386,6 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
     CLOCK(compute);
     CLOCK(io);
 
-    fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
-
-    fastpm_info("Load imbalance: min = %g max = %g std = %g\n",
-        fastpm->info.imbalance.min, fastpm->info.imbalance.max, fastpm->info.imbalance.std);
-
-    MPI_Barrier(fastpm->comm);
     ENTER(compute);
 
     FastPMPowerSpectrum ps;
