@@ -109,6 +109,14 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a
         temp_dx2 = 1;
     }
 
+    FastPMLPTEvent event[1];
+    event->pm = basepm;
+    event->delta_k = delta_k_ic;
+    event->p = p;
+
+    fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_LPT,
+                FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
+
     if(delta_k_ic) {
         double shift0;
         if(config->USE_SHIFT) {
@@ -127,9 +135,11 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a
     if(config->USE_DX1_ONLY == 1) {
         memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
-    fastpm_store_summary(p, fastpm->info.dx1, fastpm->info.dx2, fastpm->comm);
 
     pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
+
+    fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_LPT,
+                FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
 
     if(temp_dx2) {
         fastpm_memory_free(p->mem, p->dx2);
@@ -401,7 +411,6 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 static void
 fastpm_decompose(FastPMSolver * fastpm) {
     PM * pm = fastpm->pm;
-    FastPMStore * p = fastpm->p;
 
     int NTask;
     MPI_Comm_size(fastpm->comm, &NTask);
@@ -416,17 +425,6 @@ fastpm_decompose(FastPMSolver * fastpm) {
         fastpm_raise(-1, "Out of particle storage space\n");
     }
 
-    double np_max;
-    double np_min;
-    double np_mean;
-    double np_std;
-
-    MPIU_stats(fastpm->comm, p->np, "<->s",
-            &np_min, &np_mean, &np_max, &np_std);
-
-    fastpm->info.imbalance.min = np_min / np_mean;
-    fastpm->info.imbalance.max = np_max / np_mean;
-    fastpm->info.imbalance.std = np_std / np_mean;
 }
 
 /* Interpolate position and velocity for snapshot at a=aout */

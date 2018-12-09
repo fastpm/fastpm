@@ -62,6 +62,20 @@ to_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb)
     return ptr[memb];
 }
 
+static double
+to_double_f8 (FastPMStore * p, ptrdiff_t index, int ci, int memb)
+{
+    size_t nmemb = p->_column_info[ci].nmemb ;
+    if(memb > nmemb) {
+        fastpm_raise(-1, "memb %d greater than nmemb %d", memb, nmemb);
+    }
+    size_t elsize = p->_column_info[ci].elsize;
+
+    double * ptr = (double*) (p->columns[ci] + index * elsize);
+
+    return ptr[memb];
+}
+
 static void
 from_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value)
 {
@@ -127,6 +141,7 @@ fastpm_store_init_details(FastPMStore * p,
             int ci = FASTPM_STORE_COLUMN_INDEX(column); \
             if(attr_ != (1 << ci)) { fastpm_raise(-1, "attr and column are out of order for %s\n", # column ); } \
             strcpy(p->_column_info[ci].dtype, dtype_);  \
+            strcpy(p->_column_info[ci].name, # column); \
             p->_column_info[ci].elsize = sizeof(p->column[0]);  \
             p->_column_info[ci].nmemb = nmemb_;  \
             p->_column_info[ci].membsize = sizeof(p->column[0]) / nmemb_;  \
@@ -158,8 +173,14 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
 
-    COLUMN_INFO(rho).from_double = from_double_f4;
+    COLUMN_INFO(x).to_double = to_double_f8;
+    COLUMN_INFO(v).to_double = to_double_f4;
     COLUMN_INFO(rho).to_double = to_double_f4;
+    COLUMN_INFO(dx1).to_double = to_double_f4;
+    COLUMN_INFO(dx2).to_double = to_double_f4;
+    COLUMN_INFO(acc).to_double = to_double_f4;
+
+    COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(acc).from_double = from_double_f4;
     COLUMN_INFO(dx1).from_double = from_double_f4;
     COLUMN_INFO(dx2).from_double = from_double_f4;
@@ -615,39 +636,107 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
     p->meta.a_x = p->meta.a_v = 0.;
 }
 
-void 
-fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm) 
+void
+fastpm_store_summary(FastPMStore * p,
+        FastPMColumnTags attribute,
+        MPI_Comm comm,
+        const char * fmt,
+        ...)
 {
+    va_list va;
+    va_start(va, fmt);
 
+    int ci = fastpm_store_find_column_id(p, attribute);
+    size_t nmemb = p->_column_info[ci].nmemb;
+
+    double rmin[nmemb], rmax[nmemb], rsum1[nmemb], rsum2[nmemb];
+
+    if (NULL == p->_column_info[ci].to_double) {
+        fastpm_raise(-1, "Column %s didnot set to_double virtual function\n",
+            p->_column_info[ci].name);
+    }
     int d;
-    for(d = 0; d < 3; d ++) {
-        dx1[d] = 0;
-        dx2[d] = 0;
+    for(d = 0; d < nmemb; d ++) {
+        rmin[d] = 1e20;
+        rmax[d] = -1e20;
+        rsum1[d] = 0;
+        rsum2[d] = 0;
     }
     ptrdiff_t i;
 
-#pragma omp parallel for
-    for(i = 0; i < p->np; i ++) {
+#pragma omp parallel
+    {
+        double tmin[nmemb], tmax[nmemb], tsum1[nmemb], tsum2[nmemb];
         int d;
-        for(d =0; d < 3; d++) {
-#pragma omp atomic
-            dx1[d] += p->dx1[i][d] * p->dx1[i][d];
-#pragma omp atomic
-            dx2[d] += p->dx2[i][d] * p->dx2[i][d];
-        } 
+        for(d = 0; d < nmemb; d ++) {
+            tmin[d] = 1e20;
+            tmax[d] = -1e20;
+            tsum1[d] = 0;
+            tsum2[d] = 0;
+        }
+        #pragma omp for
+        for(i = 0; i < p->np; i ++) {
+            int d;
+            for(d =0; d < nmemb; d++) {
+                double value = p->_column_info[ci].to_double(p, i, ci, d);
+                tsum1[d] += value;
+                tsum2[d] += value * value;
+                tmin[d] = fmin(tmin[d], value);
+                tmax[d] = fmax(tmax[d], value);
+            } 
+        }
+        #pragma omp critical
+        {
+            int d;
+            for(d =0; d < nmemb; d++) {
+                rsum1[d] += tsum1[d];
+                rsum2[d] += tsum2[d];
+                rmin[d] = fmin(rmin[d], tmin[d]);
+                rmax[d] = fmax(rmax[d], tmax[d]);
+            }
+        }
     }
     uint64_t Ntot = p->np;
 
-    MPI_Allreduce(MPI_IN_PLACE, dx1, 3, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, dx2, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, rsum1, nmemb, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, rsum2, nmemb, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, rmin, nmemb, MPI_DOUBLE, MPI_MIN, comm);
+    MPI_Allreduce(MPI_IN_PLACE, rmax, nmemb, MPI_DOUBLE, MPI_MAX, comm);
     MPI_Allreduce(MPI_IN_PLACE, &Ntot,   1, MPI_LONG,  MPI_SUM, comm);
-    for(d =0; d < 3; d++) {
-        dx1[d] /= Ntot;
-        dx1[d] = sqrt(dx1[d]);
-        dx2[d] /= Ntot;
-        dx2[d] = sqrt(dx2[d]);
-    }
 
+    for(i = 0; i < strlen(fmt); i ++) {
+        void * r = va_arg(va, void *);
+        double * dr = (double * ) r;
+
+        for(d = 0; d < 3; d++) {
+            switch(fmt[i]) {
+                case '-':
+                    dr[d] = rsum1[d] / Ntot;
+                    break;
+                case '<':
+                    dr[d] = rmin[d];
+                    break;
+                case '>':
+                    dr[d] = rmax[d];
+                    break;
+                case 's':
+                    dr[d] = sqrt(rsum2[d] / Ntot - pow(rsum1[d] / Ntot, 2));
+                    break;
+                case 'S':
+                    dr[d] = sqrt(1.0 * Ntot / (Ntot - 1.)) * sqrt(rsum2[d] / Ntot - pow(rsum1[d] / Ntot, 2));
+                    break;
+                case 'v':
+                    dr[d] = (rsum2[d] / Ntot - pow(rsum1[d] / Ntot, 2));
+                    break;
+                case 'V':
+                    dr[d] = (1.0 * Ntot / (Ntot - 1.)) * (rsum2[d] / Ntot - pow(rsum1[d] / Ntot, 2));
+                    break;
+                default:
+                    fastpm_raise(-1, "Unknown format str. Use '<->sSvV'\n");
+            }
+        }
+    }
+    va_end(va);
 }
 
 static void

@@ -289,7 +289,6 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     pm_clear(pm, canvas);
     fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
     fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, FASTPM_FIELD_DESCR_NONE);
-
     fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
 
     LEAVE(paint);

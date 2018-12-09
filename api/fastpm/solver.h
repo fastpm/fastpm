@@ -1,5 +1,6 @@
 FASTPM_BEGIN_DECLS
 #define FASTPM_EVENT_FORCE "FORCE"
+#define FASTPM_EVENT_LPT "LPT"
 #define FASTPM_EVENT_TRANSITION "TRANSITION"
 #define FASTPM_EVENT_INTERPOLATION "INTERPOLATION"
 
@@ -25,6 +26,13 @@ typedef struct {
     FastPMEvent base;
     FastPMTransition * transition;
 } FastPMTransitionEvent;
+
+typedef struct {
+    FastPMEvent base;
+    PM * pm;
+    FastPMFloat * delta_k;
+    FastPMStore * p;
+} FastPMLPTEvent;
 
 typedef struct {
     FastPMEvent base;
@@ -79,17 +87,6 @@ typedef struct {
 
     /* Extensions */
     FastPMEventHandler * event_handlers;
-
-    struct {
-        /* For printing only. Do not use them to derive any physics quantities. */
-        double dx1[3];
-        double dx2[3];
-        struct {
-            double min;
-            double max;
-            double std;
-        } imbalance;
-    } info;
 
     VPM * vpm_list;
 

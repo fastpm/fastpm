@@ -49,6 +49,7 @@ struct FastPMStore {
         double (*to_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb);
         void   (*from_double) (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double value);
 
+        char name[8];
         char dtype[8];
         size_t elsize;
         size_t membsize;
@@ -160,7 +161,11 @@ void
 fastpm_store_destroy(FastPMStore * p);
 
 void
-fastpm_store_summary(FastPMStore * p, double dx1[3], double dx2[3], MPI_Comm comm);
+fastpm_store_summary(FastPMStore * p,
+        FastPMColumnTags attribute,
+        MPI_Comm comm,
+        const char * fmt,
+        ...);
 
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);

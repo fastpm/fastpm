@@ -229,7 +229,10 @@ static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
 
 static int 
-report_force(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
+report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
+
+static int 
+report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr);
 
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
@@ -274,11 +277,16 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     LEAVE(init);
 
     fastpm_add_event_handler(&fastpm->event_handlers,
-        FASTPM_EVENT_FORCE,
-        FASTPM_EVENT_STAGE_BEFORE,
-        (FastPMEventHandlerFunction) report_force,
+        FASTPM_EVENT_LPT,
+        FASTPM_EVENT_STAGE_AFTER,
+        (FastPMEventHandlerFunction) report_lpt,
         prr);
 
+    fastpm_add_event_handler(&fastpm->event_handlers,
+        FASTPM_EVENT_FORCE,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) report_domain,
+        prr);
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_FORCE,
@@ -318,13 +326,6 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     prepare_ic(fastpm, prr, comm);
 
     fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr->lua, particle_fraction), fastpm->p->mask, comm);
-
-    fastpm_info("dx1  : %g %g %g %g\n", 
-            fastpm->info.dx1[0], fastpm->info.dx1[1], fastpm->info.dx1[2],
-            (fastpm->info.dx1[0] + fastpm->info.dx1[1] + fastpm->info.dx1[2]) / 3.0);
-    fastpm_info("dx2  : %g %g %g %g\n", 
-            fastpm->info.dx2[0], fastpm->info.dx2[1], fastpm->info.dx2[2],
-            (fastpm->info.dx2[0] + fastpm->info.dx2[1] + fastpm->info.dx2[2]) / 3.0);
 
     LEAVE(ic);
 
@@ -1367,12 +1368,60 @@ report_memory(MPI_Comm comm)
 }
 
 static int
-report_force(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
+report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr)
 {
+    double dx1_std[3], dx2_std[3];
+
+    MPI_Comm comm = fastpm->comm;
+
+    fastpm_store_summary(event->p, COLUMN_DX1, comm, "s", dx1_std);
+    fastpm_store_summary(event->p, COLUMN_DX2, comm, "s", dx2_std);
+
+    fastpm_info("dx1  : %g %g %g %g\n", 
+            dx1_std[0], dx1_std[1], dx1_std[2],
+            (dx1_std[0] + dx1_std[1] + dx1_std[2]) / 3.0);
+
+    fastpm_info("dx2  : %g %g %g %g\n", 
+            dx2_std[0], dx2_std[1], dx2_std[2],
+            (dx2_std[0] + dx2_std[1] + dx2_std[2]) / 3.0);
+
+    return 0;
+}
+
+static int
+report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr)
+{
+    MPI_Comm comm = fastpm->comm;
+
     fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
 
-    fastpm_info("Load imbalance: min = %g max = %g std = %g\n",
-        fastpm->info.imbalance.min, fastpm->info.imbalance.max, fastpm->info.imbalance.std);
+    {
+        double np_max;
+        double np_min;
+        double np_mean;
+        double np_std;
+
+        MPIU_stats(comm, fastpm->p->np, "<->s",
+                &np_min, &np_mean, &np_max, &np_std);
+
+        double min = np_min / np_mean;
+        double max = np_max / np_mean;
+        double std = np_std / np_mean;
+
+        fastpm_info("Load imbalance: min = %g max = %g std = %g\n", min, max, std);
+    }
+    {
+        double min[3], max[3], std[3];
+
+        fastpm_store_summary(fastpm->p, COLUMN_POS, comm, "<>", min, max);
+        fastpm_store_summary(fastpm->p, COLUMN_VEL, comm, "s", std);
+
+        fastpm_info("Position range : min = %g %g %g max = %g %g %g \n",
+                min[0], min[1], min[2],
+                max[0], max[1], max[2]);
+        fastpm_info("Velocity dispersion: std = %g %g %g\n",
+                std[0], std[1], std[2]);
+    }
 
     return 0;
 }
@@ -1382,6 +1431,16 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
 {
 
     int K_LINEAR = CONF(prr->lua, enforce_broadband_kmax);
+    MPI_Comm comm = fastpm->comm;
+
+    {
+        double fstd[3];
+
+        fastpm_store_summary(fastpm->p, COLUMN_ACC, comm, "s", fstd);
+
+        fastpm_info("Force dispersion: std = %g %g %g\n",
+                fstd[0], fstd[1], fstd[2]);
+    }
 
     CLOCK(compute);
     CLOCK(io);
