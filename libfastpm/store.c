@@ -371,8 +371,23 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
     int d;
     for(i = 0; i < p->np; i ++) {
         for(d = 0; d < 3; d ++) {
-            while(p->x[i][d] < 0) p->x[i][d] += BoxSize[d];
-            while(p->x[i][d] >= BoxSize[d]) p->x[i][d] -= BoxSize[d];
+            int c1 = 0;
+            int c2 = 0;
+            while(p->x[i][d] < 0 && c1 < 100) {
+                p->x[i][d] += BoxSize[d];
+                c1++;
+            }
+            while(p->x[i][d] >= BoxSize[d] && c2 < 100) {
+                p->x[i][d] -= BoxSize[d];
+                c2++;
+            }
+            if(c1 >= 100 || c2 >= 100) {
+                fastpm_raise(-1, "Particle at %g %g %g is too far from the bounds. Wrapping failed.\n", 
+                        p->x[i][0],
+                        p->x[i][1],
+                        p->x[i][2]
+                );
+            }
         }
     } 
 }
