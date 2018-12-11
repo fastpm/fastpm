@@ -52,11 +52,20 @@ void fastpm_void_msg_handler(
     if(type == COLLECTIVE) {
         MPI_Barrier(comm);
     }
+
     if(ThisTask != 0 && type == COLLECTIVE)
         return;
+
     if(level == ERROR) {
-        fprintf(stdout, "%s", message);
-        fflush(stdout);
+        if(type == COLLECTIVE) {
+            if(ThisTask == 0) {
+                fprintf(stdout, "%s", message);
+                fflush(stdout);
+            }
+        } else {
+            fprintf(stdout, "ThisTask = %d %s", ThisTask, message);
+            fflush(stdout);
+        }
         fastpm_abort();
     }
 }
@@ -73,10 +82,23 @@ void fastpm_default_msg_handler(
     if(type == COLLECTIVE) {
         MPI_Barrier(comm);
     }
+
+    if(type == COLLECTIVE) {
+        if(ThisTask == 0) {
+            fprintf(stdout, "%s", message);
+            fflush(stdout);
+        }
+    } else {
+        if(level == ERROR) {
+            fprintf(stdout, "ThisTask = %d %s", ThisTask, message);
+        } else {
+            fprintf(stdout, "%s", message);
+        }
+        fflush(stdout);
+    }
+
     if(ThisTask != 0 && type == COLLECTIVE)
         return;
-    fprintf(stdout, "%s", message);
-    fflush(stdout);
 
     if(level == ERROR) fastpm_abort();
 }
