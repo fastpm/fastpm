@@ -41,12 +41,22 @@ apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 static void
 apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int order)
 {
+    {
+        PMKIter kiter;
+        pm_kiter_init(pm, &kiter);
+        float ** klist[2] = {kiter.k, kiter.k_finite};
+        int i;
+        for(i = 0; i < pm_nmesh(pm)[dir]; i ++) {
+            double k_finite = klist[order][dir][i];
+            fastpm_info("fourier space kernel[%d] = %g\n", i, k_finite);
+        }
+    }
 #pragma omp parallel 
     {
         PMKIter kiter;
         ptrdiff_t * Nmesh = pm_nmesh(pm);
-        pm_kiter_init(pm, &kiter);
         float ** klist[2] = {kiter.k, kiter.k_finite};
+        pm_kiter_init(pm, &kiter);
         for(;
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
