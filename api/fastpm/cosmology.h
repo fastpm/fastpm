@@ -7,22 +7,27 @@ struct FastPMCosmology {
     double h;
     double Omega_cdm;
     double Omega_Lambda;
-    double T_cmb;    /*related to omegaR*/
-    double N_eff;  //N_ur;      /*this is N_eff*/ //actually i might just make this number o fmassless neutrinos, just adds to rad
-    double M_nu[3]; ///    m_ncdm[3]; for now assume 3 nus of same mass
-    int N_nu;  //N_ncdm; must be less than 3 + 1.
+    double T_cmb;    /*related to Omega_g*/
+    //double T_nu;    //todays neutrino temperature (maybe use T_nu0?) HARD CODED FOR NOW.
+    double N_eff;   //3.046
+    int N_nu;  // total number of neutrino species (massive and massless) (could use 'N_ur' as number of ur nus, instead, but dont want conflict with CLASS defn)
+    double m_ncdm[3]; // masses of massive neutrinos (ncdm) for now assume max of 3 ncdm nus.
+    int N_ncdm;
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);
 
 double Omega_g(FastPMCosmology * c);
+double Gamma_nu(FastPMCosmology * c);
+double Omega_ur(FastPMCosmology * c);
+double Omega_r(FastPMCosmology * c);
 
 double getFtable(int F_id, double y);
-double Fconst(FastPMCosmology * c);
+double Fconst(int ncdm_id, FastPMCosmology * c);
 
-double OmegaNuTimesHubbleEaSq(double a, FastPMCosmology * c);
-double DOmegaNuTimesHubbleEaSqDa(double a, FastPMCosmology * c);
-double D2OmegaNuTimesHubbleEaSqDa2(double a, FastPMCosmology * c);
+double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c);
+double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c);
+double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c);
 
 double HubbleEa(double a, FastPMCosmology * c);
 double Omega_cdm_a(double a, FastPMCosmology * c);

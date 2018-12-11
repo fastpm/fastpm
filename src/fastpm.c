@@ -174,14 +174,14 @@ int main(int argc, char ** argv) {
         .Omega_Lambda = 1 - CONF(prr->lua, Omega_cdm),
         .T_cmb = CONF(prr->lua, T_cmb),
         .N_eff = CONF(prr->lua, N_eff),
-        .N_nu = CONF(prr->lua, n_M_nu),
+        .N_ncdm = CONF(prr->lua, n_m_ncdm),
     }};
 
     {
         /* copy the neutrino masses, if any. */
         int i;
-        for(i = 0; i < CONF(prr->lua, n_M_nu); i ++) {
-            cosmology->M_nu[i] = CONF(prr->lua, M_nu)[i];
+        for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
+            cosmology->m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
         }
     }
 

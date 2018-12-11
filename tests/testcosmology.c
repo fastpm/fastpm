@@ -43,14 +43,14 @@ typedef FastPMCosmology FastPMCosmologyNu;
 double HubbleEaNu(double a, FastPMCosmologyNu * c)
 {
     /* H(a) / H0 */
-    return sqrt(Omega_g(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + OmegaNuTimesHubbleEaSq(a, c) + c->Omega_Lambda);
+    return sqrt(Omega_g(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
 }
 
 double DHubbleEaDaNu(double a, FastPMCosmologyNu * c)
 {
     /* d E / d a*/
     double E = HubbleEaNu(a, c);
-    double DOnuESqDa = DOmegaNuTimesHubbleEaSqDa(a,c);
+    double DOnuESqDa = DOmega_ncdmTimesHubbleEaSqDa(a,c);
     
     return 0.5 / E * ( - 4 * Omega_g(c) / pow(a,5) - 3 * c->Omega_cdm / pow(a,4) + DOnuESqDa );
 }
@@ -59,7 +59,7 @@ double D2HubbleEaDa2Nu(double a, FastPMCosmologyNu * c)
 {
     double E = HubbleEaNu(a,c);
     double dEda = DHubbleEaDaNu(a,c);
-    double D2OnuESqDa2 = D2OmegaNuTimesHubbleEaSqDa2(a,c);
+    double D2OnuESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a,c);
 
     return 0.5 / E * ( 20 * Omega_g(c) / pow(a,6) + 12 * c->Omega_cdm / pow(a,5) + D2OnuESqDa2 - 2 * pow(dEda,2) );
 }
@@ -260,15 +260,16 @@ int main(int argc, char * argv[]) {
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
-    /* the old COLA growthDtemp is 6 * pow(1 - c.OmegaM, 1.5) times growth */
+    /* do no rad first */
     FastPMCosmology c[1] = {{
         .h=0.6772,
         .Omega_cdm=0.3,
         .Omega_Lambda=0.7,
-        .T_cmb=0.,//2.73,
+        .T_cmb=0.,
         .N_eff=3.046,
-        .M_nu={0., 0, 0},               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
-        .N_nu=3
+        .m_ncdm={0, 0, 0},               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
+        .N_nu=0,
+        .N_ncdm=0
     }};
 
     printf("OmegaM X D dD/da d2D/da2 D2 E dE/dA d2E/da2 f1 f2 \n");
@@ -291,6 +292,40 @@ int main(int argc, char * argv[]) {
                
             DLogGrowthFactor2(a, c),
             DLogGrowthFactor(a, c)
+            );
+    }
+    
+    FastPMCosmology cNu[1] = {{     //Nu labels that this is a test with neutrinos in the simulation NOT using the FastPMCosmology object.
+        .h=0.6772,
+        .Omega_cdm=0.3,
+        .Omega_Lambda=0.7,
+        .T_cmb=2.73,
+        .N_eff=3.046,
+        .m_ncdm={1., 0, 0},               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
+        .N_nu=3,
+        .N_ncdm=1
+    }};
+
+    printf("OmegaM X D dD/da d2D/da2 D2 E dE/dA d2E/da2 f1 f2 \n");
+    for(cNu->Omega_cdm = 0.1; cNu->Omega_cdm < 0.6; cNu->Omega_cdm += 0.1) {
+        cNu->Omega_Lambda = 1 - cNu->Omega_cdm - Omega_r(cNu) - Omega_ncdmTimesHubbleEaSq(1.,cNu);
+        double a = 0.8;
+        
+        printf("%g %g %g %g %g %g %g %g %g %g %g\n",
+            cNu->Omega_cdm, 
+            ComovingDistance(a, cNu),
+            //growth(a, c),
+            GrowthFactor(a, cNu),
+            DGrowthFactorDa(a, cNu),
+            D2GrowthFactorDa2(a, cNu),
+
+            GrowthFactor2(a, cNu),
+            HubbleEa(a, cNu),
+            DHubbleEaDa(a, cNu),
+            D2HubbleEaDa2(a, cNu),
+               
+            DLogGrowthFactor2(a, cNu),
+            DLogGrowthFactor(a, cNu)
             );
     }
 

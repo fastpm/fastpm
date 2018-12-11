@@ -37,7 +37,7 @@ schema.declare{name='Omega_cdm',      type='number', required=false}
 schema.declare{name='omega_m',           type='number', required=false, default=0.3, help='cdm + baryon density parameter at z=0'}  --remove
 schema.declare{name='omega_ncdm',           type='number', required=false, default=0.0, help='ncdm density parameter at z=0'}
 schema.declare{name='N_eff',          type='number', required=false, default=3.046}
-schema.declare{name='M_nu',           type='array:number', required=false, default={}, help="neutrino mass in eV. empty for no massive neutrinoes."}   --merge with m_ncdm below
+schema.declare{name='m_ncdm',         type='array:number', required=false, default={}, help="neutrino mass in eV. empty for no massive neutrinoes."}   --remove, duplicated below
 schema.declare{name='T_cmb',           type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation. a common value is 2.725." }
 
 

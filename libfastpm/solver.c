@@ -35,7 +35,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
             .Omega_Lambda=0.7,
             .T_cmb=2.725,
             .N_eff=3.046,
-            .M_nu= {1., 0, 0, },               // (assuming 3 nus of mass 1ev, this is the sum of their masses)
+            .m_ncdm= {1., 0, 0, },               // (assuming 3 nus of mass 1ev, this is the sum of their masses)
             .N_nu = 3,
         }};
         memcpy(fastpm->cosmology, c, sizeof(c[0]));
