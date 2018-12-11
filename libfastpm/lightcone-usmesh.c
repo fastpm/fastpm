@@ -393,6 +393,8 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
     /* a portion of light cone is ready between a0 and a1 */
     FastPMLCEvent lcevent[1];
 
+    mesh->p->meta.M0 = fastpm->p->meta.M0;
+
     lcevent->p = mesh->p;
     lcevent->a0 = a1;
     lcevent->a1 = a2;
