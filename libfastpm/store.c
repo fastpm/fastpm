@@ -403,10 +403,13 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
                 c2++;
             }
             if(c1 >= 100 || c2 >= 100) {
-                fastpm_raise(-1, "Particle at %g %g %g is too far from the bounds. Wrapping failed.\n", 
+                double q[3];
+                fastpm_store_get_q_from_id(p, p->id[i], q);
+                fastpm_raise(-1, "Particle at %g %g %g (q = %g %g %g) is too far from the bounds. Wrapping failed.\n", 
                         p->x[i][0],
                         p->x[i][1],
-                        p->x[i][2]
+                        p->x[i][2],
+                        q[0], q[1], q[2]
                 );
             }
         }
