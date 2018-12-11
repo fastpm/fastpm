@@ -414,7 +414,6 @@ struct SegmentGroupDescr {
     int GroupID; /* ID of the group of this rank */
     int ThisSegment; /* SegmentID of the local data chunk on this rank*/
 
-    size_t totalsize;
     int segment_start; /* segments responsible in this group */
     int segment_end;
 
@@ -543,7 +542,7 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
 
     if(0 == (rt = big_file_mpi_broadcast_anyerror(rt, comm))) {
         /* no errors*/
-        big_block_seek_rel(block, ptr, seggrp->totalsize);
+        big_block_seek_rel(block, ptr, totalsize);
     }
 
     _destroy_segment_group(seggrp);
