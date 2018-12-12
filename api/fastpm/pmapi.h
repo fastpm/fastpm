@@ -32,6 +32,7 @@ PMRegion * pm_i_region(PM * pm);
 PMRegion * pm_o_region(PM * pm);
 
 double pm_compute_variance(PM * pm, FastPMFloat * complx);
+void pm_check_values(PM * pm, FastPMFloat * field);
 
 int pm_pos_to_rank(PM * pm, double pos[3]);
 
