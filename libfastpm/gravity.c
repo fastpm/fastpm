@@ -303,14 +303,14 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     LEAVE(paint);
     CLOCK(r2c);
-    pm_check_values(pm, canvas);
+    pm_check_values(pm, canvas, "After painting");
     pm_r2c(pm, canvas, delta_k);
-    pm_check_values(pm, delta_k);
+    pm_check_values(pm, delta_k, "After r2c");
     LEAVE(r2c);
 
     /* calculate the forces save them to p->acc */
     apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
-    pm_check_values(pm, delta_k);
+    pm_check_values(pm, delta_k, "After dealiasing");
 
     int d;
 
@@ -334,7 +334,9 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         LEAVE(transfer);
 
         ENTER(c2r);
+        pm_check_values(pm, canvas, "Before c2r %d", d);
         pm_c2r(pm, canvas);
+        pm_check_values(pm, canvas, "After c2r %d", d);
         LEAVE(c2r);
 
         ENTER(readout);

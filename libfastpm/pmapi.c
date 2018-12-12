@@ -5,6 +5,7 @@
 #endif
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
+#include <fastpm/string.h>
 #include "pmpfft.h"
 
 FastPMFloat * pm_alloc_details(PM * pm, const char * file, const int line)
@@ -321,8 +322,13 @@ fastpm_free_pm(PM * pm)
 }
 
 void
-pm_check_values(PM * pm, FastPMFloat * field)
+pm_check_values(PM * pm, FastPMFloat * field, const char * fmt, ...)
 {
+    va_list argp;
+    va_start(argp, fmt);
+    char * buffer = fastpm_strdup_vprintf(fmt, argp);
+    va_end(argp);
+
     ptrdiff_t i;
     size_t oo = 0;
     for(i = 0; i < pm->allocsize; i ++) {
@@ -332,7 +338,8 @@ pm_check_values(PM * pm, FastPMFloat * field)
         }
     }
     if(oo != 0) {
-        fastpm_ilog(INFO, "Task %d has %td field values that are out of bounds\n",
-                pm->ThisTask, oo);
+        fastpm_ilog(INFO, "%s: Task %d has %td field values that are out of bounds\n",
+                buffer, pm->ThisTask, oo);
     }
+    free(buffer);
 }
