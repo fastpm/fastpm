@@ -777,12 +777,12 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         } else {
             double amin = CONF(prr->lua, lc_amin);
             double amax = CONF(prr->lua, lc_amax);
-            fastpm_info("No structured mesh requested, generating an AemitIndex with 128 layers for usmesh. \n");
+            fastpm_info("No structured mesh requested, generating an AemitIndex with 1024 layers for usmesh. \n");
 
             data->slices = NULL;
             data->Nslices = 0;
 
-            int nedges = 128;
+            int nedges = 1024;
             double * edges = malloc(sizeof(double) * (nedges));
 
             int i;
