@@ -41,7 +41,8 @@ apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 static void
 apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int order)
 {
-    {
+    /* no need to print these, since we will check for FFT fields with pm_check_values.*/
+    if(0) {
         PMKIter kiter;
         pm_kiter_init(pm, &kiter);
         float ** klist[2] = {kiter.k, kiter.k_finite};
