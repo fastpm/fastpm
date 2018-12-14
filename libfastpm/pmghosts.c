@@ -169,7 +169,7 @@ pm_ghosts_has_ghosts(PMGhostData * pgd, uint8_t * has_ghosts)
     size_t Nsend = cumsum(NULL, pgd->Nsend, pgd->pm->NTask);
 
     ptrdiff_t i;
-    for(i = 0; i < pgd->p->np; i ++) {
+    for(i = 0; i < pgd->source->np; i ++) {
         has_ghosts[i] = 0;
     }
     for(i = 0; i < Nsend; i ++) {
