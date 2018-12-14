@@ -960,6 +960,8 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     /* + 1 to ensure avg_halos > 0 */
     MPIU_stats(comm, nhalos + 1, "->", &avg_halos, &max_halos);
 
+    fastpm_info("Allocating %d halos per rank for final catalog.\n", (size_t) max_halos * 2);
+
     /* give it enough space for rebalancing. */
     fastpm_store_init(halos, (size_t) (max_halos * 2),
             attributes,
@@ -1046,13 +1048,13 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     _fof_global_merge (finder, p, pgd, savebuff->minid, head);
 
     /* assign halo attr entries. This will keep only candidates that can possibly reach to nmin */
-    size_t nhalos = _assign_halo_attr(finder, pgd, head, p->np, pgd->p->np, finder->nmin);
+    size_t nsegments = _assign_halo_attr(finder, pgd, head, p->np, pgd->p->np, finder->nmin);
 
-    fastpm_info("Found %td halos segments >= %d particles; or cross linked. \n", nhalos, finder->nmin);
+    fastpm_info("Found %td halos segments >= %d particles; or cross linked. \n", nsegments, finder->nmin);
     pm_ghosts_free(pgd);
 
     /* create local halos and modify head to index the local halos */
-    fastpm_fof_create_local_halos(finder, halos, nhalos);
+    fastpm_fof_create_local_halos(finder, halos, nsegments);
     /* remove halos without any local particles */
     fastpm_fof_remove_empty_halos(finder, halos, savebuff->minid, head);
 
@@ -1064,7 +1066,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     #ifdef FASTPM_FOF_DEBUG
     {
         int i;
-        for(i  = 0; i < nhalos; i ++) {
+        for(i  = 0; i < halos->np; i ++) {
             fastpm_ilog(INFO, "Task = %d, Halo[%d] = %d mask=%d MINID=%ld\n", finder->priv->ThisTask, i, halos->length[i], halos->mask[i], halos->minid[i]);
         }
     }
