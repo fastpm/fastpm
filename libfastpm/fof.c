@@ -996,12 +996,13 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 
     MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
-    fastpm_info("load balance after decompose : min = %g max = %g mean = %g std = %g\n",
+    fastpm_info("load balance before fof decompose : min = %g max = %g mean = %g std = %g\n",
         npmin, npmax, npmean, npstd
         );
 
 #if 1
     /* still route particles to the pm pencils as if they are periodic. */
+    /* should still work (albeit use crazy memory) if we skip this. */
     if(0 != fastpm_store_decompose(p,
                 (fastpm_store_target_func) FastPMTargetFOF, pm, comm)
     ) {
@@ -1010,7 +1011,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
 #endif
     MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
 
-    fastpm_info("load balance after first decompose : min = %g max = %g mean = %g std = %g\n",
+    fastpm_info("load balance after fof decompose : min = %g max = %g mean = %g std = %g\n",
         npmin, npmax, npmean, npstd
         );
 

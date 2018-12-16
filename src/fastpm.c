@@ -1050,7 +1050,7 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Para
         .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
-    fastpm_fof_init(&fof, snapshot, fastpm->basepm);
+    fastpm_fof_init(&fof, snapshot, fastpm->pm);
 
     ENTER(fof);
 
@@ -1150,7 +1150,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
         .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
-    fastpm_fof_init(&fof, p, fastpm->basepm);
+    fastpm_fof_init(&fof, p, fastpm->pm);
 
     double rmin = lc->speedfactor * HorizonDistance(lcevent->a1, lc->horizon);
 
