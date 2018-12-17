@@ -157,6 +157,11 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 
+#ifdef _OPENMP
+    if(prr->cli->MaxThreads > 0)
+        omp_set_num_threads(prr->cli->MaxThreads);
+#endif
+
     libfastpm_set_memory_bound(prr->cli->MemoryPerRank * 1024 * 1024);
     fastpm_memory_set_handlers(_libfastpm_get_gmem(), NULL, _memory_peak_handler, &comm);
 

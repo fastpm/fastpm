@@ -2,6 +2,7 @@ typedef struct {
     int UseFFTW;
     int NprocY;
     int Nwriters;
+    int MaxThreads;
     size_t MemoryPerRank;
 
     char ** argv;

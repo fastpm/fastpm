@@ -24,13 +24,17 @@ parse_cli_args(int argc, char ** argv)
     prr->NprocY = 0;
     prr->Nwriters = 0;
     prr->MemoryPerRank = 0;
-    while ((opt = getopt(argc, argv, "h?y:fW:m:")) != -1) {
+    prr->MaxThreads = -1;
+    while ((opt = getopt(argc, argv, "h?T:y:fW:m:")) != -1) {
         switch(opt) {
             case 'y':
                 prr->NprocY = atoi(optarg);
             break;
             case 'f':
                 prr->UseFFTW = 1;
+            break;
+            case 'T':
+                prr->MaxThreads = atoi(optarg);
             break;
             case 'W':
                 prr->Nwriters = atoi(optarg);
@@ -55,10 +59,11 @@ parse_cli_args(int argc, char ** argv)
     return prr;
 
 usage:
-    printf("Usage: fastpm [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
-    "-f Use FFTW \n"
-    "-y Set the number of processes in the 2D mesh\n"
-    "-n Throttle IO (bigfile only) \n"
+    printf("Usage: fastpm [-T MaxThreads] [-W Nwriters] [-f] [-y NprocY] [-m MemoryBoundInMB] paramfile\n"
+    "-T limit number of OMP threads\n"
+    "-f Use FFTW / slab decomposition \n"
+    "-m limit memory usage (die if exceeds this)\n"
+    "-y Set the number of processes in the 2D mesh along the Y direction. \n"
 );
     free(prr);
     return NULL;
