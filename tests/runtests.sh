@@ -2,9 +2,7 @@
 
 source testfunctions.sh
 
-export OMP_NUM_THREADS=1
-
-FASTPM=`dirname $0`/../src/fastpm
+FASTPM=`dirname $0`/../src/fastpm -T 1
 
 set -x
 
