@@ -38,17 +38,24 @@ Sq(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_
 static double 
 Sphi(double ai, double af, double aRef, double nLPT, FastPMCosmology * c, int USE_NONSTDDA);
 
-inline void
-fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
+static inline void
+fastpm_drift_lookup(FastPMDriftFactor * drift, double af, double * dyyy, double * da1, double * da2)
 {
     double ind;
-    double dyyy, da1, da2;
 
     if(af == drift->af) {
-        dyyy = drift->dyyy[drift->nsamples - 1];
-        da1  = drift->da1[drift->nsamples - 1];
-        da2  = drift->da2[drift->nsamples - 1];
-    } else {
+        *dyyy = drift->dyyy[drift->nsamples - 1];
+        *da1  = drift->da1[drift->nsamples - 1];
+        *da2  = drift->da2[drift->nsamples - 1];
+        return;
+    }
+    if(af == drift->ai) {
+        *dyyy = drift->dyyy[0];
+        *da1  = drift->da1[0];
+        *da2  = drift->da2[0];
+        return;
+    }
+    {
         ind = (af - drift->ai) / (drift->af - drift->ai) * (drift->nsamples - 1);
         int l = floor(ind);
         double u = l + 1 - ind;
@@ -56,10 +63,26 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
         if(l + 1 >= drift->nsamples) {
             fastpm_raise(-1, "drift beyond factor's available range. ");
         }
-        dyyy = drift->dyyy[l] * u + drift->dyyy[l + 1] * v;
-        da1  = drift->da1[l] * u + drift->da1[l + 1] * v;
-        da2  = drift->da2[l] * u + drift->da2[l + 1] * v;
+        *dyyy = drift->dyyy[l] * u + drift->dyyy[l + 1] * v;
+        *da1  = drift->da1[l] * u + drift->da1[l + 1] * v;
+        *da2  = drift->da2[l] * u + drift->da2[l + 1] * v;
     }
+}
+
+inline void
+fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
+{
+    double dyyy_f, da1_f, da2_f;
+    double dyyy_i, da1_i, da2_i;
+    double dyyy, da1, da2;
+
+    fastpm_drift_lookup(drift, af, &dyyy_f, &da1_f, &da2_f);
+    fastpm_drift_lookup(drift, p->meta.a_x, &dyyy_i, &da1_i, &da2_i);
+
+    dyyy = dyyy_f - dyyy_i;
+    da1 = da1_f - da1_i;
+    da2 = da2_f - da2_i;
+
     int d;
     for(d = 0; d < 3; d ++) {
         double v;
@@ -83,18 +106,24 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
         }
     }
 }
-
-inline void
-fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
+static inline void
+fastpm_kick_lookup(FastPMKickFactor * kick, double af, double * dda, double * Dv1, double * Dv2)
 {
     double ind;
-    double dda, Dv1, Dv2;
 
     if(af == kick->af) {
-        dda = kick->dda[kick->nsamples - 1];
-        Dv1 = kick->Dv1[kick->nsamples - 1];
-        Dv2 = kick->Dv2[kick->nsamples - 1];
-    } else {
+        *dda = kick->dda[kick->nsamples - 1];
+        *Dv1 = kick->Dv1[kick->nsamples - 1];
+        *Dv2 = kick->Dv2[kick->nsamples - 1];
+        return;
+    }
+    if(af == kick->ai) {
+        *dda = kick->dda[0];
+        *Dv1 = kick->Dv1[0];
+        *Dv2 = kick->Dv2[0];
+        return;
+    }
+    {
         ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
         int l = floor(ind);
         double u = l + 1 - ind;
@@ -102,10 +131,24 @@ fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[
         if(l + 1 >= kick->nsamples) {
             fastpm_raise(-1, "kick beyond factor's available range. ");
         }
-        dda = kick->dda[l] * u + kick->dda[l + 1] * v;
-        Dv1 = kick->Dv1[l] * u + kick->Dv1[l + 1] * v;
-        Dv2 = kick->Dv2[l] * u + kick->Dv2[l + 1] * v;
+        *dda = kick->dda[l] * u + kick->dda[l + 1] * v;
+        *Dv1 = kick->Dv1[l] * u + kick->Dv1[l + 1] * v;
+        *Dv2 = kick->Dv2[l] * u + kick->Dv2[l + 1] * v;
     }
+}
+
+inline void
+fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
+{
+    double dda_i, Dv1_i, Dv2_i;
+    double dda_f, Dv1_f, Dv2_f;
+    double dda, Dv1, Dv2;
+
+    fastpm_kick_lookup(kick, af, &dda_f, &Dv1_f, &Dv2_f);
+    fastpm_kick_lookup(kick, p->meta.a_v, &dda_i, &Dv1_i, &Dv2_i);
+    dda = dda_f - dda_i;
+    Dv1 = Dv1_f - Dv1_i;
+    Dv2 = Dv2_f - Dv2_i;
 
     int d;
     for(d = 0; d < 3; d++) {
@@ -126,13 +169,6 @@ void
 fastpm_kick_store(FastPMKickFactor * kick,
     FastPMStore * pi, FastPMStore * po, double af)
 {
-
-    if(kick->ai != pi->meta.a_v) {
-        fastpm_raise(-1, "kick is inconsitant with state.\n");
-    }
-    if(kick->ac != pi->meta.a_x) {
-        fastpm_raise(-1, "kick is inconsitant with state.\n");
-    }
     int np = pi->np;
 
     // Kick using acceleration at a= ac
@@ -181,6 +217,7 @@ static double g_f(double a, FastPMCosmology * c)
                    + a * a * a * E * d2Dda2;
     return g_f;
 }
+
 void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af)
 {
     FastPMCosmology * c = fastpm->cosmology;
@@ -254,12 +291,6 @@ fastpm_drift_store(FastPMDriftFactor * drift,
                FastPMStore * pi, FastPMStore * po,
                double af)
 {
-    if(drift->ai != pi->meta.a_x) {
-        fastpm_raise(-1, "drift is inconsitant with state.\n");
-    }
-    if(drift->ac != pi->meta.a_v) {
-        fastpm_raise(-1, "drift is inconsitant with state.\n");
-    }
     int np = pi->np;
 
     int i;

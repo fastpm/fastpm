@@ -363,6 +363,12 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do kick */
     ENTER(kick);
+    if(kick.ai != p->meta.a_v) {
+        fastpm_raise(-1, "kick is inconsitant with state.\n");
+    }
+    if(kick.ac != p->meta.a_x) {
+        fastpm_raise(-1, "kick is inconsitant with state.\n");
+    }
     fastpm_kick_store(&kick, p, p, trans->a.f);
     LEAVE(kick);
 }
@@ -391,6 +397,12 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do drift */
     ENTER(drift);
+    if(drift.ai != p->meta.a_x) {
+        fastpm_raise(-1, "drift is inconsitant with state.\n");
+    }
+    if(drift.ac != p->meta.a_v) {
+        fastpm_raise(-1, "drift is inconsitant with state.\n");
+    }
     fastpm_drift_store(&drift, p, p, trans->a.f);
     LEAVE(drift);
 }
@@ -427,7 +439,16 @@ fastpm_decompose(FastPMSolver * fastpm) {
 
 }
 
-/* Interpolate position and velocity for snapshot at a=aout */
+/* Interpolate position and velocity for snapshot at a=aout,
+ * this alters fastpm->p, thus need to call unset to revert it.
+ * 
+ *
+ * fastpm_set_snapshot(fastpm, .......)
+ *
+ *  Avoid using fastpm->p between
+ *
+ * fastpm_unset_snapshot(fastpm, .......)
+ * */
 void
 fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
@@ -441,19 +462,22 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     int np = p->np;
 
     fastpm_store_init(po, p->np_upper,
-            p->attributes & ~COLUMN_ACC,
-            FASTPM_MEMORY_HEAP
-        );
+        0,
+        FASTPM_MEMORY_HEAP
+    );
 
+    /* steal columns, but velocity, since we need to use old velocity
+     * during the drift */
+    fastpm_store_steal(p, po, p->attributes);
 
-    /* first copy, then overwrite a few columns*/
-    fastpm_store_copy(fastpm->p, po);
+    /* Fake the attributes */
+    po->attributes = p->attributes;
+
+    /* update position; before kick to use the old velocity */
+    fastpm_drift_store(drift, p, po, aout);
 
     /* update velocity */
     fastpm_kick_store(kick, p, po, aout);
-
-    /* update position */
-    fastpm_drift_store(drift, p, po, aout);
 
     ptrdiff_t i;
 
@@ -473,15 +497,70 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
 
         /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
         if(po->potential)
-            po->potential[i] = p->potential[i] / aout * potfactor;
+            po->potential[i] *= potfactor / aout;
         if(po->tidal) {
             for( d = 0; d < 3; d ++) {
-                po->tidal[i][d] = p->tidal[i][d] / aout * potfactor;
+                po->tidal[i][d] *= potfactor / aout;
+            }
+        }
+    }
+    fastpm_store_wrap(po, pm->BoxSize);
+}
+
+/* revert the effect of a snapshot on fastpm->p, and destroy po */
+void
+fastpm_unset_snapshot(FastPMSolver * fastpm,
+                FastPMDriftFactor * drift,
+                FastPMKickFactor * kick,
+                FastPMStore * po,
+                double aout)
+{
+    FastPMStore * p = fastpm->p;
+    FastPMCosmology * c = fastpm->cosmology;
+    PM * pm = fastpm->basepm;
+    int np = po->np;
+
+    ptrdiff_t i;
+
+    /* convert units */
+
+    /* potfactor converts fastpm Phi to dimensionless */
+    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
+
+#pragma omp parallel for
+    for(i=0; i<np; i++) {
+
+        int d;
+        for(d = 0; d < 3; d ++) {
+            /* convert the unit from a**2 dx/dt / H0 in Mpc/h to a dx/dt km/s */
+            po->v[i][d] /= HubbleConstant / aout;
+        }
+
+        /* convert the unit from comoving (Mpc/h) ** 2 to dimensionless potential. */
+        if(po->potential)
+            po->potential[i] /= potfactor / aout;
+        if(po->tidal) {
+            for( d = 0; d < 3; d ++) {
+                po->tidal[i][d] /= potfactor / aout;
             }
         }
     }
 
-    fastpm_store_wrap(po, pm->BoxSize);
+    /* revert velocity */
+    fastpm_kick_store(kick, po, po, p->meta.a_v);
+
+    /* revert position */
+    fastpm_drift_store(drift, po, po, p->meta.a_x);
+
+    /* steal back columns */
+    fastpm_store_steal(po, p, p->attributes);
+
+    fastpm_store_wrap(p, pm->BoxSize);
+
+    /* Stop faking the attributes */
+    po->attributes = 0;
+
+    fastpm_store_destroy(po);
 }
 
 double

@@ -742,6 +742,19 @@ fastpm_store_summary(FastPMStore * p,
     va_end(va);
 }
 
+void
+fastpm_store_steal(FastPMStore * p, FastPMStore * po, FastPMColumnTags attributes)
+{
+    int c;
+    for(c = 0; c < 32; c ++) {
+        if (!(p->_column_info[c].attribute & attributes)) continue;
+        po->columns[c] = p->columns[c];
+    }
+
+    po->np = p->np;
+    po->meta = p->meta;
+}
+
 static void
 _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t offset, size_t ncopy)
 {
@@ -817,9 +830,11 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 }
 
 /*
- * Create a subsample, keeping only those with mask == True
+ * Create a subsample, keeping only those with mask == True;
+ *
+ * if po is NULL, only return number of items.
  * */
-void
+size_t
 fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
 {
     ptrdiff_t i;
@@ -828,6 +843,8 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
     j = 0;
     for(i = 0; i < p->np; i ++) {
         if(!mask[i]) continue;
+        /* just counting */
+        if(po == NULL) { j++; continue; }
         /* avoid memcpy of same address if we are doing subsample inplace */
         if(p == po && j == i) {j ++; continue; }
 
@@ -842,8 +859,11 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
         j ++;
     }
 
-    po->np = j;
-    po->meta = p->meta;
+    if(po) {
+        po->np = j;
+        po->meta = p->meta;
+    }
+    return j;
 }
 
 

@@ -201,7 +201,7 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
         uint8_t * mask,
         MPI_Comm comm);
 
-void
+size_t
 fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
 
 void
@@ -213,6 +213,9 @@ fastpm_store_histogram_aemit_sorted(FastPMStore * store,
 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
+
+void
+fastpm_store_steal(FastPMStore * in, FastPMStore * out, FastPMColumnTags attributes);
 
 void
 fastpm_store_take(FastPMStore * in, ptrdiff_t i, FastPMStore * out, ptrdiff_t j);

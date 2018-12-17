@@ -42,7 +42,7 @@ static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, double aout, Parameters * prr);
+take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr);
 
 struct smesh_force_handler_data {
     FastPMSMesh * smesh;
@@ -1017,27 +1017,42 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
 
         FastPMStore snapshot[1];
         FastPMStore halos[1];
+        FastPMStore subsample[1];
 
         fastpm_info("Current a_x = %6.4f, a_v = %6.4f \n", fastpm->p->meta.a_x, fastpm->p->meta.a_v);
+
+        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
+
+        fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", snapshot->meta.a_x, snapshot->meta.a_v);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
         fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_rate(fastpm, aout[iout]), aout[iout]);
 
-        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
 
         if(CONF(prr->lua, write_fof)) {
             run_fof(fastpm, snapshot, halos, prr);
         }
 
-        /* in place subsampling to avoid creating another store, we trash it immediately anyways. */
-        fastpm_store_subsample(snapshot, snapshot->mask, snapshot);
+        if(CONF(prr->lua, particle_fraction) < 1) {
+            size_t n_subsample = fastpm_store_subsample(snapshot, snapshot->mask, NULL);
 
-        take_a_snapshot(fastpm, snapshot, halos, aout[iout], prr);
+            fastpm_store_init(subsample, n_subsample,
+                        snapshot->attributes & (~COLUMN_ACC) & (~COLUMN_MASK),
+                        FASTPM_MEMORY_HEAP);
+
+            fastpm_store_subsample(snapshot, snapshot->mask, subsample);
+
+            take_a_snapshot(fastpm, subsample, halos, prr);
+
+            fastpm_store_destroy(subsample);
+        } else {
+            take_a_snapshot(fastpm, snapshot, halos, prr);
+        }
 
         if(CONF(prr->lua, write_fof)) {
             fastpm_store_destroy(halos);
         }
-        fastpm_store_destroy(snapshot);
 
+        fastpm_unset_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
     }
     return 0;
 }
@@ -1195,8 +1210,9 @@ run_usmesh_fof(FastPMSolver * fastpm,
 }
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, double aout, Parameters * prr) 
+take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr) 
 {
+    double aout = snapshot->meta.a_x;
     double z_out= 1.0/aout - 1.0;
 
     CLOCK(io);

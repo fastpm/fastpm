@@ -107,11 +107,12 @@ struct FastPMDriftFactor {
 
     /* */
     int nsamples;
+    double Dv1; /* at ac */
+    double Dv2; /* at ac */
+
     double dyyy[32];
     double da1[32];
     double da2[32];
-    double Dv1; /* at ac */
-    double Dv2; /* at ac */
 };
 
 struct FastPMKickFactor {
@@ -122,9 +123,9 @@ struct FastPMKickFactor {
     double af;
 
     int nsamples;
-    float q1;
-    float q2;
-    float dda[32];
+    double q1;
+    double q2;
+    double dda[32];
     double Dv1[32];
     double Dv2[32];
 };
@@ -165,6 +166,11 @@ fastpm_drift_store(FastPMDriftFactor * drift,
 
 void 
 fastpm_set_snapshot(FastPMSolver * fastpm,
+                FastPMDriftFactor * drift, FastPMKickFactor * kick,
+                FastPMStore * po,
+                double aout);
+void 
+fastpm_unset_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout);
