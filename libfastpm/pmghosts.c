@@ -155,6 +155,15 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     Nrecv = cumsum(pgd->Orecv, pgd->Nrecv, pm->NTask);
 
+    double nmin, nmax, nmean, nstd;
+    MPIU_stats(pm->Comm2D, Nsend, "<->s", &nmin, &nmean, &nmax, &nstd);
+    fastpm_info("Sending ghosts: min = %g max = %g mean = %g std = %g\n",
+        nmin, nmax, nmean, nstd);
+
+    MPIU_stats(pm->Comm2D, Nrecv, "<->s", &nmin, &nmean, &nmax, &nstd);
+    fastpm_info("Receiving ghosts: min = %g max = %g mean = %g std = %g\n",
+        nmin, nmax, nmean, nstd);
+
     pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, "Ghost2Par", Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
 
     pgd->p = malloc(sizeof(pgd->p[0]));

@@ -1030,7 +1030,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
             below, above
         );
 
-    pm_ghosts_send(pgd, COLUMN_POS | COLUMN_ID);
+    pm_ghosts_send(pgd, COLUMN_POS);
+    pm_ghosts_send(pgd, COLUMN_ID);
 
     size_t np_and_ghosts = p->np + pgd->p->np;
 
