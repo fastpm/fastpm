@@ -445,9 +445,7 @@ fastpm_store_decompose(FastPMStore * p,
     for(i = 0; i < p->np; i ++) {
         target[i] = target_func(p, i, data);
         if(ThisTask == target[i]) {
-            target[i] = 0;
-        } else {
-            target[i] ++;
+            target[i] = -1;
         }
     }
     /* do a bincount; offset by -1 because -1 is for self */
@@ -459,13 +457,13 @@ fastpm_store_decompose(FastPMStore * p,
     int * sendoffset = malloc(sizeof(int) * (NTask));
 
     for(i = 0; i < p->np; i ++) {
-        count[target[i]] ++;
+        sendcount[target[i]] ++;
     }
     cumsum(offsets, count, NTask + 1);
 
     int * arg = fastpm_memory_alloc(p->mem, "PermArg", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
     for(i = 0; i < p->np; i ++) {
-        int offset = offsets[target[i]] ++;
+        int offset = offsets[target[i] + 1] ++;
         arg[offset] = i;
     }
 
