@@ -201,7 +201,7 @@ int main(int argc, char * argv[]) {
         printf("NTask = %d\n", NTask);
         printf("src size = %ld\n", srcsize);
     }
-    if(staggered && (ThisTask % 2 == 1)) srcsize = 0;
+    if(staggered && (ThisTask % 2 == 0)) srcsize = 0;
 
 
     int64_t csize;

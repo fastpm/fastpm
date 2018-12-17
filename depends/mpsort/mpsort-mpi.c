@@ -107,7 +107,6 @@ static int _solve_for_layout_mpi (
 static struct TIMER {
     double time;
     char name[20];
-
 } _TIMERS[512];
 
 static int
@@ -158,16 +157,8 @@ _collect_sizes(size_t localsize, size_t * sizes, size_t * myoffset, MPI_Comm com
 
     sizes[ThisTask] = localsize;
 
-    MPI_Datatype MPI_PTRDIFFT;
-
-    if(sizeof(ptrdiff_t) == sizeof(long)) {
-        MPI_PTRDIFFT = MPI_LONG;
-    } else if(sizeof(ptrdiff_t) == sizeof(int)) {
-        MPI_PTRDIFFT = MPI_INT;
-    } else { abort(); }
-
-    MPI_Allreduce(&sizes[ThisTask], &totalsize, 1, MPI_PTRDIFFT, MPI_SUM, comm);
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_PTRDIFFT, comm);
+    MPI_Allreduce(&sizes[ThisTask], &totalsize, 1, MPI_TYPE_PTRDIFF, MPI_SUM, comm);
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_TYPE_PTRDIFF, comm);
 
     int i;
     *myoffset = 0;
@@ -190,6 +181,7 @@ struct SegmentGroupDescr {
     int segment_end;
 
     int is_leader;
+    int leader_rank;
     MPI_Comm Group;  /* communicator for all ranks in the group */
     MPI_Comm Leader; /* communicator for all ranks that are group leaders */
     MPI_Comm Segment; /* communicator for all ranks in this segment */
@@ -223,8 +215,20 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t *
 
     MPI_Comm_rank(descr->Group, &rank);
 
-    descr->is_leader = rank == 0;
-    MPI_Comm_split(comm, rank == 0? 0 : 1, ThisTask, &descr->Leader);
+    struct { 
+        size_t val;
+        int   rank;
+    } leader_st;
+
+    leader_st.val = sizes[ThisTask];
+    leader_st.rank = rank;
+
+    MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MAXLOC, descr->Group);
+
+    descr->is_leader = rank == leader_st.rank;
+    descr->leader_rank = leader_st.rank;
+
+    MPI_Comm_split(comm, rank == leader_st.rank? 0 : 1, ThisTask, &descr->Leader);
 
     MPI_Comm_split(descr->Group, descr->ThisSegment, ThisTask, &descr->Segment);
     int rank2;
@@ -251,6 +255,14 @@ void mpsort_mpi_report_last_run() {
         last =tmr->time;
         tmr ++;
     }
+}
+int mpsort_mpi_find_ntimers(struct TIMER * tmr) {
+    int n = 0;
+    while(0 != strcmp(tmr->name, "END")) {
+        tmr ++;
+        n++;
+    }
+    return n;
 }
 
 void
@@ -285,11 +297,11 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
 {
 
     if(MPI_TYPE_PTRDIFF == 0) {
-        if(sizeof(ptrdiff_t) == sizeof(long long)) {
-            MPI_TYPE_PTRDIFF = MPI_LONG_LONG;
-        }
         if(sizeof(ptrdiff_t) == sizeof(long)) {
             MPI_TYPE_PTRDIFF = MPI_LONG;
+        }
+        if(sizeof(ptrdiff_t) == sizeof(long long)) {
+            MPI_TYPE_PTRDIFF = MPI_LONG_LONG;
         }
         if(sizeof(ptrdiff_t) == sizeof(int)) {
             MPI_TYPE_PTRDIFF = MPI_INT;
@@ -341,11 +353,11 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     MPI_Allreduce(&myoutnmemb, &myoutsegmentnmemb, 1, MPI_TYPE_PTRDIFF, MPI_SUM, seggrp->Group);
 
     if (groupsize > 1) {
-        if(grouprank == 0) {
+        if(grouprank == seggrp->leader_rank) {
             mysegmentbase = malloc(mysegmentnmemb * elsize);
             myoutsegmentbase = malloc(myoutsegmentnmemb * elsize);
         }
-        MPIU_Gather(seggrp->Group, 0, mybase, mysegmentbase, mynmemb, elsize, NULL);
+        MPIU_Gather(seggrp->Group, seggrp->leader_rank, mybase, mysegmentbase, mynmemb, elsize, NULL);
     } else {
         mysegmentbase = mybase;
         myoutsegmentbase = myoutbase;
@@ -367,12 +379,19 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     }
 
     if(groupsize > 1) {
-        MPIU_Scatter(seggrp->Group, 0, myoutsegmentbase, myoutbase, myoutnmemb, elsize, NULL);
+        MPIU_Scatter(seggrp->Group, seggrp->leader_rank, myoutsegmentbase, myoutbase, myoutnmemb, elsize, NULL);
     }
 
-    MPI_Bcast(tmr, sizeof(tmr), MPI_BYTE, 0, seggrp->Group);
+    {
+        int ntmr;
+        if(seggrp->is_leader)
+            ntmr = (mpsort_mpi_find_ntimers(tmr) + 1);
 
-    if(grouprank == 0) {
+        MPI_Bcast(&ntmr, 1, MPI_INT, seggrp->leader_rank, seggrp->Group);
+        MPI_Bcast(tmr, sizeof(tmr[0]) * ntmr, MPI_BYTE, seggrp->leader_rank, seggrp->Group);
+    }
+
+    if(grouprank == seggrp->leader_rank) {
         if(mysegmentbase != mybase)
             free(mysegmentbase);
         if(myoutsegmentbase != myoutbase)
