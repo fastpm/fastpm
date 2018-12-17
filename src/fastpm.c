@@ -849,7 +849,7 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_smesh));
 
     ENTER(sort);
-    fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
+    fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     LEAVE(sort);
 
     ENTER(io);
@@ -907,9 +907,9 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     fastpm_store_subsample(lcevent->p, lcevent->p->mask, lcevent->p);
 
     ENTER(sort);
-    fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
+    fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     if(CONF(prr->lua, write_fof)) {
-        fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 1);
+        fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
     LEAVE(sort);
 
@@ -1218,7 +1218,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
 
     if(CONF(prr->lua, sort_snapshot)) {
         ENTER(sort);
-        fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 1);
+        fastpm_sort_snapshot(snapshot, fastpm->comm, FastPMSnapshotSortByID, 0);
         LEAVE(sort);
     }
 
