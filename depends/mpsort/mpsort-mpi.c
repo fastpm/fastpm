@@ -139,6 +139,10 @@ _assign_colors(size_t glocalsize, size_t * sizes, size_t * outsizes, int * ncolo
             current_color ++;
         }
     }
+    /* no data for color of -1; exclude them later with special cases */
+    if(sizes[ThisTask] == 0 && outsizes[ThisTask] == 0) {
+        mycolor = -1;
+    }
 
     *ncolor = lastcolor + 1;
     return mycolor;
@@ -180,8 +184,9 @@ struct SegmentGroupDescr {
     int segment_start; /* segments responsible in this group */
     int segment_end;
 
-    int is_leader;
-    int leader_rank;
+    int is_group_leader;
+    int group_leader_rank;
+    int segment_leader_rank;
     MPI_Comm Group;  /* communicator for all ranks in the group */
     MPI_Comm Leader; /* communicator for all ranks that are group leaders */
     MPI_Comm Segment; /* communicator for all ranks in this segment */
@@ -198,9 +203,13 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t *
 
     descr->ThisSegment = _assign_colors(avgsegsize, sizes, outsizes, &descr->Nsegments, comm);
 
-    /* assign segments to groups.
-     * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
-    descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
+    if(descr->ThisSegment >= 0) {
+        /* assign segments to groups.
+         * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
+        descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
+    } else {
+        descr->GroupID = -1;
+    }
 
     descr->Ngroup = Ngroup;
 
@@ -225,8 +234,8 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t *
 
     MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MAXLOC, descr->Group);
 
-    descr->is_leader = rank == leader_st.rank;
-    descr->leader_rank = leader_st.rank;
+    descr->is_group_leader = rank == leader_st.rank;
+    descr->group_leader_rank = leader_st.rank;
 
     MPI_Comm_split(comm, rank == leader_st.rank? 0 : 1, ThisTask, &descr->Leader);
 
@@ -235,6 +244,11 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t *
 
     MPI_Comm_rank(descr->Segment, &rank2);
 
+    leader_st.val = sizes[ThisTask];
+    leader_st.rank = rank2;
+
+    MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MINLOC, descr->Segment);
+    descr->segment_leader_rank = leader_st.rank;
 }
 
 static void
@@ -353,18 +367,18 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     MPI_Allreduce(&myoutnmemb, &myoutsegmentnmemb, 1, MPI_TYPE_PTRDIFF, MPI_SUM, seggrp->Group);
 
     if (groupsize > 1) {
-        if(grouprank == seggrp->leader_rank) {
+        if(grouprank == seggrp->group_leader_rank) {
             mysegmentbase = malloc(mysegmentnmemb * elsize);
             myoutsegmentbase = malloc(myoutsegmentnmemb * elsize);
         }
-        MPIU_Gather(seggrp->Group, seggrp->leader_rank, mybase, mysegmentbase, mynmemb, elsize, NULL);
+        MPIU_Gather(seggrp->Group, seggrp->group_leader_rank, mybase, mysegmentbase, mynmemb, elsize, NULL);
     } else {
         mysegmentbase = mybase;
         myoutsegmentbase = myoutbase;
     }
 
     /* only do sorting on the group leaders for each segment */
-    if(seggrp->is_leader) {
+    if(seggrp->is_group_leader) {
 
         struct crstruct d;
         struct crmpistruct o;
@@ -379,19 +393,19 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     }
 
     if(groupsize > 1) {
-        MPIU_Scatter(seggrp->Group, seggrp->leader_rank, myoutsegmentbase, myoutbase, myoutnmemb, elsize, NULL);
+        MPIU_Scatter(seggrp->Group, seggrp->group_leader_rank, myoutsegmentbase, myoutbase, myoutnmemb, elsize, NULL);
     }
 
     {
         int ntmr;
-        if(seggrp->is_leader)
+        if(seggrp->is_group_leader)
             ntmr = (mpsort_mpi_find_ntimers(tmr) + 1);
 
-        MPI_Bcast(&ntmr, 1, MPI_INT, seggrp->leader_rank, seggrp->Group);
-        MPI_Bcast(tmr, sizeof(tmr[0]) * ntmr, MPI_BYTE, seggrp->leader_rank, seggrp->Group);
+        MPI_Bcast(&ntmr, 1, MPI_INT, seggrp->group_leader_rank, seggrp->Group);
+        MPI_Bcast(tmr, sizeof(tmr[0]) * ntmr, MPI_BYTE, seggrp->group_leader_rank, seggrp->Group);
     }
 
-    if(grouprank == seggrp->leader_rank) {
+    if(grouprank == seggrp->group_leader_rank) {
         if(mysegmentbase != mybase)
             free(mysegmentbase);
         if(myoutsegmentbase != myoutbase)
