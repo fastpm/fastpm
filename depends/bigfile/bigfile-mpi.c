@@ -356,20 +356,29 @@ _assign_colors(size_t glocalsize, size_t * sizes, int * ncolor, MPI_Comm comm)
     int current_color = 0;
     int lastcolor = 0;
     for(i = 0; i < NTask; i ++) {
-        current_size += sizes[i];
-
         lastcolor = current_color;
 
         if(i == ThisTask) {
             mycolor = lastcolor;
         }
 
-        if(current_size > glocalsize) {
+        if (_big_file_mpi_verbose) {
+            if(ThisTask == 0) {
+                printf("current_size %td, sizes[i] %td, glocalsize %td, current_color %d\n",
+                    current_size, sizes[i], glocalsize, current_color);
+            }
+        }
+        current_size += sizes[i];
+
+        if(current_size >= glocalsize) {
             current_size = 0;
             current_color ++;
         }
     }
-
+    /* no data for color of -1; exclude them later with special cases */
+    if(sizes[ThisTask] == 0) {
+        mycolor = -1;
+    }
     *ncolor = lastcolor + 1;
     return mycolor;
 }
@@ -436,9 +445,13 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t a
 
     descr->ThisSegment = _assign_colors(avgsegsize, sizes, &descr->Nsegments, comm);
 
-    /* assign segments to groups.
-     * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
-    descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
+    if(descr->ThisSegment >= 0) {
+        /* assign segments to groups.
+         * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
+        descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
+    } else {
+        descr->GroupID = -1;
+    }
 
     descr->Ngroup = Ngroup;
 
@@ -532,7 +545,9 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
     size_t totalsize = _collect_sizes(localsize, sizes, &myoffset, comm);
 
     /* try to create as many segments as number of groups (thus one segment per group) */
-    avgsegsize = (totalsize + concurrency - 1) / concurrency + 1;
+    avgsegsize = totalsize / concurrency;
+
+    if(avgsegsize <= 0) avgsegsize = 1;
 
     /* no segment shall exceed the memory bound set by maxsegsize, since it will be collected to a single rank */
     if(avgsegsize > _BigFileAggThreshold) avgsegsize = _BigFileAggThreshold;
