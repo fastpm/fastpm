@@ -513,7 +513,7 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
         int dense = send_requests > 128;
         MPI_Allreduce(MPI_IN_PLACE, &dense, 1, MPI_INT, MPI_SUM, comm);
         /* dense is number of ranks does a lot of sends. */
-        if (dense > 128) {
+        if (dense > 0) {
             fastpm_info("Using MPI's Alltoallv");
             return MPI_Alltoallv(
                 sendbuf, sendcnts, sdispls, sendtype,
