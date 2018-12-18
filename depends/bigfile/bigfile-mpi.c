@@ -450,7 +450,8 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t a
          * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
         descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
     } else {
-        descr->GroupID = -1;
+        descr->GroupID = MPI_UNDEFINED;
+        descr->ThisSegment = MPI_UNDEFINED;
     }
 
     descr->Ngroup = Ngroup;
