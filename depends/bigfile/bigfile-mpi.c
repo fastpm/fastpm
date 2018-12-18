@@ -417,7 +417,9 @@ struct SegmentGroupDescr {
     int segment_start; /* segments responsible in this group */
     int segment_end;
 
-    int is_leader;
+    int is_group_leader;
+    int group_leader_rank;
+    int segment_leader_rank;
     MPI_Comm Group;  /* communicator for all ranks in the group */
     MPI_Comm Leader; /* communicator for all ranks that are group leaders */
     MPI_Comm Segment; /* communicator for all ranks in this segment */
@@ -451,17 +453,35 @@ _create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t a
 
     MPI_Comm_rank(descr->Group, &rank);
 
-    descr->is_leader = rank == 0;
-    MPI_Comm_split(comm, rank == 0? 0 : 1, ThisTask, &descr->Leader);
+    struct {
+        size_t val;
+        int   rank;
+    } leader_st;
+
+    leader_st.val = sizes[ThisTask];
+    leader_st.rank = rank;
+
+    MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MAXLOC, descr->Group);
+
+    descr->is_group_leader = rank == leader_st.rank;
+    descr->group_leader_rank = leader_st.rank;
+
+    MPI_Comm_split(comm, rank == leader_st.rank? 0 : 1, ThisTask, &descr->Leader);
 
     MPI_Comm_split(descr->Group, descr->ThisSegment, ThisTask, &descr->Segment);
     int rank2;
 
     MPI_Comm_rank(descr->Segment, &rank2);
 
+    leader_st.val = sizes[ThisTask];
+    leader_st.rank = rank2;
+
+    MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MINLOC, descr->Segment);
+    descr->segment_leader_rank = leader_st.rank;
+
     if (_big_file_mpi_verbose) {
-        printf("bigfile: ThisTask = %d ThisSegment = %d / %d GroupID = %d / %d rank = %d rank in segment = %d segstart = %d segend = %d\n",
-            ThisTask, descr->ThisSegment, descr->Nsegments, descr->GroupID, descr->Ngroup, rank, rank2, descr->segment_start, descr->segment_end);
+        printf("bigfile: ThisTask = %d ThisSegment = %d / %d GroupID = %d / %d rank = %d rank in segment = %d segstart = %d segend = %d segroot = %d\n",
+            ThisTask, descr->ThisSegment, descr->Nsegments, descr->GroupID, descr->Ngroup, rank, rank2, descr->segment_start, descr->segment_end, descr->segment_leader_rank);
     }
 }
 
@@ -482,6 +502,7 @@ _aggregated(
             size_t localsize,
             BigArray * array,
             int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array),
+            int root,
             MPI_Comm comm);
 
 static int
@@ -535,8 +556,11 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
         } 
         if(seggrp->ThisSegment != segment) continue;
 
-        /* offset on the root of SegGroup matters */
-        rt = _aggregated(block, ptr, myoffset, localsize, array, action, seggrp->Segment);
+        /* use the offset on the first task in the SegGroup */
+        size_t offset = myoffset;
+        MPI_Bcast(&offset, 1, MPI_LONG, 0, seggrp->Segment);
+
+        rt = _aggregated(block, ptr, offset, localsize, array, action, seggrp->segment_leader_rank, seggrp->Segment);
 
     }
 
@@ -557,6 +581,7 @@ _aggregated(
             size_t localsize, /* offset of the entire comm */
             BigArray * array,
             int (*action)(BigBlock * bb, BigBlockPtr * ptr, BigArray * array),
+            int root,
             MPI_Comm comm)
 {
     size_t elsize = big_file_dtype_itemsize(block->dtype) * block->nmemb;
@@ -603,7 +628,7 @@ _aggregated(
     big_array_iter_init(iarray, array);
     big_array_iter_init(ilarray, larray);
 
-    if(rank == 0) {
+    if(rank == root) {
         gbuf = malloc(grouptotalsize * elsize);
         big_array_init(garray, gbuf, block->dtype, 2, (size_t[]){grouptotalsize, block->nmemb}, NULL);
     }
@@ -611,19 +636,19 @@ _aggregated(
     if(action == big_block_write) {
         _dtype_convert(ilarray, iarray, localsize * block->nmemb);
         MPI_Gatherv(lbuf, recvcounts[rank], mpidtype,
-                    gbuf, recvcounts, recvdispls, mpidtype, 0, comm);
+                    gbuf, recvcounts, recvdispls, mpidtype, root, comm);
     }
-    if(rank == 0) {
+    if(rank == root) {
         big_block_seek_rel(block, ptr1, offset);
         e = action(block, ptr1, garray);
     }
     if(action == big_block_read) {
         MPI_Scatterv(gbuf, recvcounts, recvdispls, mpidtype,
-                    lbuf, localsize, mpidtype, 0, comm);
+                    lbuf, localsize, mpidtype, root, comm);
         _dtype_convert(iarray, ilarray, localsize * block->nmemb);
     }
 
-    if(rank == 0) {
+    if(rank == root) {
         free(gbuf);
     }
     free(lbuf);
