@@ -510,16 +510,18 @@ int MPI_Alltoallv_sparse(void *sendbuf, int *sendcnts, int *sdispls,
                 send_requests ++;
             }
         }
-        int dense = send_requests * send_requests > NTask;
+        int dense = send_requests > 128;
         MPI_Allreduce(MPI_IN_PLACE, &dense, 1, MPI_INT, MPI_SUM, comm);
         /* dense is number of ranks does a lot of sends. */
-        if (dense * 10 > NTask) {
+        if (dense > 128) {
+            fastpm_info("Using MPI's Alltoallv");
             return MPI_Alltoallv(
                 sendbuf, sendcnts, sdispls, sendtype,
                 recvbuf, recvcnts, rdispls, recvtype,
                 comm);
         } /* else */
     }
+    fastpm_info("Using sparse Alltoallv");
 
     int PTask;
     int ngrp;
