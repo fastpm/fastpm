@@ -429,6 +429,7 @@ fastpm_store_decompose(FastPMStore * p,
     fastpm_store_target_func target_func,
     void * data, MPI_Comm comm)
 {
+    if(fastpm_store_get_np_total(p, comm) == 0) return 0 ;
 
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
 
