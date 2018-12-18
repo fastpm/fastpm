@@ -954,7 +954,7 @@ int MPI_Alltoallv_smart(void *sendbuf, int *sendcnts, int *sdispls,
     ) {
         dense = 1;
     } else {
-        dense = nn < NTask * 0.2;
+        dense = nn > 128;
         MPI_Allreduce(MPI_IN_PLACE, &dense, 1, MPI_INT, MPI_SUM, comm);
     }
 
