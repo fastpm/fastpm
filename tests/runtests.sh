@@ -2,7 +2,7 @@
 
 source testfunctions.sh
 
-FASTPM=`dirname $0`/../src/fastpm -T 1
+FASTPM="`dirname $0`/../src/fastpm -T 1"
 
 set -x
 
