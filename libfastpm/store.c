@@ -433,7 +433,13 @@ fastpm_store_decompose(FastPMStore * p,
 
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
 
-    int * target = fastpm_memory_alloc(p->mem, "Target", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+    FastPMPackingPlan plan[1];
+
+    fastpm_packing_plan_init(plan, p, p->attributes);
+
+    size_t elsize = plan->elsize;
+    size_t Nsend_limit = 8 * 1024 * 1024 / elsize;
+
     int NTask, ThisTask;
 
     MPI_Comm_rank(comm, &ThisTask);
@@ -442,13 +448,7 @@ fastpm_store_decompose(FastPMStore * p,
     if(p->np > p->np_upper) {
         fastpm_raise(-1, "Particle buffer overrun detected np = %td > np_upper %td.\n", p->np, p->np_upper);
     }
-    ptrdiff_t i;
-    for(i = 0; i < p->np; i ++) {
-        target[i] = target_func(p, i, data);
-        if(ThisTask == target[i]) {
-            target[i] = -1;
-        }
-    }
+
     /* do a bincount; offset by -1 because -1 is for self */
     int * count = calloc(NTask + 1, sizeof(int));
     int * offsets = calloc(NTask + 1, sizeof(int));
@@ -457,143 +457,135 @@ fastpm_store_decompose(FastPMStore * p,
     int * recvoffset = malloc(sizeof(int) * (NTask));
     int * sendoffset = malloc(sizeof(int) * (NTask));
 
-    for(i = 0; i < p->np; i ++) {
-        sendcount[target[i]] ++;
-    }
-    cumsum(offsets, count, NTask + 1);
+    int incomplete = 1;
+    int iter = 0;
+    /* terminate based on incomplete for throttling*/
+    while(1) {
+        incomplete = 0;
+        int * target = fastpm_memory_alloc(p->mem, "Target", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
 
-    int * arg = fastpm_memory_alloc(p->mem, "PermArg", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
-    for(i = 0; i < p->np; i ++) {
-        int offset = offsets[target[i] + 1] ++;
-        arg[offset] = i;
-    }
-
-    fastpm_store_permute(p, arg);
-
-    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
-
-    fastpm_memory_free(p->mem, arg);
-    fastpm_memory_free(p->mem, target);
-
-    MPI_Alltoall(sendcount, 1, MPI_INT, 
-                 recvcount, 1, MPI_INT, 
-                 comm);
-
-    size_t Nsend = cumsum(sendoffset, sendcount, NTask);
-    size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
-    FastPMPackingPlan plan[1];
-
-    fastpm_packing_plan_init(plan, p, p->attributes);
-
-    size_t elsize = plan->elsize;
-
-    volatile size_t neededsize = p->np + Nrecv - Nsend;
-
-    if(neededsize > p->np_upper) {
-        fastpm_ilog(INFO, "Need %td particles on rank %d; %td allocated\n", neededsize, ThisTask, p->np_upper);
-    }
-
-    if(MPIU_Any(comm, neededsize > p->np_upper)) {
-        goto fail_oom;
-    }
-
-    p->np -= Nsend;
-
-    void * send_buffer = fastpm_memory_alloc(p->mem, "SendBuf", elsize * Nsend, FASTPM_MEMORY_HEAP);
-    void * recv_buffer = fastpm_memory_alloc(p->mem, "RecvBuf", elsize * Nrecv, FASTPM_MEMORY_HEAP);
-
-    {
-        double nmin, nmax, nmean, nstd;
-
-        MPIU_stats(comm, elsize * Nsend, "<>-s", &nmin, &nmax, &nmean, &nstd);
-        fastpm_info("Send buffer size : min=%g max=%g mean=%g, std=%g bytes", nmin, nmax, nmean, nstd);
-        MPIU_stats(comm, elsize * Nrecv, "<>-s", &nmin, &nmax, &nmean, &nstd);
-        fastpm_info("Recv buffer size : min=%g max=%g mean=%g, std=%g bytes", nmin, nmax, nmean, nstd);
-    }
-
-    int ipar = 0;
-    int j;
-    for(i = 0; i < NTask; i ++) {
-        for(j = sendoffset[i]; j < sendoffset[i] + sendcount[i]; j ++, ipar++) {
-            fastpm_packing_plan_pack(plan, p, j + p->np, (char*) send_buffer + ipar * elsize);
+        size_t Nsend_all = 0;
+        ptrdiff_t i;
+        for(i = 0; i < p->np; i ++) {
+            target[i] = target_func(p, i, data);
+            if(ThisTask == target[i]) {
+                target[i] = -1;
+            } else {
+                Nsend_all++;
+                /* Throttling: never send more than this many particles. */
+                if(Nsend_all >= Nsend_limit) {
+                    incomplete = 1;
+                    target[i] = -1;
+                } else {
+                }
+            }
         }
-    }
 
-    size_t Nsend_limit = 8 * 1024 * 1024;
-
-    int nsend_iter = (Nsend * elsize + Nsend_limit - 1)/ Nsend_limit;
-    MPI_Allreduce(MPI_IN_PLACE, &nsend_iter, 1, MPI_INT, MPI_MAX, comm);
-
-    int iter;
-
-    for(iter = 0; iter < nsend_iter; iter++) {
-        int * sendcount1 = calloc(NTask, sizeof(int));
-        int * sendoffset1 = calloc(NTask, sizeof(int));
-        int * recvcount1 = calloc(NTask, sizeof(int));
-        int * recvoffset1 = calloc(NTask, sizeof(int));
-        size_t Nsend1 = 0;
-        size_t Nrecv1 = 0;
-
+        for(i = 0; i < NTask + 1; i ++) {
+            count[i] = 0;
+            offsets[i] = 0;
+        }
         for(i = 0; i < NTask; i ++) {
-            int o1 = ((ptrdiff_t) sendcount[i]) * iter / nsend_iter;
-            int o2 = ((ptrdiff_t) sendcount[i]) * (iter + 1) / nsend_iter;
-            sendcount1[i] = o2 - o1;
-            sendoffset1[i] = sendoffset[i] + o1;
-            Nsend1 += (o2 - o1);
+            sendoffset[i] = 0;
+            recvoffset[i] = 0;
         }
 
-        MPI_Alltoall(sendcount1, 1, MPI_INT, 
-                     recvcount1, 1, MPI_INT, 
+        for(i = 0; i < p->np; i ++) {
+            sendcount[target[i]] ++;
+        }
+        cumsum(offsets, count, NTask + 1);
+
+        int * arg = fastpm_memory_alloc(p->mem, "PermArg", sizeof(int) * p->np, FASTPM_MEMORY_HEAP);
+        for(i = 0; i < p->np; i ++) {
+            int offset = offsets[target[i] + 1] ++;
+            arg[offset] = i;
+        }
+
+        fastpm_store_permute(p, arg);
+
+        VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
+
+        fastpm_memory_free(p->mem, arg);
+        fastpm_memory_free(p->mem, target);
+
+        MPI_Alltoall(sendcount, 1, MPI_INT, 
+                     recvcount, 1, MPI_INT, 
                      comm);
 
-        for(i = 0; i < NTask; i ++) {
-            int o1 = ((ptrdiff_t) recvcount[i]) * iter / nsend_iter;
-            int o2 = ((ptrdiff_t) recvcount[i]) * (iter + 1) / nsend_iter;
-            recvcount1[i] = o2 - o1;
-            recvoffset1[i] = recvoffset[i] + o1;
-            Nrecv1 += (o2 - o1);
+        size_t Nsend = cumsum(sendoffset, sendcount, NTask);
+        size_t Nrecv = cumsum(recvoffset, recvcount, NTask);
+
+        volatile size_t neededsize = p->np + Nrecv - Nsend;
+
+        if(neededsize > p->np_upper) {
+            fastpm_ilog(INFO, "Need %td particles on rank %d; %td allocated\n", neededsize, ThisTask, p->np_upper);
         }
-        size_t Nsend1sum;
-        size_t Nrecv1sum;
-        MPI_Allreduce(&Nsend1, &Nsend1sum, 1, MPI_LONG, MPI_SUM, comm);
-        MPI_Allreduce(&Nrecv1, &Nrecv1sum, 1, MPI_LONG, MPI_SUM, comm);
-        fastpm_info("Decomposition iter %d / %d, exchange of %td %td particles", iter, nsend_iter, Nsend1sum, Nrecv1sum);
+
+        if(MPIU_Any(comm, neededsize > p->np_upper)) {
+            goto fail_oom;
+        }
+
+        p->np -= Nsend;
+
+        void * send_buffer = fastpm_memory_alloc(p->mem, "SendBuf", elsize * Nsend, FASTPM_MEMORY_HEAP);
+        void * recv_buffer = fastpm_memory_alloc(p->mem, "RecvBuf", elsize * Nrecv, FASTPM_MEMORY_HEAP);
+
+        {
+            double nmin, nmax, nmean, nstd;
+
+            MPIU_stats(comm, elsize * Nsend, "<>-s", &nmin, &nmax, &nmean, &nstd);
+            fastpm_info("Send buffer size : min=%g max=%g mean=%g, std=%g bytes", nmin, nmax, nmean, nstd);
+            MPIU_stats(comm, elsize * Nrecv, "<>-s", &nmin, &nmax, &nmean, &nstd);
+            fastpm_info("Recv buffer size : min=%g max=%g mean=%g, std=%g bytes", nmin, nmax, nmean, nstd);
+        }
+
+        int ipar = 0;
+        int j;
+        for(i = 0; i < NTask; i ++) {
+            for(j = sendoffset[i]; j < sendoffset[i] + sendcount[i]; j ++, ipar++) {
+                fastpm_packing_plan_pack(plan, p, j + p->np, (char*) send_buffer + ipar * elsize);
+            }
+        }
+
+        size_t Nsendsum;
+        size_t Nsendallsum;
+        MPI_Allreduce(&Nsend, &Nsendsum, 1, MPI_LONG, MPI_SUM, comm);
+        MPI_Allreduce(&Nsend_all, &Nsendallsum, 1, MPI_LONG, MPI_SUM, comm);
+        fastpm_info("Decomposition iter %d,  exchange of %td particles; need %td", iter, Nsendsum, Nsendallsum);
 
         MPI_Datatype PTYPE;
         MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
         MPI_Type_commit(&PTYPE);
 
         MPI_Alltoallv_sparse(
-                send_buffer, sendcount1, sendoffset1, PTYPE,
-                recv_buffer, recvcount1, recvoffset1, PTYPE,
+                send_buffer, sendcount, sendoffset, PTYPE,
+                recv_buffer, recvcount, recvoffset, PTYPE,
                 comm);
 
         MPI_Type_free(&PTYPE);
 
-        free(recvoffset1);
-        free(recvcount1);
-        free(sendoffset1);
-        free(sendcount1);
-    }
-
-    ipar = 0;
-    for(i = 0; i < NTask; i ++) {
-        for(j = recvoffset[i]; j < recvoffset[i] + recvcount[i]; j++, ipar ++) {
-            fastpm_packing_plan_unpack(plan, p, j + p->np, (char*) recv_buffer + ipar * elsize);
+        ipar = 0;
+        for(i = 0; i < NTask; i ++) {
+            for(j = recvoffset[i]; j < recvoffset[i] + recvcount[i]; j++, ipar ++) {
+                fastpm_packing_plan_unpack(plan, p, j + p->np, (char*) recv_buffer + ipar * elsize);
+            }
         }
+
+
+        fastpm_memory_free(p->mem, recv_buffer);
+        fastpm_memory_free(p->mem, send_buffer);
+
+        p->np += Nrecv;
+        iter++;
+        if(MPIU_Any(comm, incomplete)) continue;
+        else break;
     }
-
-
-    fastpm_memory_free(p->mem, recv_buffer);
-    fastpm_memory_free(p->mem, send_buffer);
-
-    p->np += Nrecv;
-
     free(recvcount);
     free(recvoffset);
     free(sendoffset);
     free(offsets);
     free(count);
+
     return 0;
 
     fail_oom:
