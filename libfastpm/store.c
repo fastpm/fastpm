@@ -496,34 +496,97 @@ fastpm_store_decompose(FastPMStore * p,
         goto fail_oom;
     }
 
+    p->np -= Nsend;
+
     void * send_buffer = fastpm_memory_alloc(p->mem, "SendBuf", elsize * Nsend, FASTPM_MEMORY_HEAP);
     void * recv_buffer = fastpm_memory_alloc(p->mem, "RecvBuf", elsize * Nrecv, FASTPM_MEMORY_HEAP);
 
-    p->np -= Nsend;
+    {
+        double nmin, nmax, nmean, nstd;
 
-    for(i = 0; i < Nsend; i ++) {
-        fastpm_packing_plan_pack(plan, p, i + p->np, (char*) send_buffer + i * elsize);
+        MPIU_stats(comm, elsize * Nsend, "<>-s", &nmin, &nmax, &nmean, &nstd);
+        fastpm_info("Send buffer size : min=%g max=%g mean=%g, std=%g bytes", nmin, nmax, nmean, nstd);
+        MPIU_stats(comm, elsize * Nrecv, "<>-s", &nmin, &nmax, &nmean, &nstd);
+        fastpm_info("Recv buffer size : min=%g max=%g mean=%g, std=%g bytes", nmin, nmax, nmean, nstd);
     }
 
-    MPI_Datatype PTYPE;
-    MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
-    MPI_Type_commit(&PTYPE);
-
-    MPI_Alltoallv_sparse(
-            send_buffer, sendcount, sendoffset, PTYPE,
-            recv_buffer, recvcount, recvoffset, PTYPE,
-            comm);
-
-    MPI_Type_free(&PTYPE);
-
-    for(i = 0; i < Nrecv; i ++) {
-        fastpm_packing_plan_unpack(plan, p, i + p->np, (char*) recv_buffer + i * elsize);
+    int ipar = 0;
+    int j;
+    for(i = 0; i < NTask; i ++) {
+        for(j = sendoffset[i]; j < sendoffset[i] + sendcount[i]; j ++, ipar++) {
+            fastpm_packing_plan_pack(plan, p, j + p->np, (char*) send_buffer + ipar * elsize);
+        }
     }
 
-    p->np += Nrecv;
+    size_t Nsend_limit = 8 * 1024 * 1024;
+
+    int nsend_iter = (Nsend * elsize + Nsend_limit - 1)/ Nsend_limit;
+    MPI_Allreduce(MPI_IN_PLACE, &nsend_iter, 1, MPI_INT, MPI_MAX, comm);
+
+    int iter;
+
+    for(iter = 0; iter < nsend_iter; iter++) {
+        int * sendcount1 = calloc(NTask, sizeof(int));
+        int * sendoffset1 = calloc(NTask, sizeof(int));
+        int * recvcount1 = calloc(NTask, sizeof(int));
+        int * recvoffset1 = calloc(NTask, sizeof(int));
+        size_t Nsend1 = 0;
+        size_t Nrecv1 = 0;
+
+        for(i = 0; i < NTask; i ++) {
+            int o1 = ((ptrdiff_t) sendcount[i]) * iter / nsend_iter;
+            int o2 = ((ptrdiff_t) sendcount[i]) * (iter + 1) / nsend_iter;
+            sendcount1[i] = o2 - o1;
+            sendoffset1[i] = sendoffset[i] + o1;
+            Nsend1 += (o2 - o1);
+        }
+
+        MPI_Alltoall(sendcount1, 1, MPI_INT, 
+                     recvcount1, 1, MPI_INT, 
+                     comm);
+
+        for(i = 0; i < NTask; i ++) {
+            int o1 = ((ptrdiff_t) recvcount[i]) * iter / nsend_iter;
+            int o2 = ((ptrdiff_t) recvcount[i]) * (iter + 1) / nsend_iter;
+            recvcount1[i] = o2 - o1;
+            recvoffset1[i] = recvoffset[i] + o1;
+            Nrecv1 += (o2 - o1);
+        }
+        size_t Nsend1sum;
+        size_t Nrecv1sum;
+        MPI_Allreduce(&Nsend1, &Nsend1sum, 1, MPI_LONG, MPI_SUM, comm);
+        MPI_Allreduce(&Nrecv1, &Nrecv1sum, 1, MPI_LONG, MPI_SUM, comm);
+        fastpm_info("Decomposition iter %d / %d, exchange of %td %td particles", iter, nsend_iter, Nsend1sum, Nrecv1sum);
+
+        MPI_Datatype PTYPE;
+        MPI_Type_contiguous(elsize, MPI_BYTE, &PTYPE);
+        MPI_Type_commit(&PTYPE);
+
+        MPI_Alltoallv_sparse(
+                send_buffer, sendcount1, sendoffset1, PTYPE,
+                recv_buffer, recvcount1, recvoffset1, PTYPE,
+                comm);
+
+        MPI_Type_free(&PTYPE);
+
+        free(recvoffset1);
+        free(recvcount1);
+        free(sendoffset1);
+        free(sendcount1);
+    }
+
+    ipar = 0;
+    for(i = 0; i < NTask; i ++) {
+        for(j = recvoffset[i]; j < recvoffset[i] + recvcount[i]; j++, ipar ++) {
+            fastpm_packing_plan_unpack(plan, p, j + p->np, (char*) recv_buffer + ipar * elsize);
+        }
+    }
+
 
     fastpm_memory_free(p->mem, recv_buffer);
     fastpm_memory_free(p->mem, send_buffer);
+
+    p->np += Nrecv;
 
     free(recvcount);
     free(recvoffset);
