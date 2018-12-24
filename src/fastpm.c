@@ -320,11 +320,6 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .tol = 2. / CONF(prr->lua, nc) / CONF(prr->lua, lc_smesh_fraction),
     }};
 
-    FastPMUSMesh * usmesh = NULL;
-    FastPMSMesh * smesh = NULL;
-
-    prepare_lc(fastpm, prr, lc, &usmesh, &smesh);
-
     MPI_Barrier(comm);
 
     ENTER(ic);
@@ -333,6 +328,12 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr->lua, particle_fraction), fastpm->p->mask, comm);
 
     LEAVE(ic);
+
+    FastPMUSMesh * usmesh = NULL;
+    FastPMSMesh * smesh = NULL;
+
+    prepare_lc(fastpm, prr, lc, &usmesh, &smesh);
+
 
     MPI_Barrier(comm);
     ENTER(evolve);
