@@ -805,6 +805,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         data->hist_fof = calloc(data->Nedges + 1, sizeof(int64_t));
 
         fastpm_store_init(data->tail, 0, 0, FASTPM_MEMORY_FLOATING);
+        data->tail->meta = fastpm->p->meta;
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
