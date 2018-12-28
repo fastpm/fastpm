@@ -949,11 +949,6 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     ENTER(io);
 
     if(CONF(prr->lua, write_fof)) {
-        char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-        /* FIXME: set the name when fof is created. */
-        strcpy(halos->name, dataset);
-        free(dataset);
-
         if(lcevent->is_first) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
             fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
@@ -1077,9 +1072,9 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Para
     fastpm_fof_init(&fof, snapshot, fastpm->pm);
 
     ENTER(fof);
-
-    fastpm_fof_execute(&fof, halos);
-
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_fof_execute(&fof, halos, dataset);
+    free(dataset);
     LEAVE(fof);
 
     fastpm_fof_destroy(&fof);
@@ -1191,9 +1186,9 @@ run_usmesh_fof(FastPMSolver * fastpm,
         userdata);
 
     ENTER(fof);
-
-    fastpm_fof_execute(&fof, halos);
-
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_fof_execute(&fof, halos, dataset);
+    free(dataset);
     LEAVE(fof);
 
     fastpm_fof_destroy(&fof);
@@ -1264,11 +1259,6 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
         char filebase[1024];
         sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_fof), aout);
 
-        char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-
-        /* FIXME: set the name by passing it into fof_init or alike */
-        strcpy(halos->name, dataset);
-
         ENTER(sort);
         fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
         LEAVE(sort);
@@ -1287,8 +1277,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
 
         LEAVE(io);
 
-        fastpm_info("fof %s [%s] written at z = %6.4f z = %6.4f \n", filebase, dataset, z_out, aout);
-        free(dataset);
+        fastpm_info("fof %s [%s] written at z = %6.4f z = %6.4f \n", filebase, halos->name, z_out, aout);
     }
 
     if(CONF(prr->lua, write_runpb_snapshot)) {
