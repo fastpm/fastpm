@@ -68,12 +68,6 @@ typedef struct {
     int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
 } FastPMConfig;
 
-enum FastPMSpecies {
-    FASTPM_SPECIES_BARYON = 0,
-    FASTPM_SPECIES_CDM = 1,
-    FASTPM_SPECIES_NCDM = 4,
-};
-
 typedef struct {
     PM * pm;
     FastPMStore * species[6];

@@ -90,7 +90,19 @@ from_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double
     ptr[memb] = value;
 }
 
-
+const char *
+fastpm_species_get_name(enum FastPMSpecies species)
+{
+    switch(species) {
+        case FASTPM_SPECIES_CDM:
+            return "1";
+        case FASTPM_SPECIES_NCDM:
+            return "4";
+        case FASTPM_SPECIES_BARYON:
+            return "0";
+    }
+    return "UNKNOWN";
+}
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->x[index][0];

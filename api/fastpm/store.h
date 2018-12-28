@@ -7,6 +7,19 @@
 FASTPM_BEGIN_DECLS
 
 /*
+ * A solver has multiple particle species;
+ * the species names are defined here.
+ * */
+enum FastPMSpecies {
+    FASTPM_SPECIES_BARYON = 0,
+    FASTPM_SPECIES_CDM = 1,
+    FASTPM_SPECIES_NCDM = 4,
+};
+
+const char *
+fastpm_species_get_name(enum FastPMSpecies species);
+
+/*
  * enum constants for naming the columns in the source code.
  * Keep the value ordering in agreement with the ordering in FastPMStore struct;
  * if mismatched, the code will issue an error at start up.
