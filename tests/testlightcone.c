@@ -16,10 +16,10 @@ smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver
     char * fn = fastpm_strdup_printf("lightcone_struct");
     if(lcevent->is_first) {
         fastpm_info("First iteration\n");
-        fastpm_store_write(lcevent->p, fn, "1", "w", 1, solver->comm);
+        fastpm_store_write(lcevent->p, fn, "w", 1, solver->comm);
     } else {
         fastpm_info("not first iteration\n");
-        fastpm_store_write(lcevent->p, fn, "1", "a", 1, solver->comm);
+        fastpm_store_write(lcevent->p, fn, "a", 1, solver->comm);
     }
     free(fn);
 }
@@ -75,7 +75,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_usmesh_intersect(usmesh, &drift, &kick);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
-    fastpm_store_write(usmesh->p, "lightconeresult-p", "1", "w", 1, solver->comm);
+    fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);
 
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
     fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
@@ -127,7 +127,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
 
-    fastpm_store_write(usmesh->p, "lightcone-unstruct", "1", "w", 1, solver->comm);
+    fastpm_store_write(usmesh->p, "lightcone-unstruct", "w", 1, solver->comm);
 
     fastpm_remove_event_handler(&solver->event_handlers,
             FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
@@ -153,7 +153,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
 
-    fastpm_store_write(solver->p, "nonlightconeresultZ=9", "1", "w", 1, solver->comm);
+    fastpm_store_write(solver->p, "nonlightconeresultZ=9", "w", 1, solver->comm);
 }
 
 

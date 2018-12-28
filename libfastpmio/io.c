@@ -142,10 +142,11 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
 }
 
 void
-write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
+write_snapshot_header(FastPMSolver * fastpm,
     const char * filebase, MPI_Comm comm)
 {
     fastpm_info("Writing a snapshot header to %s\n", filebase);
+    FastPMStore * p = fastpm->p;
 
     BigFile bf[1];
     if(0 != big_file_mpi_open(bf, filebase, comm)) {
@@ -210,12 +211,13 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
 int
 fastpm_store_write(FastPMStore * p,
         const char * filebase,
-        const char * dataset,
         const char * modestr,
         int Nwriters,
         MPI_Comm comm
 )
 {
+
+    const char * dataset = p->name;
 
     enum {READ, WRITE, APPEND } mode;
 

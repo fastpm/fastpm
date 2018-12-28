@@ -864,15 +864,15 @@ smesh_ready_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, struct smesh_re
     if(lcevent->is_first) {
         fastpm_info("Creating smesh catalog in %s\n", filebase);
 
-        write_snapshot_header(fastpm, lcevent->p, filebase, fastpm->comm);
+        write_snapshot_header(fastpm, filebase, fastpm->comm);
         write_parameters(filebase, "Header", prr, fastpm->comm);
         write_smesh_layers(filebase, data->slices, data->Nslices, fastpm->comm);
 
-        fastpm_store_write(lcevent->p, filebase, "1", "w", prr->cli->Nwriters, fastpm->comm);
+        fastpm_store_write(lcevent->p, filebase, "w", prr->cli->Nwriters, fastpm->comm);
 
     } else {
         fastpm_info("Appending smesh catalog to %s\n", filebase);
-        fastpm_store_write(lcevent->p, filebase, "1", "a", prr->cli->Nwriters, fastpm->comm);
+        fastpm_store_write(lcevent->p, filebase, "a", prr->cli->Nwriters, fastpm->comm);
     }
 
     LEAVE(io);
@@ -931,16 +931,16 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     ENTER(io);
     if(lcevent->is_first) {
         fastpm_info("Creating usmesh catalog in %s\n", filebase);
-        write_snapshot_header(fastpm, halos, filebase, fastpm->comm);
+        write_snapshot_header(fastpm, filebase, fastpm->comm);
 
         if(data->slices)
             write_smesh_layers(filebase, data->slices, data->Nslices, fastpm->comm);
 
         write_parameters(filebase, "Header", prr, fastpm->comm);
-        fastpm_store_write(lcevent->p, filebase, "1", "w", prr->cli->Nwriters, fastpm->comm);
+        fastpm_store_write(lcevent->p, filebase, "w", prr->cli->Nwriters, fastpm->comm);
     } else {
         fastpm_info("Appending usmesh catalog to %s\n", filebase);
-        fastpm_store_write(lcevent->p, filebase, "1", "a", prr->cli->Nwriters, fastpm->comm);
+        fastpm_store_write(lcevent->p, filebase, "a", prr->cli->Nwriters, fastpm->comm);
     }
     write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
     LEAVE(io);
@@ -950,23 +950,24 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 
     if(CONF(prr->lua, write_fof)) {
         char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-        char * dataset_attrs = fastpm_strdup_printf("LL-%05.3f/.", CONF(prr->lua, fof_linkinglength));
+        /* FIXME: set the name when fof is created. */
+        strcpy(halos->name, dataset);
+        free(dataset);
+
         if(lcevent->is_first) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
-            fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
+            fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
         } else {
-            fastpm_store_write(halos, filebase, dataset, "a", prr->cli->Nwriters, fastpm->comm);
+            fastpm_store_write(halos, filebase, "a", prr->cli->Nwriters, fastpm->comm);
         }
 
+        char * dataset_attrs = fastpm_strdup_printf("%s/.", halos->name);
         write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
-
-        free(dataset);
         free(dataset_attrs);
         fastpm_store_destroy(halos);
     }
 
     LEAVE(io);
-
     free(filebase);
 }
 
@@ -1251,9 +1252,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
         sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_snapshot), aout);
 
         ENTER(io);
-        write_snapshot_header(fastpm, halos, filebase, fastpm->comm);
+        write_snapshot_header(fastpm, filebase, fastpm->comm);
         write_parameters(filebase, "Header", prr, fastpm->comm);
-        fastpm_store_write(snapshot, filebase, "1", "w", prr->cli->Nwriters, fastpm->comm);
+        fastpm_store_write(snapshot, filebase, "w", prr->cli->Nwriters, fastpm->comm);
         LEAVE(io);
 
         fastpm_info("snapshot %s [%s] written at z = %6.4f z = %6.4f \n", filebase, "1", z_out, aout);
@@ -1265,6 +1266,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
 
         char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
 
+        /* FIXME: set the name by passing it into fof_init or alike */
+        strcpy(halos->name, dataset);
+
         ENTER(sort);
         fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByLength, 0);
         LEAVE(sort);
@@ -1275,11 +1279,11 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
            0 == strcmp(CONF(prr->lua, write_fof), CONF(prr->lua, write_snapshot))) {
             /* Writing to the same place as the snapshot; thus skip headers*/
         } else {
-            write_snapshot_header(fastpm, halos, filebase, fastpm->comm);
+            write_snapshot_header(fastpm, filebase, fastpm->comm);
             write_parameters(filebase, "Header", prr, fastpm->comm);
         }
 
-        fastpm_store_write(halos, filebase, dataset, "w", prr->cli->Nwriters, fastpm->comm);
+        fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
 
         LEAVE(io);
 
