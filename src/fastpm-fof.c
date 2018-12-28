@@ -97,13 +97,16 @@ main(int argc, char * argv[])
 
     FastPMStore snapshot[1];
 
-    fastpm_store_init_evenly(snapshot, pow(1.0 * CONF(lua, nc), 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID,
-        CONF(lua, np_alloc_factor), comm);
+    /* FIXME: we need to be able to know "1" is for CDM; this is currenlty
+     * hardcoded in solver.c as part of solver_init. */
+    fastpm_store_init_evenly(snapshot, "1",
+            pow(1.0 * CONF(lua, nc), 3),
+            COLUMN_POS | COLUMN_VEL | COLUMN_ID,
+            CONF(lua, np_alloc_factor), comm);
 
     PM * basepm = fastpm_create_pm(CONF(lua, nc), cli->NprocY, 1, CONF(lua, boxsize), comm);
 
-    fastpm_store_write(snapshot, filebase, "1", "r", cli->Nwriters, comm);
+    fastpm_store_write(snapshot, filebase, "r", cli->Nwriters, comm);
 
     CLOCK(fof);
     CLOCK(io);
@@ -123,7 +126,7 @@ main(int argc, char * argv[])
 
     ENTER(fof);
 
-    fastpm_fof_execute(&fof, halos);
+    fastpm_fof_execute(&fof, halos, dataset);
 
     LEAVE(fof);
 
@@ -132,7 +135,7 @@ main(int argc, char * argv[])
     LEAVE(sort);
 
     ENTER(io);
-    fastpm_store_write(halos, filebase, dataset, "w", cli->Nwriters, comm);
+    fastpm_store_write(halos, filebase, "w", cli->Nwriters, comm);
 
     LEAVE(io);
 
