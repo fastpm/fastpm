@@ -805,7 +805,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
         data->hist_fof = calloc(data->Nedges + 1, sizeof(int64_t));
 
-        fastpm_store_init(data->tail, 0, 0, FASTPM_MEMORY_FLOATING);
+        fastpm_store_init(data->tail, fastpm->p->name, 0, 0, FASTPM_MEMORY_FLOATING);
         data->tail->meta = fastpm->p->meta;
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
@@ -1037,7 +1037,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         if(CONF(prr->lua, particle_fraction) < 1) {
             size_t n_subsample = fastpm_store_subsample(snapshot, snapshot->mask, NULL);
 
-            fastpm_store_init(subsample, n_subsample,
+            fastpm_store_init(subsample, snapshot->name, n_subsample,
                         snapshot->attributes & (~COLUMN_ACC) & (~COLUMN_MASK),
                         FASTPM_MEMORY_HEAP);
 
@@ -1201,7 +1201,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
         if(keep_for_tail[i]) ntail ++;
     }
 
-    fastpm_store_init(tail, ntail, p->attributes, FASTPM_MEMORY_FLOATING);
+    fastpm_store_init(tail, p->name, ntail, p->attributes, FASTPM_MEMORY_FLOATING);
     fastpm_store_subsample(p, keep_for_tail, tail);
 
     MPI_Allreduce(MPI_IN_PLACE, &ntail, 1, MPI_LONG, MPI_SUM, fastpm->comm);

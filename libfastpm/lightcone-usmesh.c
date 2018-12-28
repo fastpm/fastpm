@@ -77,7 +77,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->event_handlers = NULL;
     mesh->p = malloc(sizeof(FastPMStore));
     /* for saving the density with particles */
-    fastpm_store_init(mesh->p, np_upper,
+    fastpm_store_init(mesh->p, "1", np_upper,
                   COLUMN_ID | COLUMN_POS | COLUMN_VEL | COLUMN_MASK
                 | COLUMN_AEMIT,
                 FASTPM_MEMORY_HEAP

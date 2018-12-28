@@ -70,7 +70,7 @@ typedef struct {
 
 typedef struct {
     PM * pm;
-    FastPMStore * p;
+    FastPMStore p[2];
 
     MPI_Comm comm;
     int NTask;

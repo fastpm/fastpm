@@ -167,7 +167,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
     pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, "Ghost2Par", Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
 
     pgd->p = malloc(sizeof(pgd->p[0]));
-    fastpm_store_init(pgd->p, Nrecv, attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(pgd->p, pgd->source->name, Nrecv, attributes, FASTPM_MEMORY_HEAP);
 
     return pgd;
 }
@@ -267,7 +267,7 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute,
     MPI_Type_free(&GHOST_TYPE);
 
     FastPMStore q[1];
-    fastpm_store_init(q, Nsend, attribute, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(q, pgd->p->name, Nsend, attribute, FASTPM_MEMORY_HEAP);
 
     /* now reduce the attributes. */
     int ighost;

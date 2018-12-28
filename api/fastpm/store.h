@@ -37,7 +37,7 @@ typedef enum FastPMColumnTags {
 
 struct FastPMStore {
     FastPMMemory * mem;
-
+    char name[32];
     FastPMColumnTags attributes; /* bit flags of allocated attributes */
 
     void * _base; /* base pointer of all memory buffers */
@@ -123,12 +123,12 @@ typedef struct {
 
 const static FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 void
-fastpm_store_init_details(FastPMStore * p, size_t np_upper, FastPMColumnTags attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
+fastpm_store_init_details(FastPMStore * p, const char * name, size_t np_upper, FastPMColumnTags attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
 
-#define fastpm_store_init(p, np_upper, attributes, loc) fastpm_store_init_details(p, np_upper, attributes, loc, __FILE__, __LINE__)
+#define fastpm_store_init(p, name, np_upper, attributes, loc) fastpm_store_init_details(p, name, np_upper, attributes, loc, __FILE__, __LINE__)
 
 size_t
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attributes,
+fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes,
     double alloc_factor, MPI_Comm comm);
 
 void

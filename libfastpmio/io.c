@@ -112,7 +112,7 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     ptrdiff_t i;
 
     FastPMStore ptmp[1];
-    fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(ptmp, "TMP", 1, p->attributes, FASTPM_MEMORY_HEAP);
 
     for(i = 0; i < p->np; i ++) {
         fastpm_packing_plan_pack(plan, p, i, send_buffer + i * plan->elsize);

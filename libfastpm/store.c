@@ -114,6 +114,7 @@ _alignsize(ptrdiff_t size)
 
 void
 fastpm_store_init_details(FastPMStore * p,
+                  const char * name,
                   size_t np_upper,
                   FastPMColumnTags attributes,
                   enum FastPMMemoryLocation loc,
@@ -122,6 +123,8 @@ fastpm_store_init_details(FastPMStore * p,
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
+
+    strcpy(p->name, name);
 
     p->np = 0; 
     p->np_upper = np_upper;
@@ -214,7 +217,7 @@ fastpm_store_init_details(FastPMStore * p,
 }
 
 size_t 
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
@@ -223,7 +226,7 @@ fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attr
     size_t np_upper = (size_t)(1.0 * np_total / NTask * alloc_factor);
 
     MPI_Bcast(&np_upper, 1, MPI_LONG, 0, comm);
-    fastpm_store_init(p, np_upper, attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(p, name, np_upper, attributes, FASTPM_MEMORY_HEAP);
     return 0;
 }
 

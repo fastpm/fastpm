@@ -54,14 +54,12 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     MPI_Comm_rank(comm, &fastpm->ThisTask);
     MPI_Comm_size(comm, &fastpm->NTask);
 
-    fastpm->p = malloc(sizeof(FastPMStore));
-
     if(config->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* Cola requires DX1 and DX2 to be permantly stored. */
         config->ExtraAttributes |= COLUMN_DX1;
         config->ExtraAttributes |= COLUMN_DX2;
     }
-    fastpm_store_init_evenly(fastpm->p, pow(1.0 * config->nc, 3),
+    fastpm_store_init_evenly(fastpm->p, "1", pow(1.0 * config->nc, 3),
           COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC
         | config->ExtraAttributes,
         config->alloc_factor, comm);
@@ -417,7 +415,6 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
-    free(fastpm->p);
 }
 
 static void
@@ -461,7 +458,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     PM * pm = fastpm->basepm;
     int np = p->np;
 
-    fastpm_store_init(po, p->np_upper,
+    fastpm_store_init(po, p->name, p->np_upper,
         0,
         FASTPM_MEMORY_HEAP
     );
