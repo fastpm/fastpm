@@ -95,18 +95,18 @@ main(int argc, char * argv[])
 
     libfastpm_set_memory_bound(cli->MemoryPerRank * 1024 * 1024);
 
-    FastPMStore snapshot[1];
+    FastPMStore source[1];
 
-    /* FIXME: we need to be able to know "1" is for CDM; this is currenlty
-     * hardcoded in solver.c as part of solver_init. */
-    fastpm_store_init_evenly(snapshot, "1",
+    /* load the CDM species from the snapshot */
+    fastpm_store_init_evenly(source,
+            fastpm_species_get_name(FASTPM_SPECIES_CDM),
             pow(1.0 * CONF(lua, nc), 3),
             COLUMN_POS | COLUMN_VEL | COLUMN_ID,
             CONF(lua, np_alloc_factor), comm);
 
     PM * basepm = fastpm_create_pm(CONF(lua, nc), cli->NprocY, 1, CONF(lua, boxsize), comm);
 
-    fastpm_store_write(snapshot, filebase, "r", cli->Nwriters, comm);
+    fastpm_store_write(source, filebase, "r", cli->Nwriters, comm);
 
     CLOCK(fof);
     CLOCK(io);
@@ -120,7 +120,7 @@ main(int argc, char * argv[])
         .kdtree_thresh = CONF(lua, fof_kdtree_thresh),
     };
 
-    fastpm_fof_init(&fof, snapshot, basepm);
+    fastpm_fof_init(&fof, source, basepm);
 
     FastPMStore halos[1];
 
@@ -144,7 +144,7 @@ main(int argc, char * argv[])
     free_lua_parameters(lua);
     free_cli_parameters(cli);
 
-    fastpm_store_destroy(snapshot);
+    fastpm_store_destroy(source);
     fastpm_free_pm(basepm);
 
     free(dataset);
