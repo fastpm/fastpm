@@ -176,6 +176,20 @@ static void
 fastpm_do_interpolation(FastPMSolver * fastpm,
         FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
 
+enum FastPMSpecies
+fastpm_solver_iter_species(FastPMSolver * fastpm, int * iter)
+{
+    while(!fastpm->has_species[*iter]) {
+        (*iter) ++;
+        if(*iter >= sizeof(fastpm->has_species)) {
+            return -1;
+        }
+    }
+    enum FastPMSpecies sp = *iter;
+    (*iter) ++;
+    return sp;
+}
+
 FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 {
@@ -281,10 +295,10 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
     CLOCK(warmup);
     ENTER(warmup);
 
-    int si;
-    for(si = 0; si < sizeof(fastpm->has_species); si++) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
-        if(!p) continue;
+    FastPMSpeciesIter iter = 0;
+    enum FastPMSpecies species;
+    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
         /* set acc to zero or we see valgrind errors */
         memset(p->acc, 0, sizeof(p->acc[0]) * p->np);
     }
@@ -389,10 +403,10 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do kick */
     ENTER(kick);
-    int si;
-    for(si = 0; si < sizeof(fastpm->has_species); si++) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
-        if(!p) continue;
+    enum FastPMSpecies species;
+    FastPMSpeciesIter iter = 0;
+    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
 
         if(kick.ai != p->meta.a_v) {
             fastpm_raise(-1, "kick is inconsitant with state.\n");
@@ -427,10 +441,10 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do drift */
     ENTER(drift);
-    int si;
-    for(si = 0; si < sizeof(fastpm->has_species); si++) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
-        if(!p) continue;
+    enum FastPMSpecies species;
+    FastPMSpeciesIter iter = 0;
+    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
 
         if(drift.ai != p->meta.a_x) {
             fastpm_raise(-1, "drift is inconsitant with state.\n");
@@ -467,9 +481,10 @@ fastpm_decompose(FastPMSolver * fastpm) {
     int NTask;
     MPI_Comm_size(fastpm->comm, &NTask);
 
-    int si;
-    for(si = 0; si < sizeof(fastpm->has_species); si++) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+    FastPMSpeciesIter iter = 0;
+    enum FastPMSpecies species;
+    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
         if(!p) continue;
 
         /* apply periodic boundary and move particles to the correct rank */
