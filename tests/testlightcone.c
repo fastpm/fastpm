@@ -47,11 +47,12 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
     FastPMSMesh  smesh[1];
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_ic(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
-    fastpm_usmesh_init(usmesh, lc, solver->p, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
+    fastpm_smesh_init(smesh, lc, p->np_upper, 8);
     fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
     fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
 
@@ -93,9 +94,10 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
     FastPMSMesh  smesh[1];
 
-    fastpm_usmesh_init(usmesh, lc, solver->p, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
+    fastpm_smesh_init(smesh, lc, p->np_upper, 8);
     fastpm_smesh_add_layers_healpix(smesh, 
             pow(solver->config->nc / solver->config->boxsize, 2),
             pow(solver->config->nc / solver->config->boxsize, 3),
@@ -123,7 +125,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     double time_step2[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_ic(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
 
@@ -150,10 +152,11 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
 
     double time_step3[] = {0.1};
-    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_ic(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
 
-    fastpm_store_write(solver->p, "nonlightconeresultZ=9", "w", 1, solver->comm);
+    fastpm_store_write(fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
+            "nonlightconeresultZ=9", "w", 1, solver->comm);
 }
 
 

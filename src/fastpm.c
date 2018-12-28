@@ -324,10 +324,11 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     ENTER(ic);
     prepare_ic(fastpm, prr, comm);
-
-    fastpm_store_fill_subsample_mask(fastpm->p, CONF(prr->lua, particle_fraction), fastpm->p->mask, comm);
-
     LEAVE(ic);
+
+    /* FIXME: subsample all species -- probably need different fraction for each species */
+    FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+    fastpm_store_fill_subsample_mask(p, CONF(prr->lua, particle_fraction), p->mask, comm);
 
     FastPMUSMesh * usmesh = NULL;
     FastPMSMesh * smesh = NULL;
@@ -539,7 +540,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 {
     /* we may need a read gadget ic here too */
     if(CONF(prr->lua, read_runpbic)) {
-        FastPMStore * p = fastpm->p;
+        FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
         int temp_dx1 = 0;
         int temp_dx2 = 0;
         if(p->dx1 == NULL) {
@@ -551,8 +552,8 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
             temp_dx2 = 1;
         }
 
-        read_runpb_ic(fastpm, fastpm->p, CONF(prr->lua, read_runpbic));
-        fastpm_solver_setup_ic(fastpm, NULL, CONF(prr->lua, time_step)[0]);
+        read_runpb_ic(fastpm, p, CONF(prr->lua, read_runpbic));
+        fastpm_solver_setup_ic(fastpm, FASTPM_SPECIES_CDM, NULL, CONF(prr->lua, time_step)[0]);
         if(temp_dx2) {
             fastpm_memory_free(p->mem, p->dx2);
             p->dx2 = NULL;
@@ -590,7 +591,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    fastpm_solver_setup_ic(fastpm, delta_k, CONF(prr->lua, time_step)[0]);
+    fastpm_solver_setup_ic(fastpm, FASTPM_SPECIES_CDM, delta_k, CONF(prr->lua, time_step)[0]);
 
     pm_free(fastpm->basepm, delta_k);
 }
@@ -675,8 +676,9 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         *smesh = malloc(sizeof(FastPMSMesh));
 
         double n = CONF(prr->lua, nc) / CONF(prr->lua, boxsize) * CONF(prr->lua, lc_smesh_fraction);
+        double n_upper = pow(CONF(prr->lua, nc), 3) / fastpm->NTask * CONF(prr->lua, np_alloc_factor);
         double n1 = CONF(prr->lua, nc) / CONF(prr->lua, boxsize);
-        fastpm_smesh_init(*smesh, lc, fastpm->p->np_upper, 1 / n);
+        fastpm_smesh_init(*smesh, lc, n_upper, 1 / n);
 
         if(lc->fov > 0) {
             fastpm_info("Creating healpix structured meshes for FOV=%g, with surface density %g per (Mpc/h)**2, radial density %g per Mpc/h \n",
@@ -731,6 +733,10 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
 
     *usmesh = NULL;
     if(CONF(prr->lua, lc_write_usmesh)) {
+        /* FIXME: 1 USMesh per species -- refactor this to a function ;
+          */
+        FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
         *usmesh = malloc(sizeof(FastPMUSMesh));
 
         double (*tiles)[3];
@@ -756,8 +762,9 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
-                fastpm->p,
-                CONF(prr->lua, lc_usmesh_alloc_factor) * fastpm->p->np_upper,
+                p,
+                CONF(prr->lua, lc_usmesh_alloc_factor) *
+                p->np_upper,
                 tiles, ntiles, lc_amin, lc_amax);
 
         fastpm_add_event_handler(&fastpm->event_handlers,
@@ -806,8 +813,8 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
         data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
         data->hist_fof = calloc(data->Nedges + 1, sizeof(int64_t));
 
-        fastpm_store_init(data->tail, fastpm->p->name, 0, 0, FASTPM_MEMORY_FLOATING);
-        data->tail->meta = fastpm->p->meta;
+        fastpm_store_init(data->tail, p->name, 0, 0, FASTPM_MEMORY_FLOATING);
+        data->tail->meta = p->meta;
 
         fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
                 FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
@@ -1018,9 +1025,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         FastPMStore halos[1];
         FastPMStore subsample[1];
 
-        fastpm_info("Current a_x = %6.4f, a_v = %6.4f \n", fastpm->p->meta.a_x, fastpm->p->meta.a_v);
-
-        fastpm_set_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
+        fastpm_set_snapshot(fastpm, FASTPM_SPECIES_CDM, event->drift, event->kick, snapshot, aout[iout]);
 
         fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", snapshot->meta.a_x, snapshot->meta.a_v);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
@@ -1051,7 +1056,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
             fastpm_store_destroy(halos);
         }
 
-        fastpm_unset_snapshot(fastpm, event->drift, event->kick, snapshot, aout[iout]);
+        fastpm_unset_snapshot(fastpm, FASTPM_SPECIES_CDM, event->drift, event->kick, snapshot, aout[iout]);
     }
     return 0;
 }
@@ -1411,14 +1416,15 @@ report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr)
     MPI_Comm comm = fastpm->comm;
 
     fastpm_info("Force Calculation Nmesh = %d ====\n", pm_nmesh(event->pm)[0]);
-
+    /* FIXME: find a way to iterat over all species */
+    FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
     {
         double np_max;
         double np_min;
         double np_mean;
         double np_std;
 
-        MPIU_stats(comm, fastpm->p->np, "<->s",
+        MPIU_stats(comm, p->np, "<->s",
                 &np_min, &np_mean, &np_max, &np_std);
 
         double min = np_min / np_mean;
@@ -1430,8 +1436,8 @@ report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr)
     {
         double min[3], max[3], std[3];
 
-        fastpm_store_summary(fastpm->p, COLUMN_POS, comm, "<>", min, max);
-        fastpm_store_summary(fastpm->p, COLUMN_VEL, comm, "s", std);
+        fastpm_store_summary(p, COLUMN_POS, comm, "<>", min, max);
+        fastpm_store_summary(p, COLUMN_VEL, comm, "s", std);
 
         fastpm_info("Position range : min = %g %g %g max = %g %g %g \n",
                 min[0], min[1], min[2],
@@ -1451,9 +1457,10 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters 
     MPI_Comm comm = fastpm->comm;
 
     {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
         double fstd[3];
 
-        fastpm_store_summary(fastpm->p, COLUMN_ACC, comm, "s", fstd);
+        fastpm_store_summary(p, COLUMN_ACC, comm, "s", fstd);
 
         fastpm_info("Force dispersion: std = %g %g %g\n",
                 fstd[0], fstd[1], fstd[2]);

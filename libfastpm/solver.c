@@ -59,10 +59,19 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         config->ExtraAttributes |= COLUMN_DX1;
         config->ExtraAttributes |= COLUMN_DX2;
     }
-    fastpm_store_init_evenly(fastpm->p, "1", pow(1.0 * config->nc, 3),
+
+    /* FIXME: move this to add_species */
+    fastpm->species[FASTPM_SPECIES_CDM] = malloc(sizeof(FastPMStore));
+
+    fastpm_store_init_evenly(fastpm->species[FASTPM_SPECIES_CDM],
+          "1", pow(1.0 * config->nc, 3),
           COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC
         | config->ExtraAttributes,
         config->alloc_factor, comm);
+
+    memset(fastpm->has_species, 0, 6);
+
+    fastpm->has_species[FASTPM_SPECIES_CDM] = 1;
 
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
@@ -80,12 +89,17 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 }
 
 void
-fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a0)
+fastpm_solver_setup_ic(FastPMSolver * fastpm,
+        enum FastPMSpecies species,
+        FastPMFloat * delta_k_ic,
+        double a0)
 {
+
+    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
 
     PM * basepm = fastpm->basepm;
     FastPMConfig * config = fastpm->config;
-    FastPMStore * p = fastpm->p;
 
     double rho_crit = 27.7455; /* 1e10 Msun /h*/
 
@@ -134,7 +148,7 @@ fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a
         memset(p->dx2, 0, sizeof(p->dx2[0]) * p->np);
     }
 
-    pm_2lpt_evolve(a0, fastpm->p, fastpm->cosmology, config->USE_DX1_ONLY);
+    pm_2lpt_evolve(a0, p, fastpm->cosmology, config->USE_DX1_ONLY);
 
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_LPT,
                 FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
@@ -162,6 +176,15 @@ static void
 fastpm_do_interpolation(FastPMSolver * fastpm,
         FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
 
+FastPMStore *
+fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
+{
+    if(fastpm->has_species[species]) {
+        return fastpm->species[species];
+    } else {
+        return NULL;
+    }
+}
 void
 fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
 {
@@ -258,9 +281,13 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
     CLOCK(warmup);
     ENTER(warmup);
 
-    /* set acc to zero or we see valgrind errors */
-    memset(fastpm->p->acc, 0, sizeof(fastpm->p->acc[0]) * fastpm->p->np);
-
+    int si;
+    for(si = 0; si < sizeof(fastpm->has_species); si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+        /* set acc to zero or we see valgrind errors */
+        memset(p->acc, 0, sizeof(p->acc[0]) * p->np);
+    }
     LEAVE(warmup);
 }
 
@@ -288,7 +315,10 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     FastPMForceEvent event[1];
 
-    int64_t N = fastpm->p->np;
+    /* FIXME modify gravity.c to compute delta_k from all species. */
+    FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
+    int64_t N = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
@@ -318,7 +348,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
 
     ENTER(force);
-    fastpm_gravity_calculate(gravity, pm, fastpm->p, delta_k);
+    fastpm_gravity_calculate(gravity, pm, p, delta_k);
     LEAVE(force);
 
     ENTER(event);
@@ -340,8 +370,6 @@ static void
 fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 {
 
-    FastPMStore * p = fastpm->p;
-
     CLOCK(kick);
 
     FastPMKickFactor kick;
@@ -361,21 +389,25 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do kick */
     ENTER(kick);
-    if(kick.ai != p->meta.a_v) {
-        fastpm_raise(-1, "kick is inconsitant with state.\n");
+    int si;
+    for(si = 0; si < sizeof(fastpm->has_species); si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+
+        if(kick.ai != p->meta.a_v) {
+            fastpm_raise(-1, "kick is inconsitant with state.\n");
+        }
+        if(kick.ac != p->meta.a_x) {
+            fastpm_raise(-1, "kick is inconsitant with state.\n");
+        }
+        fastpm_kick_store(&kick, p, p, trans->a.f);
     }
-    if(kick.ac != p->meta.a_x) {
-        fastpm_raise(-1, "kick is inconsitant with state.\n");
-    }
-    fastpm_kick_store(&kick, p, p, trans->a.f);
     LEAVE(kick);
 }
 
 static void
 fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 {
-    FastPMStore * p = fastpm->p;
-
     CLOCK(drift);
 
     FastPMDriftFactor drift;
@@ -395,14 +427,20 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do drift */
     ENTER(drift);
-    if(drift.ai != p->meta.a_x) {
-        fastpm_raise(-1, "drift is inconsitant with state.\n");
+    int si;
+    for(si = 0; si < sizeof(fastpm->has_species); si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+
+        if(drift.ai != p->meta.a_x) {
+            fastpm_raise(-1, "drift is inconsitant with state.\n");
+        }
+        if(drift.ac != p->meta.a_v) {
+            fastpm_raise(-1, "drift is inconsitant with state.\n");
+        }
+        fastpm_drift_store(&drift, p, p, trans->a.f);
+        LEAVE(drift);
     }
-    if(drift.ac != p->meta.a_v) {
-        fastpm_raise(-1, "drift is inconsitant with state.\n");
-    }
-    fastpm_drift_store(&drift, p, p, trans->a.f);
-    LEAVE(drift);
 }
 
 void
@@ -410,8 +448,13 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    fastpm_store_destroy(fastpm->p);
-
+    int si;
+    for(si = 5; si >=0; si --) {
+        if(fastpm->has_species[si]) {
+            fastpm_store_destroy(fastpm->species[si]);
+            free(fastpm->species[si]);
+        }
+    }
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
@@ -424,36 +467,44 @@ fastpm_decompose(FastPMSolver * fastpm) {
     int NTask;
     MPI_Comm_size(fastpm->comm, &NTask);
 
-    /* apply periodic boundary and move particles to the correct rank */
-    fastpm_store_wrap(fastpm->p, pm->BoxSize);
+    int si;
+    for(si = 0; si < sizeof(fastpm->has_species); si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
 
-    if(0 != fastpm_store_decompose(fastpm->p,
-            (fastpm_store_target_func) FastPMTargetPM, pm,
-            fastpm->comm))
-    {
-        fastpm_raise(-1, "Out of particle storage space\n");
+        /* apply periodic boundary and move particles to the correct rank */
+        fastpm_store_wrap(p, pm->BoxSize);
+
+        if(0 != fastpm_store_decompose(p,
+                (fastpm_store_target_func) FastPMTargetPM, pm,
+                fastpm->comm))
+        {
+            fastpm_raise(-1, "Out of particle storage space\n");
+        }
     }
-
 }
 
 /* Interpolate position and velocity for snapshot at a=aout,
- * this alters fastpm->p, thus need to call unset to revert it.
+ * this alters fastpm->species[], thus need to call unset to revert it.
  * 
  *
  * fastpm_set_snapshot(fastpm, .......)
  *
- *  Avoid using fastpm->p between
+ *  Avoid using fastpm->species[] between
  *
  * fastpm_unset_snapshot(fastpm, .......)
  * */
 void
 fastpm_set_snapshot(FastPMSolver * fastpm,
+                enum FastPMSpecies species,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout)
 {
-    FastPMStore * p = fastpm->p;
+    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
+
     FastPMCosmology * c = fastpm->cosmology;
     PM * pm = fastpm->basepm;
     int np = p->np;
@@ -504,15 +555,17 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
     fastpm_store_wrap(po, pm->BoxSize);
 }
 
-/* revert the effect of a snapshot on fastpm->p, and destroy po */
+/* revert the effect of a snapshot on fastpm->species, and destroy po */
 void
 fastpm_unset_snapshot(FastPMSolver * fastpm,
+                enum FastPMSpecies species,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout)
 {
-    FastPMStore * p = fastpm->p;
+    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
     FastPMCosmology * c = fastpm->cosmology;
     PM * pm = fastpm->basepm;
     int np = po->np;

@@ -68,9 +68,16 @@ typedef struct {
     int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
 } FastPMConfig;
 
+enum FastPMSpecies {
+    FASTPM_SPECIES_BARYON = 0,
+    FASTPM_SPECIES_CDM = 1,
+    FASTPM_SPECIES_NCDM = 4,
+};
+
 typedef struct {
     PM * pm;
-    FastPMStore p[2];
+    FastPMStore * species[6];
+    char has_species[6];
 
     MPI_Comm comm;
     int NTask;
@@ -136,8 +143,14 @@ fastpm_solver_init(FastPMSolver * fastpm, FastPMConfig * config, MPI_Comm comm);
 void 
 fastpm_solver_destroy(FastPMSolver * fastpm);
 
+FastPMStore *
+fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
+
 void 
-fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a0);
+fastpm_solver_setup_ic(FastPMSolver * fastpm, 
+                enum FastPMSpecies species,
+                FastPMFloat * delta_k_ic,
+                double a0);
 
 PM *
 fastpm_find_pm(FastPMSolver * fastpm, double a);
@@ -166,11 +179,13 @@ fastpm_drift_store(FastPMDriftFactor * drift,
 
 void 
 fastpm_set_snapshot(FastPMSolver * fastpm,
+                enum FastPMSpecies species,
                 FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout);
 void 
 fastpm_unset_snapshot(FastPMSolver * fastpm,
+                enum FastPMSpecies species,
                 FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout);

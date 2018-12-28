@@ -146,7 +146,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     const char * filebase, MPI_Comm comm)
 {
     fastpm_info("Writing a snapshot header to %s\n", filebase);
-    FastPMStore * p = fastpm->p;
+    FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
     BigFile bf[1];
     if(0 != big_file_mpi_open(bf, filebase, comm)) {
