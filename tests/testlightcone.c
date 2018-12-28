@@ -34,7 +34,7 @@ force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * sme
 static void
 interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick);
 }
 
 double tiles[4*4*4][3];
@@ -49,7 +49,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
 
-    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, solver->p, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
     fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
@@ -72,7 +72,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_usmesh_intersect(usmesh, &drift, &kick, solver);
+    fastpm_usmesh_intersect(usmesh, &drift, &kick);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
     fastpm_store_write(usmesh->p, "lightconeresult-p", "1", "w", 1, solver->comm);
@@ -93,7 +93,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
     FastPMSMesh  smesh[1];
 
-    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, solver->p, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
     fastpm_smesh_add_layers_healpix(smesh, 

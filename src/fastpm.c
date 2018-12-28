@@ -756,6 +756,7 @@ prepare_lc(FastPMSolver * fastpm, Parameters * prr,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
+                fastpm->p,
                 CONF(prr->lua, lc_usmesh_alloc_factor) * fastpm->p->np_upper,
                 tiles, ntiles, lc_amin, lc_amax);
 
@@ -1305,7 +1306,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * hal
 static int 
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick);
 
     int64_t np = usmesh->p->np;
 

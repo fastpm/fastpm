@@ -58,6 +58,7 @@ fastpm_lc_destroy(FastPMLightCone * lc)
 
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
+            FastPMStore * source,
             size_t np_upper,
             double (*tileshifts)[3],
             int ntiles,
@@ -65,6 +66,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
             double amax)
 {
 
+    mesh->source = source;
     mesh->amin = amin;
     mesh->amax = amax;
     mesh->lc = lc;
@@ -77,11 +79,13 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->event_handlers = NULL;
     mesh->p = malloc(sizeof(FastPMStore));
     /* for saving the density with particles */
-    fastpm_store_init(mesh->p, "1", np_upper,
+    fastpm_store_init(mesh->p, source->name, np_upper,
                   COLUMN_ID | COLUMN_POS | COLUMN_VEL | COLUMN_MASK
                 | COLUMN_AEMIT,
                 FASTPM_MEMORY_HEAP
     );
+
+    mesh->p->meta.M0 = source->meta.M0;
 }
 
 void fastpm_usmesh_destroy(FastPMUSMesh * mesh)
@@ -374,7 +378,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 }
 
 int
-fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm)
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick)
 {
     double a1 = drift->ai > drift->af ? drift->af: drift->ai;
     double a2 = drift->ai > drift->af ? drift->ai: drift->af;
@@ -385,15 +389,13 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
                 a1, a2,
                 drift, kick,
-                fastpm->p,
+                mesh->source,
                 mesh->p); /*Store particle to get density*/
 
     }
 
     /* a portion of light cone is ready between a0 and a1 */
     FastPMLCEvent lcevent[1];
-
-    mesh->p->meta.M0 = fastpm->p->meta.M0;
 
     lcevent->p = mesh->p;
     lcevent->a0 = a1;
