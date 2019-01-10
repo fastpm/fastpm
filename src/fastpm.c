@@ -42,7 +42,7 @@ static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr);
+take_a_snapshot(FastPMSolver * fastpm, Parameters * prr);
 
 struct smesh_force_handler_data {
     FastPMSMesh * smesh;
@@ -1021,17 +1021,18 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
             if(event->a2 < aout[iout]) continue;
         }
 
-        FastPMStore snapshot[1];
+        FastPMSolver snapshot[1];
 
-        fastpm_set_snapshot(fastpm, FASTPM_SPECIES_CDM, event->drift, event->kick, snapshot, aout[iout]);
+        fastpm_set_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
 
-        fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", snapshot->meta.a_x, snapshot->meta.a_v);
+        FastPMStore * cdm = fastpm_solver_get_species(snapshot, FASTPM_SPECIES_CDM);
+        fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", cdm->meta.a_x, cdm->meta.a_v);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
         fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_rate(fastpm, aout[iout]), aout[iout]);
 
-        take_a_snapshot(fastpm, snapshot, prr);
+        take_a_snapshot(snapshot, prr);
 
-        fastpm_unset_snapshot(fastpm, FASTPM_SPECIES_CDM, event->drift, event->kick, snapshot, aout[iout]);
+        fastpm_unset_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
     }
     return 0;
 }
@@ -1189,9 +1190,11 @@ run_usmesh_fof(FastPMSolver * fastpm,
 }
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr) 
+take_a_snapshot(FastPMSolver * fastpm, Parameters * prr) 
 {
-    double aout = snapshot->meta.a_x;
+    FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
+    double aout = cdm->meta.a_x;
     double z_out= 1.0/aout - 1.0;
 
     CLOCK(io);
@@ -1200,7 +1203,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
     FastPMStore halos[1];
 
     if(CONF(prr->lua, write_fof)) {
-        run_fof(fastpm, snapshot, halos, prr);
+        run_fof(fastpm, cdm, halos, prr);
     }
 
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
@@ -1213,7 +1216,7 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
 
         fastpm_painter_init(painter, fastpm->basepm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
-        fastpm_paint(painter, rho_x, snapshot, FASTPM_FIELD_DESCR_NONE);
+        fastpm_paint(painter, rho_x, cdm, FASTPM_FIELD_DESCR_NONE);
         pm_r2c(fastpm->basepm, rho_x, rho_k);
 
         write_complex(fastpm->basepm, rho_k, filename, "DensityK", prr->cli->Nwriters);
@@ -1223,25 +1226,31 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
         free(filename);
     }
 
-    FastPMStore * subsample; /* points to the snapshot itself if there is no subsample */
+    FastPMStore subsample[FASTPM_SOLVER_NSPECIES];
 
-    if(CONF(prr->lua, particle_fraction) < 1) {
-        subsample = malloc(sizeof(subsample[0]));
-        size_t n_subsample = fastpm_store_subsample(snapshot, snapshot->mask, NULL);
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if (!p) continue;
 
-        fastpm_store_init(subsample, snapshot->name, n_subsample,
-                    snapshot->attributes & (~COLUMN_ACC) & (~COLUMN_MASK),
-                    FASTPM_MEMORY_HEAP);
+        if(CONF(prr->lua, particle_fraction) < 1) {
 
-        fastpm_store_subsample(snapshot, snapshot->mask, subsample);
-    } else {
-        subsample = snapshot;
-    }
+            fastpm_store_init(&subsample[si],
+                        p->name,
+                        fastpm_store_subsample(p, p->mask, NULL),
+                        p->attributes & (~COLUMN_ACC) & (~COLUMN_MASK),
+                        FASTPM_MEMORY_HEAP);
 
-    if(CONF(prr->lua, sort_snapshot)) {
-        ENTER(sort);
-        fastpm_sort_snapshot(subsample, fastpm->comm, FastPMSnapshotSortByID, 0);
-        LEAVE(sort);
+            fastpm_store_subsample(p, p->mask, &subsample[si]);
+        } else {
+            memcpy(&subsample[si], p, sizeof(FastPMStore));
+        }
+
+        if(CONF(prr->lua, sort_snapshot)) {
+            ENTER(sort);
+            fastpm_sort_snapshot(&subsample[si], fastpm->comm, FastPMSnapshotSortByID, 0);
+            LEAVE(sort);
+        }
     }
 
     if(CONF(prr->lua, write_snapshot)) {
@@ -1251,11 +1260,14 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
         ENTER(io);
         write_snapshot_header(fastpm, filebase, fastpm->comm);
         write_parameters(filebase, "Header", prr, fastpm->comm);
-        fastpm_store_write(subsample, filebase, "w", prr->cli->Nwriters, fastpm->comm);
+
+        for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+            if(!fastpm_solver_get_species(fastpm, si)) continue;
+            fastpm_store_write(&subsample[si], filebase, "w", prr->cli->Nwriters, fastpm->comm);
+        }
+
         LEAVE(io);
-
         fastpm_info("snapshot %s [%s] written at z = %6.4f z = %6.4f \n", filebase, "1", z_out, aout);
-
     }
 
     if(CONF(prr->lua, write_fof)) {
@@ -1267,14 +1279,9 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
         LEAVE(sort);
 
         ENTER(io);
-
-        if(CONF(prr->lua, write_snapshot) &&
-           0 == strcmp(CONF(prr->lua, write_fof), CONF(prr->lua, write_snapshot))) {
-            /* Writing to the same place as the snapshot; thus skip headers*/
-        } else {
-            write_snapshot_header(fastpm, filebase, fastpm->comm);
-            write_parameters(filebase, "Header", prr, fastpm->comm);
-        }
+        /* over write the header of write_fof and write_snapshot are the same */
+        write_snapshot_header(fastpm, filebase, fastpm->comm);
+        write_parameters(filebase, "Header", prr, fastpm->comm);
 
         fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
 
@@ -1286,12 +1293,13 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
     }
 
     if(CONF(prr->lua, write_runpb_snapshot)) {
+        /* RunPB only has CDM*/
         char filebase[1024];
 
         sprintf(filebase, "%s_%0.04f.bin", CONF(prr->lua, write_runpb_snapshot), aout);
 
         ENTER(io);
-        write_runpb_snapshot(fastpm, subsample, filebase);
+        write_runpb_snapshot(fastpm, &subsample[FASTPM_SPECIES_CDM], filebase);
         LEAVE(io);
 
         fastpm_info("runpb snapshot %s written z = %6.4f a = %6.4f\n", 
@@ -1300,8 +1308,14 @@ take_a_snapshot(FastPMSolver * fastpm, FastPMStore * snapshot, Parameters * prr)
     }
 
     if(CONF(prr->lua, particle_fraction) < 1) {
-        fastpm_store_destroy(subsample);
-        free(subsample);
+        /* subsamples[] are new store objects rather than references of the snapshot store;
+         *  destroy them here */
+        int si;
+        for(si = FASTPM_SOLVER_NSPECIES - 1; si >= 0; si --) {
+            if(!fastpm_solver_get_species(fastpm, si)) continue;
+
+            fastpm_store_destroy(&subsample[si]);
+        }
     }
     return 0;
 }

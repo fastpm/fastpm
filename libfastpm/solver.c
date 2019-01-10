@@ -61,16 +61,15 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     }
 
     /* FIXME: move this to add_species */
-    fastpm->species[FASTPM_SPECIES_CDM] = malloc(sizeof(FastPMStore));
 
-    fastpm_store_init_evenly(fastpm->species[FASTPM_SPECIES_CDM],
+    fastpm_store_init_evenly(&fastpm->species[FASTPM_SPECIES_CDM],
           fastpm_species_get_name(FASTPM_SPECIES_CDM),
           pow(1.0 * config->nc, 3),
           COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC
         | config->ExtraAttributes,
         config->alloc_factor, comm);
 
-    memset(fastpm->has_species, 0, 6);
+    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
 
     fastpm->has_species[FASTPM_SPECIES_CDM] = 1;
 
@@ -195,7 +194,7 @@ FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 {
     if(fastpm->has_species[species]) {
-        return fastpm->species[species];
+        return &fastpm->species[species];
     } else {
         return NULL;
     }
@@ -464,10 +463,11 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
     int si;
-    for(si = 5; si >=0; si --) {
+    /* FIXME: always need to add the lower species first;
+     * may want to change has_species to the order of the species was added. */
+    for(si = FASTPM_SOLVER_NSPECIES - 1; si >= 0; si --) {
         if(fastpm->has_species[si]) {
-            fastpm_store_destroy(fastpm->species[si]);
-            free(fastpm->species[si]);
+            fastpm_store_destroy(&fastpm->species[si]);
         }
     }
     vpm_free(fastpm->vpm_list);
@@ -510,17 +510,57 @@ fastpm_decompose(FastPMSolver * fastpm) {
  *
  * fastpm_unset_snapshot(fastpm, .......)
  * */
+
 void
 fastpm_set_snapshot(FastPMSolver * fastpm,
-                enum FastPMSpecies species,
+                FastPMSolver * snapshot,
+                FastPMDriftFactor * drift,
+                FastPMKickFactor * kick,
+                double aout) {
+    memcpy(snapshot, fastpm, sizeof(FastPMSolver));
+
+    int si;
+    for (si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+        FastPMStore * p, *po;
+
+        p  = fastpm_solver_get_species(fastpm, si);
+        po = fastpm_solver_get_species(snapshot, si);
+
+        if(!p) { continue; }
+
+        fastpm_set_species_snapshot(fastpm, p, drift, kick, po, aout);
+    }
+}
+
+void
+fastpm_unset_snapshot(FastPMSolver * fastpm,
+                FastPMSolver * snapshot,
+                FastPMDriftFactor * drift,
+                FastPMKickFactor * kick,
+                double aout) {
+
+    int si;
+    for (si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+        FastPMStore * p, *po;
+
+        p  = fastpm_solver_get_species(fastpm, si);
+        po = fastpm_solver_get_species(snapshot, si);
+
+        if(!p) { continue; }
+
+        fastpm_unset_species_snapshot(fastpm, p, drift, kick, po, aout);
+    }
+}
+
+
+void
+fastpm_set_species_snapshot(FastPMSolver * fastpm,
+                FastPMStore * p,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout)
 {
-    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
-    if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
-
     FastPMCosmology * c = fastpm->cosmology;
     PM * pm = fastpm->basepm;
     int np = p->np;
@@ -573,15 +613,13 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
 
 /* revert the effect of a snapshot on fastpm->species, and destroy po */
 void
-fastpm_unset_snapshot(FastPMSolver * fastpm,
-                enum FastPMSpecies species,
+fastpm_unset_species_snapshot(FastPMSolver * fastpm,
+                FastPMStore * p,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout)
 {
-    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
-    if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
     FastPMCosmology * c = fastpm->cosmology;
     PM * pm = fastpm->basepm;
     int np = po->np;
