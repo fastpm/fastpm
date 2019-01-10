@@ -87,7 +87,7 @@ int main(int argc, char * argv[]) {
     }
 
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    fastpm_solver_setup_lpt(solver, rho_init_ktruth);
 
     fastpm_lcp_init(lcp, solver, tiles, ntiles);
 
@@ -116,7 +116,7 @@ int main(int argc, char * argv[]) {
     // write_snapshot(solver, lcp->p, "lightconePresult-p", "", 1, NULL);
     // write_snapshot(solver, lcp->q, "lightconePresult-q", "", 1, NULL);
 
-    // fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    // fastpm_solver_setup_lpt(solver, rho_init_ktruth);
     // fastpm_lcp_init(lcp, solver, tiles, ntiles);
 
     double time_step2[] = {0.1,0.5,0.7,0.9,.99,1};
@@ -129,7 +129,7 @@ int main(int argc, char * argv[]) {
     write_snapshot(solver, lcp->p, "lightconePresult-p2", "", 1, NULL);
     write_snapshot(solver, lcp->q, "lightconePresult-q2", "", 1, NULL);
 
-    // fastpm_solver_setup_ic(solver, rho_init_ktruth);
+    // fastpm_solver_setup_lpt(solver, rho_init_ktruth);
     // fastpm_lcp_init(lcp, solver, tiles, ntiles);
     // double time_step3[] = {0.1};
     // fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));

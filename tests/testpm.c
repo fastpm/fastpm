@@ -48,7 +48,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
-    fastpm_solver_setup_ic(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 

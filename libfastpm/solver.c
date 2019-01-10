@@ -90,7 +90,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 }
 
 void
-fastpm_solver_setup_ic(FastPMSolver * fastpm,
+fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         enum FastPMSpecies species,
         FastPMFloat * delta_k_ic,
         double a0)

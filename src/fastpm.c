@@ -553,7 +553,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         }
 
         read_runpb_ic(fastpm, p, CONF(prr->lua, read_runpbic));
-        fastpm_solver_setup_ic(fastpm, FASTPM_SPECIES_CDM, NULL, CONF(prr->lua, time_step)[0]);
+        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, CONF(prr->lua, time_step)[0]);
         if(temp_dx2) {
             fastpm_memory_free(p->mem, p->dx2);
             p->dx2 = NULL;
@@ -591,7 +591,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    fastpm_solver_setup_ic(fastpm, FASTPM_SPECIES_CDM, delta_k, CONF(prr->lua, time_step)[0]);
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, CONF(prr->lua, time_step)[0]);
 
     pm_free(fastpm->basepm, delta_k);
 }
