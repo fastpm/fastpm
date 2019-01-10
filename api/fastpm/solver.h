@@ -142,11 +142,6 @@ fastpm_solver_destroy(FastPMSolver * fastpm);
 FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
 
-typedef int FastPMSpeciesIter;
-
-enum FastPMSpecies
-fastpm_solver_iter_species(FastPMSolver * fastpm, FastPMSpeciesIter * iter);
-
 void 
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
                 enum FastPMSpecies species,

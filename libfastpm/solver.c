@@ -295,10 +295,10 @@ fastpm_do_warmup(FastPMSolver * fastpm, double a0)
     CLOCK(warmup);
     ENTER(warmup);
 
-    FastPMSpeciesIter iter = 0;
-    enum FastPMSpecies species;
-    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
         /* set acc to zero or we see valgrind errors */
         memset(p->acc, 0, sizeof(p->acc[0]) * p->np);
     }
@@ -403,10 +403,10 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do kick */
     ENTER(kick);
-    enum FastPMSpecies species;
-    FastPMSpeciesIter iter = 0;
-    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
 
         if(kick.ai != p->meta.a_v) {
             fastpm_raise(-1, "kick is inconsitant with state.\n");
@@ -441,10 +441,10 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 
     /* Do drift */
     ENTER(drift);
-    enum FastPMSpecies species;
-    FastPMSpeciesIter iter = 0;
-    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
 
         if(drift.ai != p->meta.a_x) {
             fastpm_raise(-1, "drift is inconsitant with state.\n");
@@ -482,10 +482,9 @@ fastpm_decompose(FastPMSolver * fastpm) {
     int NTask;
     MPI_Comm_size(fastpm->comm, &NTask);
 
-    FastPMSpeciesIter iter = 0;
-    enum FastPMSpecies species;
-    while(-1 != (species = fastpm_solver_iter_species(fastpm, &iter))) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
 
         /* apply periodic boundary and move particles to the correct rank */
