@@ -137,6 +137,7 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
             fastpm_painter_init_cic(painter);
             painter->kernel = NULL;
             painter->diff = NULL;
+            support = 2;
         break;
         case FASTPM_PAINTER_LINEAR:
             painter->kernel = _linear_kernel;
