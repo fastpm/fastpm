@@ -263,8 +263,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     CLOCK(sort);
     CLOCK(indexing);
 
-    const double rho_crit = 27.7455;
-    const double M0 = CONF(prr->lua, omega_m) * rho_crit
+    const double M0 = CONF(prr->lua, omega_m) * FASTPM_CRITICAL_DENSITY
                     * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
     fastpm_info("mass of a particle is %g 1e10 Msun/h\n", M0); 
 

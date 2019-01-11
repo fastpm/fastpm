@@ -101,12 +101,10 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     PM * basepm = fastpm->basepm;
     FastPMConfig * config = fastpm->config;
 
-    double rho_crit = 27.7455; /* 1e10 Msun /h*/
-
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
     double OmegaM = fastpm->cosmology->OmegaM;
-    double M0 = OmegaM * rho_crit * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+    double M0 = OmegaM * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
 
     p->meta.M0 = M0;
 

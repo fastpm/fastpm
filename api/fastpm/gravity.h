@@ -1,4 +1,7 @@
 FASTPM_BEGIN_DECLS
+
+#define FASTPM_CRITICAL_DENSITY 27.7455 /* 1e10 Msun /h*/
+
 typedef struct {
     FastPMKernelType KernelType;
     FastPMDealiasingType DealiasingType;
