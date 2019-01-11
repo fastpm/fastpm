@@ -168,6 +168,7 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     pgd->p = malloc(sizeof(pgd->p[0]));
     fastpm_store_init(pgd->p, pgd->source->name, Nrecv, attributes, FASTPM_MEMORY_HEAP);
+    memcpy(&pgd->p->meta, &pgd->source->meta, sizeof(pgd->source->meta));
 
     return pgd;
 }
