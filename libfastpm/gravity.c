@@ -268,12 +268,8 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
     fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
 
-    /* watch out: boost the density since mesh is finer than grid */
-    long long np = p->np;
-
-    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG_LONG, MPI_SUM, pm_comm(pm));
-
-    double density_factor = pm->Norm / np;
+    double total_mass = fastpm_store_get_np_total(p, pm_comm(pm)) * p->meta.M0;
+    double mean_mass_per_cell = total_mass / pm->Norm;
 
     CLOCK(ghosts);
     PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes);
@@ -282,15 +278,6 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
 
     FastPMFloat * canvas = pm_alloc(pm);
 
-    /* Watch out: this paints number of particles per cell. when pm_nc_factor is not 1, 
-     * it is less than the density (a cell is smaller than the mean seperation between particles. 
-     * We thus have to boost the density by density_factor.
-     *
-     * This gives us over density + 1
-     *
-     * because rhobar = N_g ^3 / V
-     * we paint rho V / (B N_g^3) * B = rho / rhobar. The last B is the extra density factor.
-     * */
     CLOCK(paint);
 
     VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
@@ -298,9 +285,17 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 
     pm_clear(pm, canvas);
+    /* Watch out: paint paints the mass per cell;
+     * divide by mean mass per cell to convert to matter overdensity, which
+     * goes into Poisson's equation. 
+     *
+     * In this perspective, we are still operating with the dimension-less
+     * Poisson's equation where the critical density factors canceled
+     * with gravity constants into 1.5 OmegaM,
+     * */
     fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
     fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, FASTPM_FIELD_DESCR_NONE);
-    fastpm_apply_multiply_transfer(pm, canvas, canvas, density_factor);
+    fastpm_apply_multiply_transfer(pm, canvas, canvas, 1.0 / mean_mass_per_cell);
 
     LEAVE(paint);
     CLOCK(r2c);

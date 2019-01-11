@@ -328,9 +328,9 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
         double pos[3];
         double weight;
         if (!field.attribute) {
-            weight = 1.0;
+            weight = p->meta.M0;
         } else {
-            weight = p->_column_info[ci].to_double(p, i, ci, field.memb);
+            weight = p->meta.M0 * p->_column_info[ci].to_double(p, i, ci, field.memb);
         }
         fastpm_store_get_position(p, i, pos);
         painter->paint(painter, canvas, pos, weight, painter->diffdir);
