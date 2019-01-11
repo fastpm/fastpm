@@ -471,8 +471,8 @@ fastpm_smesh_compute_potential(
          { COLUMN_TIDAL, 5 },
         };
 
-        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | COLUMN_POS);
-        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | COLUMN_POS, reader->support);
+        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes, reader->support);
 
         pm_ghosts_send(pgd_last_now, COLUMN_POS);
         pm_ghosts_send(pgd_new_now, COLUMN_POS);

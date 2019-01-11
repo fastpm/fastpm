@@ -154,14 +154,6 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
         pm->Norm *= pm->Nmesh[d];
         pm->Volume *= pm->BoxSize[d];
 
-        /* The support of CIC is 2. We do not use
-         * -1.0000 * pm->CellSize[d] here
-         * because even though the kernel touches -1 * cellsize,
-         * we do not paint on the lower edge.
-         * */
-        pm->Below[d] = 0;
-        pm->Above[d] = +1.0000 * pm->CellSize[d];
-
     }
 
 

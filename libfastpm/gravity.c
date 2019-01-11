@@ -272,7 +272,7 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
     double mean_mass_per_cell = total_mass / pm->Norm;
 
     CLOCK(ghosts);
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes);
+    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, painter->support);
     pm_ghosts_send(pgd, COLUMN_POS);
     LEAVE(ghosts);
 

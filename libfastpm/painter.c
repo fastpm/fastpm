@@ -341,7 +341,7 @@ void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, FastPMFieldDescr field)
 {
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes);
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, painter->support);
 
     pm_ghosts_send(pgd, p->attributes);
 
