@@ -28,7 +28,7 @@ static void
 force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
 {
     fastpm_info("force handler, %g %g\n", event->a_f, event->a_n);
-    fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+    fastpm_smesh_compute_potential(smesh, event->pm, event->painter, event->kernel, event->delta_k, event->a_f, event->a_n);
 }
 
 static void
@@ -78,9 +78,12 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);
 
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
+    FastPMPainter painter[1];
+
+    fastpm_painter_init(painter, solver->basepm, solver->config->PAINTER_TYPE, solver->config->painter_support);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 0.1, 0.5);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 0.5, 1.0);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 1.0, -1.0);
 
     fastpm_smesh_destroy(smesh);
     fastpm_usmesh_destroy(usmesh);

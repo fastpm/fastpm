@@ -129,14 +129,14 @@ gaussian36(double k, double * knq)
 }
 
 void
-gravity_apply_kernel_transfer(FastPMGravity * gravity,
+gravity_apply_kernel_transfer(FastPMKernelType type,
         PM * pm,
         FastPMFloat * delta_k,
         FastPMFloat * canvas, FastPMFieldDescr field)
 {
     int potorder = 0;
     int gradorder = 0;
-    switch(gravity->KernelType) {
+    switch(type) {
         case FASTPM_KERNEL_EASTWOOD:
             potorder = 0;
             gradorder = 0;
@@ -228,9 +228,9 @@ gravity_apply_kernel_transfer(FastPMGravity * gravity,
     }
 }
 static void
-apply_dealiasing_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * from, FastPMFloat * to)
+apply_dealiasing_transfer(FastPMDealiasingType type, PM * pm, FastPMFloat * from, FastPMFloat * to)
 {
-    switch(gravity->DealiasingType) {
+    switch(type) {
         case FASTPM_DEALIASING_TWO_THIRD:
             {
             double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
@@ -257,31 +257,43 @@ apply_dealiasing_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * from, 
 }
 
 void
-fastpm_gravity_calculate(FastPMGravity * gravity,
-    PM * pm,
-    FastPMStore * p,
-    FastPMFloat * delta_k)
+_fastpm_solver_create_ghosts(FastPMSolver * fastpm, int support, PMGhostData * pgd[6])
 {
-    FastPMPainter reader[1];
-    FastPMPainter painter[1];
-
-    fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
-    fastpm_painter_init(painter, pm, gravity->PainterType, gravity->PainterSupport);
-
-    double total_mass = fastpm_store_get_np_total(p, pm_comm(pm)) * p->meta.M0;
-    double mean_mass_per_cell = total_mass / pm->Norm;
+    PM * pm = fastpm->pm;
 
     CLOCK(ghosts);
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes, painter->support);
-    pm_ghosts_send(pgd, COLUMN_POS);
+
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+        pgd[si] = pm_ghosts_create(pm, p, p->attributes, support);
+        pm_ghosts_send(pgd[si], COLUMN_POS);
+    }
     LEAVE(ghosts);
+}
 
-    FastPMFloat * canvas = pm_alloc(pm);
+void
+_fastpm_solver_destroy_ghosts(FastPMSolver * fastpm, PMGhostData * pgd[6])
+{
+    int si;
+    for(si = FASTPM_SOLVER_NSPECIES - 1; si >= 0; si--) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+        pm_ghosts_free(pgd[si]);
+    }
 
-    CLOCK(paint);
+}
 
-    VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
-    VALGRIND_CHECK_MEM_IS_DEFINED(pgd->p->x, sizeof(pgd->p->x[0]) * pgd->p->np);
+
+void
+_fastpm_solver_compute_delta_k(FastPMSolver * fastpm, FastPMPainter * painter, PMGhostData * pgd[6], FastPMFloat * canvas, FastPMFloat * delta_k)
+{
+    PM * pm = fastpm->pm;
+
+    double total_mass = 0;
+
+
     FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 
     pm_clear(pm, canvas);
@@ -293,40 +305,58 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
      * Poisson's equation where the critical density factors canceled
      * with gravity constants into 1.5 OmegaM,
      * */
-    fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
-    fastpm_paint_local(painter, canvas, pgd->p, pgd->p->np, FASTPM_FIELD_DESCR_NONE);
-    fastpm_apply_multiply_transfer(pm, canvas, canvas, 1.0 / mean_mass_per_cell);
+    CLOCK(paint);
 
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+
+        VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
+        VALGRIND_CHECK_MEM_IS_DEFINED(pgd[si]->p->x, sizeof(pgd[si]->p->x[0]) * pgd[si]->p->np);
+
+        total_mass += fastpm_store_get_np_total(p, pm_comm(pm)) * p->meta.M0;
+        fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
+        fastpm_paint_local(painter, canvas, pgd[si]->p, pgd[si]->p->np, FASTPM_FIELD_DESCR_NONE);
+    }
     LEAVE(paint);
+
+    double mean_mass_per_cell = total_mass / pm->Norm;
+
+    CLOCK(transfer);
+    fastpm_apply_multiply_transfer(pm, canvas, canvas, 1.0 / mean_mass_per_cell);
+    LEAVE(transfer);
+
     CLOCK(r2c);
+
     pm_check_values(pm, canvas, "After painting");
     pm_r2c(pm, canvas, delta_k);
     pm_check_values(pm, delta_k, "After r2c");
+
     LEAVE(r2c);
 
-    /* calculate the forces save them to p->acc */
-    apply_dealiasing_transfer(gravity, pm, delta_k, delta_k);
-    pm_check_values(pm, delta_k, "After dealiasing");
+}
 
+void
+_fastpm_solver_compute_force(FastPMSolver * fastpm,
+    FastPMPainter * reader,
+    FastPMKernelType kernel,
+    PMGhostData * pgd[6],
+    FastPMFloat * canvas,
+    FastPMFloat * delta_k, FastPMFieldDescr * ACC, int nacc)
+{
     int d;
-
-    FastPMFieldDescr ACC[] = {
-         {COLUMN_ACC, 0},
-         {COLUMN_ACC, 1},
-         {COLUMN_ACC, 2},
-         {COLUMN_POTENTIAL, 0}
-    };
+    PM * pm = fastpm->pm;
 
     CLOCK(transfer);
     CLOCK(c2r);
     CLOCK(readout);
     CLOCK(reduce);
 
-    for(d = 0; d < 3 + 1; d ++) {
-        /* skip potential if not wanted */
-        if(p->potential == NULL && ACC[d].attribute == COLUMN_POTENTIAL) continue;
+    for(d = 0; d < nacc; d ++) {
+
         ENTER(transfer);
-        gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
+        gravity_apply_kernel_transfer(kernel, pm, delta_k, canvas, ACC[d]);
         LEAVE(transfer);
 
         ENTER(c2r);
@@ -336,39 +366,90 @@ fastpm_gravity_calculate(FastPMGravity * gravity,
         LEAVE(c2r);
 
         ENTER(readout);
-        fastpm_readout_local(reader, canvas, p, p->np, ACC[d]);
-        fastpm_readout_local(reader, canvas, pgd->p, pgd->p->np, ACC[d]);
+        int si;
+        for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+            FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+            if(!p) continue;
+            fastpm_readout_local(reader, canvas, p, p->np, ACC[d]);
+            fastpm_readout_local(reader, canvas, pgd[si]->p, pgd[si]->p->np, ACC[d]);
+        }
         LEAVE(readout);
 
     }
 
-    double acc_std[3], acc_mean[3], acc_min[3], acc_max[3];
-    fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
-    for(d = 0; d < 3; d ++) {
-        fastpm_info("p    acc[%d]: %g %g %g %g\n",
-            d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
-    }
-    fastpm_store_summary(pgd->p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
-    for(d = 0; d < 3; d ++) {
-        fastpm_info("ghost acc[%d]: %g %g %g %g\n",
-            d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
-    }
-    fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
-    for(d = 0; d < 3; d ++) {
-        fastpm_info("p+g   acc[%d]: %g %g %g %g\n",
-            d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+    int si;
+    for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+        if(!p) continue;
+
+        double acc_std[3], acc_mean[3], acc_min[3], acc_max[3];
+        fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
+        for(d = 0; d < 3; d ++) {
+            fastpm_info("p    acc[%d]: %g %g %g %g\n",
+                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+        }
+        fastpm_store_summary(pgd[si]->p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
+        for(d = 0; d < 3; d ++) {
+            fastpm_info("ghost acc[%d]: %g %g %g %g\n",
+                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+        }
+        fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
+        for(d = 0; d < 3; d ++) {
+            fastpm_info("p+g   acc[%d]: %g %g %g %g\n",
+                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+        }
+
+        ENTER(reduce);
+        pm_ghosts_reduce(pgd[si], COLUMN_ACC, FastPMReduceAddFloat, NULL);
+
+        if(p->potential != NULL) {
+            pm_ghosts_reduce(pgd[si], COLUMN_POTENTIAL, FastPMReduceAddFloat, NULL);
+        }
+        LEAVE(reduce);
     }
 
-    ENTER(reduce);
-    pm_ghosts_reduce(pgd, COLUMN_ACC, FastPMReduceAddFloat, NULL);
 
-    if(p->potential != NULL) {
-        pm_ghosts_reduce(pgd, COLUMN_POTENTIAL, FastPMReduceAddFloat, NULL);
+}
+
+void
+fastpm_solver_compute_force(FastPMSolver * fastpm,
+    FastPMPainter * painter,
+    FastPMDealiasingType dealias,
+    FastPMKernelType kernel,
+    FastPMFloat * delta_k)
+{
+    PM * pm = fastpm->pm;
+    PMGhostData * pgd[FASTPM_SOLVER_NSPECIES];
+
+    FastPMFloat * canvas = pm_alloc(pm);
+
+    _fastpm_solver_create_ghosts(fastpm, painter->support, pgd);
+
+    _fastpm_solver_compute_delta_k(fastpm, painter, pgd, canvas, delta_k);
+
+    CLOCK(dealias);
+    /* calculate the forces save them to p->acc */
+    apply_dealiasing_transfer(dealias, pm, delta_k, delta_k);
+    pm_check_values(pm, delta_k, "After dealiasing");
+    LEAVE(dealias);
+
+    FastPMFieldDescr ACC[] = {
+         {COLUMN_ACC, 0},
+         {COLUMN_ACC, 1},
+         {COLUMN_ACC, 2},
+         {COLUMN_POTENTIAL, 0}
+    };
+
+    int nacc = 4;
+    /* skip potential if not wanted */
+
+    if(NULL == fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->potential) {
+        nacc = 3;
     }
 
-    LEAVE(reduce);
+    _fastpm_solver_compute_force(fastpm, painter, kernel, pgd, canvas, delta_k, ACC, nacc);
+
+    _fastpm_solver_destroy_ghosts(fastpm, pgd);
 
     pm_free(pm, canvas);
-
-    pm_ghosts_free(pgd);
 }

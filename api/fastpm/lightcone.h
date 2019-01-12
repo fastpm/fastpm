@@ -166,10 +166,12 @@ int
 fastpm_smesh_compute_potential(
         FastPMSMesh * mesh,
         PM * pm,
-        FastPMGravity * gravity,
+        FastPMPainter * painter,
+        FastPMKernelType kernel,
         FastPMFloat * delta_k,
         double a_f,
-        double a_n);
+        double a_n
+);
 
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh);

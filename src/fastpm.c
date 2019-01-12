@@ -987,11 +987,11 @@ smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, struct smes
         /* generate linear field at this time */
         prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, event->a_f);
 
-        fastpm_smesh_compute_potential(smesh, fastpm->basepm, event->gravity, delta_k, event->a_f, event->a_n);
+        fastpm_smesh_compute_potential(smesh, fastpm->basepm, event->painter, event->kernel, delta_k, event->a_f, event->a_n);
 
         pm_free(fastpm->basepm, delta_k);
     } else {
-        fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+        fastpm_smesh_compute_potential(smesh, event->pm, event->painter, event->kernel, event->delta_k, event->a_f, event->a_n);
     }
     LEAVE(potential);
 }

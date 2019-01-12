@@ -27,13 +27,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->config[0] = *config;
 
-    fastpm->gravity[0] = (FastPMGravity) {
-        .PainterType = config->PAINTER_TYPE,
-        .PainterSupport = config->painter_support,
-        .KernelType = config->KERNEL_TYPE,
-        .DealiasingType = config->DEALIASING_TYPE,
-    };
-
     fastpm->cosmology[0] = (FastPMCosmology) {
         .OmegaM = config->omega_m,
         .OmegaLambda = 1.0 - config->omega_m,
@@ -313,7 +306,6 @@ fastpm_find_pm(FastPMSolver * fastpm, double a)
 static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 {
-    FastPMGravity * gravity = fastpm->gravity;
 
     CLOCK(decompose);
     CLOCK(force);
@@ -321,6 +313,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     fastpm->pm = fastpm_find_pm(fastpm, trans->a.f);
 
+    FastPMPainter painter[1];
     PM * pm = fastpm->pm;
 
     FastPMFloat * delta_k = pm_alloc(pm);
@@ -330,6 +323,8 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     /* FIXME modify gravity.c to compute delta_k from all species. */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
+    fastpm_painter_init(painter, pm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
+
     int64_t N = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
@@ -337,8 +332,9 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     event->delta_k = delta_k;
     event->a_f = trans->a.f;
     event->pm = pm;
-    event->N = N;
-    event->gravity = gravity;
+    event->N = N; /* FIXME: pass in the shot noise instead? */
+    event->painter = painter;
+    event->kernel = fastpm->config->KERNEL_TYPE;
 
     /* find the time stamp of the next force calculation. This will
      * be useful for interpolating potentials of the structured mesh */
@@ -360,7 +356,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
 
     ENTER(force);
-    fastpm_gravity_calculate(gravity, pm, p, delta_k);
+    fastpm_solver_compute_force(fastpm, painter, fastpm->config->DEALIASING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
     LEAVE(force);
 
     ENTER(event);

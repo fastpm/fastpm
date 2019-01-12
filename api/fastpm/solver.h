@@ -36,7 +36,8 @@ typedef struct {
 
 typedef struct {
     FastPMEvent base;
-    FastPMGravity * gravity;
+    FastPMKernelType kernel;
+    FastPMPainter * painter;
     PM * pm;
     FastPMFloat * delta_k;
     double N; /* total number of particles painted. */
@@ -58,6 +59,7 @@ typedef struct {
     FastPMColumnTags ExtraAttributes;
 
     double nLPT;
+    /* FIXME: give them better looking names. */
     FastPMPainterType PAINTER_TYPE;
     int painter_support;
     FastPMForceType FORCE_TYPE;
@@ -81,9 +83,6 @@ typedef struct {
 
     /* input parameters */
     FastPMConfig config[1];
-
-    /* gravity solver */
-    FastPMGravity gravity[1];
 
     /* cosmology */
     FastPMCosmology cosmology[1];

@@ -394,7 +394,8 @@ int
 fastpm_smesh_compute_potential(
         FastPMSMesh * mesh,
         PM * pm,
-        FastPMGravity * gravity,
+        FastPMPainter * reader,
+        FastPMKernelType kernel,
         FastPMFloat * delta_k,
         double a_f,
         double a_n
@@ -453,11 +454,7 @@ fastpm_smesh_compute_potential(
         fastpm_info("Computing potential for %ld mesh points\n", np);
         FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
 
-        FastPMPainter reader[1];
-        fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
-
-
-        /*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
+        /*XXX Following is almost a repeat of potential calc in fastpm_solver_compute_force, though positions are different*/
 
         int d;
         FastPMFieldDescr ACC[] = {
@@ -486,7 +483,7 @@ fastpm_smesh_compute_potential(
 
         for(d = 0; d < dmax; d ++) {
             ENTER(transfer);
-            gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
+            gravity_apply_kernel_transfer(kernel, pm, delta_k, canvas, ACC[d]);
 
             fastpm_apply_decic_transfer(pm, canvas, canvas);
             /* This is inconclusive. Currently it appears this deconvolve is necessary
