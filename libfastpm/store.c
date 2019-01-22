@@ -90,7 +90,19 @@ from_double_f4 (FastPMStore * p, ptrdiff_t index, int ci, int memb, const double
     ptr[memb] = value;
 }
 
-
+const char *
+fastpm_species_get_name(enum FastPMSpecies species)
+{
+    switch(species) {
+        case FASTPM_SPECIES_CDM:
+            return "1";
+        case FASTPM_SPECIES_NCDM:
+            return "4";
+        case FASTPM_SPECIES_BARYON:
+            return "0";
+    }
+    return "UNKNOWN";
+}
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3])
 {
     pos[0] = p->x[index][0];
@@ -114,6 +126,7 @@ _alignsize(ptrdiff_t size)
 
 void
 fastpm_store_init_details(FastPMStore * p,
+                  const char * name,
                   size_t np_upper,
                   FastPMColumnTags attributes,
                   enum FastPMMemoryLocation loc,
@@ -122,6 +135,8 @@ fastpm_store_init_details(FastPMStore * p,
 {
     memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
+
+    strcpy(p->name, name);
 
     p->np = 0; 
     p->np_upper = np_upper;
@@ -214,7 +229,7 @@ fastpm_store_init_details(FastPMStore * p,
 }
 
 size_t 
-fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
+fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
     int NTask;
@@ -223,7 +238,7 @@ fastpm_store_init_evenly(FastPMStore * p, size_t np_total, FastPMColumnTags attr
     size_t np_upper = (size_t)(1.0 * np_total / NTask * alloc_factor);
 
     MPI_Bcast(&np_upper, 1, MPI_LONG, 0, comm);
-    fastpm_store_init(p, np_upper, attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(p, name, np_upper, attributes, FASTPM_MEMORY_HEAP);
     return 0;
 }
 

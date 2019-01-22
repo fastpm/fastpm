@@ -137,6 +137,7 @@ fastpm_painter_init(FastPMPainter * painter, PM * pm,
             fastpm_painter_init_cic(painter);
             painter->kernel = NULL;
             painter->diff = NULL;
+            support = 2;
         break;
         case FASTPM_PAINTER_LINEAR:
             painter->kernel = _linear_kernel;
@@ -328,9 +329,9 @@ fastpm_paint_local(FastPMPainter * painter, FastPMFloat * canvas,
         double pos[3];
         double weight;
         if (!field.attribute) {
-            weight = 1.0;
+            weight = p->meta.M0;
         } else {
-            weight = p->_column_info[ci].to_double(p, i, ci, field.memb);
+            weight = p->meta.M0 * p->_column_info[ci].to_double(p, i, ci, field.memb);
         }
         fastpm_store_get_position(p, i, pos);
         painter->paint(painter, canvas, pos, weight, painter->diffdir);
@@ -341,7 +342,7 @@ void
 fastpm_paint(FastPMPainter * painter, FastPMFloat * canvas,
     FastPMStore * p, FastPMFieldDescr field)
 {
-    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes);
+    PMGhostData * pgd = pm_ghosts_create(painter->pm, p, p->attributes, painter->support);
 
     pm_ghosts_send(pgd, p->attributes);
 

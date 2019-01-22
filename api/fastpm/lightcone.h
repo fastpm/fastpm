@@ -22,6 +22,7 @@ typedef struct {
 
 typedef struct FastPMUSMesh {
     FastPMLightCone * lc;
+    FastPMStore * source; /* source particle to monitor */
     FastPMStore * p; /* storing the unstructred output, particles on lightcone */
 
     double (* tileshifts)[3];
@@ -103,7 +104,8 @@ fastpm_lc_distance(FastPMLightCone * lc, double x[3]);
 
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh,
-                FastPMLightCone * lc, size_t np_upper,
+                FastPMLightCone * lc, FastPMStore * source,
+                size_t np_upper,
                 double (*tileshifts)[3], int ntiles,
                 double amin, double amax);
 
@@ -111,7 +113,7 @@ void
 fastpm_usmesh_destroy(FastPMUSMesh * mesh);
 
 int
-fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, FastPMSolver * fastpm);
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);
@@ -164,10 +166,12 @@ int
 fastpm_smesh_compute_potential(
         FastPMSMesh * mesh,
         PM * pm,
-        FastPMGravity * gravity,
+        FastPMPainter * painter,
+        FastPMKernelType kernel,
         FastPMFloat * delta_k,
         double a_f,
-        double a_n);
+        double a_n
+);
 
 void
 fastpm_smesh_destroy(FastPMSMesh * mesh);

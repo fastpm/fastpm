@@ -1,15 +1,15 @@
 FASTPM_BEGIN_DECLS
-typedef struct {
-    FastPMKernelType KernelType;
-    FastPMDealiasingType DealiasingType;
-    FastPMPainterType PainterType;
-    int PainterSupport;
-} FastPMGravity;
+
+#define FASTPM_CRITICAL_DENSITY 27.7455 /* 1e10 Msun /h*/
 
 void
-fastpm_gravity_calculate(FastPMGravity * gravity, PM * pm, FastPMStore * p, FastPMFloat * delta_k);
+fastpm_solver_compute_force(FastPMSolver * fastpm,
+    FastPMPainter * painter,
+    FastPMDealiasingType dealias,
+    FastPMKernelType kernel,
+    FastPMFloat * delta_k);
 
 void
-gravity_apply_kernel_transfer(FastPMGravity * gravity, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, FastPMFieldDescr field);
+gravity_apply_kernel_transfer(FastPMKernelType kernel, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, FastPMFieldDescr field);
 
 FASTPM_END_DECLS

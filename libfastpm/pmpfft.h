@@ -55,9 +55,6 @@ struct PM {
     ptrdiff_t Nmesh[3];
     double    BoxSize[3];
 
-    double    Below[3];
-    double    Above[3];
-
     ptrdiff_t allocsize;
     PMRegion IRegion;
     PMRegion ORegion;

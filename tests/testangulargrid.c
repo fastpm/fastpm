@@ -40,13 +40,13 @@ int main(int argc, char * argv[]) {
     fastpm_solver_init(solver, config, comm);
 
     FastPMStore store[1];
-    fastpm_store_init(store, 1024*1024, COLUMN_AEMIT | COLUMN_POS, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(store, "1", 1024*1024, COLUMN_AEMIT | COLUMN_POS, FASTPM_MEMORY_HEAP);
     double r[] = {0, 1, 2, 3, 4, 5, 6, 7};
     double a[] = {0, 1, 2, 3, 4, 5, 6, 7};
 
     read_angular_grid(store, "healpix64", r, a, 8, 1, MPI_COMM_WORLD);
 
-    fastpm_store_write(store, "angulargrid", "1", "w", 1, solver->comm);
+    fastpm_store_write(store, "angulargrid", "w", 1, solver->comm);
 
     fastpm_store_destroy(store);
     fastpm_solver_destroy(solver);

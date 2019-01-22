@@ -36,7 +36,8 @@ typedef struct {
 
 typedef struct {
     FastPMEvent base;
-    FastPMGravity * gravity;
+    FastPMKernelType kernel;
+    FastPMPainter * painter;
     PM * pm;
     FastPMFloat * delta_k;
     double N; /* total number of particles painted. */
@@ -58,6 +59,7 @@ typedef struct {
     FastPMColumnTags ExtraAttributes;
 
     double nLPT;
+    /* FIXME: give them better looking names. */
     FastPMPainterType PAINTER_TYPE;
     int painter_support;
     FastPMForceType FORCE_TYPE;
@@ -68,9 +70,12 @@ typedef struct {
     int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
 } FastPMConfig;
 
+#define FASTPM_SOLVER_NSPECIES 6
+
 typedef struct {
     PM * pm;
-    FastPMStore * p;
+    FastPMStore species[FASTPM_SOLVER_NSPECIES];
+    char has_species[FASTPM_SOLVER_NSPECIES];
 
     MPI_Comm comm;
     int NTask;
@@ -78,9 +83,6 @@ typedef struct {
 
     /* input parameters */
     FastPMConfig config[1];
-
-    /* gravity solver */
-    FastPMGravity gravity[1];
 
     /* cosmology */
     FastPMCosmology cosmology[1];
@@ -136,8 +138,14 @@ fastpm_solver_init(FastPMSolver * fastpm, FastPMConfig * config, MPI_Comm comm);
 void 
 fastpm_solver_destroy(FastPMSolver * fastpm);
 
+FastPMStore *
+fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
+
 void 
-fastpm_solver_setup_ic(FastPMSolver * fastpm, FastPMFloat * delta_k_ic, double a0);
+fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
+                enum FastPMSpecies species,
+                FastPMFloat * delta_k_ic,
+                double a0);
 
 PM *
 fastpm_find_pm(FastPMSolver * fastpm, double a);
@@ -166,11 +174,23 @@ fastpm_drift_store(FastPMDriftFactor * drift,
 
 void 
 fastpm_set_snapshot(FastPMSolver * fastpm,
+                FastPMSolver * snapshot,
+                FastPMDriftFactor * drift, FastPMKickFactor * kick,
+                double aout);
+void 
+fastpm_set_species_snapshot(FastPMSolver * fastpm,
+                FastPMStore * p,
                 FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout);
 void 
 fastpm_unset_snapshot(FastPMSolver * fastpm,
+                FastPMSolver * snapshot,
+                FastPMDriftFactor * drift, FastPMKickFactor * kick,
+                double aout);
+void 
+fastpm_unset_species_snapshot(FastPMSolver * fastpm,
+                FastPMStore * p,
                 FastPMDriftFactor * drift, FastPMKickFactor * kick,
                 FastPMStore * po,
                 double aout);

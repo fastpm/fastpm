@@ -95,15 +95,18 @@ main(int argc, char * argv[])
 
     libfastpm_set_memory_bound(cli->MemoryPerRank * 1024 * 1024);
 
-    FastPMStore snapshot[1];
+    FastPMStore source[1];
 
-    fastpm_store_init_evenly(snapshot, pow(1.0 * CONF(lua, nc), 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID,
-        CONF(lua, np_alloc_factor), comm);
+    /* load the CDM species from the snapshot */
+    fastpm_store_init_evenly(source,
+            fastpm_species_get_name(FASTPM_SPECIES_CDM),
+            pow(1.0 * CONF(lua, nc), 3),
+            COLUMN_POS | COLUMN_VEL | COLUMN_ID,
+            CONF(lua, np_alloc_factor), comm);
 
     PM * basepm = fastpm_create_pm(CONF(lua, nc), cli->NprocY, 1, CONF(lua, boxsize), comm);
 
-    fastpm_store_write(snapshot, filebase, "1", "r", cli->Nwriters, comm);
+    fastpm_store_write(source, filebase, "r", cli->Nwriters, comm);
 
     CLOCK(fof);
     CLOCK(io);
@@ -117,13 +120,13 @@ main(int argc, char * argv[])
         .kdtree_thresh = CONF(lua, fof_kdtree_thresh),
     };
 
-    fastpm_fof_init(&fof, snapshot, basepm);
+    fastpm_fof_init(&fof, source, basepm);
 
     FastPMStore halos[1];
 
     ENTER(fof);
 
-    fastpm_fof_execute(&fof, halos);
+    fastpm_fof_execute(&fof, halos, dataset);
 
     LEAVE(fof);
 
@@ -132,7 +135,7 @@ main(int argc, char * argv[])
     LEAVE(sort);
 
     ENTER(io);
-    fastpm_store_write(halos, filebase, dataset, "w", cli->Nwriters, comm);
+    fastpm_store_write(halos, filebase, "w", cli->Nwriters, comm);
 
     LEAVE(io);
 
@@ -141,7 +144,7 @@ main(int argc, char * argv[])
     free_lua_parameters(lua);
     free_cli_parameters(cli);
 
-    fastpm_store_destroy(snapshot);
+    fastpm_store_destroy(source);
     fastpm_free_pm(basepm);
 
     free(dataset);

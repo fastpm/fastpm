@@ -16,10 +16,10 @@ smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver
     char * fn = fastpm_strdup_printf("lightcone_struct");
     if(lcevent->is_first) {
         fastpm_info("First iteration\n");
-        fastpm_store_write(lcevent->p, fn, "1", "w", 1, solver->comm);
+        fastpm_store_write(lcevent->p, fn, "w", 1, solver->comm);
     } else {
         fastpm_info("not first iteration\n");
-        fastpm_store_write(lcevent->p, fn, "1", "a", 1, solver->comm);
+        fastpm_store_write(lcevent->p, fn, "a", 1, solver->comm);
     }
     free(fn);
 }
@@ -28,13 +28,13 @@ static void
 force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
 {
     fastpm_info("force handler, %g %g\n", event->a_f, event->a_n);
-    fastpm_smesh_compute_potential(smesh, event->pm, event->gravity, event->delta_k, event->a_f, event->a_n);
+    fastpm_smesh_compute_potential(smesh, event->pm, event->painter, event->kernel, event->delta_k, event->a_f, event->a_n);
 }
 
 static void
 interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, fastpm);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick);
 }
 
 double tiles[4*4*4][3];
@@ -47,11 +47,12 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
     FastPMSMesh  smesh[1];
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
-    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
+    fastpm_smesh_init(smesh, lc, p->np_upper, 8);
     fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
     fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
 
@@ -72,14 +73,17 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_usmesh_intersect(usmesh, &drift, &kick, solver);
+    fastpm_usmesh_intersect(usmesh, &drift, &kick);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
-    fastpm_store_write(usmesh->p, "lightconeresult-p", "1", "w", 1, solver->comm);
+    fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);
 
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.1, 0.5);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 0.5, 1.0);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, solver->gravity, rho_init_ktruth, 1.0, -1.0);
+    FastPMPainter painter[1];
+
+    fastpm_painter_init(painter, solver->basepm, solver->config->PAINTER_TYPE, solver->config->painter_support);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 0.1, 0.5);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 0.5, 1.0);
+    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 1.0, -1.0);
 
     fastpm_smesh_destroy(smesh);
     fastpm_usmesh_destroy(usmesh);
@@ -93,9 +97,10 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
     FastPMSMesh  smesh[1];
 
-    fastpm_usmesh_init(usmesh, lc, solver->p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
-    fastpm_smesh_init(smesh, lc, solver->p->np_upper, 8);
+    fastpm_smesh_init(smesh, lc, p->np_upper, 8);
     fastpm_smesh_add_layers_healpix(smesh, 
             pow(solver->config->nc / solver->config->boxsize, 2),
             pow(solver->config->nc / solver->config->boxsize, 3),
@@ -123,11 +128,11 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     double time_step2[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
 
-    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
 
-    fastpm_store_write(usmesh->p, "lightcone-unstruct", "1", "w", 1, solver->comm);
+    fastpm_store_write(usmesh->p, "lightcone-unstruct", "w", 1, solver->comm);
 
     fastpm_remove_event_handler(&solver->event_handlers,
             FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
@@ -150,10 +155,11 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
 
     double time_step3[] = {0.1};
-    fastpm_solver_setup_ic(solver, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
 
-    fastpm_store_write(solver->p, "nonlightconeresultZ=9", "1", "w", 1, solver->comm);
+    fastpm_store_write(fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
+            "nonlightconeresultZ=9", "w", 1, solver->comm);
 }
 
 

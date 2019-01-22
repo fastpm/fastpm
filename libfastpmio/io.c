@@ -112,7 +112,7 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
     ptrdiff_t i;
 
     FastPMStore ptmp[1];
-    fastpm_store_init(ptmp, 1, p->attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(ptmp, "TMP", 1, p->attributes, FASTPM_MEMORY_HEAP);
 
     for(i = 0; i < p->np; i ++) {
         fastpm_packing_plan_pack(plan, p, i, send_buffer + i * plan->elsize);
@@ -142,10 +142,13 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
 }
 
 void
-write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
+write_snapshot_header(FastPMSolver * fastpm,
     const char * filebase, MPI_Comm comm)
 {
     fastpm_info("Writing a snapshot header to %s\n", filebase);
+    FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+    FastPMStore * ncdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM);
+    FastPMStore * baryon = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_BARYON);
 
     BigFile bf[1];
     if(0 != big_file_mpi_open(bf, filebase, comm)) {
@@ -159,7 +162,7 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
         fastpm_raise(-1, "Failed to create the header block: %s\n", big_file_get_error_message());
     }
 
-    double aout = p->meta.a_x;
+    double aout = cdm->meta.a_x;
 
     double H0 = 100.;
     /* Conversion from peculiar velocity to RSD,
@@ -175,8 +178,21 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
 
-    double MassTable[6] = {0, p->meta.M0, 0, 0, 0, 0};
-    uint64_t TotNumPart[6] = {0, fastpm_store_get_np_total(p, comm), 0, 0, 0, 0};
+    double MassTable[6] = {
+                baryon?baryon->meta.M0:0,
+                cdm->meta.M0,
+                0,
+                0, 
+                ncdm?ncdm->meta.M0:0,
+                0};
+
+    uint64_t TotNumPart[6] = {
+            baryon?fastpm_store_get_np_total(baryon, comm):0,
+            fastpm_store_get_np_total(cdm, comm),
+            0,
+            0,
+            ncdm?fastpm_store_get_np_total(ncdm, comm):0,
+            0};
 
     /* FIXME: move some of these to fastpm.c; see if we can reduce the number of entries in fastpm->config. */
     big_block_set_attr(&bb, "NC", &NC, "i8", 1);
@@ -210,12 +226,13 @@ write_snapshot_header(FastPMSolver * fastpm, FastPMStore * p,
 int
 fastpm_store_write(FastPMStore * p,
         const char * filebase,
-        const char * dataset,
         const char * modestr,
         int Nwriters,
         MPI_Comm comm
 )
 {
+
+    const char * dataset = p->name;
 
     enum {READ, WRITE, APPEND } mode;
 

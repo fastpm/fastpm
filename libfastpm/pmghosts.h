@@ -30,7 +30,7 @@ typedef struct PMGhostData {
 } PMGhostData;
 
 PMGhostData * 
-pm_ghosts_create(PM * pm, FastPMStore * p, FastPMColumnTags attributes);
+pm_ghosts_create(PM * pm, FastPMStore * p, FastPMColumnTags attributes, int support);
 
 PMGhostData * 
 pm_ghosts_create_full(PM * pm, FastPMStore * p,

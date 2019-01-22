@@ -111,9 +111,22 @@ build_ghost_buffer(PM * pm, PMGhostData * pgd, void * userdata)
  * */
 PMGhostData *
 pm_ghosts_create(PM * pm, FastPMStore * p,
-    FastPMColumnTags attributes)
+    FastPMColumnTags attributes, int support)
 {
-    return pm_ghosts_create_full(pm, p, attributes, pm->Below, pm->Above);
+    /* The support of CIC is 2. We do not use
+     * -1.0000 * pm->CellSize[d] here
+     * because even though the kernel touches -1 * cellsize,
+     * we do not paint on the lower edge.
+     * */
+    double Below[3]; /* in grid integer units */
+    double Above[3];
+
+    int d;
+    for(d = 0; d < 3; d ++) {
+        Below[d] = - (support * 0.5 - 1);
+        Above[d] = (support * 0.5    );
+    }
+    return pm_ghosts_create_full(pm, p, attributes, Below, Above);
 
 }
 
@@ -131,8 +144,8 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
 
     int d;
     for(d = 0; d < 3; d++) {
-        pgd->Below[d] = below[d] * pm->InvCellSize[d];
-        pgd->Above[d] = above[d] * pm->InvCellSize[d];
+        pgd->Below[d] = below[d];
+        pgd->Above[d] = above[d];
     }
 
     pgd->ighost_to_ipar = NULL;
@@ -167,7 +180,8 @@ pm_ghosts_create_full(PM * pm, FastPMStore * p,
     pgd->ighost_to_ipar = fastpm_memory_alloc(pm->mem, "Ghost2Par", Nsend * sizeof(int), FASTPM_MEMORY_HEAP);
 
     pgd->p = malloc(sizeof(pgd->p[0]));
-    fastpm_store_init(pgd->p, Nrecv, attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(pgd->p, pgd->source->name, Nrecv, attributes, FASTPM_MEMORY_HEAP);
+    memcpy(&pgd->p->meta, &pgd->source->meta, sizeof(pgd->source->meta));
 
     return pgd;
 }
@@ -267,7 +281,7 @@ pm_ghosts_reduce(PMGhostData * pgd, FastPMColumnTags attribute,
     MPI_Type_free(&GHOST_TYPE);
 
     FastPMStore q[1];
-    fastpm_store_init(q, Nsend, attribute, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(q, pgd->p->name, Nsend, attribute, FASTPM_MEMORY_HEAP);
 
     /* now reduce the attributes. */
     int ighost;

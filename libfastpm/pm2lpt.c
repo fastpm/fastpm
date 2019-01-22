@@ -27,12 +27,11 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
             p->x[i][d] -= shift[d];
         }
     }
-
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2);
-    pm_ghosts_send(pgd, COLUMN_POS);
-
     FastPMPainter painter[1];
     fastpm_painter_init(painter, pm, FASTPM_PAINTER_CIC, 0);
+
+    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2, painter->support);
+    pm_ghosts_send(pgd, COLUMN_POS);
 
     FastPMFloat * workspace = pm_alloc(pm);
     FastPMFloat * source =  pm_alloc(pm);

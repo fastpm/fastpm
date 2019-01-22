@@ -641,7 +641,7 @@ fastpm_fof_compute_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos,
     MPI_Comm comm = finder->priv->comm;
 
     FastPMStore h1[1];
-    fastpm_store_init(h1, 1, halos->attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(h1, "FOF", 1, halos->attributes, FASTPM_MEMORY_HEAP);
     ptrdiff_t i;
 
     for(i = 0; i < finder->p->np; i++) {
@@ -933,7 +933,7 @@ _reduce_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
  * to be very uniform.
  * */
 static void
-fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, size_t nhalos)
+fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, const char * name, size_t nhalos)
 {
 
     MPI_Comm comm = finder->priv->comm;
@@ -963,7 +963,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     fastpm_info("Allocating %d halos per rank for final catalog.\n", (size_t) max_halos * 2);
 
     /* give it enough space for rebalancing. */
-    fastpm_store_init(halos, (size_t) (max_halos * 2),
+    fastpm_store_init(halos, name, (size_t) (max_halos * 2),
             attributes,
             FASTPM_MEMORY_HEAP);
 
@@ -981,7 +981,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
 
 
 void
-fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
+fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos, const char * name)
 {
     /* initial decompose -- reduce number of ghosts */
     FastPMStore * p = finder->p;
@@ -1043,7 +1043,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
                     sizeof(head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
 
     FastPMStore savebuff[1];
-    fastpm_store_init(savebuff, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
+    fastpm_store_init(savebuff, p->name, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
     _fof_local_find(finder, p, pgd, head, finder->linkinglength);
 
@@ -1056,7 +1056,7 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     pm_ghosts_free(pgd);
 
     /* create local halos and modify head to index the local halos */
-    fastpm_fof_create_local_halos(finder, halos, nsegments);
+    fastpm_fof_create_local_halos(finder, halos, name, nsegments);
     /* remove halos without any local particles */
     fastpm_fof_remove_empty_halos(finder, halos, savebuff->minid, head);
 

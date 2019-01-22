@@ -38,7 +38,7 @@ fastpm_smesh_init(FastPMSMesh * mesh, FastPMLightCone * lc, size_t np_upper, dou
 //            | COLUMN_TIDAL /* disable TIDAL as we can always finite diff the potential map. */
             | COLUMN_AEMIT;
 
-    fastpm_store_init(mesh->last.p, 0,
+    fastpm_store_init(mesh->last.p, "1", 0,
             mesh->attributes,
             FASTPM_MEMORY_STACK);
 
@@ -381,7 +381,7 @@ fastpm_smesh_select_active(FastPMSMesh * mesh,
         nactive += fastpm_smesh_layer_select_active(mesh, layer, a0, a1, NULL);
     }
 
-    fastpm_store_init(q, nactive, mesh->attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init(q, "1", nactive, mesh->attributes, FASTPM_MEMORY_HEAP);
 
     for(layer = mesh->layers; layer; layer = layer->next) {
         fastpm_smesh_layer_select_active(mesh, layer, a0, a1, q);
@@ -394,7 +394,8 @@ int
 fastpm_smesh_compute_potential(
         FastPMSMesh * mesh,
         PM * pm,
-        FastPMGravity * gravity,
+        FastPMPainter * reader,
+        FastPMKernelType kernel,
         FastPMFloat * delta_k,
         double a_f,
         double a_n
@@ -434,7 +435,7 @@ fastpm_smesh_compute_potential(
 
     /* create a proxy of p_last_then with the same position,
      * but new storage space for the potential variables */
-    fastpm_store_init(p_last_now, mesh->last.p->np_upper,
+    fastpm_store_init(p_last_now, mesh->last.p->name, mesh->last.p->np_upper,
                     mesh->attributes & ~ COLUMN_POS & ~ COLUMN_AEMIT & ~ COLUMN_ID,
                     /* skip pos, we'll use an external reference next line*/
                     FASTPM_MEMORY_HEAP
@@ -453,11 +454,7 @@ fastpm_smesh_compute_potential(
         fastpm_info("Computing potential for %ld mesh points\n", np);
         FastPMFloat * canvas = pm_alloc(pm); /* Allocates memory and returns success */
 
-        FastPMPainter reader[1];
-        fastpm_painter_init(reader, pm, gravity->PainterType, gravity->PainterSupport);
-
-
-        /*XXX Following is almost a repeat of potential calc in fastpm_gravity_calculate, though positions are different*/
+        /*XXX Following is almost a repeat of potential calc in fastpm_solver_compute_force, though positions are different*/
 
         int d;
         FastPMFieldDescr ACC[] = {
@@ -471,8 +468,8 @@ fastpm_smesh_compute_potential(
          { COLUMN_TIDAL, 5 },
         };
 
-        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | COLUMN_POS);
-        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes);
+        PMGhostData * pgd_last_now = pm_ghosts_create(pm, p_last_now, p_last_now->attributes | COLUMN_POS, reader->support);
+        PMGhostData * pgd_new_now = pm_ghosts_create(pm, p_new_now, p_new_now->attributes, reader->support);
 
         pm_ghosts_send(pgd_last_now, COLUMN_POS);
         pm_ghosts_send(pgd_new_now, COLUMN_POS);
@@ -486,7 +483,7 @@ fastpm_smesh_compute_potential(
 
         for(d = 0; d < dmax; d ++) {
             ENTER(transfer);
-            gravity_apply_kernel_transfer(gravity, pm, delta_k, canvas, ACC[d]);
+            gravity_apply_kernel_transfer(kernel, pm, delta_k, canvas, ACC[d]);
 
             fastpm_apply_decic_transfer(pm, canvas, canvas);
             /* This is inconclusive. Currently it appears this deconvolve is necessary
@@ -622,7 +619,7 @@ fastpm_smesh_compute_potential(
 
     /* copy the new into the last. new is on the tack; last is on the heap. */
     fastpm_store_destroy(mesh->last.p);
-    fastpm_store_init(mesh->last.p,
+    fastpm_store_init(mesh->last.p, p_new_now->name,
                     p_new_now->np_upper,
                     p_new_now->attributes,
                     FASTPM_MEMORY_STACK);
