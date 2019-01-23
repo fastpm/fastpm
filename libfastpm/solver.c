@@ -81,7 +81,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         double a0)
 {
 
-    FastPMStore * p = fastpm_solver_get_species(fastpm, species);     //this ""get_species" func return the pointer to the store for this  particle species.
+    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
     if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
 
     PM * basepm = fastpm->basepm;
@@ -206,7 +206,9 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species)   /
 void
 fastpm_solver_destroy_species(FastPMSolver * fastpm)
 {   
-    /*destorys all species in solver in correct order*/
+    /*destorys all species in solver in correct order
+    could modify to make a function that destroys
+    one species at a time?*/
     int i;
     for(i = fastpm->N_added_species - 1; i >= 0; i --) {
         int si = fastpm->add_species_order[i];
@@ -480,7 +482,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    fastpm_solver_destroy_species(fastpm); ////
+    fastpm_solver_destroy_species(fastpm);
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
