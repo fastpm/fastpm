@@ -27,7 +27,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->config[0] = *config;
 
-    fastpm->cosmology[0] = (FastPMCosmology) {
+    fastpm->cosmology[0] = (FastPMCosmology) {     //CHANGE FOR NCDM!!!
         .OmegaM = config->omega_m,
         .OmegaLambda = 1.0 - config->omega_m,
     };
@@ -52,19 +52,12 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         config->ExtraAttributes |= COLUMN_DX1;
         config->ExtraAttributes |= COLUMN_DX2;
     }
-
-    /* FIXME: move this to add_species */
-
-    fastpm_store_init_evenly(&fastpm->species[FASTPM_SPECIES_CDM],
-          fastpm_species_get_name(FASTPM_SPECIES_CDM),
-          pow(1.0 * config->nc, 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC
-        | config->ExtraAttributes,
-        config->alloc_factor, comm);
-
-    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
-
-    fastpm->has_species[FASTPM_SPECIES_CDM] = 1;
+    
+    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);   //set to 000000. does char work with numbers instead of str?
+    memset(fastpm->add_species_order, 0, FASTPM_SOLVER_NSPECIES);
+    fastpm->N_added_species = 0;
+    
+    fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM);   //add CDM
 
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
@@ -88,7 +81,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         double a0)
 {
 
-    FastPMStore * p = fastpm_solver_get_species(fastpm, species);
+    FastPMStore * p = fastpm_solver_get_species(fastpm, species);     //this ""get_species" func return the pointer to the store for this  particle species.
     if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
 
     PM * basepm = fastpm->basepm;
@@ -190,6 +183,37 @@ fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
         return NULL;
     }
 }
+
+void
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species)   //nicer to use nspecies or something?
+{   
+    /*Adds a particle [store] of species type "species" to the solver.*/
+    
+    fastpm_store_init_evenly(&fastpm->species[species],
+          fastpm_species_get_name(species),
+          pow(1.0 * fastpm->config->nc, 3),                //had to add the fastpm-> ok?
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
+          fastpm->config->alloc_factor, 
+          fastpm->comm);
+
+    //memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES); i think this initilaizes has species to 000000, so moved outside!
+
+    fastpm->has_species[species] = 1;
+    fastpm->add_species_order[fastpm->N_added_species] = species;
+    fastpm->N_added_species ++;
+}
+
+void
+fastpm_solver_destroy_species(FastPMSolver * fastpm)
+{   
+    /*destorys all species in solver in correct order*/
+    int i;
+    for(i = fastpm->N_added_species - 1; i >= 0; i --) {
+        int si = fastpm->add_species_order[i];
+        fastpm_store_destroy(&fastpm->species[si]);
+    }
+}
+
 void
 fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
 {
@@ -456,14 +480,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    int si;
-    /* FIXME: always need to add the lower species first;
-     * may want to change has_species to the order of the species was added. */
-    for(si = FASTPM_SOLVER_NSPECIES - 1; si >= 0; si --) {
-        if(fastpm->has_species[si]) {
-            fastpm_store_destroy(&fastpm->species[si]);
-        }
-    }
+    fastpm_solver_destroy_species(fastpm); ////
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);

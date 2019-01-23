@@ -75,7 +75,10 @@ typedef struct {
 typedef struct {
     PM * pm;
     FastPMStore species[FASTPM_SOLVER_NSPECIES];
-    char has_species[FASTPM_SOLVER_NSPECIES];
+    char has_species[FASTPM_SOLVER_NSPECIES];     //interesting, use a character. kind of like an array of 0s and 1s saying if species exits....?
+    //below keeps track of order species are added so that they can be freed in the correct order.
+    char add_species_order[FASTPM_SOLVER_NSPECIES];  //element 0 is id of first species added, element 1 sis id of second species added...
+    int N_added_species;    //the number of species currently added to the solver
 
     MPI_Comm comm;
     int NTask;
@@ -140,6 +143,9 @@ fastpm_solver_destroy(FastPMSolver * fastpm);
 
 FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
+
+void
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species);
 
 void 
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
