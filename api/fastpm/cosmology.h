@@ -25,13 +25,24 @@ double Omega_r(FastPMCosmology * c);
 double getFtable(int F_id, double y);
 double Fconst(int ncdm_id, FastPMCosmology * c);
 
+double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c);
+
 double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c);
 double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c);
 double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c);
 
+double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c);
+
+
+
 double HubbleEa(double a, FastPMCosmology * c);
+double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c);
+double Omega_ncdm(double a, FastPMCosmology * c);
+double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c);
+double Omega_ncdm_m(double a, FastPMCosmology * c);
 double Omega_cdm_a(double a, FastPMCosmology * c);
 double OmegaA(double a, FastPMCosmology * c);
+double Omega_m(double a, FastPMCosmology * c);
 double DHubbleEaDa(double a, FastPMCosmology * c);
 double D2HubbleEaDa2(double a, FastPMCosmology * c);
 

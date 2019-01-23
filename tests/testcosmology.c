@@ -18,60 +18,247 @@
 #include <fastpm/logging.h>
 
 //include Fermi-Dirac integration table for neutrinos
-#include <fastpm/Ftable.h>  //""
-
-//now that I moved this code over to cosmology.c, need to include cosmology.h here in testcosmology.c in order to avoid onfilciting type errors (because there would otherwise be multiple defns of the same thing!)
-//#include <fastpm/cosmology.h>
-
-//double HubbleDistance = 2997.92458; /* Mpc/h */   /*this c*1e5 in SI units*/
-//double HubbleConstant = 100.0; /* Mpc/h / km/s*/     //OTHER WAY ROUND!
+#include "fastpm/Ftable.h"
 
 #define STEF_BOLT 2.851e-48  // in units: [ h * (10^10Msun/h) * s^-3 * K^-4 ]
 #define rho_crit 27.7455     //rho_crit0 in mass/length (not energy/length)
 #define LIGHT 9.722e-15      // in units: [ h * (Mpc/h) * s^-1 ]      //need to update all these units and change Omega_g
 
-#define kB 8.617330350e-5    //boltzman in eV/K   i think these units work best as we'll define neutrino mass in eV
+#define kB 8.617330350e-5    //boltzman in eV/K   i th
 
-/*Define FastPMCosmology Class for Nu code.
-Had to change the syntax comapred to cosmology.h version use typedef and put name at end.
-This removes error
-*/
+double HubbleDistance = 2997.92458; /* Mpc/h */   /*this c*1e5 in SI units*/
+double HubbleConstant = 100.0; /* Mpc/h / km/s*/     //OTHER WAY ROUND!
 
-typedef FastPMCosmology FastPMCosmologyNu;
+double interpolate(const double xa[], const double ya[], size_t size, double xi)
+{
+    /*
+    Linearly interpolate at xi from data xa[] and ya[]
+    */
+    gsl_interp* interp 
+        = gsl_interp_alloc(gsl_interp_linear, size);  //linear
+    gsl_interp_accel* acc 
+        = gsl_interp_accel_alloc();
+    
+    gsl_interp_init(interp, xa, ya, size);
+    
+    double yi = gsl_interp_eval(interp, xa, ya, xi, acc);
+    
+    gsl_interp_free(interp);
+    gsl_interp_accel_free (acc);
+    
+    return yi;
+}
 
+double Omega_g(FastPMCosmology * c)   
+{
+    /* This is really Omega_g0. All Omegas in this code mean 0, exceot nu!!, I would change notation, but anyway 
+    Omega_g0 = 4 \sigma_B T_{CMB}^4 8 \pi G / (3 c^3 H0^2)*/
+    return 4 * STEF_BOLT * pow(c->T_cmb, 4) / pow(LIGHT, 3) / rho_crit / pow(c->h, 2);
+}
 
-double HubbleEaNu(double a, FastPMCosmologyNu * c)
+double Gamma_nu(FastPMCosmology * c)
+{
+    /* nu to photon temp ratio today */
+    if (c->N_nu == 0) {      //avoids nan because N_nu in denom (N_nu=0 => N_eff=0 => Gamma_nu=0)
+        return 0.;
+    }else{
+        return pow(c->N_eff / c->N_nu, 1./4.) * pow( 4./11., 1./3.);
+    }
+}
+
+double Omega_ur(FastPMCosmology * c)
+{
+    /*Omega_ur0. This is the energy density of all massless nus.*/
+    int N_ur = c->N_nu - c->N_ncdm;    //number of massless nus. Different to CLASS defn
+    return 7./8. * N_ur * pow(Gamma_nu(c), 4) * Omega_g(c);
+}
+
+double Omega_r(FastPMCosmology * c)
+{
+    /*Omega_r0. This is the energy density of all radiation-like particles.*/
+    return Omega_g(c) + Omega_ur(c);
+}
+
+double getFtable(int F_id, double y)
+{
+    //Not using size as an arg, it's globally defined
+    //Gets the interpolated value of Ftable[F_id] at y
+    //F_id: 1 for F, 2 for F', 3 for F''
+    
+    //if (y == 0.) {               //does this work for double?
+    //    return 0.                //this hack ensures all Omega_ncdm related funcs will return 0.
+    //}else{
+    return interpolate(Ftable[0], Ftable[F_id], Fsize, y);
+    //}
+}
+
+double Fconst(int ncdm_id, FastPMCosmology * c)
+{
+    /*
+    This is a cosmology dependent constant which is the argument divided by a of F, DF, DDF used repeatedly in code
+    To be clear, evaluate F at Fconst*a.
+    Fconst must be calculated for each ncdm species as it depends on the mass. ncdm_id labels the element of m_ncdm.
+    */
+    
+    //if (c->T_cmb == 0. || c->N_ncdm == 0) {
+    //    return 0.;                 //T_cmb = 0 => T_nu = 0 => N_nu = 0 => N_ncdm = 0.
+    //}else{
+    double T_nu = Gamma_nu(c) * c->T_cmb;
+    return c->m_ncdm[ncdm_id] / (kB * T_nu);
+    //}
+}
+
+double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c)   
+{
+    /* Use interpolation to find Omega_ncdm_i(a) * E(a)^2 */
+    
+    double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
+    double Fc = Fconst(ncdm_id, c);
+    double F = getFtable(1, Fc*a);              //row 1 for F
+    return A / (a*a*a*a) * F;
+}
+
+double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c)   
+{
+    //sum the fermi-dirac integration results for each ncdm species
+    double res = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        res += Omega_ncdm_iTimesHubbleEaSq(a, i, c);
+    }
+    return res;
+}
+
+//lots of repn in the below funcs, should we define things globally (seems messy), or object orient?
+double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c)
+{
+    double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
+    
+    double OncdmESq = Omega_ncdmTimesHubbleEaSq(a,c);
+    
+    double FcDF = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        double Fc = Fconst(i, c);
+        double DF = getFtable(2, Fc*a);
+        FcDF += Fc * DF;    //row 2 for F'
+    }
+    
+    return -4. / a * OncdmESq + A / (a*a*a*a) * FcDF;
+}
+
+double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c)
+{
+    double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
+    
+    double OncdmESq = Omega_ncdmTimesHubbleEaSq(a,c);
+    double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a,c);
+    
+    double FcFcDDF = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        double Fc = Fconst(i, c);
+        double DDF = getFtable(3, Fc*a);
+        FcFcDDF += Fc * Fc * DDF;    //row 3 for F''
+    }
+    
+    return -12. / (a*a) * OncdmESq - 8. / a * DOncdmESqDa + A / (a*a*a*a) * FcFcDDF;
+}
+
+double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
+{
+    /*eos parameter for ith neutrino species*/
+    double y = Fconst(ncdm_id, c) * a;
+    return 1./3. - y / 3. * getFtable(2, y) / getFtable(1, y);
+}
+
+double HubbleEa(double a, FastPMCosmology * c)
 {
     /* H(a) / H0 */
-    return sqrt(Omega_g(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
+    return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
 }
 
-double DHubbleEaDaNu(double a, FastPMCosmologyNu * c)
+double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
+{
+    double E = HubbleEa(a, c);
+    return Omega_ncdm_iTimesHubbleEaSq(a, ncdm_id, c) / (E*E);
+}
+
+double Omega_ncdm(double a, FastPMCosmology * c)
+{
+    /*total ncdm*/
+    double res = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        res += Omega_ncdm_i(a, i, c);
+    }
+    return res;
+}
+
+double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c)
+{
+    /*matter-like part of ncdm_i*/
+    return (1. - 3 * w_ncdm_i(a, ncdm_id, c)) * Omega_ncdm_i(a, ncdm_id, c);
+}
+
+double Omega_ncdm_m(double a, FastPMCosmology * c)
+{
+    /*total ncdm matter-like part*/
+    double res = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        res += Omega_ncdm_i_m(a, i, c);
+    }
+    return res;
+}
+
+double Omega_cdm_a(double a, FastPMCosmology * c)
+{
+    //as a func of a. I dont like this. I would use 0s in struct instead. ask yu.
+    double E = HubbleEa(a, c);
+    return c->Omega_cdm / (a*a*a) / (E*E);
+}
+
+double OmegaA(double a, FastPMCosmology * c) {
+    //this is what I called Omega_cdm_a above. choose which to use later.
+    return Omega_cdm_a(a, c);
+}
+
+double Omega_m(double a, FastPMCosmology * c){
+    /*Total matter component (cdm + ncdm_m)*/
+    return Omega_cdm_a(a, c) + Omega_ncdm_m(a, c);
+}
+
+double DHubbleEaDa(double a, FastPMCosmology * c)
 {
     /* d E / d a*/
-    double E = HubbleEaNu(a, c);
-    double DOnuESqDa = DOmega_ncdmTimesHubbleEaSqDa(a,c);
+    double E = HubbleEa(a, c);
+    double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a,c);
     
-    return 0.5 / E * ( - 4 * Omega_g(c) / pow(a,5) - 3 * c->Omega_cdm / pow(a,4) + DOnuESqDa );
+    return 0.5 / E * ( - 4 * Omega_r(c) / pow(a,5) - 3 * c->Omega_cdm / pow(a,4) + DOncdmESqDa );
 }
 
-double D2HubbleEaDa2Nu(double a, FastPMCosmologyNu * c)
+double D2HubbleEaDa2(double a, FastPMCosmology * c)
 {
-    double E = HubbleEaNu(a,c);
-    double dEda = DHubbleEaDaNu(a,c);
-    double D2OnuESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a,c);
+    double E = HubbleEa(a,c);
+    double dEda = DHubbleEaDa(a,c);
+    double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a,c);
 
-    return 0.5 / E * ( 20 * Omega_g(c) / pow(a,6) + 12 * c->Omega_cdm / pow(a,5) + D2OnuESqDa2 - 2 * pow(dEda,2) );
+    return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6) + 12 * c->Omega_cdm / pow(a,5) + D2OncdmESqDa2 - 2 * pow(dEda,2) );
 }
 
+double OmegaSum(double a, FastPMCosmology* c)
+{
+    //should always equal 1. good for testing.
+    double sum = Omega_r(c) / pow(a, 4);
+    sum += c->Omega_cdm / pow(a, 3);
+    sum += Omega_ncdmTimesHubbleEaSq(a, c);
+    sum += c->Omega_Lambda;
+    return sum / pow(HubbleEa(a, c), 2);
+}
 
-static int growth_odeNu(double a, const double y[], double dyda[], void *params)
+static int growth_ode(double a, const double y[], double dyda[], void *params)
 {
     //is yy needed?
-    FastPMCosmologyNu* c = (FastPMCosmologyNu * ) params;
+    FastPMCosmology* c = (FastPMCosmology * ) params;
     
-    const double E = HubbleEaNu(a, c);
-    const double dEda = DHubbleEaDaNu(a, c);
+    const double E = HubbleEa(a, c);
+    const double dEda = DHubbleEaDa(a, c);
     
     double dydlna[4];
     dydlna[0] = y[1];
@@ -87,27 +274,20 @@ static int growth_odeNu(double a, const double y[], double dyda[], void *params)
     return GSL_SUCCESS;
 }
 
-//typedef struct{
-//    double y0;
-//    double y1;
-//    double y2;
-//    double y3;
-//} ode_soln;
-
-static ode_soln growth_ode_solveNu(double a, FastPMCosmologyNu * c)
+static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
 {
     /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
     /* This returns an array of {d1, F1, d2, F2}
         Is there a nicer way to do this within one func and no object?*/
 
-    gsl_odeiv2_system FF;
-    FF.function = &growth_odeNu;
-    FF.jacobian = NULL;
-    FF.dimension = 4;
-    FF.params = (void*) c;
+    gsl_odeiv2_system F;
+    F.function = &growth_ode;
+    F.jacobian = NULL;
+    F.dimension = 4;
+    F.params = (void*) c;
     
     gsl_odeiv2_driver * drive 
-        = gsl_odeiv2_driver_alloc_standard_new(&FF,
+        = gsl_odeiv2_driver_alloc_standard_new(&F,
                                                gsl_odeiv2_step_rkf45, 
                                                1e-5, 
                                                1e-8,
@@ -146,70 +326,65 @@ static ode_soln growth_ode_solveNu(double a, FastPMCosmologyNu * c)
     return soln;
 }
 
-double growthNu(double a, FastPMCosmologyNu * c) {
+double growth(double a, FastPMCosmology * c) {
     //d1
-    return growth_ode_solveNu(a, c).y0;
+    return growth_ode_solve(a, c).y0;
 }
 
-double DgrowthDlnaNu(double a, FastPMCosmologyNu * c) {
+double DgrowthDlna(double a, FastPMCosmology * c) {
     //F1
-    return growth_ode_solveNu(a, c).y1;
+    return growth_ode_solve(a, c).y1;
 }
 
-double growth2Nu(double a, FastPMCosmologyNu * c) {
+double growth2(double a, FastPMCosmology * c) {
     //d2
-    return growth_ode_solveNu(a, c).y2;
+    return growth_ode_solve(a, c).y2;
 }
 
-double Dgrowth2DlnaNu(double a, FastPMCosmologyNu * c) {
+double Dgrowth2Dlna(double a, FastPMCosmology * c) {
     //F2
-    return growth_ode_solveNu(a, c).y3;
+    return growth_ode_solve(a, c).y3;
 }
 
-double OmegaANu(double a, FastPMCosmologyNu * c) {
-    //this is what I called Omega_cdm_a above. choose which to use later.
-    return Omega_cdm_a(a, c);
+double GrowthFactor(double a, FastPMCosmology * c) { // growth factor for LCDM
+    return growth(a, c) / growth(1., c);           //[this is D(a)/D_today for LCDM]
 }
 
-double GrowthFactorNu(double a, FastPMCosmologyNu * c) { // growth factor for LCDM
-    return growthNu(a, c) / growthNu(1., c);           //[this is D(a)/D_today for LCDM]
-}
-
-double DLogGrowthFactorNu(double a, FastPMCosmologyNu * c) {
+double DLogGrowthFactor(double a, FastPMCosmology * c) {
     /* dlnD1/dlna */
-    double d1 = growthNu(a, c);
-    double F1 = DgrowthDlnaNu(a, c);
+    double d1 = growth(a, c);
+    double F1 = DgrowthDlna(a, c);
     
     return F1 / d1;
 }
 
-double GrowthFactor2Nu(double a, FastPMCosmologyNu * c) {
+double GrowthFactor2(double a, FastPMCosmology * c) {
     /* Normalised D2. Is this correct???*/
-    // double d0 = growthNu(1., c);  //0 for today
-    return growth2Nu(a, c) / growth2Nu(1., c); //(d0*d0); // ??????????????????;
+    // double d0 = growth(1., c);  //0 for today
+    return growth2(a, c) / growth2(1., c); //(d0*d0); // ??????????????????;
 }
 
-double DLogGrowthFactor2Nu(double a, FastPMCosmologyNu * c) {
+double DLogGrowthFactor2(double a, FastPMCosmology * c) {
     /* dlnD2/dlna */
-    double d2 = growth2Nu(a, c);
-    double F2 = Dgrowth2DlnaNu(a, c);
+    double d2 = growth2(a, c);
+    double F2 = Dgrowth2Dlna(a, c);
     
     return F2 / d2;
 }
 
-double DGrowthFactorDaNu(double a, FastPMCosmologyNu * c) {
-    double d0 = growthNu(1., c);
-    double F1 = DgrowthDlnaNu(a, c);
+double DGrowthFactorDa(double a, FastPMCosmology * c) {
+    double d0 = growth(1., c);
+    double F1 = DgrowthDlna(a, c);
     return F1 / a / d0;
 }
 
-double D2GrowthFactorDa2Nu(double a, FastPMCosmologyNu * c) {
-    double E = HubbleEaNu(a, c);
-    double dEda = DHubbleEaDaNu(a, c);
+double D2GrowthFactorDa2(double a, FastPMCosmology * c) {
+    double E = HubbleEa(a, c);
+    double dEda = DHubbleEaDa(a, c);
     
-    double d1 = growthNu(a, c);
-    double F1 = DgrowthDlnaNu(a, c);
-    double d0 = growthNu(1., c);  //0 for today
+    double d1 = growth(a, c);
+    double F1 = DgrowthDlna(a, c);
+    double d0 = growth(1., c);  //0 for today
     
     double ans = 0.;
     ans -= (3. + a / E * dEda) * F1;
@@ -219,16 +394,15 @@ double D2GrowthFactorDa2Nu(double a, FastPMCosmologyNu * c) {
 }
 
 static double
-comoving_distance_intNu(double a, void * params)
+comoving_distance_int(double a, void * params)
 {
-    FastPMCosmologyNu * c = (FastPMCosmologyNu * ) params;
-    return 1. / (a * a * HubbleEaNu(a, c));
+    FastPMCosmology * c = (FastPMCosmology * ) params;
+    return 1. / (a * a * HubbleEa(a, c));
 }
 
-double ComovingDistanceNu(double a, FastPMCosmologyNu * c) {
+double ComovingDistance(double a, FastPMCosmology * c) {
 
     /* We tested using ln_a doesn't seem to improve accuracy */
-
     int WORKSIZE = 100000;
 
     double result, abserr;
@@ -237,7 +411,7 @@ double ComovingDistanceNu(double a, FastPMCosmologyNu * c) {
 
     workspace = gsl_integration_workspace_alloc(WORKSIZE);
 
-    F.function = &comoving_distance_intNu;
+    F.function = &comoving_distance_int;
     F.params = (void*) c;
 
     gsl_integration_qag(&F, a, 1., 0, 1.0e-8, WORKSIZE, GSL_INTEG_GAUSS41,
@@ -249,9 +423,7 @@ double ComovingDistanceNu(double a, FastPMCosmologyNu * c) {
     return result;
 }
 
-
-int main(int argc, char * argv[]) {
-
+int main(int argc, char * argv[]){
     MPI_Init(&argc, &argv);
 
     libfastpm_init();
@@ -259,86 +431,35 @@ int main(int argc, char * argv[]) {
     MPI_Comm comm = MPI_COMM_WORLD;
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
-
-    /* do no rad first */
-    FastPMCosmology c[1] = {{
-        .h=0.6772,
-        .Omega_cdm=0.3,
-        .Omega_Lambda=0.7,
-        .T_cmb=0.,
-        .N_eff=3.046,
-        .m_ncdm={0, 0, 0},               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
-        .N_nu=0,
-        .N_ncdm=0
-    }};
-
-    printf("OmegaM X D dD/da d2D/da2 D2 E dE/dA d2E/da2 f1 f2 \n");
-    for(c->Omega_cdm = 0.1; c->Omega_cdm < 0.6; c->Omega_cdm += 0.1) {
-        c->Omega_Lambda = 1 - c->Omega_cdm;
-        double a = 0.8;
-        
-        printf("%g %g %g %g %g %g %g %g %g %g %g\n",
-            c->Omega_cdm, 
-            ComovingDistance(a, c),
-            //growth(a, c),
-            GrowthFactor(a, c),
-            DGrowthFactorDa(a, c),
-            D2GrowthFactorDa2(a, c),
-
-            GrowthFactor2(a, c),
-            HubbleEa(a, c),
-            DHubbleEaDa(a, c),
-            D2HubbleEaDa2(a, c),
-               
-            DLogGrowthFactor2(a, c),
-            DLogGrowthFactor(a, c)
-            );
-    }
     
-    FastPMCosmology cNu[1] = {{     //Nu labels that this is a test with neutrinos in the simulation NOT using the FastPMCosmology object.
-        .h=0.6772,
-        .Omega_cdm=0.3,
-        .Omega_Lambda=0.7,
-        .T_cmb=2.73,
-        .N_eff=3.046,
-        .m_ncdm={1., 0, 0},               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
-        .N_nu=3,
-        .N_ncdm=1
+    FastPMCosmology c[1] = {{
+        .h = 0.7,
+        .Omega_cdm = 0.3,
+        .Omega_Lambda = 0.7,
+        .T_cmb = 2.73,
+        .N_eff = 3.046,
+        .N_nu = 3,
+        .m_ncdm = {0.05,0.005,0.005},
+        .N_ncdm = 3
     }};
 
-    printf("OmegaM X D dD/da d2D/da2 D2 E dE/dA d2E/da2 f1 f2 \n");
-    for(cNu->Omega_cdm = 0.1; cNu->Omega_cdm < 0.6; cNu->Omega_cdm += 0.1) {
-        cNu->Omega_Lambda = 1 - cNu->Omega_cdm - Omega_r(cNu) - Omega_ncdmTimesHubbleEaSq(1.,cNu);
-        double a = 0.8;
+    FILE * pFile;
+    pFile = fopen ("ncdm_test.txt","w");
+    
+    for (double loga=-4 ; loga<=0 ; loga+=0.01){
+        double a = pow(10, loga);
+        double On = Omega_ncdm(a, c);
+        double Onm = Omega_ncdm_m(a, c);
+        double Oc = Omega_cdm_a(a, c);
+        double Om = Omega_m(a, c);
+        double w = w_ncdm_i(a,0,c);   //look at w of species 0 as example.
         
-        printf("%g %g %g %g %g %g %g %g %g %g %g\n",
-            cNu->Omega_cdm, 
-            ComovingDistance(a, cNu),
-            //growth(a, c),
-            GrowthFactor(a, cNu),
-            DGrowthFactorDa(a, cNu),
-            D2GrowthFactorDa2(a, cNu),
-
-            GrowthFactor2(a, cNu),
-            HubbleEa(a, cNu),
-            DHubbleEaDa(a, cNu),
-            D2HubbleEaDa2(a, cNu),
-               
-            DLogGrowthFactor2(a, cNu),
-            DLogGrowthFactor(a, cNu)
-            );
+        fprintf (pFile, "%g %g %g %g %g %g\n", a, On, Onm, Oc, Om, w);
     }
-
-    /*
-    double xa[100];
-    double ya[100];
-    for (int i=0; i<100; i+=1){
-        xa[i]=i;
-        ya[i]=i;
-    }
-    printf("%g",interpolate(xa,ya,4.3));
-    */
+    fclose (pFile);
+    
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;
+
 }

@@ -15,13 +15,13 @@ T_nu = Gamma_nu * T_g      #neutrino temp today
 
 N_nu = 3
 
-m_nu_i = [1]*N_nu          #nu mass in eV. give them all the same mass for now
+m_nu_i = [0.02]*N_nu          #nu mass in eV. give them all the same mass for now
 M_nu = sum(m_nu_i)
 
 #for choosing range of y to tabulate 
 #maybe testcosmology.c will change paras to change a, so have given some leway around recomb and today
 a_min = 1e-6
-a_max = 10
+a_max = 1e2
 log_y_min = np.log10(M_nu/N_nu / (k*T_nu) * a_min)  #because will log space
 log_y_max = np.log10(M_nu/N_nu / (k*T_nu) * a_max)
 

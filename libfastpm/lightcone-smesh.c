@@ -548,7 +548,8 @@ fastpm_smesh_compute_potential(
 
     ptrdiff_t i;
 
-    double potfactor = 1.5 * mesh->lc->cosmology->Omega_cdm / (HubbleDistance * HubbleDistance);
+    //double potfactor = 1.5 * mesh->lc->cosmology->Omega_cdm / (HubbleDistance * HubbleDistance);
+    double potfactor = 1. / (HubbleDistance * HubbleDistance);
     FastPMStore * p_last_then = mesh->last.p;
 
     ENTER(interp);
@@ -582,7 +583,7 @@ fastpm_smesh_compute_potential(
 */
 
         INTERP(potential[i]);
-        p_last_then->potential[i] *= potfactor / a_emit;
+        p_last_then->potential[i] *= potfactor / a_emit;          //Now I've moved 3/2Om do I remove ptofactor??? or set it to 1?????
 
         INTERP(rho[i]);
 

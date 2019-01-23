@@ -30,7 +30,7 @@ all: $(TESTS)
 
 testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
-	    $(LDFLAGS) $(GSL_LIBS) -lm
+        $(LDFLAGS) $(GSL_LIBS) -lm
 
 testcosmology : .objs/testcosmology.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \

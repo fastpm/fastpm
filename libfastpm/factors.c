@@ -129,7 +129,7 @@ fastpm_kick_lookup(FastPMKickFactor * kick, double af, double * dda, double * Dv
         *Dv1 = kick->Dv1[0];
         *Dv2 = kick->Dv2[0];
         return;
-    }
+    }                                  //why not use else if and else?
     {
         ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
         int l = floor(ind);
@@ -147,6 +147,7 @@ fastpm_kick_lookup(FastPMKickFactor * kick, double af, double * dda, double * Dv
 inline void
 fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
 {
+    //[performs kick on the ith particle (i.e. on one particle)]
     double dda_i, Dv1_i, Dv2_i;
     double dda_f, Dv1_f, Dv2_f;
     double dda, Dv1, Dv2;
@@ -159,7 +160,7 @@ fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[
 
     int d;
     for(d = 0; d < 3; d++) {
-        float ax = p->acc[i][d];
+        float ax = p->acc[i][d];               //unlike a_x, which means a at which x is calcd.
         if(kick->forcemode == FASTPM_FORCE_COLA) {
             ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
         }
@@ -206,7 +207,7 @@ static double g_p(double a, FastPMCosmology * c)
     return DGrowthFactorDa(a, c);
 }
 
-static double G_f(double a, FastPMCosmology * c)
+static double G_f(double a, FastPMCosmology * c)           //CHECK gf Gf dont change with nus.
 {
     /* integral of g_f */
     return a * a * a * HubbleEa(a, c) * g_p(a, c);
@@ -247,11 +248,12 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
                   + af * (1.0 * i / (kick->nsamples - 1));
 
         if(kick->forcemode == FASTPM_FORCE_FASTPM) {
-            kick->dda[i] = -1.5 * Omega_cdm
+            kick->dda[i] = -1 //*1.5 * Omega_cdm                         //why minus?
                * 1 / (ac * ac * HubbleEa(ac, c))
                * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
         } else {
-            kick->dda[i] = -1.5 * Omega_cdm * Sphi(ai, ae, ac, fastpm->config->nLPT, c, kick->forcemode == FASTPM_FORCE_COLA);
+            kick->dda[i] = -1 //*1.5 * Omega_cdm 
+                * Sphi(ai, ae, ac, fastpm->config->nLPT, c, kick->forcemode == FASTPM_FORCE_COLA);
         }
         kick->Dv1[i] = GrowthFactor(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor(ae, c) - Dv1i;
         kick->Dv2[i] = GrowthFactor2(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor2(ae, c) - Dv2i;

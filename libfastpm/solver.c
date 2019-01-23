@@ -35,7 +35,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
             .Omega_Lambda=0.7,
             .T_cmb=2.725,
             .N_eff=3.046,
-            .m_ncdm= {1., 0, 0, },               // (assuming 3 nus of mass 1ev, this is the sum of their masses)
+            .m_ncdm= {1., 0, 0, },
             .N_nu = 3,
         }};
         memcpy(fastpm->cosmology, c, sizeof(c[0]));
@@ -627,8 +627,9 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
 
     /* convert units */
 
-    /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
+    /* potfactor converts fastpm Phi to dimensionless */   //????????????????SHould I remove this now 1.5Om in gravity.c? Was this a quick fix by Yu?
+    //double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
+    double potfactor = 1. / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {
@@ -669,8 +670,9 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
-
+    //double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
+    double potfactor = 1. / (HubbleDistance * HubbleDistance);
+    
 #pragma omp parallel for
     for(i=0; i<np; i++) {
 

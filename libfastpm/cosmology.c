@@ -102,21 +102,25 @@ double Fconst(int ncdm_id, FastPMCosmology * c)
     //}
 }
 
+double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c)   
+{
+    /* Use interpolation to find Omega_ncdm_i(a) * E(a)^2 */
+    
+    double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
+    double Fc = Fconst(ncdm_id, c);
+    double F = getFtable(1, Fc*a);              //row 1 for F
+    
+    return A / (a*a*a*a) * F;
+}
 
 double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c)   
 {
-    /* Use interpolation to find Omega_ncdm(a) * E(a)^2 */
-    
-    double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
-    
-    //sum the fermi-dirac integration results for each ncdm specie
-    double F = 0;
+    //sum the fermi-dirac integration results for each ncdm species
+    double res = 0;
     for (int i=0; i<c->N_ncdm; i++) {
-        double Fc = Fconst(i, c);
-        F += getFtable(1, Fc*a);    //row 1 for F
+        res += Omega_ncdm_iTimesHubbleEaSq(a, i, c);
     }
-    
-    return A / (a*a*a*a) * F;
+    return res;
 }
 
 //lots of repn in the below funcs, should we define things globally (seems messy), or object orient?
@@ -153,10 +157,49 @@ double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c)
     return -12. / (a*a) * OncdmESq - 8. / a * DOncdmESqDa + A / (a*a*a*a) * FcFcDDF;
 }
 
+double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
+{
+    /*eos parameter for ith neutrino species*/
+    double y = Fconst(ncdm_id, c) * a;
+    return 1./3. - y / 3. * getFtable(2, y) / getFtable(1, y);
+}
+
 double HubbleEa(double a, FastPMCosmology * c)
 {
     /* H(a) / H0 */
     return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
+}
+
+double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
+{
+    double E = HubbleEa(a, c);
+    return Omega_ncdm_iTimesHubbleEaSq(a, ncdm_id, c) / (E*E);
+}
+
+double Omega_ncdm(double a, FastPMCosmology * c)
+{
+    /*total ncdm*/
+    double res = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        res += Omega_ncdm_i(a, i, c);
+    }
+    return res;
+}
+
+double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c)
+{
+    /*matter-like part of ncdm_i*/
+    return (1. - 3 * w_ncdm_i(a, ncdm_id, c)) * Omega_ncdm_i(a, ncdm_id, c);
+}
+
+double Omega_ncdm_m(double a, FastPMCosmology * c)
+{
+    /*total ncdm matter-like part*/
+    double res = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        res += Omega_ncdm_i_m(a, i, c);
+    }
+    return res;
 }
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
@@ -169,6 +212,11 @@ double Omega_cdm_a(double a, FastPMCosmology * c)
 double OmegaA(double a, FastPMCosmology * c) {
     //this is what I called Omega_cdm_a above. choose which to use later.
     return Omega_cdm_a(a, c);
+}
+
+double Omega_m(double a, FastPMCosmology * c){
+    /*Total matter component (cdm + ncdm_m)*/
+    return Omega_cdm_a(a, c) + Omega_ncdm_m(a, c);
 }
 
 double DHubbleEaDa(double a, FastPMCosmology * c)
@@ -369,6 +417,7 @@ double ComovingDistance(double a, FastPMCosmology * c) {
 
     return result;
 }
+
 
 #ifdef TEST_COSMOLOGY
 int main() {

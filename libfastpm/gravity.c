@@ -10,10 +10,10 @@
 #include "pmghosts.h"
 
 static void
-apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
+apply_pot_transfer(PM * pm, FastPMCosmology * c, FastPMFloat * from, FastPMFloat * to, int order)  //remove c?
 {
     fastpm_apply_laplace_transfer(pm, from, to, order);
-    fastpm_apply_multiply_transfer(pm, to, to, -1);
+    fastpm_apply_multiply_transfer(pm, to, to, -1);      // FIXME: after master rebase on cosmology branch, I remove the 1.5Om that used to be here.... need to hceck factors etc.
 }
 
 static void
@@ -107,10 +107,18 @@ gaussian36(double k, double * knq)
 }
 
 void
+<<<<<<< HEAD
 fastpm_kernel_type_get_orders(FastPMKernelType type,
     int *potorder,
     int *gradorder,
     int *deconvolveorder) 
+=======
+gravity_apply_kernel_transfer(FastPMKernelType type,
+        PM * pm,
+        FastPMCosmology * c,
+        FastPMFloat * delta_k,
+        FastPMFloat * canvas, FastPMFieldDescr field)
+>>>>>>> Fixing merging mess: Adding compatibility in cosmology.c for multiple ncdm of different mass.
 {
     switch(type) {
         case FASTPM_KERNEL_EASTWOOD:
@@ -169,10 +177,27 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
         deconvolveorder--;
     }
     int d1, d2;
-
+    
+    /*
+    Below we have a switch which applies the relevant transfer func 
+    (i.e. operator) to delta_k in order to calculate a certain atribute.
+    - For the potential, apply the pot_transfer func (this transfers delta_k
+    to the pot by defn).
+    - For density, just multiply by 1 (trivial)
+    - For tidal, e.g. LHS of poisson (grad^2phi), first transfer delta_k to phi,
+    then apply grad twice. (note codewise we transfer delta_k to something
+    called canvas, then transfer canvas to new canvas until we get result.
+    Note tidal is just a general double application of grad, NOT the Laplacian!
+    d1 and d2 represent perms of of the components of grad * grad. I.e.
+    d1=0 d2=2 means grad_2 * grad_0.
+    - For acceleration, first transfer delta_k to phi, then apply one grad.
+    (force ~ acceleration... is mass important with multiple species?????????????????????????????????)
+    - Note gradorder and potorder are options for the grad and
+    pot transfer funcs which we decided just above depending on the KernelType
+    */
     switch(field.attribute) {
         case COLUMN_POTENTIAL:
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_pot_transfer(pm, c, delta_k, canvas, potorder);
             break;
         case COLUMN_DENSITY:
             fastpm_apply_multiply_transfer(pm, delta_k, canvas, 1.0);
@@ -181,44 +206,44 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
             switch(field.memb) {
                 case 0:
                     d1 = 0; d2 = 0;
-                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_pot_transfer(pm, c, delta_k, canvas, potorder);
                     apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
                     apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
                     break;
                 case 1:
                     d1 = 1; d2 = 1;
-                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_pot_transfer(pm, c, delta_k, canvas, potorder);
                     apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
                     apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
                     break;
                 case 2:
                     d1 = 2; d2 = 2;
-                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_pot_transfer(pm, c, delta_k, canvas, potorder);
                     apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
                     apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
                     break;
                 case 3:
                     d1 = 0; d2 = 1;
-                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_pot_transfer(pm, c, delta_k, canvas, potorder);
                     apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
                     apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
                     break;
                 case 4:
                     d1 = 1; d2 = 2;
-                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_pot_transfer(pm, c, delta_k, canvas, potorder);
                     apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
                     apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
                     break;
                 case 5:
                     d1 = 2; d2 = 0;
-                    apply_pot_transfer(pm, delta_k, canvas, potorder);
+                    apply_pot_transfer(pm, c, delta_k, canvas, potorder);
                     apply_grad_transfer(pm, canvas, canvas, d1, gradorder);
                     apply_grad_transfer(pm, canvas, canvas, d2, gradorder);
                     break;
             }
             break;
         case COLUMN_ACC:
-            apply_pot_transfer(pm, delta_k, canvas, potorder);
+            apply_pot_transfer(pm, c, delta_k, canvas, potorder);
             apply_grad_transfer(pm, canvas, canvas, field.memb, gradorder);
             break;
         default:

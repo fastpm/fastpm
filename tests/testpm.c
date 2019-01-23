@@ -78,7 +78,6 @@ int main(int argc, char * argv[]) {
 
 
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
-    
 
     //SPLIT
     fastpm_split_ncdm(nid, cdm, ncdm, comm);
