@@ -381,12 +381,12 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
     for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
         FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
-        //FIX print name
+        //FIX? print species name (atm prints species number)
         double acc_std[3], acc_mean[3], acc_min[3], acc_max[3];
         fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {
-            fastpm_info("p    acc[%d]: %g %g %g %g\n",
-                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+            fastpm_info("p%s    acc[%d]: %g %g %g %g\n",
+                p->name, d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
         }
         fastpm_store_summary(pgd[si]->p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {
@@ -395,8 +395,8 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
         }
         fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {
-            fastpm_info("p+g   acc[%d]: %g %g %g %g\n",
-                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+            fastpm_info("p%s+g  acc[%d]: %g %g %g %g\n",
+                p->name, d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
         }
 
         ENTER(reduce);
