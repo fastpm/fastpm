@@ -3,7 +3,9 @@
 #include <math.h>
 #include <gsl/gsl_integration.h>
 
-#include <fastpm/thermalvelocity.h>
+#include <fastpm/libfastpm.h>
+#include <fastpm/store.h>    //isnt this in libfastpm?
+//#include <fastpm/thermalvelocity.h>   //added to libfastpm?
 
 #define LENGTH_FERMI_DIRAC_TABLE 4000 //sets the length of the table on which CDF
                                       //will be evaluated
@@ -228,14 +230,14 @@ fastpm_ncdm_init_create(double m_ncdm, double z, int n_shells, int n_side)
 
     nid->m_ncdm = m_ncdm;
     nid->z = z;
-    nid->n_shells = n_shells;    //is this ok or should i point to these for now?
+    nid->n_shells = n_shells;
     nid->n_side = n_side;
     
-    int n_split = 12 * n_shells * n_side*n_side;     //this is the total number of velocity vectors produced
+    nid->n_split = 12 * n_shells * n_side*n_side;     //this is the total number of velocity vectors produced
     /* recall vel is a pointer to a 3 element array
     so lets make into multidim array of dim (n_split x 3) */
-    nid->vel = calloc(n_split, sizeof(double[3]));
-    nid->mass = calloc(n_split, sizeof(double));   //a 1d array to store all the masses.
+    nid->vel = calloc(nid->n_split, sizeof(double[3]));
+    nid->mass = calloc(nid->n_split, sizeof(double));   //a 1d array to store all the masses.
 
     _fastpm_ncdm_init_fill(nid);
     
@@ -245,7 +247,7 @@ fastpm_ncdm_init_create(double m_ncdm, double z, int n_shells, int n_side)
 //free the table
 void 
 fastpm_ncdm_init_free(FastPMncdmInitData* nid)
-{   //hmmmm seems overkill, but maybe useful to give this a func name for when we use in another module
+{
     free(nid->vel);
     free(nid->mass);
     free(nid);
@@ -269,35 +271,63 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
 
     double velocity_conversion_factor = 50.3*(1.+ nid->z)*(1./nid->m_ncdm); //In km/s in Gadget internal units
     //velocity_conversion_factor *= sqrt(1. + redshift); // Now in Gadget I/O units
+    
+    //DODGY FIX FOR OUR TEST RUN TO AVOID FLOATING POINT ERROR (I.E. make v the correct sort of order of mag):
+    velocity_conversion_factor /= 1e6;
 
     int i, j, k;
     int r=0;                          //row num
     for(i=0;i<12*n_side*n_side;i++){
         for(j=0;j<n_shells;j++){
             nid->mass[r] = masstab[j]/(12.*n_side*n_side);
-            //printf("%g\n",masstab[j]/(12.*n_side*n_side));
-            //printf("hiii%g\n",nid->mass[1]);
             for(k=0;k<3;k++){
-                nid->vel[r][k] = vel_table[j]*vec_table[i*3+k]*velocity_conversion_factor;    // *(nid->vel+r)[k]
-                //if (j == n_shells-1) printf("%d byyyyy%g\n",k, nid->mass[1]);
+                nid->vel[r][k] = vel_table[j]*vec_table[i*3+k]*velocity_conversion_factor;
             }
             r++;
         }
     }
     
-    //free all above table memories?
     free(vel_table); 
     free(masstab);
     free(vec_table);
 }
 
-//nid input store, output
 
-//void
-//fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * p, FastPMStore * q)
-//{
+void
+fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest)
+{
     /*Takes store p, splits all particles according 
-    to the ncdm init data, giving store q.*/
+    to the ncdm init data, and uses this to
+    populate an 'empty' (it's been init'd, but not lpt'd) store q.
+    For ourtest p is  fully populated after calling the setup_lpt func,
+    but we wanna overwrite the velocities and do the split.
     
-
-//}
+    /*
+    Do I need to worry about the number of particles in the store, or is that
+    arbitrary? I think it's stored in np, which I've changed.
+    
+    If not, then I shuld only be appending the velocity and mass columns.
+    
+    But there is no mass column?? So let's ignore mass for now.
+    Let's just try get velocities working?
+    */
+    
+    dest->meta.a_v = src->meta.a_v;
+    dest->meta.a_x = src->meta.a_x;
+    //dest->meta.M0 = src->meta.M0;
+    dest->np = src->np * nid->n_split;
+    
+    int i, j, k, d;
+    for(i = 0; i < src->np; i ++) {    //loop thru each cdm particle
+        for(j = 0; j < nid->n_split; j ++) {     //loop thru each each velocity in table
+            
+            k = i * nid->n_split + j;
+            dest->id[k] = k;
+            
+            for(d = 0; d < 3; d ++){
+                dest->x[k][d] = src->x[i][d];
+                dest->v[k][d] = nid->vel[j][d];
+            }
+        }
+    }
+}

@@ -32,6 +32,9 @@ int main(int argc, char * argv[]) {
 
     FastPMSolver solver[1];
     fastpm_solver_init(solver, config, comm);
+    
+    //ADD
+    fastpm_solver_add_species(solver, FASTPM_SPECIES_NCDM);   //now solver has 2 species => 2 stores. 
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
     FastPMFloat * rho_final_ktruth = pm_alloc(solver->basepm);
@@ -49,7 +52,15 @@ int main(int argc, char * argv[]) {
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
-
+    
+    //SPLIT
+    FastPMncdmInitData* nid = fastpm_ncdm_init_create(0.05, 9., 1, 1);
+    //subsample 1/64 = 1/4^3... 4 per dir. first need to build a mask... which partc to keep or not. mask is 8 bit integer, can compute from id... like %2. Similiar routine in store.c create_mask, maybe can reuse here.
+    fastpm_split_ncdm(nid, 
+                      fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM), 
+                      fastpm_solver_get_species(solver, FASTPM_SPECIES_NCDM));
+    fastpm_ncdm_init_free(nid);
+    
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     FastPMPainter painter[1];

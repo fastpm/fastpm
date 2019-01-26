@@ -381,7 +381,7 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
     for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
         FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
-
+        //FIX print name
         double acc_std[3], acc_mean[3], acc_min[3], acc_max[3];
         fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {

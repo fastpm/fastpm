@@ -76,7 +76,7 @@ struct FastPMStore {
     struct {
         double a_x;
         double a_v;
-        double M0;
+        double M0;    //base mass
 
         double _q_shift[3];
         double _q_scale[3];
@@ -111,6 +111,8 @@ struct FastPMStore {
     size_t np;
     size_t np_upper;
 };
+
+//get mass func in store. will take *m if there, else M0. Could set M0=0 for ncdm, then add *m. mass only really used painter.
 
 /* convert a column name literal (e.g. x, id) to the column index in the column_info array */
 #define FASTPM_STORE_COLUMN_INDEX(column) (((char*) &(((FastPMStore *) NULL)->column) - (char*) &(((FastPMStore *)NULL)->columns[0])) \
