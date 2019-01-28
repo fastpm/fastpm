@@ -57,7 +57,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     memset(fastpm->add_species_order, 0, FASTPM_SOLVER_NSPECIES);
     fastpm->N_added_species = 0;
     
-    fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM);   //add CDM
+    fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, pow(1.0 * config->nc, 3));   //add CDM [why make np_total a double?]
 
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
@@ -185,13 +185,13 @@ fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 }
 
 void
-fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species)   //nicer to use nspecies or something?
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, size_t np_total)   //nicer to use nspecies or something?
 {   
     /*Adds a particle [store] of species type species to the solver.*/
     
     fastpm_store_init_evenly(&fastpm->species[species],
           fastpm_species_get_name(species),
-          pow(1.0 * fastpm->config->nc, 3)*12,   //make entire thing arg = n_p ///////////////////////////////////////////////////////////////////////////////////////////////////
+          np_total, //pow(1.0 * fastpm->config->nc, 3)*12,
           COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
           fastpm->config->alloc_factor, 
           fastpm->comm);

@@ -232,6 +232,7 @@ size_t
 fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
+    /* name means name of species*/
     int NTask;
     MPI_Comm_size(comm, &NTask);
 

@@ -1,3 +1,4 @@
+#include <string.h>   //memcpy
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -188,7 +189,7 @@ void divide_sphere_healpix(double *vec_table, int n_side)  //so is the direction
     for(k=0;k<3;k++)
       v_sq[k] += vec_table[i*3+k]*vec_table[i*3+k];
   }
-  // Isotropize the velocity dispersion - important for low n_side
+  // Isotropize the velocity dispersion - important for low n_side    [should we remove this if for high n_side???]
   for(k=0;k<3;k++){
     v_sq[k] /= 12*n_side*n_side;
     v_sq[k] /= 1./3.; // Set each direction to have 1/3 of total dispersion
@@ -279,7 +280,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     int r=0;                          //row num
     for(i=0;i<12*n_side*n_side;i++){
         for(j=0;j<n_shells;j++){
-            nid->mass[r] = masstab[j]/(12.*n_side*n_side);
+            nid->mass[r] = masstab[j]/(12.*n_side*n_side);              //THIS IS THE FRACTIONAL MASS! MULTIPLY BY M_NU
             for(k=0;k<3;k++){
                 nid->vel[r][k] = vel_table[j]*vec_table[i*3+k]*velocity_conversion_factor;
             }
@@ -294,40 +295,66 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
 
 
 void
-fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest)
+fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest, int f_subsample)
 {
-    /*Takes store p, splits all particles according 
-    to the ncdm init data, and uses this to
-    populate an 'empty' (it's been init'd, but not lpt'd) store q.
-    For ourtest p is  fully populated after calling the setup_lpt func,
-    but we wanna overwrite the velocities and do the split.
-    
-    /*
-    Do I need to worry about the number of particles in the store, or is that
-    arbitrary? I think it's stored in np, which I've changed.
-    
-    If not, then I shuld only be appending the velocity and mass columns.
-    
-    But there is no mass column?? So let's ignore mass for now.
-    Let's just try get velocities working?
+    /*Takes store src, splits a fraction 1/f_subsample
+    of src according to the ncdm init data, and uses this to
+    populate an 'empty' (it's been init'd, but not lpt'd) store dest.
+    For our test src is fully populated after calling the setup_lpt func
     */
     
+    /*
+    //create mask   [this isa long because we look through i twice, here and fastpm_store_subsample]
+    uint8_t mask[p->np]; 
+    ptrdiff_t i;
+    for(i = 0; i < p->np; i ++) {
+        mask[i] = !(i%f_subsample);
+    }
+    
+    //subsample p
+    FastPMStore * psub;
+    
+    fastpm_store_subsample(p, mask, psub);
+    */
+    
+    //FIX COULD I COPY ith col over for each j, and thenjust change the id and velocity? DONE. maybe overkill copying all cols, but keeps thing general, rather than just assuming we only need to copy over x. 
+    //maybe copy over the entire store, so that global info is copied, mass, anything else?? I think only the meta-data and columsn might need to be copied, everything else is dealt with when initilizing the ncdm store! Actually need np! What about np_upper? Should store_init not setthe np???? Maybe ask Yu, we should probably change this. Right now store_init sets np to 0 at the start, but if np_total is an arg, then why not set it to that? seems that init_evenly take np_total, but plain init  doesnt.
+        //i think q_shift uneeded.
+    //The problem with copying store is thatwe'd need to change the size which is a bit annoying.
+
+    
+    //copy meta-data. would dest->meta = src->meta; work or would that be a pointer? Based on store_subsample it would work.
     dest->meta.a_v = src->meta.a_v;
     dest->meta.a_x = src->meta.a_x;
     //dest->meta.M0 = src->meta.M0;
-    dest->np = src->np * nid->n_split;
+    //printf("\n%ld\n\n", dest->np);
+    dest->np = src->np / f_subsample * nid->n_split;    //remove once store init does this?
     
-    int i, j, k, d;
+    ptrdiff_t i;  //? apaz just a positive int used for indexing?
+    int j, d;
+    int k = 0;
     for(i = 0; i < src->np; i ++) {    //loop thru each cdm particle
-        for(j = 0; j < nid->n_split; j ++) {     //loop thru each each velocity in table
-            
-            k = i * nid->n_split + j;
-            dest->id[k] = k;
-            
-            for(d = 0; d < 3; d ++){
-                dest->x[k][d] = src->x[i][d];
-                dest->v[k][d] = nid->vel[j][d];
+        if( !(i%f_subsample) ){        //subsample. does i = src->id[i]? would be messy if not. would need to check memcpy too 
+            for(j = 0; j < nid->n_split; j ++) {     //loop thru each each ncdm split velocity
+                //copy all cols
+                int c;
+                for(c = 0; c < 32; c ++) {
+                    if (!dest->columns[c]) continue;        //do we need this?
+
+                    size_t elsize = dest->_column_info[c].elsize;
+                    memcpy(dest->columns[c] + k * elsize, src->columns[c] + i * elsize, elsize);
+                }
+                
+                //overwrite id and vel
+                dest->id[k] = k;
+                for(d = 0; d < 3; d ++){
+                    //dest->x[k][d] = src->x[i][d];
+                    dest->v[k][d] = nid->vel[j][d];
+                }
+                
+                k ++;
             }
         }
     }
 }
+

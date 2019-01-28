@@ -145,7 +145,7 @@ FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
 
 void
-fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species);
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, size_t np_total);
 
 void
 fastpm_solver_destroy_species(FastPMSolver * fastpm);
