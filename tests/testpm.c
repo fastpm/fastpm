@@ -41,10 +41,11 @@ int main(int argc, char * argv[]) {
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(m_ncdm, n_ncdm, 9., 10, 2);
     //subsample 1/64 = 1/4^3... 4 per dir. first need to build a mask... which partc to keep or not. mask is 8 bit integer, can compute from id... like %2. Similiar routine in store.c create_mask, maybe can reuse here.
     
-    int f_subsample = 64;
+    int f_subsample_1d = 4;
+    int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;
     size_t np_cdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM)->np;
-    size_t np_ncdm = np_cdm / f_subsample * nid->n_split * n_ncdm;
-    printf("\n%ld\n", np_ncdm);
+    size_t np_ncdm = np_cdm / f_subsample_3d * nid->n_split * n_ncdm;
+
     fastpm_solver_add_species(solver, 
                               FASTPM_SPECIES_NCDM, 
                               np_ncdm);
@@ -71,7 +72,7 @@ int main(int argc, char * argv[]) {
     fastpm_split_ncdm(nid, 
                       fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM), 
                       fastpm_solver_get_species(solver, FASTPM_SPECIES_NCDM), 
-                      f_subsample, comm);
+                      f_subsample_1d, comm);
     fastpm_ncdm_init_free(nid);
     //END SPLIT
     

@@ -305,13 +305,13 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     free(vec_table);
 }
 
-
+//FIX CAN REMOVE MPI_COMM FROM ARG NOW THAT YOUVE CHANGED TO UNIFORM GRID SUBSAMPLE
 void
-fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest, int f_subsample, MPI_Comm comm)
+fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest, int f_subsample_1d, MPI_Comm comm)
 {
     /*
     Takes store src, takes subsample of a fraction
-    1/f_subsample the size of src, and then splits 
+    (1/f_subsample_1d)^3 the size of src, and then splits 
     according to the ncdm init data, and uses this to
     populate an 'empty' store dest.
     For our test src is fully populated after calling 
@@ -319,13 +319,15 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
     */
 
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
-    int np_sub = src->np / f_subsample;
-    dest->np = src->np / f_subsample * nid->n_split;    //remove once store init does this?
+    int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;   //maybe shouldonly ever use 3d?
+    int np_sub = src->np / f_subsample_3d;
+    dest->np = src->np / f_subsample_3d * nid->n_split;    //remove once store init does this?
 
     //create mask
     // FIX: THIS IS RANDOM AND HAS SHOT NOISE. MAKE NEW MASK ROUTINE
     //uint8_t * mask_split;     //mask for splitting.
-    fastpm_store_fill_subsample_mask(src, 1./f_subsample, src->mask, comm);    
+    //fastpm_store_fill_subsample_mask(src, pow(1./f_subsample_1d, 3), src->mask, comm);
+    fastpm_store_fill_subsample_mask_uniform_grid(src, f_subsample_1d, src->mask, comm);
     //is using src->mask correct here? or should i define some indep mask?
     //note f_subsample is 1/f of "fraction" arg in store func. Might want to change this.
     

@@ -159,6 +159,9 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);
 void 
 fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
 
+void
+fastpm_store_get_gridpt_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3]);
+
 size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
 void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
 
@@ -222,6 +225,12 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
         uint8_t * mask,
         MPI_Comm comm);
+
+void
+fastpm_store_fill_subsample_mask_uniform_grid(FastPMStore * p,
+                                              int fraction,
+                                              uint8_t * mask,
+                                              MPI_Comm comm);
 
 size_t
 fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);

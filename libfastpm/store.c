@@ -647,6 +647,17 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
 }//if all 0 drop
 
 void
+fastpm_store_get_gridpt_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3])
+{
+    /* gridpt means grid point (pabs), 
+    i.e. the lattice coordinates of the cells. */
+    int d;
+    for(d = 0; d < 3; d++) {
+        pabs[d] = id / p->meta._q_strides[d];
+    }
+}
+
+void
 fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 {
     /* fill p with a uniform grid, respecting domain given by pm. use a subsample ratio. 
@@ -915,6 +926,33 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
     gsl_rng_free(random_generator);
 }
 
+void
+fastpm_store_fill_subsample_mask_uniform_grid(FastPMStore * p,
+                                              int fraction_1d,  //should i just make 3d, and check if divisible by 3?
+                                              uint8_t * mask,
+                                              MPI_Comm comm)    //?  
+{
+    /* fraction_1d means that if you want
+    to subsample a quarter of the store
+    in each direction (i.e. 1/4^3=1/64 overall)
+    then you should enter 4. So really it means
+    inverse fraction.*/
+    
+    memset(mask, 0, p->np);
+    
+    ptrdiff_t i, d;
+    for(i = 0; i < p->np; i++) {
+        ptrdiff_t pabs[3];
+        //int id = p->id[i]; //can i assume id[i]=i?
+        fastpm_store_get_gridpt_from_id(p, i, pabs);
+        int flag = 1;
+        for(d = 0; d < 3; d++) {
+            flag *= !(pabs[d] % fraction_1d);
+        mask[i] = flag;
+        }
+    }
+}
+    
 /*
  * Create a subsample, keeping only those with mask == True;
  *
