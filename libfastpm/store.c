@@ -654,6 +654,7 @@ fastpm_store_get_gridpt_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3])
     int d;
     for(d = 0; d < 3; d++) {
         pabs[d] = id / p->meta._q_strides[d];
+        id -= pabs[d] * p->meta._q_strides[d];
     }
 }
 
@@ -948,8 +949,8 @@ fastpm_store_fill_subsample_mask_uniform_grid(FastPMStore * p,
         int flag = 1;
         for(d = 0; d < 3; d++) {
             flag *= !(pabs[d] % fraction_1d);
-        mask[i] = flag;
         }
+        mask[i] = flag;
     }
 }
     
