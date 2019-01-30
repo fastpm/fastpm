@@ -19,6 +19,9 @@ enum FastPMSpecies {
 const char *
 fastpm_species_get_name(enum FastPMSpecies species);
 
+double
+fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index);
+
 /*
  * enum constants for naming the columns in the source code.
  * Keep the value ordering in agreement with the ordering in FastPMStore struct;
@@ -45,6 +48,8 @@ typedef enum FastPMColumnTags {
     COLUMN_RDISP =  1L << 15,
     COLUMN_VDISP =  1L << 16,
     COLUMN_RVDISP =  1L << 17,
+    
+    COLUMN_MASS = 1L << 18,
 
 } FastPMColumnTags;
 
@@ -76,7 +81,7 @@ struct FastPMStore {
     struct {
         double a_x;
         double a_v;
-        double M0;    //base mass
+        double M0;    //base mass in 10^10 M_sun
 
         double _q_shift[3];
         double _q_scale[3];
@@ -89,7 +94,7 @@ struct FastPMStore {
             uint8_t * mask;
             double (* x)[3];
             float (* q)[3];
-            float (* v)[3];
+            float (* v)[3];  
             float (* dx1)[3];
             float (* dx2)[3];
             float (* acc)[3];
@@ -106,6 +111,8 @@ struct FastPMStore {
             float (* rdisp)[6]; /* zero lag, first lag, second lag */
             float (* vdisp)[6];
             float (* rvdisp)[9];
+            
+            float (* mass);   //each ncdm has different mass. IN eV
         };
     };
     size_t np;

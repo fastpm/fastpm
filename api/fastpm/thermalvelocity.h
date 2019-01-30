@@ -1,5 +1,6 @@
 typedef struct FastPMncdmInitData{
-    double m_ncdm;
+    double m_ncdm[3];
+    int n_ncdm;
     double z;
     int n_shells;
     int n_side;
@@ -9,13 +10,13 @@ typedef struct FastPMncdmInitData{
 } FastPMncdmInitData;
 
 FastPMncdmInitData* 
-fastpm_ncdm_init_create(double m_ncdm, double z, int n_shells, int n_side);
+fastpm_ncdm_init_create(double m_ncdm[3], int n_ncdm, double z, int n_shells, int n_side);
 
 void
 fastpm_ncdm_init_free(FastPMncdmInitData* nid);
 
 void
-fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest, int f_subsample);
+fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest, int f_subsample, MPI_Comm comm);
 
 //unsigned int isqrt(int number);   //c
 //void pix2vec (int pix, double *vec, int n_side);  //c do i need ot put in c?

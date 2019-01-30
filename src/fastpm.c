@@ -328,6 +328,26 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     /* FIXME: subsample all species -- probably need different fraction for each species */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
     fastpm_store_fill_subsample_mask(p, CONF(prr->lua, particle_fraction), p->mask, comm);
+    /*
+    //SPLIT
+    FastPMncdmInitData* nid = fastpm_ncdm_init_create(0.05, 9., 1, 1);
+    //subsample 1/64 = 1/4^3... 4 per dir. first need to build a mask... which partc to keep or not. mask is 8 bit integer, can compute from id... like %2. Similiar routine in store.c create_mask, maybe can reuse here.
+    
+    int f_subsample = 64;
+    size_t np_cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->np;
+    size_t np_ncdm = np_cdm / f_subsample * nid->n_split;
+    //ADD
+    fastpm_solver_add_species(fastpm, 
+                              FASTPM_SPECIES_NCDM, 
+                              np_ncdm);
+    
+    fastpm_split_ncdm(nid, 
+                      fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM), 
+                      fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), 
+                      f_subsample);
+    fastpm_ncdm_init_free(nid);
+    //END SPLIT
+    */
 
     FastPMUSMesh * usmesh = NULL;
     FastPMSMesh * smesh = NULL;

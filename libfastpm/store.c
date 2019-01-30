@@ -117,6 +117,18 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
     pos[2] = p->q[index][2];
 }
 
+double fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index)
+{   
+    //for eV -> UnitMass conversion.
+    double eV_in_g = 1.79e-33;              //more sf!
+    double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
+    
+    if(!p->mass)               //assumes that we dont have some masses null but other existing (i.e. assumes i dependence).
+        return p->meta.M0 + p->mass[index] * eV_in_g / UnitMass_in_g;
+    else
+        return p->meta.M0;
+}
+
 static ptrdiff_t
 _alignsize(ptrdiff_t size)
 {
@@ -187,6 +199,8 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(rdisp, COLUMN_RDISP, "f4", 6);
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
+    
+    DEFINE_COLUMN(mass, COLUMN_MASS, "f4", 1);
 
     COLUMN_INFO(x).to_double = to_double_f8;
     COLUMN_INFO(v).to_double = to_double_f4;
@@ -201,6 +215,8 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(dx2).from_double = from_double_f4;
     COLUMN_INFO(potential).from_double = from_double_f4;
     COLUMN_INFO(tidal).from_double = from_double_f4;
+    
+    COLUMN_INFO(mass).to_double = to_double_f4;
 
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
@@ -410,15 +426,15 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
         for(d = 0; d < 3; d ++) {
             int c1 = 0;
             int c2 = 0;
-            while(p->x[i][d] < 0 && c1 < 100) {
+            while(p->x[i][d] < 0 && c1 < 100000) {
                 p->x[i][d] += BoxSize[d];
                 c1++;
             }
-            while(p->x[i][d] >= BoxSize[d] && c2 < 100) {
+            while(p->x[i][d] >= BoxSize[d] && c2 < 100000) {
                 p->x[i][d] -= BoxSize[d];
                 c2++;
             }
-            if(c1 >= 100 || c2 >= 100) {
+            if(c1 >= 100000 || c2 >= 100000) {
                 double q[3];
                 fastpm_store_get_q_from_id(p, p->id[i], q);
                 fastpm_raise(-1, "Particle at %g %g %g (q = %g %g %g) is too far from the bounds. Wrapping failed.\n", 
@@ -628,7 +644,7 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
         q[d] = pabs[d] * p->meta._q_scale[d];
         q[d] += p->meta._q_shift[d];
     }
-}
+}//if all 0 drop
 
 void
 fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
@@ -866,7 +882,7 @@ fastpm_store_append(FastPMStore * p, FastPMStore * po)
     _fastpm_store_copy(p, 0, po, po->np, p->np);
 }
 
-void
+void        //just use this to get code running, but in future use q_from_id
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
         uint8_t * mask,
@@ -931,7 +947,7 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
 
     if(po) {
         po->np = j;
-        po->meta = p->meta;
+        po->meta = p->meta;   ///????
     }
     return j;
 }

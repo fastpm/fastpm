@@ -314,8 +314,11 @@ _fastpm_solver_compute_delta_k(FastPMSolver * fastpm, FastPMPainter * painter, P
 
         VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
         VALGRIND_CHECK_MEM_IS_DEFINED(pgd[si]->p->x, sizeof(pgd[si]->p->x[0]) * pgd[si]->p->np);
-
-        total_mass += fastpm_store_get_np_total(p, pm_comm(pm)) * p->meta.M0;
+        
+        int i;
+        for (i = 0; i <= p->np; i ++){
+            total_mass += fastpm_store_get_mass(p, i);    //does this [fastpm_store_get_np_total(p, pm_comm(pm)) ] equal p->np.
+        }
         fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
         fastpm_paint_local(painter, canvas, pgd[si]->p, pgd[si]->p->np, FASTPM_FIELD_DESCR_NONE);
     }

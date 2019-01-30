@@ -58,7 +58,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->N_added_species = 0;
     
     fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, pow(1.0 * config->nc, 3));   //add CDM [why make np_total a double?]
-
+    
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
 
@@ -72,6 +72,16 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->basepm = malloc(sizeof(PM));
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
+    
+    double shift0;
+    if(config->USE_SHIFT) {
+        shift0 = config->boxsize / config->nc * 0.5;
+    } else {
+        shift0 = 0;
+    }
+    double shift[3] = {shift0, shift0, shift0};
+
+    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM), fastpm->basepm, shift, NULL);
 }
 
 void
@@ -121,9 +131,6 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
             shift0 = 0;
         }
         double shift[3] = {shift0, shift0, shift0};
-
-        fastpm_store_fill(p, basepm, shift, NULL);
-
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);
     }
@@ -192,7 +199,7 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, siz
     fastpm_store_init_evenly(&fastpm->species[species],
           fastpm_species_get_name(species),
           np_total, //pow(1.0 * fastpm->config->nc, 3)*12,
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | COLUMN_MASS | fastpm->config->ExtraAttributes,
           fastpm->config->alloc_factor, 
           fastpm->comm);
     
