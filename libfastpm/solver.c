@@ -27,7 +27,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->config[0] = *config;
 
-    fastpm->cosmology[0] = (FastPMCosmology) {     //CHANGE FOR NCDM!!!
+    fastpm->cosmology[0] = (FastPMCosmology) {
         .OmegaM = config->omega_m,
         .OmegaLambda = 1.0 - config->omega_m,
     };
@@ -53,7 +53,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         config->ExtraAttributes |= COLUMN_DX2;
     }
     
-    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);   //set to 000000. does char work with numbers instead of str?
+    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
     memset(fastpm->add_species_order, 0, FASTPM_SOLVER_NSPECIES);
     fastpm->N_added_species = 0;
     
@@ -192,18 +192,16 @@ fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 }
 
 void
-fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, size_t np_total)   //nicer to use nspecies or something?
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, size_t np_total)
 {   
     /*Adds a particle [store] of species type species to the solver.*/
     
     fastpm_store_init_evenly(&fastpm->species[species],
           fastpm_species_get_name(species),
-          np_total, //pow(1.0 * fastpm->config->nc, 3)*12,
+          np_total,
           COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | COLUMN_MASS | fastpm->config->ExtraAttributes,
           fastpm->config->alloc_factor, 
           fastpm->comm);
-    
-    //memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES); i think this initilaizes has species to 000000, so moved outside!?????
 
     fastpm->has_species[species] = 1;
     fastpm->add_species_order[fastpm->N_added_species] = species;
@@ -213,7 +211,7 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, siz
 void
 fastpm_solver_destroy_species(FastPMSolver * fastpm)
 {   
-    /*destorys all species in solver in correct order
+    /*destroys all species in solver in correct order
     could modify to make a function that destroys
     one species at a time?*/
     int i;

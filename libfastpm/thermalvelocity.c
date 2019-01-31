@@ -321,7 +321,7 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
     int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;   //maybe shouldonly ever use 3d?
     int np_sub = src->np / f_subsample_3d;
-    dest->np = src->np / f_subsample_3d * nid->n_split;    //remove once store init does this?
+    dest->np = np_sub * nid->n_split;    //remove once store init does this?
 
     //create mask
     // FIX: THIS IS RANDOM AND HAS SHOT NOISE. MAKE NEW MASK ROUTINE
@@ -341,7 +341,7 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
     
     fastpm_store_subsample(src, src->mask, sub);
     
-    //copy an amend meta-data
+    //copy and amend meta-data
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
     dest->meta.M0 = 0.; //set the base neutrino mass to 0.
     

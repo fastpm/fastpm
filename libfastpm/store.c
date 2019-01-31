@@ -123,10 +123,12 @@ double fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index)
     double eV_in_g = 1.79e-33;              //more sf!
     double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
     
-    if(!p->mass)               //assumes that we dont have some masses null but other existing (i.e. assumes i dependence).
+    if(p->mass){
+        //printf("%g %g\n", p->mass[index], p->meta.M0 + p->mass[index] * eV_in_g / UnitMass_in_g);
         return p->meta.M0 + p->mass[index] * eV_in_g / UnitMass_in_g;
-    else
+    }else{
         return p->meta.M0;
+    }
 }
 
 static ptrdiff_t
@@ -199,7 +201,6 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(rdisp, COLUMN_RDISP, "f4", 6);
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
-    
     DEFINE_COLUMN(mass, COLUMN_MASS, "f4", 1);
 
     COLUMN_INFO(x).to_double = to_double_f8;
@@ -208,6 +209,7 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(dx1).to_double = to_double_f4;
     COLUMN_INFO(dx2).to_double = to_double_f4;
     COLUMN_INFO(acc).to_double = to_double_f4;
+    COLUMN_INFO(mass).to_double = to_double_f4;
 
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(acc).from_double = from_double_f4;
@@ -215,8 +217,6 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(dx2).from_double = from_double_f4;
     COLUMN_INFO(potential).from_double = from_double_f4;
     COLUMN_INFO(tidal).from_double = from_double_f4;
-    
-    COLUMN_INFO(mass).to_double = to_double_f4;
 
     ptrdiff_t size = 0;
     ptrdiff_t offset = 0;
@@ -894,7 +894,7 @@ fastpm_store_append(FastPMStore * p, FastPMStore * po)
     _fastpm_store_copy(p, 0, po, po->np, p->np);
 }
 
-void        //just use this to get code running, but in future use q_from_id
+void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
         uint8_t * mask,
@@ -943,9 +943,10 @@ fastpm_store_fill_subsample_mask_uniform_grid(FastPMStore * p,
     
     ptrdiff_t i, d;
     for(i = 0; i < p->np; i++) {
-        ptrdiff_t pabs[3];
+        ptrdiff_t pabs[3];   //pabs is the gridpt index. move out of loop?
         //int id = p->id[i]; //can i assume id[i]=i?
         fastpm_store_get_gridpt_from_id(p, i, pabs);
+        
         int flag = 1;
         for(d = 0; d < 3; d++) {
             flag *= !(pabs[d] % fraction_1d);

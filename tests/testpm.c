@@ -36,10 +36,9 @@ int main(int argc, char * argv[]) {
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
     
     //ADD NCDM
-    double m_ncdm[3] = {0.05, 0.02, 0.01};   //prob want to take this from cosmology  object!, or from  input.
+    double m_ncdm[3] = {0.05, 0.02, 0.01};
     int n_ncdm = 3;
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(m_ncdm, n_ncdm, 9., 10, 2);
-    //subsample 1/64 = 1/4^3... 4 per dir. first need to build a mask... which partc to keep or not. mask is 8 bit integer, can compute from id... like %2. Similiar routine in store.c create_mask, maybe can reuse here.
     
     int f_subsample_1d = 4;
     int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;
