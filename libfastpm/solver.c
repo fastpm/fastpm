@@ -54,8 +54,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     }
     
     memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
-    memset(fastpm->add_species_order, 0, FASTPM_SOLVER_NSPECIES);
-    fastpm->N_added_species = 0;
     
     fastpm_store_init_evenly(fastpm->cdm,
           fastpm_species_get_name(FASTPM_SPECIES_CDM),
@@ -205,8 +203,6 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, Fas
 
     fastpm->species[species] = store;
     fastpm->has_species[species] = 1;
-    fastpm->add_species_order[fastpm->N_added_species] = species;
-    fastpm->N_added_species ++;
 }
 
 
@@ -419,7 +415,7 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
     ENTER(kick);
     int si;
     for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
-        FastPMStore * p = fastpm_solver_get_species(fastpm, si);   //could probably clean this using my N_added_species stuff
+        FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
         
         if(kick.ai != p->meta.a_v) {

@@ -74,17 +74,11 @@ typedef struct {
 
 typedef struct {
     PM * pm;
+    /* FIXME: Use a linked list and change the num of species to a string. */
     FastPMStore *species[FASTPM_SOLVER_NSPECIES];
     char has_species[FASTPM_SOLVER_NSPECIES];
 
     FastPMStore cdm[1];
-
-    /*below keeps track of order species are added 
-    so that they can be freed in the correct order.
-    element 0 is id of first species added, 
-    element 1 sis id of second species added... */
-    char add_species_order[FASTPM_SOLVER_NSPECIES];
-    int N_added_species;
 
     MPI_Comm comm;
     int NTask;
@@ -152,9 +146,6 @@ fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
 
 void
 fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, FastPMStore * store);
-
-void
-fastpm_solver_destroy_species(FastPMSolver * fastpm);
 
 void 
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
