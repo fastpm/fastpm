@@ -625,6 +625,7 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
     ptrdiff_t pabs[3];
 
     int d;
+    id = id % p->meta._q_size;
     for(d = 0; d < 3; d++) {
         pabs[d] = id / p->meta._q_strides[d];
         id -= pabs[d] * p->meta._q_strides[d];
@@ -637,9 +638,9 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
 }//if all 0 drop
 
 void
-fastpm_store_get_gridpt_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3])
+fastpm_store_get_iq_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3])
 {
-    /* gridpt means grid point (pabs), 
+    /* integer version of the initial position q
     i.e. the lattice coordinates of the cells. */
     int d;
     for(d = 0; d < 3; d++) {
@@ -677,6 +678,7 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
         p->meta._q_scale[d] = pm->BoxSize[d] / Nc[d];
     }
 
+    p->meta._q_size = Nc[0] * Nc[1] * Nc[2];
     p->meta._q_strides[0] = Nc[1] * Nc[2];
     p->meta._q_strides[1] = Nc[2];
     p->meta._q_strides[2] = 1;
@@ -918,33 +920,26 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 }
 
 void
-fastpm_store_fill_subsample_mask_uniform_grid(FastPMStore * p,
-                                              int fraction_1d,  //should i just make 3d, and check if divisible by 3?
-                                              uint8_t * mask,
-                                              MPI_Comm comm)    //?  
+fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
+                                              int every, /* take 1 every 'every' per dimension */
+                                              uint8_t * mask)
 {
-    /* fraction_1d means that if you want
-    to subsample a quarter of the store
-    in each direction (i.e. 1/4^3=1/64 overall)
-    then you should enter 4. So really it means
-    inverse fraction.*/
-    
     memset(mask, 0, p->np);
-    
+
     ptrdiff_t i, d;
     for(i = 0; i < p->np; i++) {
-        ptrdiff_t pabs[3];   //pabs is the gridpt index. move out of loop?
-        //int id = p->id[i]; //can i assume id[i]=i?
-        fastpm_store_get_gridpt_from_id(p, i, pabs);
-        
+        ptrdiff_t pabs[3];   //pabs is the iq index. move out of loop?
+        uint64_t id = p->id[i];
+        fastpm_store_get_iq_from_id(p, id, pabs);
+
         int flag = 1;
         for(d = 0; d < 3; d++) {
-            flag *= !(pabs[d] % fraction_1d);
+            flag *= !(pabs[d] % every);
         }
         mask[i] = flag;
     }
 }
-    
+
 /*
  * Create a subsample, keeping only those with mask == True;
  *

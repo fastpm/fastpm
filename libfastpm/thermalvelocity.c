@@ -324,13 +324,13 @@ void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
         FastPMStore * src,
         FastPMStore * dest,
-        int f_subsample_1d,
+        int every,
         MPI_Comm comm)
 {
 
     /*
     Takes store src, takes subsample of a fraction
-    (1/f_subsample_1d)^3 the size of src, and then splits 
+    (1/every)^3 the size of src, and then splits 
     according to the ncdm init data, and uses this to
     populate an 'empty' store dest.
     For our test src is fully populated after calling 
@@ -338,31 +338,30 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     */
 
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
-    int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;   //maybe shouldonly ever use 3d?
-    int np_sub = src->np / f_subsample_3d;
-    dest->np = np_sub * nid->n_split;    //remove once store init does this?
+    uint8_t * mask = fastpm_memory_alloc(src->mem, "every-mask", sizeof(mask[0]) * src->np, FASTPM_MEMORY_FLOATING);
+
+    fastpm_store_fill_subsample_mask_every_dim(src, every, mask);
+
+    FastPMStore sub[1];
+
+    fastpm_store_init(sub,
+                      src->name,
+                      (src->np * 2 / every / every / every),
+                      src->attributes,
+                      FASTPM_MEMORY_FLOATING);
+
+    fastpm_store_subsample(src, mask, sub);
+
+    dest->np = sub->np * nid->n_split;    //remove once store init does this?
+
+    if(dest->np > dest->np_upper) {
+        fastpm_raise(-1, "exceeding limit on the number limit of particles for the ncdm species \n");
+    }
 
     size_t np_total = fastpm_store_get_np_total(dest, comm); 
 
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
     fastpm_info("average mass of a ncdm particle is %g\n", M0);
-    //create mask
-    // FIX: THIS IS RANDOM AND HAS SHOT NOISE. MAKE NEW MASK ROUTINE
-    //uint8_t * mask_split;     //mask for splitting.
-    //fastpm_store_fill_subsample_mask(src, pow(1./f_subsample_1d, 3), src->mask, comm);
-    fastpm_store_fill_subsample_mask_uniform_grid(src, f_subsample_1d, src->mask, comm);
-    //is using src->mask correct here? or should i define some indep mask?
-    //note f_subsample is 1/f of "fraction" arg in store func. Might want to change this.
-
-    //create store for subsample
-    FastPMStore * sub = malloc(sizeof(FastPMStore));
-    fastpm_store_init(sub,
-                      src->name,
-                      np_sub,
-                      src->attributes,
-                      FASTPM_MEMORY_HEAP);
-
-    fastpm_store_subsample(src, src->mask, sub);
 
     //copy and amend meta-data
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
@@ -370,7 +369,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     dest->meta.M0 = 0.; /* will have a mass per particles */
 
     ptrdiff_t i, j, d;
-    int r = 0;
+    ptrdiff_t r = 0;
     for(i = 0; i < sub->np; i ++) {    //loop thru each cdm particle
         for(j = 0; j < nid->n_split; j ++) {  //loop thru split velocities AND ncdms
             //copy all cols
@@ -383,19 +382,20 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
                        sub->columns[c] + i * elsize,
                        elsize);
             }
-            //
+
             //overwrite id, mass and vel
-            dest->id[r] = r;
+            dest->id[r] = j * sub->meta._q_size + sub->id[i];
 
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
 
             for(d = 0; d < 3; d ++){
-                dest->v[r][d] = nid->vel[j][d];
+                dest->v[r][d] += nid->vel[j][d];
             }
             r ++;
         }
     }
-    
+
     fastpm_store_destroy(sub);
+    fastpm_memory_free(src->mem, mask);
 }
 

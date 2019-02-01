@@ -86,6 +86,7 @@ struct FastPMStore {
         double _q_shift[3];
         double _q_scale[3];
         ptrdiff_t _q_strides[3];
+        ptrdiff_t _q_size;
     } meta;
 
     union {
@@ -158,7 +159,7 @@ void
 fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
 
 void
-fastpm_store_get_gridpt_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3]);
+fastpm_store_get_iq_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3]);
 
 size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
 void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
@@ -225,10 +226,9 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
         MPI_Comm comm);
 
 void
-fastpm_store_fill_subsample_mask_uniform_grid(FastPMStore * p,
-                                              int fraction,
-                                              uint8_t * mask,
-                                              MPI_Comm comm);
+fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
+                                              int every,
+                                              uint8_t * mask);
 
 size_t
 fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
