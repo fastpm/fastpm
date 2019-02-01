@@ -74,9 +74,11 @@ typedef struct {
 
 typedef struct {
     PM * pm;
-    FastPMStore species[FASTPM_SOLVER_NSPECIES];
+    FastPMStore *species[FASTPM_SOLVER_NSPECIES];
     char has_species[FASTPM_SOLVER_NSPECIES];
-    
+
+    FastPMStore cdm[1];
+
     /*below keeps track of order species are added 
     so that they can be freed in the correct order.
     element 0 is id of first species added, 
@@ -149,7 +151,7 @@ FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
 
 void
-fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, size_t np_total);
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, FastPMStore * store);
 
 void
 fastpm_solver_destroy_species(FastPMSolver * fastpm);

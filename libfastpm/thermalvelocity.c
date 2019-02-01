@@ -375,7 +375,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             //copy all cols
             int c;
             for(c = 0; c < 32; c ++) {
-                if (!dest->columns[c]) continue;
+                if (!dest->columns[c] || !sub->columns[c]) continue;
 
                 size_t elsize = dest->_column_info[c].elsize;
                 memcpy(dest->columns[c] + r * elsize,

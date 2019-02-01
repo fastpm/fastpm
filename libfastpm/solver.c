@@ -57,7 +57,14 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     memset(fastpm->add_species_order, 0, FASTPM_SOLVER_NSPECIES);
     fastpm->N_added_species = 0;
     
-    fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, pow(1.0 * config->nc, 3));   //add CDM [why make np_total a double?]
+    fastpm_store_init_evenly(fastpm->cdm,
+          fastpm_species_get_name(FASTPM_SPECIES_CDM),
+          pow(1.0 * config->nc, 3),
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
+          fastpm->config->alloc_factor,
+          fastpm->comm);
+
+    fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, fastpm->cdm);   //add CDM [why make np_total a double?]
     
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
@@ -185,41 +192,23 @@ FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 {
     if(fastpm->has_species[species]) {
-        return &fastpm->species[species];
+        return fastpm->species[species];
     } else {
         return NULL;
     }
 }
 
 void
-fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, size_t np_total)
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, FastPMStore * store)
 {   
-    /*Adds a particle [store] of species type species to the solver.*/
-    
-    fastpm_store_init_evenly(&fastpm->species[species],
-          fastpm_species_get_name(species),
-          np_total,
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | COLUMN_MASS | fastpm->config->ExtraAttributes,
-          fastpm->config->alloc_factor, 
-          fastpm->comm);
+    /*Adds a particle [store] of species type species to the solver. */
 
+    fastpm->species[species] = store;
     fastpm->has_species[species] = 1;
     fastpm->add_species_order[fastpm->N_added_species] = species;
     fastpm->N_added_species ++;
 }
 
-void
-fastpm_solver_destroy_species(FastPMSolver * fastpm)
-{   
-    /*destroys all species in solver in correct order
-    could modify to make a function that destroys
-    one species at a time?*/
-    int i;
-    for(i = fastpm->N_added_species - 1; i >= 0; i --) {
-        int si = fastpm->add_species_order[i];
-        fastpm_store_destroy(&fastpm->species[si]);
-    }
-}
 
 void
 fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
@@ -487,7 +476,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    fastpm_solver_destroy_species(fastpm);
+    fastpm_store_destroy(fastpm->cdm);
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);

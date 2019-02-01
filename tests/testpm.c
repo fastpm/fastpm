@@ -48,12 +48,18 @@ int main(int argc, char * argv[]) {
 
     size_t total_np_ncdm = total_np_cdm / f_subsample_3d * nid->n_split;
 
+    FastPMStore ncdm[1];
+    fastpm_store_init_evenly(ncdm,
+          fastpm_species_get_name(FASTPM_SPECIES_NCDM),
+          total_np_ncdm,
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_MASS | COLUMN_ACC | solver->config->ExtraAttributes,
+          solver->config->alloc_factor,
+          solver->comm);
+
     fastpm_solver_add_species(solver, 
                               FASTPM_SPECIES_NCDM, 
-                              total_np_ncdm);
+                              ncdm);
 
-    FastPMStore * ncdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_NCDM);
-    
     //END OF ADD NCDM
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
@@ -73,7 +79,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
     
-    
+
     //SPLIT
     fastpm_split_ncdm(nid, cdm, ncdm, f_subsample_1d, comm);
 
@@ -93,6 +99,7 @@ int main(int argc, char * argv[]) {
     pm_free(solver->basepm, rho_final_ktruth);
     pm_free(solver->basepm, rho_init_ktruth);
 
+    fastpm_store_destroy(ncdm);
     fastpm_solver_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();
