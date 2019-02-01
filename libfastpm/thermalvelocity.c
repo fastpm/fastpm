@@ -5,6 +5,7 @@
 #include <gsl/gsl_integration.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 
 #define LENGTH_FERMI_DIRAC_TABLE 4000 //sets the length of the table on which CDF
                                       //will be evaluated
@@ -277,6 +278,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     
     double *vel_table, *vec_table, *masstab;
     vel_table = malloc(sizeof(double)*n_shells);
+    /* masstab is the distribution integrated per shell, sums to 1 */
     masstab = calloc(n_shells,sizeof(double));
     vec_table = malloc(sizeof(double)*12*n_side*n_side*3);
     
@@ -289,10 +291,11 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     for(i = 0; i < 12*n_side*n_side; i ++){
         for(j = 0; j < n_shells; j ++){
             for(k = 0; k < n_ncdm; k ++){
-                
                 double m = nid->m_ncdm[k];
-                nid->mass[r] = masstab[j] / (12.*n_side*n_side) * m;    //Fractional mass * mass of the ncdm partc
-                
+
+                /* mean of sampled masses shall be the expected mass */
+                nid->mass[r] = masstab[j] * n_shells * m;
+
                 double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m);
                 for(d = 0; d < 3; d ++){
                     nid->vel[r][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;
@@ -342,7 +345,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     size_t np_total = fastpm_store_get_np_total(dest, comm); 
 
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
-
+    fastpm_info("average mass of a ncdm particle is %g\n", M0);
     //create mask
     // FIX: THIS IS RANDOM AND HAS SHOT NOISE. MAKE NEW MASK ROUTINE
     //uint8_t * mask_split;     //mask for splitting.

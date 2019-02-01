@@ -19,7 +19,7 @@ int main(int argc, char * argv[]) {
 
     FastPMConfig * config = & (FastPMConfig) {
         .nc = 32,
-        .boxsize = 32.,
+        .boxsize = 1600.,
         .alloc_factor = 2.0,
         .omega_m = 0.292,
         .vpminit = (VPMInit[]) {
@@ -42,12 +42,18 @@ int main(int argc, char * argv[]) {
     
     int f_subsample_1d = 4;
     int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;
-    size_t np_cdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM)->np;
-    size_t np_ncdm = np_cdm / f_subsample_3d * nid->n_split * n_ncdm;
+    FastPMStore * cdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+
+    size_t total_np_cdm = fastpm_store_get_np_total(cdm, comm);
+
+    size_t total_np_ncdm = total_np_cdm / f_subsample_3d * nid->n_split;
 
     fastpm_solver_add_species(solver, 
                               FASTPM_SPECIES_NCDM, 
-                              np_ncdm);
+                              total_np_ncdm);
+
+    FastPMStore * ncdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_NCDM);
+    
     //END OF ADD NCDM
 
     FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
@@ -67,11 +73,10 @@ int main(int argc, char * argv[]) {
 
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
     
+    
     //SPLIT
-    fastpm_split_ncdm(nid, 
-                      fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM), 
-                      fastpm_solver_get_species(solver, FASTPM_SPECIES_NCDM), 
-                      f_subsample_1d, comm);
+    fastpm_split_ncdm(nid, cdm, ncdm, f_subsample_1d, comm);
+
     fastpm_ncdm_init_free(nid);
     //END SPLIT
     
