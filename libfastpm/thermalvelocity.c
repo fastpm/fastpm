@@ -5,8 +5,6 @@
 #include <gsl/gsl_integration.h>
 
 #include <fastpm/libfastpm.h>
-#include <fastpm/store.h>    //isnt this in libfastpm?
-//#include <fastpm/thermalvelocity.h>   //added to libfastpm?
 
 #define LENGTH_FERMI_DIRAC_TABLE 4000 //sets the length of the table on which CDF
                                       //will be evaluated
@@ -78,19 +76,19 @@ void pix2vec (int pix, double *vec, int n_side)
 
 
 // Functional form of F-D distribution
-double fermi_dirac_kernel(double x)
+double fermi_dirac_kernel(double x, void * params)
 {
     return x * x / (exp(x) + 1);
 }
 
 // Samples the low velocity end more effectively
-double low_vel_kernel(double x)
+double low_vel_kernel(double x, void * params)
 {
     return x / (exp(x) + 1);
 }
 
 // Needed for calculatin the velocity dispersion
-double fermi_dirac_dispersion(double x)
+double fermi_dirac_dispersion(double x, void * params)
 {
     return x * x * x * x/ (exp(x) + 1);
 }
@@ -204,7 +202,7 @@ void divide_sphere_fibonacci(double *vec_table, int n_fibonacci)
 {
     double lat, lon;
     int i, j;
-    int N_tot = 2 * n_fibonacci + 1;
+    //int N_tot = 2 * n_fibonacci + 1;
 
     for (i=-n_fibonacci;i<n_fibonacci+1;i++){
         lat = asin(2.0*i/(2.0*n_fibonacci+1));
@@ -236,6 +234,7 @@ fastpm_ncdm_init_create(double m_ncdm[3], int n_ncdm, double z, int n_shells, in
     nid->n_side = n_side;
     
     nid->n_split = 12 * n_shells * n_side*n_side;     //this is the total number of velocity vectors produced
+    
     /* recall vel is a pointer to a 3 element array
     so lets make into multidim array of dim (n_split x 3) */
     //for now store all (3) neutrinos in the same nid table.
@@ -321,7 +320,7 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
     int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;   //maybe shouldonly ever use 3d?
     int np_sub = src->np / f_subsample_3d;
-    dest->np = np_sub * nid->n_split;    //remove once store init does this?
+    dest->np = np_sub * nid->n_split * nid->np_ncdm;    //remove once store init does this?
 
     //create mask
     // FIX: THIS IS RANDOM AND HAS SHOT NOISE. MAKE NEW MASK ROUTINE
@@ -363,7 +362,8 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
                 
             //overwrite id, mass and vel
             dest->id[r] = r;
-            dest->mass[r] = nid->mass[j];
+            
+            dest->mass[r] = nid->mass[j] ;
             for(d = 0; d < 3; d ++){
                 dest->v[r][d] = nid->vel[j][d];
             }          

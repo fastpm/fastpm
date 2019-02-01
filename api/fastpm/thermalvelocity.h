@@ -1,9 +1,14 @@
+enum FastPMDivideSphere {     //FIX should implement this at some point
+    FASTPM_DIVIDE_SPHERE_HEALPIX = 0,
+    FASTPM_DIVIDE_SPHERE_FIBONACCI = 1,
+};
+
 typedef struct FastPMncdmInitData{
     double m_ncdm[3];
     int n_ncdm;
     double z;
     int n_shells;
-    int n_side;
+    int n_side;     //for fibonacci this is n_fib
     size_t  n_split;
     double (* vel)[3];
     double * mass;
