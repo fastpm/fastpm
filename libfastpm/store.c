@@ -420,9 +420,13 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
     int d;
     for(i = 0; i < p->np; i ++) {
         for(d = 0; d < 3; d ++) {
-            float n = abs(p->x[i][d] / BoxSize[d]);
+            double n = abs(p->x[i][d] / BoxSize[d]);
 
-            p->x[i][d] = remainder(p->x[i][d], BoxSize[d]);
+            double x1 = remainder(p->x[i][d], BoxSize[d]);
+
+            while(x1 < 0) x1 += BoxSize[d];
+            while(x1 > BoxSize[d]) x1 -= BoxSize[d];
+            p->x[i][d] = x1;
 
             if(n > 10000) {
                 double q[3];
