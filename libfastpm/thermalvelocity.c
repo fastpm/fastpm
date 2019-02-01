@@ -221,25 +221,37 @@ static void _fastpm_ncdm_init_fill(FastPMncdmInitData* nid);
 
 //create and fill the table
 FastPMncdmInitData* 
-fastpm_ncdm_init_create(double m_ncdm[3], int n_ncdm, double z, int n_shells, int n_side)
+fastpm_ncdm_init_create(
+    double BoxSize,
+    double m_ncdm[3],
+    int n_ncdm,
+    double z,
+    int n_shells,
+    int n_side)
 {
     FastPMncdmInitData* nid = malloc(sizeof(nid[0]));
 
-    
-    for(int i = 0; i < n_ncdm; i ++)
+    nid->BoxSize = BoxSize;
+    nid->Omega_ncdm = 0.001404; /* FIXME: use new cosmology.c */
+    nid->m_ncdm_sum = 0;
+    for(int i = 0; i < n_ncdm; i ++) {
         nid->m_ncdm[i] = m_ncdm[i];
+        nid->m_ncdm_sum += nid->m_ncdm[i];
+    }
+
     nid->n_ncdm = n_ncdm;
     nid->z = z;
     nid->n_shells = n_shells;
     nid->n_side = n_side;
-    
-    nid->n_split = 12 * n_shells * n_side*n_side;     //this is the total number of velocity vectors produced
+
+    /* this is the total number of velocity vectors produced */
+    nid->n_split = 12 * n_shells * n_side * n_side * n_ncdm;
     
     /* recall vel is a pointer to a 3 element array
     so lets make into multidim array of dim (n_split x 3) */
     //for now store all (3) neutrinos in the same nid table.
-    nid->vel = calloc(nid->n_split * n_ncdm, sizeof(double[3]));
-    nid->mass = calloc(nid->n_split * n_ncdm, sizeof(double));   //a 1d array to store all the masses
+    nid->vel = calloc(nid->n_split, sizeof(double[3]));
+    nid->mass = calloc(nid->n_split, sizeof(double));   //a 1d array to store all the masses
 
     _fastpm_ncdm_init_fill(nid);
     
@@ -306,8 +318,13 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
 
 //FIX CAN REMOVE MPI_COMM FROM ARG NOW THAT YOUVE CHANGED TO UNIFORM GRID SUBSAMPLE
 void
-fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest, int f_subsample_1d, MPI_Comm comm)
+fastpm_split_ncdm(FastPMncdmInitData * nid,
+        FastPMStore * src,
+        FastPMStore * dest,
+        int f_subsample_1d,
+        MPI_Comm comm)
 {
+
     /*
     Takes store src, takes subsample of a fraction
     (1/f_subsample_1d)^3 the size of src, and then splits 
@@ -320,7 +337,11 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
     int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;   //maybe shouldonly ever use 3d?
     int np_sub = src->np / f_subsample_3d;
-    dest->np = np_sub * nid->n_split * nid->np_ncdm;    //remove once store init does this?
+    dest->np = np_sub * nid->n_split;    //remove once store init does this?
+
+    size_t np_total = fastpm_store_get_np_total(dest, comm); 
+
+    double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
 
     //create mask
     // FIX: THIS IS RANDOM AND HAS SHOT NOISE. MAKE NEW MASK ROUTINE
@@ -329,7 +350,7 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
     fastpm_store_fill_subsample_mask_uniform_grid(src, f_subsample_1d, src->mask, comm);
     //is using src->mask correct here? or should i define some indep mask?
     //note f_subsample is 1/f of "fraction" arg in store func. Might want to change this.
-    
+
     //create store for subsample
     FastPMStore * sub = malloc(sizeof(FastPMStore));
     fastpm_store_init(sub,
@@ -337,18 +358,18 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
                       np_sub,
                       src->attributes,
                       FASTPM_MEMORY_HEAP);
-    
+
     fastpm_store_subsample(src, src->mask, sub);
-    
+
     //copy and amend meta-data
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
-    dest->meta.M0 = 0.; //set the base neutrino mass to 0.
-    
+
+    dest->meta.M0 = 0.; /* will have a mass per particles */
+
     ptrdiff_t i, j, d;
     int r = 0;
     for(i = 0; i < sub->np; i ++) {    //loop thru each cdm particle
-        for(j = 0; j < nid->n_split * nid->n_ncdm; j ++) {  //loop thru split velocities AND ncdms
-            
+        for(j = 0; j < nid->n_split; j ++) {  //loop thru split velocities AND ncdms
             //copy all cols
             int c;
             for(c = 0; c < 32; c ++) {
@@ -359,14 +380,15 @@ fastpm_split_ncdm(FastPMncdmInitData* nid, FastPMStore * src, FastPMStore * dest
                        sub->columns[c] + i * elsize,
                        elsize);
             }
-                
+            //
             //overwrite id, mass and vel
             dest->id[r] = r;
-            
-            dest->mass[r] = nid->mass[j] ;
+
+            dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
+
             for(d = 0; d < 3; d ++){
                 dest->v[r][d] = nid->vel[j][d];
-            }          
+            }
             r ++;
         }
     }

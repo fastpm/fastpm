@@ -4,18 +4,28 @@ enum FastPMDivideSphere {     //FIX should implement this at some point
 };
 
 typedef struct FastPMncdmInitData{
+    double BoxSize;
+    double Omega_ncdm;
     double m_ncdm[3];
-    int n_ncdm;
-    double z;
+    int n_ncdm; /* number of ncdm species, each has a m_ncdm */
+    double m_ncdm_sum; /* total ev mass of all ncdm */
+    double z;   /* initialization redshift of ncdm species */
+
     int n_shells;
-    int n_side;     //for fibonacci this is n_fib
-    size_t  n_split;
+
+    union {
+        int n_side; /* for healpix splits */
+        int n_fib;  /* for fib splits */
+    };
+
+    size_t n_split; /* number of phase space splits of each initial position */
+    /* a table for quick look up of the coherent thermal velocity and mass of split particles. */
     double (* vel)[3];
     double * mass;
 } FastPMncdmInitData;
 
-FastPMncdmInitData* 
-fastpm_ncdm_init_create(double m_ncdm[3], int n_ncdm, double z, int n_shells, int n_side);
+FastPMncdmInitData *
+fastpm_ncdm_init_create(double BoxSize, double m_ncdm[3], int n_ncdm, double z, int n_shells, int n_side);
 
 void
 fastpm_ncdm_init_free(FastPMncdmInitData* nid);

@@ -118,14 +118,10 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
 }
 
 double fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index)
-{   
-    //for eV -> UnitMass conversion.
-    double eV_in_g = 1.79e-33;              //more sf!
-    double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
-    
+{
+    /* total mass is the sum of the base and the extra */
     if(p->mass){
-        //printf("%g %g\n", p->mass[index], p->meta.M0 + p->mass[index] * eV_in_g / UnitMass_in_g);
-        return p->meta.M0 + p->mass[index] * eV_in_g / UnitMass_in_g;
+        return p->meta.M0 + p->mass[index];
     }else{
         return p->meta.M0;
     }
