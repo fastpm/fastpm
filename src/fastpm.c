@@ -1021,10 +1021,16 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         }
 
         FastPMSolver snapshot[1];
+        FastPMStore cdm[1];
+        FastPMStore ncdm[1];
+
+        /* mostly the original solver, but with two species replaced */
+        memcpy(snapshot, fastpm, sizeof(FastPMSolver));
+        fastpm_solver_add_species(snapshot, FASTPM_SPECIES_CDM, cdm);
+        fastpm_solver_add_species(snapshot, FASTPM_SPECIES_NCDM, ncdm);
 
         fastpm_set_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
 
-        FastPMStore * cdm = fastpm_solver_get_species(snapshot, FASTPM_SPECIES_CDM);
         fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", cdm->meta.a_x, cdm->meta.a_v);
         fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
         fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_rate(fastpm, aout[iout]), aout[iout]);

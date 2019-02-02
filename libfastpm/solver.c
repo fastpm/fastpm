@@ -519,7 +519,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 double aout) {
-    memcpy(snapshot, fastpm, sizeof(FastPMSolver));
 
     int si;
     for (si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
@@ -528,7 +527,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
         p  = fastpm_solver_get_species(fastpm, si);
         po = fastpm_solver_get_species(snapshot, si);
 
-        if(!p) { continue; }
+        if(!p || !po) { continue; }
 
         fastpm_set_species_snapshot(fastpm, p, drift, kick, po, aout);
     }
@@ -548,7 +547,7 @@ fastpm_unset_snapshot(FastPMSolver * fastpm,
         p  = fastpm_solver_get_species(fastpm, si);
         po = fastpm_solver_get_species(snapshot, si);
 
-        if(!p) { continue; }
+        if(!p || !po) { continue; }
 
         fastpm_unset_species_snapshot(fastpm, p, drift, kick, po, aout);
     }
@@ -567,10 +566,7 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     PM * pm = fastpm->basepm;
     int np = p->np;
 
-    fastpm_store_init(po, p->name, p->np_upper,
-        0,
-        FASTPM_MEMORY_HEAP
-    );
+    memcpy(po, p, sizeof(FastPMStore));
 
     /* steal columns, but velocity, since we need to use old velocity
      * during the drift */
@@ -666,7 +662,6 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* Stop faking the attributes */
     po->attributes = 0;
 
-    fastpm_store_destroy(po);
 }
 
 double
