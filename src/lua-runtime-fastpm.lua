@@ -33,7 +33,8 @@ function schema.output_redshifts.action(output_redshifts)
     end
 end
 
-schema.declare{name='omega_m',           type='number', required=true, default=0.3 }
+schema.declare{name='omega_m',           type='number', required=true, default=0.3, help='cdm + baryon density parameter at z=0'}
+schema.declare{name='omega_ncdm',           type='number', required=false, default=0.0, help='ncdm density parameter at z=0'}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
