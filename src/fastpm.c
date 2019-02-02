@@ -242,6 +242,9 @@ report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr);
 static void 
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
+static void 
+prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+
 static void
 report_memory(MPI_Comm);
 
@@ -258,6 +261,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     CLOCK(init);
     CLOCK(ic);
+    CLOCK(ncdmic);
     CLOCK(evolve);
     CLOCK(io);
     CLOCK(sort);
@@ -265,7 +269,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     const double M0 = CONF(prr->lua, omega_m) * FASTPM_CRITICAL_DENSITY
                     * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
-    fastpm_info("mass of a particle is %g 1e10 Msun/h\n", M0);
+    fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
     MPI_Barrier(comm);
     ENTER(init);
@@ -325,6 +329,10 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     prepare_ic(fastpm, prr, comm);
     LEAVE(ic);
 
+    ENTER(ncdmic);
+    prepare_ncdm(fastpm, prr, comm);
+    LEAVE(ncdmic);
+
     /* FIXME: subsample all species -- probably need different fraction for each species */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
     fastpm_store_fill_subsample_mask(p, CONF(prr->lua, particle_fraction), p->mask, comm);
@@ -351,6 +359,14 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     fastpm_lc_destroy(lc);
 
+    {
+        /* destroy ncdm if allocated */
+        FastPMStore * ncdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM);
+        if(ncdm) {
+            fastpm_store_destroy(ncdm);
+            free(ncdm);
+        }
+    }
     fastpm_solver_destroy(fastpm);
 
     report_memory(comm);
@@ -595,6 +611,48 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     pm_free(fastpm->basepm, delta_k);
 }
 
+static void 
+prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
+{
+    if(CONF(prr->lua, omega_ncdm) == 0) return;
+
+    FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
+    double m_ncdm[3] = {0.15, 0.02, 0.01};
+    int n_ncdm = 1;
+    int n_shell = 10;
+    int n_side = 2;
+
+    FastPMncdmInitData* nid = fastpm_ncdm_init_create(
+            CONF(prr->lua, boxsize),
+            m_ncdm, n_ncdm, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side);
+
+    int every = 4;
+
+    size_t nc = CONF(prr->lua, nc) / every;
+
+    if (CONF(prr->lua, nc) % every != 0) {
+        fastpm_raise(-1, "TODO: check this in parameter file. ");
+    }
+
+    size_t total_np_ncdm = (nc * nc * nc) * nid->n_split;
+
+    FastPMStore * ncdm = malloc(sizeof(FastPMStore));
+    fastpm_store_init_evenly(ncdm,
+          fastpm_species_get_name(FASTPM_SPECIES_NCDM),
+          total_np_ncdm,
+          cdm->attributes | COLUMN_MASS,
+          fastpm->config->alloc_factor,
+          comm);
+
+    fastpm_solver_add_species(fastpm, 
+                              FASTPM_SPECIES_NCDM, 
+                              ncdm);
+
+    fastpm_split_ncdm(nid, cdm, ncdm, every, comm);
+
+    fastpm_ncdm_init_free(nid);
+}
 static void
 _usmesh_ready_handler_free(void * userdata) {
     struct usmesh_ready_handler_data * data = userdata;
