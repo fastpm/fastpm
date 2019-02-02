@@ -242,6 +242,7 @@ fastpm_ncdm_init_create(
 
     nid->n_ncdm = n_ncdm;
     nid->z = z;
+    fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;
     nid->n_side = n_side;
 
@@ -389,7 +390,8 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
 
             for(d = 0; d < 3; d ++){
-                dest->v[r][d] += nid->vel[j][d];
+                /* conjugate momentum unit */
+                dest->v[r][d] += nid->vel[j][d] / (1 + nid->z) / HubbleConstant;
             }
             r ++;
         }
