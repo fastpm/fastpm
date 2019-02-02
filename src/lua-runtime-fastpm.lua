@@ -289,7 +289,7 @@ function fastpm.logspace(a, e, N)
 -- a and end are in log10.
 -- Returns N+1 elements, including e.
     local r
-    r = linspace(a, e, N)
+    r = fastpm.linspace(a, e, N)
     for i, j in pairs(r) do
         r[i] = math.pow(10, j)
     end
