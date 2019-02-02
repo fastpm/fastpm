@@ -13,7 +13,7 @@ FASTPM_BEGIN_DECLS
 enum FastPMSpecies {
     FASTPM_SPECIES_BARYON = 0,
     FASTPM_SPECIES_CDM = 1,
-    FASTPM_SPECIES_NCDM = 4,
+    FASTPM_SPECIES_NCDM = 2,
 };
 
 const char *

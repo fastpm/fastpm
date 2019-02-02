@@ -181,17 +181,17 @@ write_snapshot_header(FastPMSolver * fastpm,
     double MassTable[6] = {
                 baryon?baryon->meta.M0:0,
                 cdm->meta.M0,
+                ncdm?ncdm->meta.M0:0,
                 0,
                 0, 
-                ncdm?ncdm->meta.M0:0,
                 0};
 
     uint64_t TotNumPart[6] = {
             baryon?fastpm_store_get_np_total(baryon, comm):0,
             fastpm_store_get_np_total(cdm, comm),
-            0,
-            0,
             ncdm?fastpm_store_get_np_total(ncdm, comm):0,
+            0,
+            0,
             0};
 
     /* FIXME: move some of these to fastpm.c; see if we can reduce the number of entries in fastpm->config. */

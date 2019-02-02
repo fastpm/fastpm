@@ -94,12 +94,12 @@ const char *
 fastpm_species_get_name(enum FastPMSpecies species)
 {
     switch(species) {
+        case FASTPM_SPECIES_BARYON:
+            return "0";
         case FASTPM_SPECIES_CDM:
             return "1";
         case FASTPM_SPECIES_NCDM:
-            return "4";
-        case FASTPM_SPECIES_BARYON:
-            return "0";
+            return "2";
     }
     return "UNKNOWN";
 }
