@@ -618,10 +618,13 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 
     FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
-    double m_ncdm[3] = {0.15, 0.02, 0.01};
-    int n_ncdm = 1;
-    int n_shell = 10;
-    int n_side = 2;
+    int n_ncdm = CONF(prr->lua, n_ncdm);
+    double m_ncdm[3];
+    for (int i = 0; i <= n_ncdm; i ++){
+        m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
+    }
+    int n_shell = CONF(prr->lua, n_shell);
+    int n_side = CONF(prr->lua, n_side);
 
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
