@@ -620,7 +620,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 
     int n_ncdm = CONF(prr->lua, n_ncdm);
     double m_ncdm[3];
-    for (int i = 0; i <= n_ncdm; i ++){
+    for (int i = 0; i < n_ncdm; i ++){
         m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
     }
     int n_shell = CONF(prr->lua, n_shell);
