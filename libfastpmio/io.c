@@ -324,6 +324,7 @@ fastpm_store_write(FastPMStore * p,
         DEFINE_COLUMN_IO("Rdisp",           "f4", rdisp),
         DEFINE_COLUMN_IO("Vdisp",           "f4", vdisp),
         DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
+        DEFINE_COLUMN_IO("Mass",            "f4", mass),
         {NULL, },
     };
     int64_t size = fastpm_store_get_np_total(p, comm);
