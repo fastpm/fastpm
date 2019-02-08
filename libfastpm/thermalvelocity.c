@@ -97,7 +97,7 @@ double fermi_dirac_dispersion(double x, void * params)
 
 
 
-void divide_fd(double *vel_table, double *mass, int n_shells, char lvk)
+void divide_fd(double *vel_table, double *mass, int n_shells, int lvk)
 {
     double fermi_dirac_vel_ncdm[LENGTH_FERMI_DIRAC_TABLE];
     double fermi_dirac_cdf_ncdm[LENGTH_FERMI_DIRAC_TABLE]; //stores CDF
