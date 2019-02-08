@@ -39,7 +39,6 @@ schema.declare{name='h',                 type='number', required=true, default=0
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential',   type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
-schema.declare{name='n_ncdm',   type='number', required=false, default=1, help="Number of ncdm particles."}
 schema.declare{name='m_ncdm',   type='array:number', required=false, default={0.15,0.,0.}, help="Mass of ncdm particles."}
 schema.declare{name='n_shell',   type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
 schema.declare{name='lvk',   type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}

@@ -618,7 +618,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 
     FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
-    int n_ncdm = CONF(prr->lua, n_ncdm);
+    int n_ncdm = CONF(prr->lua, n_m_ncdm);
     double m_ncdm[3];
     for (int i = 0; i < n_ncdm; i ++){
         m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];

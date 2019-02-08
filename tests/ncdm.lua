@@ -22,8 +22,7 @@ omega_ncdm = 0.001404
 h       = 0.6774
 
 --ncdm split
-m_ncdm = {0.15, 0., 0.}
-n_ncdm = 1
+m_ncdm = {0.15}
 n_shell = 10
 n_side = 1
 lvk = False
