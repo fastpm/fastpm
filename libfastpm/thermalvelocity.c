@@ -97,7 +97,7 @@ double fermi_dirac_dispersion(double x, void * params)
 
 
 
-void divide_fd(double *vel_table, double *mass, int n_shells)
+void divide_fd(double *vel_table, double *mass, int n_shells, char lvk)
 {
     double fermi_dirac_vel_ncdm[LENGTH_FERMI_DIRAC_TABLE];
     double fermi_dirac_cdf_ncdm[LENGTH_FERMI_DIRAC_TABLE]; //stores CDF
@@ -110,7 +110,10 @@ void divide_fd(double *vel_table, double *mass, int n_shells)
         = gsl_integration_workspace_alloc (1000);
 
     gsl_function F,G,H;
-    F.function = &low_vel_kernel;
+    if(lvk)
+        F.function = &low_vel_kernel;
+    else
+        F.function = &fermi_dirac_kernel;
     G.function = &fermi_dirac_kernel;
     H.function = &fermi_dirac_dispersion;
 
@@ -228,7 +231,8 @@ fastpm_ncdm_init_create(
     int n_ncdm,
     double z,
     int n_shells,
-    int n_side)
+    int n_side,
+    int lvk)
 {
     FastPMncdmInitData* nid = malloc(sizeof(nid[0]));
 
@@ -276,6 +280,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     int n_shells = nid->n_shells;
     int n_side = nid->n_side;
     int n_ncdm = nid->n_ncdm;
+    int lvk = nid->lvk;
     
     double *vel_table, *vec_table, *masstab;
     vel_table = malloc(sizeof(double)*n_shells);
@@ -283,7 +288,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     masstab = calloc(n_shells,sizeof(double));
     vec_table = malloc(sizeof(double)*12*n_side*n_side*3);
     
-    divide_fd(vel_table,masstab,n_shells);
+    divide_fd(vel_table,masstab,n_shells,lvk);
 
     divide_sphere_healpix(vec_table,n_side);
 

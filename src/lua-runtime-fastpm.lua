@@ -42,6 +42,7 @@ schema.declare{name='compute_potential',   type='boolean', required=false, defau
 schema.declare{name='n_ncdm',   type='number', required=false, default=1, help="Number of ncdm particles."}
 schema.declare{name='m_ncdm',   type='array:number', required=false, default={0.15,0.,0.}, help="Mass of ncdm particles."}
 schema.declare{name='n_shell',   type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
+schema.declare{name='lvk',   type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}
 schema.declare{name='n_side',   type='number', required=false, default=2, help="Number of sides in HEALPix split."}
 schema.declare{name='every_ncdm',   type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
 

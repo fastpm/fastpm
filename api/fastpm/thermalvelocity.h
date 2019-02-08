@@ -12,6 +12,7 @@ typedef struct FastPMncdmInitData{
     double z;   /* initialization redshift of ncdm species */
 
     int n_shells;
+    int lvk;    /* bool: switch on low velocity kernel? */
 
     union {
         int n_side; /* for healpix splits */
@@ -25,7 +26,7 @@ typedef struct FastPMncdmInitData{
 } FastPMncdmInitData;
 
 FastPMncdmInitData *
-fastpm_ncdm_init_create(double BoxSize, double m_ncdm[3], int n_ncdm, double z, int n_shells, int n_side);
+fastpm_ncdm_init_create(double BoxSize, double m_ncdm[3], int n_ncdm, double z, int n_shells, int n_side, int lvk);
 
 void
 fastpm_ncdm_init_free(FastPMncdmInitData* nid);

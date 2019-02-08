@@ -11,9 +11,10 @@ boxsize = 1024
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
 --time_step = linspace(0.1, 1, 10)
-time_step = logspace(-1, 0, 10)
+--time_step = linspace(0.01, 0.02, 10)
+time_step = linspace(0.01, 0.02, 10)
 
-output_redshifts= {9.0, 0.5, 0.0}  -- redshifts of output
+output_redshifts= {99.0, 49.}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 0.307494
@@ -24,8 +25,9 @@ h       = 0.6774
 m_ncdm = {0.15, 0., 0.}
 n_ncdm = 1
 n_shell = 10
-n_side = 4
-every = 1
+n_side = 1
+lvk = False
+every_ncdm = 1
 
 -- Start with a linear density field
 -- Power spectrum of the linear density field: k P(k) in Mpc/h units
