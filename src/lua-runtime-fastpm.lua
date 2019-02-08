@@ -43,6 +43,7 @@ schema.declare{name='n_ncdm',   type='number', required=false, default=1, help="
 schema.declare{name='m_ncdm',   type='array:number', required=false, default={0.15,0.,0.}, help="Mass of ncdm particles."}
 schema.declare{name='n_shell',   type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
 schema.declare{name='n_side',   type='number', required=false, default=2, help="Number of sides in HEALPix split."}
+schema.declare{name='every_ncdm',   type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
 
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}

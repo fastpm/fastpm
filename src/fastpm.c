@@ -625,12 +625,13 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     }
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
-
+    int every = CONF(prr->lua, every_ncdm);;
+    
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
             m_ncdm, n_ncdm, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side);
 
-    int every = 4;
+  
 
     size_t nc = CONF(prr->lua, nc) / every;
 

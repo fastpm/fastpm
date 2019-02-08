@@ -3,7 +3,7 @@
 
 -- For Testing
 nc = 128
-boxsize = 1024 / 4
+boxsize = 1024
 
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
@@ -24,7 +24,8 @@ h       = 0.6774
 m_ncdm = {0.15, 0., 0.}
 n_ncdm = 1
 n_shell = 10
-n_side = 2
+n_side = 4
+every = 1
 
 -- Start with a linear density field
 -- Power spectrum of the linear density field: k P(k) in Mpc/h units

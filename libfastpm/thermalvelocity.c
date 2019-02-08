@@ -390,8 +390,8 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
 
             for(d = 0; d < 3; d ++){
-                /* conjugate momentum unit */
-                dest->v[r][d] += nid->vel[j][d] / (1 + nid->z) / HubbleConstant;
+                /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
+                dest->v[r][d] = nid->vel[j][d] / (1 + nid->z) / HubbleConstant;
             }
             r ++;
         }
