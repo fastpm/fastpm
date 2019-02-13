@@ -625,7 +625,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     }
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
-    char lvk = CONF(prr->lua, lvk);
+    int lvk = CONF(prr->lua, lvk);
     int every = CONF(prr->lua, every_ncdm);
     
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(

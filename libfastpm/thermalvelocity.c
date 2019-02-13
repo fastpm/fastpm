@@ -244,6 +244,7 @@ fastpm_ncdm_init_create(
         nid->m_ncdm_sum += nid->m_ncdm[i];
     }
 
+    nid->lvk = lvk;
     nid->n_ncdm = n_ncdm;
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
