@@ -1335,7 +1335,7 @@ take_a_snapshot(FastPMSolver * fastpm, Parameters * prr)
         }
 
         LEAVE(io);
-        fastpm_info("snapshot %s [%s] written at z = %6.4f z = %6.4f \n", filebase, "1", z_out, aout);
+        fastpm_info("snapshot %s [%s] written at z = %6.4f a = %6.4f \n", filebase, "1", z_out, aout);
     }
 
     if(CONF(prr->lua, write_fof)) {
@@ -1355,7 +1355,7 @@ take_a_snapshot(FastPMSolver * fastpm, Parameters * prr)
 
         LEAVE(io);
 
-        fastpm_info("fof %s [%s] written at z = %6.4f z = %6.4f \n", filebase, halos->name, z_out, aout);
+        fastpm_info("fof %s [%s] written at z = %6.4f a = %6.4f \n", filebase, halos->name, z_out, aout);
 
         fastpm_store_destroy(halos);
     }
