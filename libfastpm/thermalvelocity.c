@@ -352,10 +352,10 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
 
     fastpm_store_init(sub,
                       src->name,
-                      (src->np * 2 / every / every / every),
+                      (src->np * 2 / every / every / every),  //2 to deal with proc imbalance
                       src->attributes,
                       FASTPM_MEMORY_FLOATING);
-
+    
     fastpm_store_subsample(src, mask, sub);
 
     dest->np = sub->np * nid->n_split;    //remove once store init does this?
@@ -396,7 +396,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
 
             for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
-                dest->v[r][d] = nid->vel[j][d] / (1 + nid->z) / HubbleConstant;
+                dest->v[r][d] = nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
             }
             r ++;
         }
