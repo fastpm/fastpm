@@ -355,8 +355,13 @@ int pm_ipos_to_rank(PM * pm, int i[3]) {
     int rank2d[2];
     for(d = 0; d < 2; d ++) {
         int ipos = i[d];
-        while(UNLIKELY(ipos < 0)) ipos += pm->Nmesh[d];
-        while(UNLIKELY(ipos >= pm->Nmesh[d])) ipos -= pm->Nmesh[d];
+        if(UNLIKELY(ipos < 0)) {
+            ipos = ipos % pm->Nmesh[d];
+            if(ipos < 0) { ipos += pm->Nmesh[0]; }
+        }
+        if(UNLIKELY(ipos >= pm->Nmesh[d])) {
+            ipos = ipos % pm->Nmesh[d];
+        }
         rank2d[d] = pm->Grid.MeshtoCart[d][ipos];
     }
     return rank2d[0] * pm->Nproc[1] + rank2d[1];
