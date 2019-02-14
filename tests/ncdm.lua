@@ -25,7 +25,7 @@ h       = 0.6774
 m_ncdm = {0.15}
 n_shell = 10
 n_side = 1
-lvk = False
+lvk = false
 every_ncdm = 1
 
 -- Start with a linear density field
