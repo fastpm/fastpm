@@ -148,8 +148,8 @@ int main(int argc, char ** argv) {
 
 #ifdef _OPENMP
     /* because lua lib may read this */
-    if(prr->cli->MaxThreads > 0)
-        omp_set_num_threads(prr->cli->MaxThreads);
+    if(cli->MaxThreads > 0)
+        omp_set_num_threads(cli->MaxThreads);
 #endif
 
     LUAParameters * lua = parse_config_mpi(cli->argv[0], cli->argc, cli->argv, &error, comm);
