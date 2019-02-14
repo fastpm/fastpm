@@ -145,6 +145,13 @@ int main(int argc, char ** argv) {
 
     char * error;
     CLIParameters * cli = parse_cli_args_mpi(argc, argv, comm);
+
+#ifdef _OPENMP
+    /* because lua lib may read this */
+    if(prr->cli->MaxThreads > 0)
+        omp_set_num_threads(prr->cli->MaxThreads);
+#endif
+
     LUAParameters * lua = parse_config_mpi(cli->argv[0], cli->argc, cli->argv, &error, comm);
 
     Parameters prr[1] = {{cli, lua}};
@@ -156,11 +163,6 @@ int main(int argc, char ** argv) {
         MPI_Finalize();
         exit(1);
     }
-
-#ifdef _OPENMP
-    if(prr->cli->MaxThreads > 0)
-        omp_set_num_threads(prr->cli->MaxThreads);
-#endif
 
     libfastpm_set_memory_bound(prr->cli->MemoryPerRank * 1024 * 1024);
     fastpm_memory_set_handlers(_libfastpm_get_gmem(), NULL, _memory_peak_handler, &comm);
