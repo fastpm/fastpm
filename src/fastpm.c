@@ -340,8 +340,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     FastPMUSMesh * usmesh = NULL;
     FastPMSMesh * smesh = NULL;
 
-    prepare_lc(fastpm, prr, lc, &usmesh, &smesh);
-
+    if(CONF(prr->lua, lc_write_usmesh) || CONF(prr->lua, lc_write_smesh)) {
+        prepare_lc(fastpm, prr, lc, &usmesh, &smesh);
+    }
 
     MPI_Barrier(comm);
     ENTER(evolve);
@@ -357,7 +358,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     free(smesh);
     free(usmesh);
 
-    fastpm_lc_destroy(lc);
+    if(CONF(prr->lua, lc_write_usmesh) || CONF(prr->lua, lc_write_smesh)) {
+        fastpm_lc_destroy(lc);
+    }
 
     {
         /* destroy ncdm if allocated */
