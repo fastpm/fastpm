@@ -1,0 +1,21 @@
+#    To create the anaconda environment
+#
+#    conda create -n cfastpm-dev
+#    conda activate cfastpm-dev
+#
+#    conda install -c bccp mpich gcc_linux-64 gsl
+#    conda activate cfastpm-dev
+#
+# Rename this file to Makefile.local.
+
+CC=mpicc
+OPENMP = #-fopenmp
+CPPFLAGS = -DFASTPM_FFT_PRECISION=64 -DHAS_BACKTRACE -Wall -Wno-unused-result -Wno-implicit-fallthrough -Werror -Wno-unknown-pragmas -DENABLE_VALGRIND
+CFLAGS = $(CFLAGS_DEBUG)
+#LDFLAGS = -g $(LDFLAGS)
+#OPTIMIZE ?= -O3 -Ofast -g
+OPTIMIZE ?= -O0 -g -fno-builtin -march=native 
+GSL_LIBS = -lgsl -lgslcblas
+
+PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx --enable-avx2
+PFFT_CFLAGS=-ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -pipe

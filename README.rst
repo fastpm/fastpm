@@ -140,9 +140,8 @@ Source Code Installation
 ------------------------
 
 FastPM works out-of-the-box on many GNU/Linux and compatible systems.
-Notably the development is performed on a Cray system, a Fedora Workstation,
-and the integrated continuous integration tests are performed on a Ubuntu
-based Linux distribution.
+The integrated continuous integration tests are performed on a Ubuntu
+based Linux distribution via Travis-ci.org.
 
 The recommended compiler is `gcc`. FastPM is built with the GNU `make` tool.
 
@@ -186,7 +185,7 @@ Anaconda is a popular Python distribution that provides portable
 binary distributions of software on most x86-64 and Linux platforms.
 FastPM compiles cleanly under the MPI provided by Anaconda.
 
-Binaries for Linux-64 and OSX-64 are provides. Sorry we do not have
+Binaries for Linux-64 and OSX-64 are provided. Sorry we do not have
 enough expertise on Windows builds.
 
 The following command will install FastPM and nbodykit to the cfastpm
@@ -210,6 +209,26 @@ mpich2 package. Most problems we solve with FastPM are small enough
 that hybrid with threads is not necessary; for real large problems
 we likely will need to recompiler from source code on the super-computer
 anyways.
+
+Anaconda Development Environment
+--------------------------------
+
+The current development is mainly performed on a Anaconda Linux-64 environment.
+
+The following command creates the conda environment for development.
+
+Notice that we install Anaconda's generic linux-64 gcc compiler and use the mpich
+provided by the BCCP channel, which is a special version of mpich-3.2 that produces
+correct binaries with the anaconda compiler.
+
+.. code::
+
+    conda create -n cfastpm
+    conda activate cfastpm
+
+    conda install -c bccp mpich gcc_linux-64 gsl
+
+Please also refer to the file Makefile.dev.example.
 
 Docker
 ------
