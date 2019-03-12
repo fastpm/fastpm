@@ -49,5 +49,5 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 write_snapshot= "ncdm/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
 write_powerspectrum = "ncdm/powerspec"
-write_fof = "ncdm/fastpm"
+-- write_fof = "ncdm/fastpm"
 
