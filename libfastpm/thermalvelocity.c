@@ -345,7 +345,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     */
 
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
-    uint32_t * mask = fastpm_memory_alloc(src->mem, "every-mask", sizeof(mask[0]) * src->np, FASTPM_MEMORY_FLOATING);
+    FastPMParticleMaskType * mask = fastpm_memory_alloc(src->mem, "every-mask", sizeof(mask[0]) * src->np, FASTPM_MEMORY_FLOATING);
 
     fastpm_store_fill_subsample_mask_every_dim(src, every, mask);
 

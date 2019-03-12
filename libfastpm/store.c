@@ -190,7 +190,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(potential, COLUMN_POTENTIAL, "f4", 1);
     DEFINE_COLUMN(tidal, COLUMN_TIDAL, "f4", 6);
     DEFINE_COLUMN(id, COLUMN_ID, "i8", 1);
-    DEFINE_COLUMN(mask, COLUMN_MASK, "i4", 1);
+    DEFINE_COLUMN(mask, COLUMN_MASK, "i1", 1);
     DEFINE_COLUMN(minid, COLUMN_MINID, "i8", 1);
     DEFINE_COLUMN(task, COLUMN_TASK, "i4", 1);
     DEFINE_COLUMN(length, COLUMN_LENGTH, "i4", 1);
@@ -893,7 +893,7 @@ fastpm_store_append(FastPMStore * p, FastPMStore * po)
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        uint32_t * mask,
+        FastPMParticleMaskType * mask,
         MPI_Comm comm)
 {
     gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -926,7 +926,7 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 void
 fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
                                               int every, /* take 1 every 'every' per dimension */
-                                              uint32_t * mask)
+                                              FastPMParticleMaskType * mask)
 {
     memset(mask, 0, p->np * sizeof(mask[0]));
 
@@ -950,7 +950,7 @@ fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
  * if po is NULL, only return number of items.
  * */
 size_t
-fastpm_store_subsample(FastPMStore * p, uint32_t * mask, FastPMStore * po)
+fastpm_store_subsample(FastPMStore * p, FastPMParticleMaskType * mask, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;

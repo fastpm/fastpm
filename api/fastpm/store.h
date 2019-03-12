@@ -6,6 +6,8 @@
 
 FASTPM_BEGIN_DECLS
 
+typedef uint8_t FastPMParticleMaskType;
+
 /*
  * A solver has multiple particle species;
  * the species names are defined here.
@@ -92,7 +94,7 @@ struct FastPMStore {
     union {
         char * columns[32];
         struct {
-            uint32_t * mask;
+            FastPMParticleMaskType * mask;
             double (* x)[3];
             float (* q)[3];
             float (* v)[3];  
@@ -222,16 +224,16 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        uint32_t * mask,
+        FastPMParticleMaskType * mask,
         MPI_Comm comm);
 
 void
 fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
                                               int every,
-                                              uint32_t * mask);
+                                              FastPMParticleMaskType * mask);
 
 size_t
-fastpm_store_subsample(FastPMStore * in, uint32_t * mask, FastPMStore * out);
+fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit_sorted(FastPMStore * store,

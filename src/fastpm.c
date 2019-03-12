@@ -1144,7 +1144,7 @@ _halos_ready (FastPMFOFFinder * finder,
     double rmin = *((double*) userdata[0]);
     double halosize = *((double*) userdata[1]);
     FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
-    char * keep_for_tail = (char *) userdata[3];
+    FastPMParticleMaskType * keep_for_tail = (FastPMParticleMaskType *) userdata[3];
     FastPMStore * halos = event->halos;
     FastPMStore * p = event->p;
 
@@ -1214,7 +1214,8 @@ run_usmesh_fof(FastPMSolver * fastpm,
     fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/
-    uint32_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", sizeof(keep_for_tail[0]) * lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
+    FastPMParticleMaskType * keep_for_tail = fastpm_memory_alloc(p->mem, "keep",
+                                    sizeof(keep_for_tail[0]) * lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
 
     ENTER(fof);
 
