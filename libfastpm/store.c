@@ -287,10 +287,14 @@ fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumn
         plan->_ci[i] = ci;
         plan->_offsets[ci] = plan->elsize;
         ptrdiff_t elsize = p->_column_info[ci].elsize;
-        if(elsize < 4) elsize = 4;
         plan->elsize += elsize;
         plan->_column_info[ci] = p->_column_info[ci];
         i++;
+    }
+    /* Pad the elsize to 8 bytes. This ensures anything goes to the MPI wire is 8 byte aligned,
+     * and minimizes the chances of hitting an implementation bug. */
+    if (plan->elsize % 8 != 0) {
+        plan->elsize += (8 - plan->elsize % 8);
     }
     plan->Ncolumns = i;
 }
