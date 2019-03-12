@@ -1095,7 +1095,10 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         /* mostly the original solver, but with two species replaced */
         memcpy(snapshot, fastpm, sizeof(FastPMSolver));
         fastpm_solver_add_species(snapshot, FASTPM_SPECIES_CDM, cdm);
-        fastpm_solver_add_species(snapshot, FASTPM_SPECIES_NCDM, ncdm);
+
+        if(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM)) {
+            fastpm_solver_add_species(snapshot, FASTPM_SPECIES_NCDM, ncdm);
+        }
 
         fastpm_set_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
 
