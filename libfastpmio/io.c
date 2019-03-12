@@ -107,8 +107,8 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
         localsize = p->np;
     }
 
-    void * send_buffer = malloc(elsize * p->np);
-    void * recv_buffer = malloc(elsize * localsize);
+    char * send_buffer = malloc(elsize * p->np);
+    char * recv_buffer = malloc(elsize * localsize);
     ptrdiff_t i;
 
     FastPMStore ptmp[1];
