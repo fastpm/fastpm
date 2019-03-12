@@ -286,7 +286,9 @@ fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumn
         if (!(p->_column_info[ci].attribute & attributes)) continue;
         plan->_ci[i] = ci;
         plan->_offsets[ci] = plan->elsize;
-        plan->elsize += p->_column_info[ci].elsize;
+        ptrdiff_t elsize = p->_column_info[ci].elsize;
+        if(elsize < 4) elsize = 4;
+        plan->elsize += elsize;
         plan->_column_info[ci] = p->_column_info[ci];
         i++;
     }
