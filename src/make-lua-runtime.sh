@@ -2,7 +2,7 @@
 
 produce_source () {
     # if xxd is not found, die; most sane systems have xxd.
-    xxd -i $1 || exit 1
+    xxd -i $1 || echo "You need the command xxd (installed with vim) to run this" >&2 && return 1
 }
 produce_open () {
     local fn=$1
@@ -34,7 +34,7 @@ cat <<EOF
 EOF
 # definition of scripts
 for script in $*; do
-    produce_source $script
+    produce_source $script || exit
 done
 
 
