@@ -1147,7 +1147,7 @@ _halos_ready (FastPMFOFFinder * finder,
 
     ptrdiff_t i;
 
-    uint8_t * halos_established = malloc(halos->np);
+    uint32_t * halos_established = malloc(halos->np * sizeof(halos_established[0]));
     fastpm_info("halos_ready sees %td halos\n", halos->np);
     for(i = 0; i < halos->np; i ++) {
         double r = fastpm_lc_distance(lc, halos->x[i]);
@@ -1211,7 +1211,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
     fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/
-    uint8_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
+    uint32_t * keep_for_tail = fastpm_memory_alloc(p->mem, "keep", sizeof(keep_for_tail[0]) * lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
 
     ENTER(fof);
 

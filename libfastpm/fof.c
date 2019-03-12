@@ -449,7 +449,7 @@ periodic_add(double x, double wx, double y, double wy, double L)
  * relable head, and halo->id
  * */
 static void
-fastpm_fof_subsample(FastPMFOFFinder * finder, FastPMStore * halos, uint8_t * mask, ptrdiff_t * head)
+fastpm_fof_subsample(FastPMFOFFinder * finder, FastPMStore * halos, uint32_t * mask, ptrdiff_t * head)
 {
     /* mapping goes from the old head[i] value to the new head[i] value */
     ptrdiff_t * mapping = fastpm_memory_alloc(finder->p->mem, "FOFMapping", sizeof(mapping[0]) * halos->np, FASTPM_MEMORY_STACK);
@@ -484,7 +484,7 @@ fastpm_fof_apply_length_cut(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
 {
     MPI_Comm comm = finder->priv->comm;
 
-    uint8_t * mask = fastpm_memory_alloc(finder->p->mem, "LengthMask", sizeof(mask[0]) * halos->np, FASTPM_MEMORY_STACK);
+    uint32_t * mask = fastpm_memory_alloc(finder->p->mem, "LengthMask", sizeof(mask[0]) * halos->np, FASTPM_MEMORY_STACK);
     ptrdiff_t i;
     for(i = 0; i < halos->np; i ++) {
         /* remove halos that are shorter than nmin */

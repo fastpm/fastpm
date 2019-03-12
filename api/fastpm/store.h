@@ -92,7 +92,7 @@ struct FastPMStore {
     union {
         char * columns[32];
         struct {
-            uint8_t * mask;
+            uint32_t * mask;
             double (* x)[3];
             float (* q)[3];
             float (* v)[3];  
@@ -222,16 +222,16 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        uint8_t * mask,
+        uint32_t * mask,
         MPI_Comm comm);
 
 void
 fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
                                               int every,
-                                              uint8_t * mask);
+                                              uint32_t * mask);
 
 size_t
-fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
+fastpm_store_subsample(FastPMStore * in, uint32_t * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit_sorted(FastPMStore * store,

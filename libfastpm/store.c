@@ -893,7 +893,7 @@ fastpm_store_append(FastPMStore * p, FastPMStore * po)
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        uint8_t * mask,
+        uint32_t * mask,
         MPI_Comm comm)
 {
     gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -911,7 +911,7 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 
     gsl_rng_set(random_generator, seed);
 
-    memset(mask, 0, p->np);
+    memset(mask, 0, p->np * sizeof(mask[0]));
 
     ptrdiff_t i;
     for(i=0; i < p->np; i++) {
@@ -926,9 +926,9 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 void
 fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
                                               int every, /* take 1 every 'every' per dimension */
-                                              uint8_t * mask)
+                                              uint32_t * mask)
 {
-    memset(mask, 0, p->np);
+    memset(mask, 0, p->np * sizeof(mask[0]));
 
     ptrdiff_t i, d;
     for(i = 0; i < p->np; i++) {
@@ -950,7 +950,7 @@ fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
  * if po is NULL, only return number of items.
  * */
 size_t
-fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
+fastpm_store_subsample(FastPMStore * p, uint32_t * mask, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;
