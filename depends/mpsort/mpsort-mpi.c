@@ -301,6 +301,19 @@ MPIU_Scatter (MPI_Comm comm, int root, const void * sendbuffer, void * recvbuffe
 static void *
 MPIU_Gather (MPI_Comm comm, int root, const void * sendbuffer, void * recvbuffer, int nsend, size_t elsize, int * totalnrecv);
 
+static uint64_t
+checksum(void * base, size_t nbytes, MPI_Comm comm)
+{
+    uint64_t sum = 0;
+    char * ptr = base;
+    ptrdiff_t i = 0;
+    for(i = 0; i < nbytes; i ++) {
+        sum += ptr[i];
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG, MPI_SUM, comm);
+    return sum;
+}
+
 void
 mpsort_mpi_newarray (void * mybase, size_t mynmemb, 
         void * myoutbase, size_t myoutnmemb,
@@ -326,6 +339,8 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     struct TIMER * tmr = _TIMERS;
 
     struct SegmentGroupDescr seggrp[1];
+
+    uint64_t sum1 = checksum(mybase, elsize * mynmemb, comm);
 
     int NTask;
     MPI_Comm_size(comm, &NTask);
@@ -411,6 +426,14 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
             free(mysegmentbase);
         if(myoutsegmentbase != myoutbase)
             free(myoutsegmentbase);
+    }
+
+    _destroy_segment_group(seggrp);
+
+    uint64_t sum2 = checksum(myoutbase, elsize * myoutnmemb, comm);
+    if (sum1 != sum2) {
+        fprintf(stderr, "Data changed after sorting; checksum mismatch.\n");
+        abort();
     }
 }
 
