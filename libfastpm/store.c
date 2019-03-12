@@ -190,7 +190,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(potential, COLUMN_POTENTIAL, "f4", 1);
     DEFINE_COLUMN(tidal, COLUMN_TIDAL, "f4", 6);
     DEFINE_COLUMN(id, COLUMN_ID, "i8", 1);
-    DEFINE_COLUMN(mask, COLUMN_MASK, "i1", 1);
+    DEFINE_COLUMN(mask, COLUMN_MASK, "i4", 1);
     DEFINE_COLUMN(minid, COLUMN_MINID, "i8", 1);
     DEFINE_COLUMN(task, COLUMN_TASK, "i4", 1);
     DEFINE_COLUMN(length, COLUMN_LENGTH, "i4", 1);
