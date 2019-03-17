@@ -470,7 +470,8 @@ fastpm_store_decompose(FastPMStore * p,
     fastpm_packing_plan_init(plan, p, p->attributes);
 
     size_t elsize = plan->elsize;
-    size_t Nsend_limit = 32 * 1024 * 1024 / elsize;
+
+    size_t Nsend_limit = 1000 * 1024 * 1024 / elsize;
 
     int NTask, ThisTask;
 
