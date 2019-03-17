@@ -395,9 +395,25 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
 
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
 
-            for(d = 0; d < 3; d ++){
+            //for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
-                dest->v[r][d] = nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
+                
+                
+                
+            //}
+            //FOR TEST: change ncdm position (without this change it would be on top of cdm after 2lpt)
+            
+            //fastpm_store_get_lagrangian_position(sub, i, dest->x[r]);
+
+            double b = 0.1;
+            double x[3], q[3];
+            fastpm_store_get_q_from_id(sub, sub->id[i], q);   
+            fastpm_store_get_position(sub, i, x);                  //use i not id here...?
+            
+            for(d = 0; d < 3; d ++){
+                dest->v[r][d] = b * dest->v[r][d] + nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
+                
+                dest->x[r][d] = q[d] + b * (x[d] - q[d]);
             }
             r ++;
         }
