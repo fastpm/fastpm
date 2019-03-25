@@ -1,8 +1,12 @@
 # bash
-
+if ! which xxd > /dev/null; then
+    echo "No xxd found. install vim" >&2
+    exit 1
+fi
 produce_source () {
     # if xxd is not found, die; most sane systems have xxd.
     xxd -i $1 || echo "You need the command xxd (installed with vim) to run this" >&2 && return 1
+    return 0
 }
 produce_open () {
     local fn=$1
@@ -34,7 +38,7 @@ cat <<EOF
 EOF
 # definition of scripts
 for script in $*; do
-    produce_source $script || exit
+    produce_source $script
 done
 
 
