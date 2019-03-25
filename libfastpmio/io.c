@@ -374,7 +374,7 @@ fastpm_store_write(FastPMStore * p,
         BigBlockPtr ptr;
         char * blockname = fastpm_strdup_printf("%s/%s", dataset, descr->name);
 
-        int Nfile;
+        int Nfile = 1;
 
         switch(mode) {
             case WRITE:
