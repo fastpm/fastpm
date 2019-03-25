@@ -348,7 +348,7 @@ MPIU_stats(MPI_Comm comm,
     double std = sqrt(avg_sq - avg * avg);
 
     int i;
-    int c;
+    int c = 0;
     for(i = 0; i < strlen(fmt); i ++) {
         void * r = va_arg(va, void *);
         int * ir = (int * ) r;
