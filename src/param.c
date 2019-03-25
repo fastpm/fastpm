@@ -9,6 +9,12 @@
 #include "lua-config.h"
 #include "param.h"
 
+static char * _strdup(const char * s)
+{
+    char * rt = malloc(strlen(s) + 1);
+    strcpy(rt, s);
+    return rt;
+}
 extern char * 
 lua_config_parse(char * entrypoint, char * filename, int argc, char ** argv, char ** error);
 
@@ -84,12 +90,13 @@ parse_config(char * filename, int argc, char ** argv, char ** error)
     prr->config = lua_config_new(confstr);
 
     if(lua_config_error(prr->config)) {
-        *error = strdup(lua_config_error(prr->config));
+        const char * err = lua_config_error(prr->config);
+        *error = _strdup(err);
         free(prr);
         return NULL;
     }
 
-    prr->string = strdup(confstr);
+    prr->string = _strdup(confstr);
     free(confstr);
     return prr;
 }
