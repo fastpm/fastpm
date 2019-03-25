@@ -152,19 +152,16 @@ void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
-            double kk_finite = 0.;
+            double kk = 0.;
             for(d = 0; d < 3; d++) {
-                /* Referee says 1 / kk is better than 1 / sin(kk);
-                 *
-                 * In reality kk_finite seems to give a better agreement on
-                 * HMC derivatives. The difference is ~ 0.1%
-                 *
-                 * On large scales this does not matter.
-                 * */
-                /* 2-point Finite differentiation */
-                kk_finite += kiter.kk_finite[d][kiter.iabs[d]];
+                /* 1 / kk gives an IC that agrees with linear theory better
+                 * at intermidiate scales (desi-cosmosim email archives).
+                 * than 1 / sinc(kk) used in original FastPM; */
+
+                /* Naive finite differentiation */
+                kk += kiter.kk[d][kiter.iabs[d]];
             }
-            if(kk_finite == 0)
+            if(kk == 0)
             {
                 to[kiter.ind + 0] = 0;
                 to[kiter.ind + 1] = 0;
@@ -172,8 +169,8 @@ void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to
             else
             {
                 /* 1 / k**2 */
-                to[kiter.ind + 0] =  from[kiter.ind + 0]  / kk_finite;
-                to[kiter.ind + 1] =  from[kiter.ind + 1]  / kk_finite;
+                to[kiter.ind + 0] =  from[kiter.ind + 0]  / kk;
+                to[kiter.ind + 1] =  from[kiter.ind + 1]  / kk;
             }
         }
     }
