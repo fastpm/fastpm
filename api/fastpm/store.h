@@ -42,16 +42,17 @@ typedef enum FastPMColumnTags {
     COLUMN_DENSITY =  1L << 9,
     COLUMN_POTENTIAL =  1L << 10,
     COLUMN_TIDAL     =  1L << 11,
+    COLUMN_PGDC   =  1L << 12,
 
     /* for fof */
-    COLUMN_MINID =  1L << 12,
-    COLUMN_TASK =  1L << 13,
-    COLUMN_LENGTH =  1L << 14,
-    COLUMN_RDISP =  1L << 15,
-    COLUMN_VDISP =  1L << 16,
-    COLUMN_RVDISP =  1L << 17,
+    COLUMN_MINID =  1L << 13,
+    COLUMN_TASK =  1L << 14,
+    COLUMN_LENGTH =  1L << 15,
+    COLUMN_RDISP =  1L << 16,
+    COLUMN_VDISP =  1L << 17,
+    COLUMN_RVDISP =  1L << 18,
     
-    COLUMN_MASS = 1L << 18,
+    COLUMN_MASS = 1L << 19,
 
 } FastPMColumnTags;
 
@@ -106,6 +107,7 @@ struct FastPMStore {
             float (* rho);
             float (* potential);
             float (* tidal)[6];
+            float (* pgdc)[3];
 
             /* for fof */
             uint64_t * minid;

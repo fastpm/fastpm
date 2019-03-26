@@ -72,6 +72,7 @@ fastpm_drift_lookup(FastPMDriftFactor * drift, double af, double * dyyy, double 
 inline void
 fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double af)
 {
+
     double dyyy_f, da1_f, da2_f;
     double dyyy_i, da1_i, da2_i;
     double dyyy, da1, da2;
@@ -104,6 +105,12 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
                 xo[d] += p->dx1[i][d] * da1 + p->dx2[i][d] * da2;
             break;
         }
+        /* if PGDCorrection is enabled, add it */
+        if(p->pgdc) {
+            /* no drift; to protect the pgdc line */
+            if (drift->ai == drift->af) continue;
+            xo[d] += 0.5 * p->pgdc[i][d] * dyyy / drift->dyyy[drift->nsamples-1];
+	}
     }
 }
 static inline void

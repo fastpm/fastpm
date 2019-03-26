@@ -68,6 +68,12 @@ typedef struct {
 
     int NprocY;  /* Use 0 for auto */
     int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
+    int pgdc;
+    double pgdc_alpha0;
+    double pgdc_A;
+    double pgdc_B;
+    double pgdc_kl;
+    double pgdc_ks;
 } FastPMConfig;
 
 #define FASTPM_SOLVER_NSPECIES 6
@@ -86,6 +92,8 @@ typedef struct {
 
     /* input parameters */
     FastPMConfig config[1];
+
+    FastPMPGDCorrection pgdc[1];
 
     /* cosmology */
     FastPMCosmology cosmology[1];
