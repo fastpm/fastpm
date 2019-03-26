@@ -194,7 +194,7 @@ schema.declare{name='lc_glmatrix',     type='array:number',
 
 schema.declare{name='za',                      type='boolean', default=false, help='use ZA initial condition not 2LPT'}
 
-schema.declare{name='kernel_type',             type='enum', default="3_4", help='Force kernel; very little effect.'}
+schema.declare{name='kernel_type',             type='enum', default="gadget", help='Force kernel; very little effect.'}
 schema.kernel_type.choices = {
     ['3_4'] = 'FASTPM_KERNEL_3_4',
     ['5_4'] = 'FASTPM_KERNEL_5_4',
