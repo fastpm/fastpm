@@ -32,6 +32,19 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         .OmegaLambda = 1.0 - config->omega_m,
     };
 
+    if(config->pgdc)
+    {
+        fastpm->pgdc[0] = (FastPMPGDCorrection) {
+	    .PainterType = config->PAINTER_TYPE,
+	    .PainterSupport = config->painter_support,
+	    .alpha0 = config->pgdc_alpha0,
+	    .A = config->pgdc_A,
+	    .B = config->pgdc_B,
+	    .kl = config->pgdc_kl,
+	    .ks = config->pgdc_ks,
+        };
+    }
+
     fastpm->event_handlers = NULL;
 
     PMInit baseinit = {
@@ -322,9 +335,9 @@ fastpm_find_pm(FastPMSolver * fastpm, double a)
 static void
 fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 {
-
     CLOCK(decompose);
     CLOCK(force);
+    CLOCK(pgdc);
     CLOCK(event);
 
     fastpm->pm = fastpm_find_pm(fastpm, trans->a.f);
@@ -375,6 +388,13 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     fastpm_solver_compute_force(fastpm, painter, fastpm->config->DEALIASING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
     LEAVE(force);
 
+    if(p->pgdc) {
+        ENTER(pgdc);
+        /* delta_k is input; unchanged */
+        FastPMPGDCorrection * pgdc = fastpm->pgdc;
+        fastpm_pgdc_calculate(pgdc, pm, p, delta_k, trans->a.f, 1.0);
+        LEAVE(pgdc);
+    }
     ENTER(event);
 
     /* Prepare for the event; apply CIC correction for the painting, such that

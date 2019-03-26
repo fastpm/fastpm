@@ -21,6 +21,7 @@ LIBSOURCES = libfastpm.c \
     utils.c \
     initialcondition.c \
     pngaussian.c \
+    pgdcorrection.c \
     constrainedgaussian.c \
     lightcone-usmesh.c \
     lightcone-smesh.c \

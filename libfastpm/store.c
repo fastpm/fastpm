@@ -190,6 +190,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(potential, COLUMN_POTENTIAL, "f4", 1);
     DEFINE_COLUMN(tidal, COLUMN_TIDAL, "f4", 6);
     DEFINE_COLUMN(id, COLUMN_ID, "i8", 1);
+    DEFINE_COLUMN(pgdc, COLUMN_PGDC, "f4", 3);
     DEFINE_COLUMN(mask, COLUMN_MASK, "i1", 1);
     DEFINE_COLUMN(minid, COLUMN_MINID, "i8", 1);
     DEFINE_COLUMN(task, COLUMN_TASK, "i4", 1);
@@ -209,6 +210,7 @@ fastpm_store_init_details(FastPMStore * p,
 
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(acc).from_double = from_double_f4;
+    COLUMN_INFO(pgdc).from_double = from_double_f4;
     COLUMN_INFO(dx1).from_double = from_double_f4;
     COLUMN_INFO(dx2).from_double = from_double_f4;
     COLUMN_INFO(potential).from_double = from_double_f4;
