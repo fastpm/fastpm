@@ -240,6 +240,13 @@ function schema.set_mode.action (set_mode)
     end
 end
 
+schema.declare{name='pgdc',              type='boolean', default=false, help="if enable pgd correction"}
+schema.declare{name='pgdc_alpha0',           type='number', default=0.8, help="alpha parameter in pgd correction"}
+schema.declare{name='pgdc_A',           type='number', default=4.0, help="alpha parameter in pgd correction"}
+schema.declare{name='pgdc_B',           type='number', default=8.0, help="alpha parameter in pgd correction"}
+schema.declare{name='pgdc_kl',           type='number', default=2.0, help="filter large scale parameter in pgd correction"}
+schema.declare{name='pgdc_ks',           type='number', default=10.0, help="filter small scale parameter in pgd correction"}
+
 function fastpm.translation(dx, dy, dz)
 -- generate a translation gl matrix that shifts the coordinates
     return {

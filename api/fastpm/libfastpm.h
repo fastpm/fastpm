@@ -36,7 +36,13 @@ typedef struct FastPMHorizon FastPMHorizon;
     #error FASTPM_FFT_PRECISION must be 32 or 64
 #endif
 
-typedef enum { FASTPM_FORCE_FASTPM = 0, FASTPM_FORCE_PM, FASTPM_FORCE_COLA, FASTPM_FORCE_2LPT, FASTPM_FORCE_ZA} FastPMForceType;
+typedef enum { FASTPM_FORCE_FASTPM = 0,
+               FASTPM_FORCE_PM,
+               FASTPM_FORCE_COLA,
+               FASTPM_FORCE_2LPT,
+               FASTPM_FORCE_ZA,
+} FastPMForceType;
+
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
                FASTPM_KERNEL_GADGET,
                FASTPM_KERNEL_EASTWOOD,
@@ -72,6 +78,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "initialcondition.h"
 #include "pngaussian.h"
 #include "powerspectrum.h"
+#include "pgdcorrection.h"
 #include "solver.h"
 #include "gravity.h"
 #include "timemachine.h"

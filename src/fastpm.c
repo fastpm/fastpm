@@ -208,10 +208,19 @@ int main(int argc, char ** argv) {
         .NprocY = prr->cli->NprocY,
         .UseFFTW = prr->cli->UseFFTW,
         .ExtraAttributes = 0,
+	.pgdc = CONF(prr->lua, pgdc),
+	.pgdc_alpha0 = CONF(prr->lua, pgdc_alpha0),
+	.pgdc_A = CONF(prr->lua, pgdc_A),
+	.pgdc_B = CONF(prr->lua, pgdc_B),
+	.pgdc_kl = CONF(prr->lua, pgdc_kl),
+	.pgdc_ks = CONF(prr->lua, pgdc_ks),
     };
 
     if(CONF(prr->lua, compute_potential)) {
         config->ExtraAttributes |= COLUMN_POTENTIAL;
+    }
+    if(CONF(prr->lua, pgdc)) {
+        config->ExtraAttributes |= COLUMN_PGDC;
     }
 
     run_fastpm(config, prr, comm);
