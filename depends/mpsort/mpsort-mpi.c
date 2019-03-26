@@ -301,6 +301,19 @@ MPIU_Scatter (MPI_Comm comm, int root, const void * sendbuffer, void * recvbuffe
 static void *
 MPIU_Gather (MPI_Comm comm, int root, const void * sendbuffer, void * recvbuffer, int nsend, size_t elsize, int * totalnrecv);
 
+static uint64_t
+checksum(void * base, size_t nbytes, MPI_Comm comm)
+{
+    uint64_t sum = 0;
+    char * ptr = base;
+    ptrdiff_t i = 0;
+    for(i = 0; i < nbytes; i ++) {
+        sum += ptr[i];
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG, MPI_SUM, comm);
+    return sum;
+}
+
 void
 mpsort_mpi_newarray (void * mybase, size_t mynmemb, 
         void * myoutbase, size_t myoutnmemb,
@@ -326,6 +339,8 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
     struct TIMER * tmr = _TIMERS;
 
     struct SegmentGroupDescr seggrp[1];
+
+    uint64_t sum1 = checksum(mybase, elsize * mynmemb, comm);
 
     int NTask;
     MPI_Comm_size(comm, &NTask);
@@ -411,6 +426,14 @@ mpsort_mpi_newarray (void * mybase, size_t mynmemb,
             free(mysegmentbase);
         if(myoutsegmentbase != myoutbase)
             free(myoutsegmentbase);
+    }
+
+    _destroy_segment_group(seggrp);
+
+    uint64_t sum2 = checksum(myoutbase, elsize * myoutnmemb, comm);
+    if (sum1 != sum2) {
+        fprintf(stderr, "Data changed after sorting; checksum mismatch.\n");
+        abort();
     }
 }
 
@@ -528,8 +551,16 @@ mpsort_mpi_histogram_sort(struct crstruct d, struct crmpistruct o, struct TIMER 
 
     (tmr->time = MPI_Wtime(), strcpy(tmr->name, "START"), tmr++);
 
+    uint64_t sum1 = checksum(o.mybase, d.size * d.nmemb, o.comm);
+
     /* and sort the local array */
     radix_sort(d.base, d.nmemb, d.size, d.radix, d.rsize, d.arg);
+
+    uint64_t sum2 = checksum(o.mybase, d.size * d.nmemb, o.comm);
+    if (sum1 != sum2) {
+        fprintf(stderr, "Data changed after first sort ; checksum mismatch.\n");
+        abort();
+    }
 
     MPI_Barrier(o.comm);
 
@@ -770,11 +801,23 @@ mpsort_mpi_histogram_sort(struct crstruct d, struct crmpistruct o, struct TIMER 
         memcpy(o.myoutbase, buffer, o.myoutnmemb * d.size);
         free(buffer);
     }
+    uint64_t sum3 = checksum(o.myoutbase, d.size * o.myoutnmemb, o.comm);
+
+    if (sum1 != sum3) {
+        fprintf(stderr, "Data changed after communication; checksum mismatch.\n");
+        abort();
+    }
 
     MPI_Barrier(o.comm);
     (tmr->time = MPI_Wtime(), strcpy(tmr->name, "Exchange"), tmr++);
 
     radix_sort(o.myoutbase, o.myoutnmemb, d.size, d.radix, d.rsize, d.arg);
+
+    uint64_t sum4 = checksum(o.myoutbase, d.size * o.myoutnmemb, o.comm);
+    if (sum1 != sum4) {
+        fprintf(stderr, "Data changed after second sort ; checksum mismatch.\n");
+        abort();
+    }
 
     MPI_Barrier(o.comm);
     (tmr->time = MPI_Wtime(), strcpy(tmr->name, "SecondSort"), tmr++);

@@ -78,6 +78,8 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "lightcone.h"
 #include "utils.h"
 
+#include "thermalvelocity.h"
+
 /* Following functions are internal API */
 
 FASTPM_BEGIN_DECLS

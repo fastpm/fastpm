@@ -94,12 +94,12 @@ const char *
 fastpm_species_get_name(enum FastPMSpecies species)
 {
     switch(species) {
+        case FASTPM_SPECIES_BARYON:
+            return "0";
         case FASTPM_SPECIES_CDM:
             return "1";
         case FASTPM_SPECIES_NCDM:
-            return "4";
-        case FASTPM_SPECIES_BARYON:
-            return "0";
+            return "2";
     }
     return "UNKNOWN";
 }
@@ -115,6 +115,16 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
     pos[0] = p->q[index][0];
     pos[1] = p->q[index][1];
     pos[2] = p->q[index][2];
+}
+
+double fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index)
+{
+    /* total mass is the sum of the base and the extra */
+    if(p->mass){
+        return p->meta.M0 + p->mass[index];
+    }else{
+        return p->meta.M0;
+    }
 }
 
 static ptrdiff_t
@@ -187,6 +197,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(rdisp, COLUMN_RDISP, "f4", 6);
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
+    DEFINE_COLUMN(mass, COLUMN_MASS, "f4", 1);
 
     COLUMN_INFO(x).to_double = to_double_f8;
     COLUMN_INFO(v).to_double = to_double_f4;
@@ -194,6 +205,7 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(dx1).to_double = to_double_f4;
     COLUMN_INFO(dx2).to_double = to_double_f4;
     COLUMN_INFO(acc).to_double = to_double_f4;
+    COLUMN_INFO(mass).to_double = to_double_f4;
 
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(acc).from_double = from_double_f4;
@@ -232,6 +244,7 @@ size_t
 fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
 {
     /* allocate for np_total cross all */
+    /* name means name of species*/
     int NTask;
     MPI_Comm_size(comm, &NTask);
 
@@ -273,9 +286,15 @@ fastpm_packing_plan_init(FastPMPackingPlan * plan, FastPMStore * p, FastPMColumn
         if (!(p->_column_info[ci].attribute & attributes)) continue;
         plan->_ci[i] = ci;
         plan->_offsets[ci] = plan->elsize;
-        plan->elsize += p->_column_info[ci].elsize;
+        ptrdiff_t elsize = p->_column_info[ci].elsize;
+        plan->elsize += elsize;
         plan->_column_info[ci] = p->_column_info[ci];
         i++;
+    }
+    /* Pad the elsize to 8 bytes. This ensures anything goes to the MPI wire is 8 byte aligned,
+     * and minimizes the chances of hitting an implementation bug. */
+    if (plan->elsize % 8 != 0) {
+        plan->elsize += (8 - plan->elsize % 8);
     }
     plan->Ncolumns = i;
 }
@@ -407,17 +426,15 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
     int d;
     for(i = 0; i < p->np; i ++) {
         for(d = 0; d < 3; d ++) {
-            int c1 = 0;
-            int c2 = 0;
-            while(p->x[i][d] < 0 && c1 < 100) {
-                p->x[i][d] += BoxSize[d];
-                c1++;
-            }
-            while(p->x[i][d] >= BoxSize[d] && c2 < 100) {
-                p->x[i][d] -= BoxSize[d];
-                c2++;
-            }
-            if(c1 >= 100 || c2 >= 100) {
+            double n = abs(p->x[i][d] / BoxSize[d]);
+
+            double x1 = remainder(p->x[i][d], BoxSize[d]);
+
+            while(x1 < 0) x1 += BoxSize[d];
+            while(x1 > BoxSize[d]) x1 -= BoxSize[d];
+            p->x[i][d] = x1;
+
+            if(n > 10000) {
                 double q[3];
                 fastpm_store_get_q_from_id(p, p->id[i], q);
                 fastpm_raise(-1, "Particle at %g %g %g (q = %g %g %g) is too far from the bounds. Wrapping failed.\n", 
@@ -453,7 +470,8 @@ fastpm_store_decompose(FastPMStore * p,
     fastpm_packing_plan_init(plan, p, p->attributes);
 
     size_t elsize = plan->elsize;
-    size_t Nsend_limit = 8 * 1024 * 1024 / elsize;
+
+    size_t Nsend_limit = 1000 * 1024 * 1024 / elsize;
 
     int NTask, ThisTask;
 
@@ -618,6 +636,7 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
     ptrdiff_t pabs[3];
 
     int d;
+    id = id % p->meta._q_size;
     for(d = 0; d < 3; d++) {
         pabs[d] = id / p->meta._q_strides[d];
         id -= pabs[d] * p->meta._q_strides[d];
@@ -626,6 +645,18 @@ fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3])
     for(d = 0; d < 3; d++) {
         q[d] = pabs[d] * p->meta._q_scale[d];
         q[d] += p->meta._q_shift[d];
+    }
+}//if all 0 drop
+
+void
+fastpm_store_get_iq_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3])
+{
+    /* integer version of the initial position q
+    i.e. the lattice coordinates of the cells. */
+    int d;
+    for(d = 0; d < 3; d++) {
+        pabs[d] = id / p->meta._q_strides[d];
+        id -= pabs[d] * p->meta._q_strides[d];
     }
 }
 
@@ -658,6 +689,7 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
         p->meta._q_scale[d] = pm->BoxSize[d] / Nc[d];
     }
 
+    p->meta._q_size = Nc[0] * Nc[1] * Nc[2];
     p->meta._q_strides[0] = Nc[1] * Nc[2];
     p->meta._q_strides[1] = Nc[2];
     p->meta._q_strides[2] = 1;
@@ -868,7 +900,7 @@ fastpm_store_append(FastPMStore * p, FastPMStore * po)
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        uint8_t * mask,
+        FastPMParticleMaskType * mask,
         MPI_Comm comm)
 {
     gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -886,7 +918,7 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
 
     gsl_rng_set(random_generator, seed);
 
-    memset(mask, 0, p->np);
+    memset(mask, 0, p->np * sizeof(mask[0]));
 
     ptrdiff_t i;
     for(i=0; i < p->np; i++) {
@@ -898,13 +930,34 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
     gsl_rng_free(random_generator);
 }
 
+void
+fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
+                                              int every, /* take 1 every 'every' per dimension */
+                                              FastPMParticleMaskType * mask)
+{
+    memset(mask, 0, p->np * sizeof(mask[0]));
+
+    ptrdiff_t i, d;
+    for(i = 0; i < p->np; i++) {
+        ptrdiff_t pabs[3];   //pabs is the iq index. move out of loop?
+        uint64_t id = p->id[i];
+        fastpm_store_get_iq_from_id(p, id, pabs);
+
+        int flag = 1;
+        for(d = 0; d < 3; d++) {
+            flag *= !(pabs[d] % every);
+        }
+        mask[i] = flag;
+    }
+}
+
 /*
  * Create a subsample, keeping only those with mask == True;
  *
  * if po is NULL, only return number of items.
  * */
 size_t
-fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
+fastpm_store_subsample(FastPMStore * p, FastPMParticleMaskType * mask, FastPMStore * po)
 {
     ptrdiff_t i;
     ptrdiff_t j;
@@ -930,7 +983,7 @@ fastpm_store_subsample(FastPMStore * p, uint8_t * mask, FastPMStore * po)
 
     if(po) {
         po->np = j;
-        po->meta = p->meta;
+        po->meta = p->meta;   ///????
     }
     return j;
 }

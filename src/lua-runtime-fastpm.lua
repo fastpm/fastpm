@@ -33,11 +33,17 @@ function schema.output_redshifts.action(output_redshifts)
     end
 end
 
-schema.declare{name='omega_m',           type='number', required=true, default=0.3 }
+schema.declare{name='omega_m',           type='number', required=true, default=0.3, help='cdm + baryon density parameter at z=0'}
+schema.declare{name='omega_ncdm',           type='number', required=false, default=0.0, help='ncdm density parameter at z=0'}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential',   type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
+schema.declare{name='m_ncdm',   type='array:number', required=false, default={0.15}, help="Mass of ncdm particles."}
+schema.declare{name='n_shell',   type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
+schema.declare{name='lvk',   type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}
+schema.declare{name='n_side',   type='number', required=false, default=2, help="Number of sides in HEALPix split."}
+schema.declare{name='every_ncdm',   type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
 
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
@@ -288,7 +294,7 @@ function fastpm.logspace(a, e, N)
 -- a and end are in log10.
 -- Returns N+1 elements, including e.
     local r
-    r = linspace(a, e, N)
+    r = fastpm.linspace(a, e, N)
     for i, j in pairs(r) do
         r[i] = math.pow(10, j)
     end

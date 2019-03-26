@@ -14,8 +14,10 @@ LUAParameters *
 parse_config_mpi(char * filename, int argc, char ** argv, char ** error, MPI_Comm comm)
 {
     int ThisTask;
+    int NTask;
 
     MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
 
     LUAParameters * prr = NULL;
 

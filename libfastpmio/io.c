@@ -107,8 +107,8 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
         localsize = p->np;
     }
 
-    void * send_buffer = malloc(elsize * p->np);
-    void * recv_buffer = malloc(elsize * localsize);
+    char * send_buffer = malloc(elsize * p->np);
+    char * recv_buffer = malloc(elsize * localsize);
     ptrdiff_t i;
 
     FastPMStore ptmp[1];
@@ -181,17 +181,17 @@ write_snapshot_header(FastPMSolver * fastpm,
     double MassTable[6] = {
                 baryon?baryon->meta.M0:0,
                 cdm->meta.M0,
+                ncdm?ncdm->meta.M0:0,
                 0,
                 0, 
-                ncdm?ncdm->meta.M0:0,
                 0};
 
     uint64_t TotNumPart[6] = {
             baryon?fastpm_store_get_np_total(baryon, comm):0,
             fastpm_store_get_np_total(cdm, comm),
-            0,
-            0,
             ncdm?fastpm_store_get_np_total(ncdm, comm):0,
+            0,
+            0,
             0};
 
     /* FIXME: move some of these to fastpm.c; see if we can reduce the number of entries in fastpm->config. */
@@ -324,6 +324,7 @@ fastpm_store_write(FastPMStore * p,
         DEFINE_COLUMN_IO("Rdisp",           "f4", rdisp),
         DEFINE_COLUMN_IO("Vdisp",           "f4", vdisp),
         DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
+        DEFINE_COLUMN_IO("Mass",            "f4", mass),
         {NULL, },
     };
     int64_t size = fastpm_store_get_np_total(p, comm);
@@ -373,7 +374,7 @@ fastpm_store_write(FastPMStore * p,
         BigBlockPtr ptr;
         char * blockname = fastpm_strdup_printf("%s/%s", dataset, descr->name);
 
-        int Nfile;
+        int Nfile = 1;
 
         switch(mode) {
             case WRITE:

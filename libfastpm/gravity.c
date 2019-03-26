@@ -269,6 +269,9 @@ _fastpm_solver_create_ghosts(FastPMSolver * fastpm, int support, PMGhostData * p
         if(!p) continue;
         pgd[si] = pm_ghosts_create(pm, p, p->attributes, support);
         pm_ghosts_send(pgd[si], COLUMN_POS);
+        pm_ghosts_send(pgd[si], COLUMN_ID);
+        if(p->mass)
+            pm_ghosts_send(pgd[si], COLUMN_MASS);
     }
     LEAVE(ghosts);
 }
@@ -315,12 +318,18 @@ _fastpm_solver_compute_delta_k(FastPMSolver * fastpm, FastPMPainter * painter, P
         VALGRIND_CHECK_MEM_IS_DEFINED(p->x, sizeof(p->x[0]) * p->np);
         VALGRIND_CHECK_MEM_IS_DEFINED(pgd[si]->p->x, sizeof(pgd[si]->p->x[0]) * pgd[si]->p->np);
 
-        total_mass += fastpm_store_get_np_total(p, pm_comm(pm)) * p->meta.M0;
+        double total_mass1 = 0;
+        ptrdiff_t i;
+        for (i = 0; i < p->np; i ++){
+            total_mass1 += fastpm_store_get_mass(p, i);
+        }
+        total_mass += total_mass1;
         fastpm_paint_local(painter, canvas, p, p->np, FASTPM_FIELD_DESCR_NONE);
         fastpm_paint_local(painter, canvas, pgd[si]->p, pgd[si]->p->np, FASTPM_FIELD_DESCR_NONE);
     }
     LEAVE(paint);
 
+    MPI_Allreduce(MPI_IN_PLACE, &total_mass, 1, MPI_DOUBLE, MPI_SUM, fastpm->comm);
     double mean_mass_per_cell = total_mass / pm->Norm;
 
     CLOCK(transfer);
@@ -381,12 +390,12 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
     for(si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
         FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
-
+        //FIX? print species name (atm prints species number)
         double acc_std[3], acc_mean[3], acc_min[3], acc_max[3];
         fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {
-            fastpm_info("p    acc[%d]: %g %g %g %g\n",
-                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+            fastpm_info("p%s    acc[%d]: %g %g %g %g\n",
+                p->name, d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
         }
         fastpm_store_summary(pgd[si]->p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {
@@ -395,8 +404,8 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
         }
         fastpm_store_summary(p, COLUMN_ACC, pm_comm(pm), "<s->", acc_min, acc_std, acc_mean, acc_max);
         for(d = 0; d < 3; d ++) {
-            fastpm_info("p+g   acc[%d]: %g %g %g %g\n",
-                d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
+            fastpm_info("p%s+g  acc[%d]: %g %g %g %g\n",
+                p->name, d, acc_min[d], acc_std[d], acc_mean[d], acc_max[d]);
         }
 
         ENTER(reduce);

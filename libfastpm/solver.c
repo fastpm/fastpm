@@ -52,20 +52,18 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         config->ExtraAttributes |= COLUMN_DX1;
         config->ExtraAttributes |= COLUMN_DX2;
     }
-
-    /* FIXME: move this to add_species */
-
-    fastpm_store_init_evenly(&fastpm->species[FASTPM_SPECIES_CDM],
+    
+    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
+    
+    fastpm_store_init_evenly(fastpm->cdm,
           fastpm_species_get_name(FASTPM_SPECIES_CDM),
           pow(1.0 * config->nc, 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC
-        | config->ExtraAttributes,
-        config->alloc_factor, comm);
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
+          fastpm->config->alloc_factor,
+          fastpm->comm);
 
-    memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
-
-    fastpm->has_species[FASTPM_SPECIES_CDM] = 1;
-
+    fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, fastpm->cdm);   //add CDM [why make np_total a double?]
+    
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
 
@@ -79,6 +77,16 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->basepm = malloc(sizeof(PM));
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
+    
+    double shift0;
+    if(config->USE_SHIFT) {
+        shift0 = config->boxsize / config->nc * 0.5;
+    } else {
+        shift0 = 0;
+    }
+    double shift[3] = {shift0, shift0, shift0};
+
+    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM), fastpm->basepm, shift, NULL);
 }
 
 void
@@ -128,9 +136,6 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
             shift0 = 0;
         }
         double shift[3] = {shift0, shift0, shift0};
-
-        fastpm_store_fill(p, basepm, shift, NULL);
-
         /* read out values at locations with an inverted shift */
         pm_2lpt_solve(basepm, delta_k_ic, p, shift);
     }
@@ -185,11 +190,22 @@ FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 {
     if(fastpm->has_species[species]) {
-        return &fastpm->species[species];
+        return fastpm->species[species];
     } else {
         return NULL;
     }
 }
+
+void
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, FastPMStore * store)
+{   
+    /*Adds a particle [store] of species type species to the solver. */
+
+    fastpm->species[species] = store;
+    fastpm->has_species[species] = 1;
+}
+
+
 void
 fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
 {
@@ -401,7 +417,7 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
     for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
         FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
-
+        
         if(kick.ai != p->meta.a_v) {
             fastpm_raise(-1, "kick is inconsitant with state.\n");
         }
@@ -456,14 +472,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
-    int si;
-    /* FIXME: always need to add the lower species first;
-     * may want to change has_species to the order of the species was added. */
-    for(si = FASTPM_SOLVER_NSPECIES - 1; si >= 0; si --) {
-        if(fastpm->has_species[si]) {
-            fastpm_store_destroy(&fastpm->species[si]);
-        }
-    }
+    fastpm_store_destroy(fastpm->cdm);
     vpm_free(fastpm->vpm_list);
 
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
@@ -510,7 +519,6 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
                 FastPMDriftFactor * drift,
                 FastPMKickFactor * kick,
                 double aout) {
-    memcpy(snapshot, fastpm, sizeof(FastPMSolver));
 
     int si;
     for (si = 0; si < FASTPM_SOLVER_NSPECIES; si ++) {
@@ -519,7 +527,7 @@ fastpm_set_snapshot(FastPMSolver * fastpm,
         p  = fastpm_solver_get_species(fastpm, si);
         po = fastpm_solver_get_species(snapshot, si);
 
-        if(!p) { continue; }
+        if(!p || !po) { continue; }
 
         fastpm_set_species_snapshot(fastpm, p, drift, kick, po, aout);
     }
@@ -539,7 +547,7 @@ fastpm_unset_snapshot(FastPMSolver * fastpm,
         p  = fastpm_solver_get_species(fastpm, si);
         po = fastpm_solver_get_species(snapshot, si);
 
-        if(!p) { continue; }
+        if(!p || !po) { continue; }
 
         fastpm_unset_species_snapshot(fastpm, p, drift, kick, po, aout);
     }
@@ -558,10 +566,7 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     PM * pm = fastpm->basepm;
     int np = p->np;
 
-    fastpm_store_init(po, p->name, p->np_upper,
-        0,
-        FASTPM_MEMORY_HEAP
-    );
+    memcpy(po, p, sizeof(FastPMStore));
 
     /* steal columns, but velocity, since we need to use old velocity
      * during the drift */
@@ -657,7 +662,6 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* Stop faking the attributes */
     po->attributes = 0;
 
-    fastpm_store_destroy(po);
 }
 
 double

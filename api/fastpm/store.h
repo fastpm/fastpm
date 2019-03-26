@@ -6,6 +6,8 @@
 
 FASTPM_BEGIN_DECLS
 
+typedef uint8_t FastPMParticleMaskType;
+
 /*
  * A solver has multiple particle species;
  * the species names are defined here.
@@ -13,11 +15,14 @@ FASTPM_BEGIN_DECLS
 enum FastPMSpecies {
     FASTPM_SPECIES_BARYON = 0,
     FASTPM_SPECIES_CDM = 1,
-    FASTPM_SPECIES_NCDM = 4,
+    FASTPM_SPECIES_NCDM = 2,
 };
 
 const char *
 fastpm_species_get_name(enum FastPMSpecies species);
+
+double
+fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index);
 
 /*
  * enum constants for naming the columns in the source code.
@@ -45,6 +50,8 @@ typedef enum FastPMColumnTags {
     COLUMN_RDISP =  1L << 15,
     COLUMN_VDISP =  1L << 16,
     COLUMN_RVDISP =  1L << 17,
+    
+    COLUMN_MASS = 1L << 18,
 
 } FastPMColumnTags;
 
@@ -76,20 +83,21 @@ struct FastPMStore {
     struct {
         double a_x;
         double a_v;
-        double M0;
+        double M0;    //base mass in 10^10 M_sun / h
 
         double _q_shift[3];
         double _q_scale[3];
         ptrdiff_t _q_strides[3];
+        ptrdiff_t _q_size;
     } meta;
 
     union {
         char * columns[32];
         struct {
-            uint8_t * mask;
+            FastPMParticleMaskType * mask;
             double (* x)[3];
             float (* q)[3];
-            float (* v)[3];
+            float (* v)[3];  
             float (* dx1)[3];
             float (* dx2)[3];
             float (* acc)[3];
@@ -106,6 +114,8 @@ struct FastPMStore {
             float (* rdisp)[6]; /* zero lag, first lag, second lag */
             float (* vdisp)[6];
             float (* rvdisp)[9];
+            
+            float (* mass);   //each ncdm has different mass. In eV
         };
     };
     size_t np;
@@ -149,6 +159,9 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);
 
 void 
 fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
+
+void
+fastpm_store_get_iq_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3]);
 
 size_t fastpm_store_pack   (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
 void   fastpm_store_unpack (FastPMStore * p, ptrdiff_t index, void * packed, FastPMColumnTags attributes);
@@ -211,11 +224,16 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        uint8_t * mask,
+        FastPMParticleMaskType * mask,
         MPI_Comm comm);
 
+void
+fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
+                                              int every,
+                                              FastPMParticleMaskType * mask);
+
 size_t
-fastpm_store_subsample(FastPMStore * in, uint8_t * mask, FastPMStore * out);
+fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);
 
 void
 fastpm_store_histogram_aemit_sorted(FastPMStore * store,

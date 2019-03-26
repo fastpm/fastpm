@@ -74,8 +74,11 @@ typedef struct {
 
 typedef struct {
     PM * pm;
-    FastPMStore species[FASTPM_SOLVER_NSPECIES];
+    /* FIXME: Use a linked list and change the num of species to a string. */
+    FastPMStore *species[FASTPM_SOLVER_NSPECIES];
     char has_species[FASTPM_SOLVER_NSPECIES];
+
+    FastPMStore cdm[1];
 
     MPI_Comm comm;
     int NTask;
@@ -140,6 +143,9 @@ fastpm_solver_destroy(FastPMSolver * fastpm);
 
 FastPMStore *
 fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species);
+
+void
+fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, FastPMStore * store);
 
 void 
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
