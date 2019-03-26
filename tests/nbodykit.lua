@@ -10,7 +10,7 @@ boxsize = 384.0
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.1, 1, 2)
+time_step = linspace(0.1, 1, 3)
 
 output_redshifts= {0.5, 0.0}  -- redshifts of output
 

@@ -8,7 +8,7 @@ boxsize = 1000
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
 -- logspace: Uniform time steps in loga
-time_step = linspace(0.01,0.02,20)
+time_step = linspace(0.01,0.02, 21)
 
 output_redshifts= {99.0, 49.}  -- redshifts of output
 
