@@ -172,6 +172,9 @@ write_snapshot_header(FastPMSolver * fastpm,
     fastpm_info("RSD factor %e\n", RSD);
 
     double ScalingFactor = aout;
+    double D1 = GrowthFactor(aout, fastpm->cosmology);
+    double f1 = DLogGrowthFactor(aout, fastpm->cosmology);
+    double Ea = HubbleEa(aout, fastpm->cosmology);
     double OmegaM = fastpm->cosmology->OmegaM;
     double OmegaLambda = fastpm->cosmology->OmegaLambda;
     double HubbleParam = fastpm->config->hubble_param;
@@ -198,6 +201,9 @@ write_snapshot_header(FastPMSolver * fastpm,
     big_block_set_attr(&bb, "NC", &NC, "i8", 1);
     big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
     big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
+    big_block_set_attr(&bb, "GrowthFactor", &D1, "f8", 1);
+    big_block_set_attr(&bb, "GrowthRate", &f1, "f8", 1);
+    big_block_set_attr(&bb, "Ea", &Ea, "f8", 1);
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
     big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
     big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
