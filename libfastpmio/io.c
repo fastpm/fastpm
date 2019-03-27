@@ -203,7 +203,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     big_block_set_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
     big_block_set_attr(&bb, "GrowthFactor", &D1, "f8", 1);
     big_block_set_attr(&bb, "GrowthRate", &f1, "f8", 1);
-    big_block_set_attr(&bb, "Ea", &Ea, "f8", 1);
+    big_block_set_attr(&bb, "HubbleE", &Ea, "f8", 1);
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
     big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
     big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
