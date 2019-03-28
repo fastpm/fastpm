@@ -66,7 +66,8 @@ int main(int argc, char * argv[]) {
 
     FastPMStore halos[1];
 
-    fastpm_fof_execute(&fof, halos, "FOFHalos");
+    fastpm_store_set_name(halos, "FOFHalos");
+    fastpm_fof_execute(&fof, halos);
 
     char * snapshot = fastpm_strdup_printf("fof-%d", solver->NTask);
     fastpm_sort_snapshot(halos, solver->comm, FastPMSnapshotSortByLength, 0);

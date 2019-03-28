@@ -31,9 +31,9 @@ typedef struct {
 void
 fastpm_fof_init(FastPMFOFFinder * finder, FastPMStore * store, PM * pm);
 
-/* create a halo catalog, saving to halos with the given name. */
+/* create a halo catalog from the heap. halos->name shall be set before this */
 void
-fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos, const char * name);
+fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos);
 
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder);

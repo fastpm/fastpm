@@ -143,19 +143,25 @@ fastpm_store_init_details(FastPMStore * p,
                   const char * file,
                   const int line)
 {
-    memset(p, 0, sizeof(p[0]));
     p->mem = _libfastpm_get_gmem();
 
-    strcpy(p->name, name);
+    /* only set the name if name is not NULL; this is to allow setting the name before calling init.
+     * */
+    if(name) {
+        strcpy(p->name, name);
+    }
 
-    p->np = 0; 
-    p->np_upper = np_upper;
     p->attributes = attributes;
+
+    p->np = 0;
+    p->np_upper = np_upper;
 
     /* clear the column pointers. */
     memset(p->columns, 0, sizeof(p->columns));
     memset(p->_column_info, 0, sizeof(p->_column_info));
 
+    /* clear the meta */
+    memset(&p->meta, 0, sizeof(p->meta));
     int it;
     p->_base = NULL;
 
@@ -240,6 +246,12 @@ fastpm_store_init_details(FastPMStore * p,
             memset(p->_base, 0, size);
         }
     };
+}
+
+void
+fastpm_store_set_name(FastPMStore * p, const char * name)
+{
+    strcpy(p->name, name);
 }
 
 size_t 

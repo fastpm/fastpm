@@ -1135,12 +1135,14 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Para
         .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
     fastpm_fof_init(&fof, snapshot, fastpm->pm);
 
     ENTER(fof);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_fof_execute(&fof, halos, dataset);
-    free(dataset);
+    fastpm_fof_execute(&fof, halos);
     LEAVE(fof);
 
     fastpm_fof_destroy(&fof);
@@ -1208,6 +1210,10 @@ run_usmesh_fof(FastPMSolver * fastpm,
     CLOCK(fof);
     CLOCK(sort);
 
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
     double maxhalosize = CONF(prr->lua, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
     ptrdiff_t i;
@@ -1253,9 +1259,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
         userdata);
 
     ENTER(fof);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_fof_execute(&fof, halos, dataset);
-    free(dataset);
+    fastpm_fof_execute(&fof, halos);
     LEAVE(fof);
 
     fastpm_fof_destroy(&fof);

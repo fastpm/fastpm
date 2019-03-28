@@ -63,6 +63,9 @@ struct FastPMStore {
 
     void * _base; /* base pointer of all memory buffers */
 
+    size_t np;
+    size_t np_upper;
+
     /* The ordering of the column_info array is the same as the columns array */
     struct FastPMColumnInfo {
         void   (*pack)   (FastPMStore * p, ptrdiff_t index, int ci, void * packed);
@@ -120,8 +123,6 @@ struct FastPMStore {
             float (* mass);   //each ncdm has different mass. In eV
         };
     };
-    size_t np;
-    size_t np_upper;
 };
 
 /* convert a column name literal (e.g. x, id) to the column index in the column_info array */
@@ -151,6 +152,9 @@ void
 fastpm_store_init_details(FastPMStore * p, const char * name, size_t np_upper, FastPMColumnTags attributes, enum FastPMMemoryLocation loc, const char * file, const int line);
 
 #define fastpm_store_init(p, name, np_upper, attributes, loc) fastpm_store_init_details(p, name, np_upper, attributes, loc, __FILE__, __LINE__)
+
+void
+fastpm_store_set_name(FastPMStore * store, const char * name);
 
 size_t
 fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes,
