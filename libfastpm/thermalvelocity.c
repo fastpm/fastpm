@@ -331,34 +331,15 @@ void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
         FastPMStore * src,
         FastPMStore * dest,
-        int every,   ///////////////can removE!!!!!!!!!!!!!!!!!
         MPI_Comm comm)
 {
 
     /*
-    Takes store src, takes subsample of a fraction
-    (1/every)^3 the size of src, and then splits 
-    according to the ncdm init data, and uses this to
-    populate an 'empty' store dest.
-    For our test src is fully populated after calling 
-    the setup_lpt func, but dest has only been init'd.
+    Takes store src and splits according to the ncdm 
+    init data, and uses this to populate an dest store.
+    src is fully populated after calling the setup_lpt 
+    func, but dest has only been init'd.
     */
-/*
-    //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
-    FastPMParticleMaskType * mask = fastpm_memory_alloc(src->mem, "every-mask", sizeof(mask[0]) * src->np, FASTPM_MEMORY_FLOATING);
-
-    fastpm_store_fill_subsample_mask_every_dim(src, every, mask);
-
-    FastPMStore sub[1];
-
-    fastpm_store_init(sub,
-                      src->name,
-                      (src->np * 2 / every / every / every),  //2 to deal with proc imbalance
-                      src->attributes,
-                      FASTPM_MEMORY_FLOATING);
-    
-    fastpm_store_subsample(src, mask, sub);
-*/
     
     dest->np = src->np * nid->n_split;    //need to worry about proc imbalance still?
 
@@ -393,32 +374,15 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
 
             //give id, mass and add thm vel
             dest->id[r] = j * src->meta._q_size + src->id[i];
-
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
 
             for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
                 dest->v[r][d] += nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
             }
-            //FOR TEST: change ncdm position (without this change it would be on top of cdm after 2lpt)
             
-            //fastpm_store_get_lagrangian_position(sub, i, dest->x[r]);
-            /*
-            double b = 0.1;
-            double x[3], q[3];
-            fastpm_store_get_q_from_id(sub, sub->id[i], q);   
-            fastpm_store_get_position(sub, i, x);                  //use i not id here...?
-            
-            for(d = 0; d < 3; d ++){
-                dest->v[r][d] = b * dest->v[r][d] + nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
-                
-                dest->x[r][d] = q[d] + b * (x[d] - q[d]);
-            }*/
             r ++;
         }
     }
-
-    //fastpm_store_destroy(sub);
-    //fastpm_memory_free(src->mem, mask);
 }
 
