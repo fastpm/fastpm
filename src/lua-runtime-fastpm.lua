@@ -94,6 +94,7 @@ schema.declare{name='read_runpbic',       type='string'}
 schema.declare{name='read_whitenoisek',         type='string'}
 
 schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum.'}
+schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} --should I us ea different random seed? remove cosmic var? I.e. is it as simple as just using a different power spec? Atm m and ncdm power spec must be at same z.
 schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear density field. '}
 schema.declare{name='sigma8',             type='number', default=0, help='normalize linear power spectrumt to sigma8(z); this shall be sigma8 at linear_density_redshift, not z=0.'}
 schema.declare{name='random_seed',         type='int'}

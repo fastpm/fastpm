@@ -331,7 +331,7 @@ void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
         FastPMStore * src,
         FastPMStore * dest,
-        int every,
+        int every,   ///////////////can removE!!!!!!!!!!!!!!!!!
         MPI_Comm comm)
 {
 
@@ -343,7 +343,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     For our test src is fully populated after calling 
     the setup_lpt func, but dest has only been init'd.
     */
-
+/*
     //SUBSAMPLE THE CDM STORE (SRC) BEFORE SPLITTING INTO NCDM
     FastPMParticleMaskType * mask = fastpm_memory_alloc(src->mem, "every-mask", sizeof(mask[0]) * src->np, FASTPM_MEMORY_FLOATING);
 
@@ -358,8 +358,9 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
                       FASTPM_MEMORY_FLOATING);
     
     fastpm_store_subsample(src, mask, sub);
-
-    dest->np = sub->np * nid->n_split;    //remove once store init does this?
+*/
+    
+    dest->np = src->np * nid->n_split;    //need to worry about proc imbalance still?
 
     if(dest->np > dest->np_upper) {
         fastpm_raise(-1, "exceeding limit on the number limit of particles for the ncdm species \n");
@@ -377,34 +378,32 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
 
     ptrdiff_t i, j, d;
     ptrdiff_t r = 0;
-    for(i = 0; i < sub->np; i ++) {    //loop thru each cdm particle
+    for(i = 0; i < src->np; i ++) {    //loop thru each cdm particle
         for(j = 0; j < nid->n_split; j ++) {  //loop thru split velocities AND ncdms
             //copy all cols
             int c;
             for(c = 0; c < 32; c ++) {
-                if (!dest->columns[c] || !sub->columns[c]) continue;
+                if (!dest->columns[c] || !src->columns[c]) continue;
 
                 size_t elsize = dest->_column_info[c].elsize;
                 memcpy(dest->columns[c] + r * elsize,
-                       sub->columns[c] + i * elsize,
+                       src->columns[c] + i * elsize,
                        elsize);
             }
 
-            //overwrite id, mass and vel
-            dest->id[r] = j * sub->meta._q_size + sub->id[i];
+            //give id, mass and add thm vel
+            dest->id[r] = j * src->meta._q_size + src->id[i];
 
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
 
-            //for(d = 0; d < 3; d ++){
+            for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
-                
-                
-                
-            //}
+                dest->v[r][d] += nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
+            }
             //FOR TEST: change ncdm position (without this change it would be on top of cdm after 2lpt)
             
             //fastpm_store_get_lagrangian_position(sub, i, dest->x[r]);
-
+            /*
             double b = 0.1;
             double x[3], q[3];
             fastpm_store_get_q_from_id(sub, sub->id[i], q);   
@@ -414,12 +413,12 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
                 dest->v[r][d] = b * dest->v[r][d] + nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
                 
                 dest->x[r][d] = q[d] + b * (x[d] - q[d]);
-            }
+            }*/
             r ++;
         }
     }
 
-    fastpm_store_destroy(sub);
-    fastpm_memory_free(src->mem, mask);
+    //fastpm_store_destroy(sub);
+    //fastpm_memory_free(src->mem, mask);
 }
 

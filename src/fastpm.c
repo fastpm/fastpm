@@ -254,7 +254,7 @@ static void
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
 static void 
-prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, FastPMConfig * config, MPI_Comm comm);
 
 static void
 report_memory(MPI_Comm);
@@ -341,7 +341,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     LEAVE(ic);
 
     ENTER(ncdmic);
-    prepare_ncdm(fastpm, prr, comm);
+    prepare_ncdm(fastpm, prr, config, comm);
     LEAVE(ncdmic);
 
     /* FIXME: subsample all species -- probably need different fraction for each species */
@@ -391,29 +391,46 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 }
 
 static void
-prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, Parameters * prr, double aout)
+prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, Parameters * prr, double aout, enum FastPMSpecies species)
 {
-    /* at this point generating the ic involves delta_k */
-
-    if(CONF(prr->lua, read_lineark)) {
-        fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr->lua, read_lineark));
-        read_complex(pm, delta_k, CONF(prr->lua, read_lineark), "LinearDensityK", prr->cli->Nwriters);
-
-        if(CONF(prr->lua, inverted_ic)) {
-            fastpm_apply_multiply_transfer(pm, delta_k, delta_k, -1);
+    FastPMPowerSpectrum linear_powerspectrum;     //have to define this outside the ifs (even though this may never be used in case od delta_k input).
+    
+    //compute delta_k from the input for the appropriate species.
+    if(species == FASTPM_SPECIES_NCDM) {
+        if(!CONF(prr->lua, read_powerspectrum_ncdm)) {
+            species = FASTPM_SPECIES_CDM;     //if no ncdm powerspectrum input, use cdm powerspec (approximation).
+            fastpm_info("WARNING: No ncdm powerspec input, therefore using cdm powerspec as approximation.");
+        }else{
+            //FastPMPowerSpectrum linear_powerspectrum;
+            read_powerspectrum(&linear_powerspectrum, CONF(prr->lua, read_powerspectrum_ncdm), CONF(prr->lua, sigma8), pm_comm(pm));   //remove sigma8 for Pncdm???
         }
-        return;
     }
+    
+    if(species == FASTPM_SPECIES_CDM) {
+        /* at this point generating the ic involves delta_k [first check if felta_k has been input]*/
+        if(CONF(prr->lua, read_lineark)) {
+            fastpm_info("Reading Fourier space linear overdensity from %s\n", CONF(prr->lua, read_lineark));
+            read_complex(pm, delta_k, CONF(prr->lua, read_lineark), "LinearDensityK", prr->cli->Nwriters);
 
-    /* at this power we need a powerspectrum file to convolve the guassian */
-    if(!CONF(prr->lua, read_powerspectrum)) {
-        fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
+            if(CONF(prr->lua, inverted_ic)) {
+                fastpm_apply_multiply_transfer(pm, delta_k, delta_k, -1);
+            }
+            
+            fastpm_powerspectrum_destroy(&linear_powerspectrum);   //added this because powerspectrum initialized globally
+            return;
+        }
+
+        /* at this point [i.e. delta_k not input] we need a powerspectrum file to convolve the guassian */
+        if(!CONF(prr->lua, read_powerspectrum)) {
+            fastpm_raise(-1, "Need a power spectrum to start the simulation.\n");
+        }
+
+        //FastPMPowerSpectrum linear_powerspectrum;
+
+        read_powerspectrum(&linear_powerspectrum, CONF(prr->lua, read_powerspectrum), CONF(prr->lua, sigma8), pm_comm(pm));
     }
-
-    FastPMPowerSpectrum linear_powerspectrum;
-
-    read_powerspectrum(&linear_powerspectrum, CONF(prr->lua, read_powerspectrum), CONF(prr->lua, sigma8), pm_comm(pm));
-
+    
+    //below is general for all species.   
     if(CONF(prr->lua, read_grafic)) {
         fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr->lua, read_grafic));
         fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
@@ -568,7 +585,7 @@ static void
 prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
 {
     /* we may need a read gadget ic here too */
-    if(CONF(prr->lua, read_runpbic)) {
+    if(CONF(prr->lua, read_runpbic)) {                 //runpbic is old code. dont think about when it comes to ncdm.
         FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
         int temp_dx1 = 0;
         int temp_dx2 = 0;
@@ -596,7 +613,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
-    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0);
+    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, FASTPM_SPECIES_CDM);
 
     /* our write out and clean up stuff.*/
 
@@ -626,7 +643,7 @@ prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 }
 
 static void 
-prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
+prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, FastPMConfig * config, MPI_Comm comm) 
 {
     if(CONF(prr->lua, omega_ncdm) == 0) return;
 
@@ -641,19 +658,19 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
     int every = CONF(prr->lua, every_ncdm);
-    
-    FastPMncdmInitData* nid = fastpm_ncdm_init_create(
-            CONF(prr->lua, boxsize),
-            m_ncdm, n_ncdm, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk);
 
-  
-
-    size_t nc = CONF(prr->lua, nc) / every;
+    size_t nc = CONF(prr->lua, nc) / every;   //this is nc_ncdm
 
     if (CONF(prr->lua, nc) % every != 0) {
         fastpm_raise(-1, "TODO: check this in parameter file. ");
     }
-
+    
+    //init the nid
+    FastPMncdmInitData* nid = fastpm_ncdm_init_create(
+            CONF(prr->lua, boxsize),
+            m_ncdm, n_ncdm, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk); 
+    
+    //create ncdm store for after the split. need to make first for memory order
     size_t total_np_ncdm = (nc * nc * nc) * nid->n_split;
 
     FastPMStore * ncdm = malloc(sizeof(FastPMStore));
@@ -663,13 +680,55 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
           cdm->attributes | COLUMN_MASS,
           fastpm->config->alloc_factor,
           comm);
+    
+    //create unsplit ncdm store (analogously to how cdm is created in solver_init)
+    size_t total_np_ncdm_unsplit = nc * nc * nc;
+    FastPMStore * ncdm_unsplit = malloc(sizeof(FastPMStore));
+    fastpm_store_init_evenly(ncdm_unsplit,
+          fastpm_species_get_name(FASTPM_SPECIES_NCDM),
+          total_np_ncdm_unsplit,
+          cdm->attributes,                           //dont need mass col for unsplit
+          fastpm->config->alloc_factor,
+          comm);
 
     fastpm_solver_add_species(fastpm, 
                               FASTPM_SPECIES_NCDM, 
-                              ncdm);
-
-    fastpm_split_ncdm(nid, cdm, ncdm, every, comm);
-
+                              ncdm_unsplit);         //will replace with split aftersplitting.
+    
+    //call fastpm_store_fill on ncdm to give correct qs
+    //for cdm we fill the store with arg Nc, the number of 'mother' (i.e. not yet split) Ncdms per side (it's a vector). So we can fill the new ncdm store using the correct Nc and then apply 2lpt given the new delta_k from Pn.
+    //copied ahift from store_init.
+    double shift0;
+    if(config->USE_SHIFT) {
+        shift0 = config->boxsize / config->nc * 0.5;
+    } else {
+        shift0 = 0;
+    }
+    double shift[3] = {shift0, shift0, shift0};
+    
+    //want to fill the ncdm store to make a grid with nc_cdm/every grid points in each dim
+    ptrdiff_t Nc[3] = {nc, nc, nc}; 
+    
+    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), fastpm->basepm, shift, Nc);
+    
+    
+    //compute delta_k for ncdm and perform lpt
+    FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
+    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, FASTPM_SPECIES_NCDM);   //will need a new/replace prr for ncdm.
+    
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, CONF(prr->lua, time_step)[0]);
+    
+    //FIX could add writing of Pncdm functionality (as in prepare_ic for m).
+    pm_free(fastpm->basepm, delta_k);
+    
+    //SPLIT
+    fastpm_split_ncdm(nid, ncdm_unsplit, ncdm, every, comm);
+    
+    fastpm_solver_add_species(fastpm, 
+                              FASTPM_SPECIES_NCDM, 
+                              ncdm);         //replace ncdm species with the split ncdm
+    
+    fastpm_store_destroy(ncdm_unsplit);
     fastpm_ncdm_init_free(nid);
 }
 static void
@@ -1062,7 +1121,7 @@ smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, struct smes
         FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
         /* generate linear field at this time */
-        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, event->a_f);
+        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, event->a_f, FASTPM_SPECIES_CDM);
 
         fastpm_smesh_compute_potential(smesh, fastpm->basepm, event->painter, event->kernel, delta_k, event->a_f, event->a_n);
 
