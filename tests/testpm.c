@@ -81,7 +81,7 @@ int main(int argc, char * argv[]) {
     
 
     //SPLIT
-    fastpm_split_ncdm(nid, cdm, ncdm, f_subsample_1d, comm);
+    fastpm_split_ncdm(nid, cdm, ncdm, comm);
 
     fastpm_ncdm_init_free(nid);
     //END SPLIT
