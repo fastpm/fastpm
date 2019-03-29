@@ -271,7 +271,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
     FastPMSolver fastpm[1];
 
     CLOCK(init);
-    CLOCK(ic);
+    CLOCK(cdmic);
     CLOCK(ncdmic);
     CLOCK(evolve);
     CLOCK(io);
