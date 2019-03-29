@@ -251,7 +251,7 @@ static int
 report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr);
 
 static void 
-prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+prepare_cdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
 
 static void 
 prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
@@ -336,9 +336,9 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
 
-    ENTER(ic);
-    prepare_ic(fastpm, prr, comm);
-    LEAVE(ic);
+    ENTER(cdmic);
+    prepare_cdm(fastpm, prr, comm);
+    LEAVE(cdmic);
 
     ENTER(ncdmic);
     prepare_ncdm(fastpm, prr, comm);
@@ -572,7 +572,7 @@ induce:
 }
 
 static void 
-prepare_ic(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
+prepare_cdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
 {
     /* we may need a read gadget ic here too */
     if(CONF(prr->lua, read_runpbic)) {                 //runpbic is old code. dont think about when it comes to ncdm.
@@ -655,7 +655,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
         fastpm_raise(-1, "TODO: check this in parameter file. ");
     }
     
-    //init the nid
+    // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
             m_ncdm, n_ncdm, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk); 
@@ -665,7 +665,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     
     FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
     
-    //create ncdm store for after the split. need to make first for memory order
+    // create ncdm store for after the split. need to make first for memory order
     FastPMStore * ncdm = malloc(sizeof(FastPMStore));
     fastpm_store_init_evenly(ncdm,
           fastpm_species_get_name(FASTPM_SPECIES_NCDM),
@@ -688,7 +688,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
                               FASTPM_SPECIES_NCDM, 
                               ncdm_sites);         //will replace after splitting.
     
-    //call fastpm_store_fill on ncdm to give correct qs
+    // call fastpm_store_fill on ncdm to give correct qs
     double shift0;
     if(fastpm->config->USE_SHIFT) {
         shift0 = fastpm->config->boxsize / nc_ncdm * 0.5;
@@ -697,26 +697,26 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     }
     double shift[3] = {shift0, shift0, shift0};
     
-    //fill the ncdm store to make a grid with nc_ncdm grid points in each dim
+    // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
     ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
     fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), fastpm->basepm, shift, Nc_ncdm);
     
-    //compute delta_k for ncdm
+    // compute delta_k for ncdm
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
     prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
                    CONF(prr->lua, read_lineark_ncdm), 
                    CONF(prr->lua, read_powerspectrum_ncdm));
     
-    //perform lpt
+    // perform lpt
     fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, CONF(prr->lua, time_step)[0]);
     
-    //FIX could add writing of Pncdm functionality (as in prepare_ic for m).
+    // FIX could add writing of Pncdm functionality (as in prepare_cdm for m).
     pm_free(fastpm->basepm, delta_k);
     
-    //SPLIT
+    // SPLIT
     fastpm_split_ncdm(nid, ncdm_sites, ncdm, comm);
     
-    //replace ncdm species with the split ncdm
+    // replace ncdm species with the split ncdm
     fastpm_solver_add_species(fastpm, 
                               FASTPM_SPECIES_NCDM, 
                               ncdm);
