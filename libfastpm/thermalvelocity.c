@@ -382,7 +382,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             }
             */
             //FOR TEST: change ncdm position (without this change it would be on top of cdm after 2lpt)
-            // FOR BIASING, COMMENT OUT ABOVE VEL LOOP!!
+            // FOR BIASING, COMMENT OUT ABOVE VEL LOOP (or use b=1)!!
             
             double b = 0.;
             double x[3], q[3];
