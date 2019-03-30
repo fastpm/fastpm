@@ -241,7 +241,7 @@ apply_dealiasing_transfer(FastPMDealiasingType type, PM * pm, FastPMFloat * from
             apply_gaussian_dealiasing(pm, from, to, 1.0);
         break;
         case FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN:
-            apply_gaussian_dealiasing(pm, from, to, 4.0);
+            apply_gaussian_dealiasing(pm, from, to, pow(2,0.5)*1.25);
         break;
         case FASTPM_DEALIASING_GAUSSIAN36:
             {

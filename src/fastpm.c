@@ -703,9 +703,17 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     
     // compute delta_k for ncdm
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
-    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
+    
+    if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
+        fastpm_info("No ncdm powerspectrum input; using cdm's instead.");
+        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
+                   CONF(prr->lua, read_lineark), 
+                   CONF(prr->lua, read_powerspectrum));
+    } else {
+        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
                    CONF(prr->lua, read_lineark_ncdm), 
                    CONF(prr->lua, read_powerspectrum_ncdm));
+    }
     
     // perform lpt
     fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, CONF(prr->lua, time_step)[0]);
