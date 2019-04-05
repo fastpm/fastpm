@@ -392,11 +392,14 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 
 static void
 prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, Parameters * prr, double aout, 
+               double linear_density_redshift,
                const char lineark_filename[],
                const char powerspectrum_filename[])
 {
     /*
     computes delta_k given either the filename of the powerspectrum or linear k.
+    the input deltak/powerspectrum is at redshift = linear_density_redshift
+    the output is at a=aout.
     allows input of the appropraite file for a given species.
     */
     
@@ -521,7 +524,6 @@ induce:
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
     {
-        double linear_density_redshift = CONF(prr->lua, linear_density_redshift);
         double linear_evolve = fastpm_solver_growth_factor(fastpm, aout) /
                                fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
 
@@ -603,7 +605,8 @@ prepare_cdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
-    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
+    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0,
+                   CONF(prr->lua, linear_density_redshift), 
                    CONF(prr->lua, read_lineark), 
                    CONF(prr->lua, read_powerspectrum));
 
@@ -707,12 +710,14 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
         fastpm_info("No ncdm powerspectrum input; using cdm's instead.");
         prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
-                   CONF(prr->lua, read_lineark), 
-                   CONF(prr->lua, read_powerspectrum));
+                        CONF(prr->lua, linear_density_redshift), 
+                        CONF(prr->lua, read_lineark), 
+                        CONF(prr->lua, read_powerspectrum));
     } else {
         prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
-                   CONF(prr->lua, read_lineark_ncdm), 
-                   CONF(prr->lua, read_powerspectrum_ncdm));
+                        CONF(prr->lua, linear_density_redshift_ncdm), 
+                        CONF(prr->lua, read_lineark_ncdm), 
+                        CONF(prr->lua, read_powerspectrum_ncdm));
     }
     
     // perform lpt
@@ -1123,7 +1128,10 @@ smesh_force_handler(FastPMSolver * fastpm, FastPMForceEvent * event, struct smes
         FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
         /* generate linear field at this time */
-        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, event->a_f, CONF(prr->lua, read_lineark), CONF(prr->lua, read_powerspectrum));
+        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, event->a_f, 
+                        CONF(prr->lua, linear_density_redshift), 
+                        CONF(prr->lua, read_lineark), 
+                        CONF(prr->lua, read_powerspectrum));
 
         fastpm_smesh_compute_potential(smesh, fastpm->basepm, event->painter, event->kernel, delta_k, event->a_f, event->a_n);
 

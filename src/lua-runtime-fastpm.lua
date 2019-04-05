@@ -98,7 +98,9 @@ schema.declare{name='read_powerspectrum', type='file', help='file to read the li
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}    --file?
 schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
 
-schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear density field. '}
+schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
+schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field. '}
+
 schema.declare{name='sigma8',             type='number', default=0, help='normalize linear power spectrumt to sigma8(z); this shall be sigma8 at linear_density_redshift, not z=0.'}
 schema.declare{name='random_seed',         type='int'}
 schema.declare{name='shift',             type='boolean', default=false}
