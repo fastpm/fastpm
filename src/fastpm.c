@@ -708,7 +708,8 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
     
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
-        fastpm_info("No ncdm powerspectrum input; using cdm's instead.");
+        fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead."); 
+        /*FIX: would make more sense (better approximation) to use a flat power spectrum instead*/
         prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift), 
                         CONF(prr->lua, read_lineark), 
