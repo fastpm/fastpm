@@ -89,13 +89,13 @@ end
 
 -- Initial condition --
 schema.declare{name='read_grafic',        type='string'}
-schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}   --file?
+schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}
 schema.declare{name='read_runpbic',       type='string'}
 schema.declare{name='read_whitenoisek',         type='string'}
 
 schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum for cdm.'}
 
-schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}    --file?
+schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
 schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
 
 schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
@@ -209,8 +209,8 @@ schema.kernel_type.choices = {
     ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }
-schema.declare{name='dealiasing_type',             type='enum', default="none", help='Dealiasing kernel (wipes out small scale force), very litle effect)'}
-schema.dealiasing_type.choices = {
+schema.declare{name='force_softening_type',             type='enum', default="none", help='Dealiasing kernel (wipes out small scale force), very little effect)'}
+schema.force_softening_type.choices = {
     none = 'FASTPM_DEALIASING_NONE',
     gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
     aggressive = 'FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN',
@@ -331,7 +331,7 @@ function fastpm.test()
         __file__ = "standard.lua",
         boxsize = 384.0,
         cola_stdda = true,
-        dealiasing_type = "none",
+        force_softening_type = "none",
         enforce_broadband_kmax = 4,
         f_nl = 0.100000000000000006,
         f_nl_type = "local",

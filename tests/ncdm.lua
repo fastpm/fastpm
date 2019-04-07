@@ -47,11 +47,11 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 
 remove_cosmic_variance = true
 
-dealiasing_type = "none"   --aggressive means GADGET now
+force_softening_type = "none"   --aggressive means GADGET now
 
 -------- Output ---------------
 
-filename = string.format("NEWsrunE_SH%d_NS%d_every%d_proc%d_nc%d_size%d_lvk%s_rcv%s_dt%s_pnf%d_z99", n_shell, n_side, every_ncdm, os.get_nprocs(), nc, boxsize, lvk, remove_cosmic_variance, dealiasing_type, pm_nc_factor)  --add time_step to fname?
+filename = string.format("NEWsrunE_SH%d_NS%d_every%d_proc%d_nc%d_size%d_lvk%s_rcv%s_fst%s_pnf%d_z99", n_shell, n_side, every_ncdm, os.get_nprocs(), nc, boxsize, lvk, remove_cosmic_variance, force_softening_type, pm_nc_factor)  --add time_step to fname?
 --loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/Pncdm_init_test/"
 loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/lowz/"
 

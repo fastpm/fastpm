@@ -202,7 +202,7 @@ int main(int argc, char ** argv) {
         .USE_SHIFT = CONF(prr->lua, shift),
         .FORCE_TYPE = CONF(prr->lua, force_mode),
         .KERNEL_TYPE = CONF(prr->lua, kernel_type),
-        .DEALIASING_TYPE = CONF(prr->lua, dealiasing_type),
+        .DEALIASING_TYPE = CONF(prr->lua, force_softening_type),
         .PAINTER_TYPE = CONF(prr->lua, painter_type),
         .painter_support = CONF(prr->lua, painter_support),
         .NprocY = prr->cli->NprocY,
