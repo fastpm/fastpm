@@ -359,6 +359,7 @@ fastpm_store_write(FastPMStore * p,
             attr_func(&bb, "q.strides", p->meta._q_strides, "i8", 3);
             attr_func(&bb, "q.scale", p->meta._q_scale, "f8", 3);
             attr_func(&bb, "q.shift", p->meta._q_shift, "f8", 3);
+            attr_func(&bb, "q.size", &p->meta._q_size, "i8", 1);
             attr_func(&bb, "a.x", &p->meta.a_x, "f8", 1);
             attr_func(&bb, "a.v", &p->meta.a_v, "f8", 1);
             attr_func(&bb, "M0", &p->meta.M0, "f8", 1);
