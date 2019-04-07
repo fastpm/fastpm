@@ -120,9 +120,9 @@ void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, doub
 double fastpm_store_get_mass(FastPMStore * p, ptrdiff_t index)
 {
     /* total mass is the sum of the base and the extra */
-    if(p->mass){
+    if(p->mass) {
         return p->meta.M0 + p->mass[index];
-    }else{
+    } else {
         return p->meta.M0;
     }
 }
