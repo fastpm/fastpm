@@ -83,11 +83,11 @@ struct FastPMStore {
         FastPMColumnTags attribute;
     } _column_info[32];
 
-    /* meta-data*/
+    /* meta-data: remember to modify io.c after adding an item. */
     struct {
         double a_x;
         double a_v;
-        double M0;    //base mass in 10^10 M_sun / h
+        double M0;    /* base mass in 10^10 M_sun / h; particle mass is M0 + mass[i] */
 
         double _q_shift[3];
         double _q_scale[3];
@@ -119,8 +119,9 @@ struct FastPMStore {
             float (* rdisp)[6]; /* zero lag, first lag, second lag */
             float (* vdisp)[6];
             float (* rvdisp)[9];
-            
-            float (* mass);   //each ncdm has different mass. In eV
+
+            /* multiple species support */
+            float (* mass);   /* extra mass in addition to meta.M0; see fastpm_store_get_mass */
         };
     };
 };
