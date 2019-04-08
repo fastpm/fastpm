@@ -88,18 +88,17 @@ function schema.f_nl_type.action (f_nl_type)
 end
 
 -- Initial condition --
-schema.declare{name='read_grafic',        type='string'}
 schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}
-schema.declare{name='read_runpbic',       type='string'}
-schema.declare{name='read_whitenoisek',         type='string'}
-
 schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum for cdm.'}
+schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
 
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
 schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
-
-schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
 schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field. '}
+
+schema.declare{name='read_grafic',        type='string'}
+schema.declare{name='read_runpbic',       type='string'}
+schema.declare{name='read_whitenoisek',         type='string'}
 
 schema.declare{name='sigma8',             type='number', default=0, help='normalize linear power spectrumt to sigma8(z); this shall be sigma8 at linear_density_redshift, not z=0.'}
 schema.declare{name='random_seed',         type='int'}
