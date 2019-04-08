@@ -213,7 +213,7 @@ schema.declare{name='force_softening_type',             type='enum', default="no
 schema.force_softening_type.choices = {
     none = 'FASTPM_DEALIASING_NONE',
     gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
-    aggressive = 'FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN',
+    gadget_long_range = 'FASTPM_DEALIASING_GADGET_LONG_RANGE',
     gaussian36 = 'FASTPM_DEALIASING_GAUSSIAN36',
     twothird = 'FASTPM_DEALIASING_TWO_THIRD',
 }
