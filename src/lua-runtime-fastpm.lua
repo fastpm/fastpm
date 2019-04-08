@@ -209,13 +209,13 @@ schema.kernel_type.choices = {
     ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }
-schema.declare{name='force_softening_type',             type='enum', default="none", help='Dealiasing kernel (wipes out small scale force), very little effect)'}
+schema.declare{name='force_softening_type',             type='enum', default="none", help='Softening kernel (wipes out small scale force), very little effect)'}
 schema.force_softening_type.choices = {
-    none = 'FASTPM_DEALIASING_NONE',
-    gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
-    gadget_long_range = 'FASTPM_DEALIASING_GADGET_LONG_RANGE',
-    gaussian36 = 'FASTPM_DEALIASING_GAUSSIAN36',
-    twothird = 'FASTPM_DEALIASING_TWO_THIRD',
+    none = 'FASTPM_SOFTENING_NONE',
+    gaussian = 'FASTPM_SOFTENING_GAUSSIAN',
+    gadget_long_range = 'FASTPM_SOFTENING_GADGET_LONG_RANGE',
+    gaussian36 = 'FASTPM_SOFTENING_GAUSSIAN36',
+    twothird = 'FASTPM_SOFTENING_TWO_THIRD',
 }
 
 schema.declare{name='constraints',      type='array:number',  help="A list of {x, y, z, peak-sigma}, giving the constraints in MPC/h units. "}

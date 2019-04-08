@@ -85,7 +85,7 @@ apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int 
 }
 
 static void
-apply_gaussian_dealiasing(PM * pm, FastPMFloat * from, FastPMFloat * to, double N)
+apply_gaussian_softening(PM * pm, FastPMFloat * from, FastPMFloat * to, double N)
 {
     /* N is rms in mesh size */
     double r0 = N * pm->BoxSize[0] / pm->Nmesh[0];
@@ -228,31 +228,31 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
     }
 }
 static void
-apply_dealiasing_transfer(FastPMDealiasingType type, PM * pm, FastPMFloat * from, FastPMFloat * to)
+apply_softening_transfer(FastPMSofteningType type, PM * pm, FastPMFloat * from, FastPMFloat * to)
 {
     switch(type) {
-        case FASTPM_DEALIASING_TWO_THIRD:
+        case FASTPM_SOFTENING_TWO_THIRD:
             {
             double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
             fastpm_apply_lowpass_transfer(pm, from, to, 2.0 / 3 * k_nq);
             }
         break;
-        case FASTPM_DEALIASING_GAUSSIAN:
-            apply_gaussian_dealiasing(pm, from, to, 1.0);
+        case FASTPM_SOFTENING_GAUSSIAN:
+            apply_gaussian_softening(pm, from, to, 1.0);
         break;
-        case FASTPM_DEALIASING_GADGET_LONG_RANGE:
-            apply_gaussian_dealiasing(pm, from, to, pow(2,0.5)*1.25);
+        case FASTPM_SOFTENING_GADGET_LONG_RANGE:
+            apply_gaussian_softening(pm, from, to, pow(2,0.5)*1.25);
         break;
-        case FASTPM_DEALIASING_GAUSSIAN36:
+        case FASTPM_SOFTENING_GAUSSIAN36:
             {
             double k_nq = M_PI / pm->BoxSize[0] * pm->Nmesh[0];
             fastpm_apply_any_transfer(pm, from, to, (fastpm_fkfunc) gaussian36, &k_nq);
             }
         break;
-        case FASTPM_DEALIASING_NONE:
+        case FASTPM_SOFTENING_NONE:
         break;
         default:
-            fastpm_raise(-1, "wrong dealiasing kernel type");
+            fastpm_raise(-1, "wrong softening kernel type");
     }
 }
 
@@ -423,7 +423,7 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
 void
 fastpm_solver_compute_force(FastPMSolver * fastpm,
     FastPMPainter * painter,
-    FastPMDealiasingType dealias,
+    FastPMSofteningType dealias,
     FastPMKernelType kernel,
     FastPMFloat * delta_k)
 {
@@ -438,8 +438,8 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
 
     CLOCK(dealias);
     /* calculate the forces save them to p->acc */
-    apply_dealiasing_transfer(dealias, pm, delta_k, delta_k);
-    pm_check_values(pm, delta_k, "After dealiasing");
+    apply_softening_transfer(dealias, pm, delta_k, delta_k);
+    pm_check_values(pm, delta_k, "After softening");
     LEAVE(dealias);
 
     FastPMFieldDescr ACC[] = {

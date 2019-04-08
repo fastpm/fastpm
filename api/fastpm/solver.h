@@ -64,7 +64,7 @@ typedef struct {
     int painter_support;
     FastPMForceType FORCE_TYPE;
     FastPMKernelType KERNEL_TYPE;
-    FastPMDealiasingType DEALIASING_TYPE;
+    FastPMSofteningType SOFTENING_TYPE;
 
     int NprocY;  /* Use 0 for auto */
     int UseFFTW; /* Use 0 for PFFT 1 for FFTW */
