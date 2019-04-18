@@ -88,17 +88,18 @@ function schema.f_nl_type.action (f_nl_type)
 end
 
 -- Initial condition --
+schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}
+schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum for cdm.'}
+schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
+
+schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
+schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
+schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field. '}
+
 schema.declare{name='read_grafic',        type='string'}
-schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}   --file?
 schema.declare{name='read_runpbic',       type='string'}
 schema.declare{name='read_whitenoisek',         type='string'}
 
-schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum for cdm.'}
-
-schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}    --file?
-schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
-
-schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear density field. '}
 schema.declare{name='sigma8',             type='number', default=0, help='normalize linear power spectrumt to sigma8(z); this shall be sigma8 at linear_density_redshift, not z=0.'}
 schema.declare{name='random_seed',         type='int'}
 schema.declare{name='shift',             type='boolean', default=false}
@@ -207,13 +208,13 @@ schema.kernel_type.choices = {
     ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }
-schema.declare{name='dealiasing_type',             type='enum', default="none", help='Dealiasing kernel (wipes out small scale force), very litle effect)'}
-schema.dealiasing_type.choices = {
-    none = 'FASTPM_DEALIASING_NONE',
-    gaussian = 'FASTPM_DEALIASING_GAUSSIAN',
-    aggressive = 'FASTPM_DEALIASING_AGGRESSIVE_GAUSSIAN',
-    gaussian36 = 'FASTPM_DEALIASING_GAUSSIAN36',
-    twothird = 'FASTPM_DEALIASING_TWO_THIRD',
+schema.declare{name='force_softening_type',             type='enum', default="none", help='Softening kernel (wipes out small scale force), very little effect)'}
+schema.force_softening_type.choices = {
+    none = 'FASTPM_SOFTENING_NONE',
+    gaussian = 'FASTPM_SOFTENING_GAUSSIAN',
+    gadget_long_range = 'FASTPM_SOFTENING_GADGET_LONG_RANGE',
+    gaussian36 = 'FASTPM_SOFTENING_GAUSSIAN36',
+    twothird = 'FASTPM_SOFTENING_TWO_THIRD',
 }
 
 schema.declare{name='constraints',      type='array:number',  help="A list of {x, y, z, peak-sigma}, giving the constraints in MPC/h units. "}
@@ -329,7 +330,7 @@ function fastpm.test()
         __file__ = "standard.lua",
         boxsize = 384.0,
         cola_stdda = true,
-        dealiasing_type = "none",
+        force_softening_type = "none",
         enforce_broadband_kmax = 4,
         f_nl = 0.100000000000000006,
         f_nl_type = "local",

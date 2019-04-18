@@ -352,7 +352,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
     fastpm_info("average mass of a ncdm particle is %g\n", M0);
 
-    //copy and amend meta-data
+    /* copy and amend meta-data */
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
 
     dest->meta.M0 = 0.; /* will have a mass per particles */
@@ -372,15 +372,14 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
                        elsize);
             }
 
-            //give id, mass and add thm vel
+            /* give id, mass and add thm vel */
             dest->id[r] = j * src->meta._q_size + src->id[i];
             dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
-
+            
             for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
                 dest->v[r][d] += nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
             }
-            
             r ++;
         }
     }

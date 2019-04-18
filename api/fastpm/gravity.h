@@ -5,7 +5,7 @@ FASTPM_BEGIN_DECLS
 void
 fastpm_solver_compute_force(FastPMSolver * fastpm,
     FastPMPainter * painter,
-    FastPMDealiasingType dealias,
+    FastPMSofteningType dealias,
     FastPMKernelType kernel,
     FastPMFloat * delta_k);
 

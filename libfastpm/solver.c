@@ -385,7 +385,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
 
     ENTER(force);
-    fastpm_solver_compute_force(fastpm, painter, fastpm->config->DEALIASING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
+    fastpm_solver_compute_force(fastpm, painter, fastpm->config->SOFTENING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
     LEAVE(force);
 
     if(p->pgdc) {
