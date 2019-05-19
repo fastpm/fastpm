@@ -380,11 +380,13 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
 int
 fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick)
 {
+    CLOCK(intersect);
     double a1 = drift->ai > drift->af ? drift->af: drift->ai;
     double a2 = drift->ai > drift->af ? drift->ai: drift->af;
 
     /* for each tile */
     int t;
+    ENTER(intersect);
     for(t = 0; t < mesh->ntiles; t ++) {
         fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
                 a1, a2,
@@ -393,6 +395,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
                 mesh->p); /*Store particle to get density*/
 
     }
+    LEAVE(intersect);
 
     /* a portion of light cone is ready between a0 and a1 */
     FastPMLCEvent lcevent[1];
