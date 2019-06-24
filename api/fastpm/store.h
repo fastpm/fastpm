@@ -157,9 +157,10 @@ fastpm_store_init_details(FastPMStore * p, const char * name, size_t np_upper, F
 void
 fastpm_store_set_name(FastPMStore * store, const char * name);
 
+#define fastpm_store_init_evenly(p, name, np_total, attributes, alloc_factor, comm) fastpm_store_init_evenly_details(p, name, np_total, attributes, alloc_factor, comm, __FILE__, __LINE__)
 size_t
-fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes,
-    double alloc_factor, MPI_Comm comm);
+fastpm_store_init_evenly_details(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes,
+    double alloc_factor, MPI_Comm comm, const char * file, const int line);
 
 void
 fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);

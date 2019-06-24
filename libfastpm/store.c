@@ -254,8 +254,11 @@ fastpm_store_set_name(FastPMStore * p, const char * name)
     strcpy(p->name, name);
 }
 
-size_t 
-fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm) 
+size_t
+fastpm_store_init_evenly_details(FastPMStore * p,
+    const char * name, size_t np_total, FastPMColumnTags attributes, double alloc_factor, MPI_Comm comm,
+    const char * file,
+    const int line)
 {
     /* allocate for np_total cross all */
     /* name means name of species*/
@@ -265,7 +268,7 @@ fastpm_store_init_evenly(FastPMStore * p, const char * name, size_t np_total, Fa
     size_t np_upper = (size_t)(1.0 * np_total / NTask * alloc_factor);
 
     MPI_Bcast(&np_upper, 1, MPI_LONG, 0, comm);
-    fastpm_store_init(p, name, np_upper, attributes, FASTPM_MEMORY_HEAP);
+    fastpm_store_init_details(p, name, np_upper, attributes, FASTPM_MEMORY_HEAP, file, line);
     return 0;
 }
 
