@@ -183,6 +183,14 @@ zangle(double * x) {
     return rt;
 }
 
+/* is a vector in the i-th octant.
+ * The ordering of octants is in C ordering, with
+ * the Z-axis the fast changing direction.
+ *
+ * Thus [0, 4) are x > 0.
+ *
+ * The tolerance is in the same unit as the vector.
+ * */
 static int
 _in_octant(int i, double vec[3], double tol)
 {

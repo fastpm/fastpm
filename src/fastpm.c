@@ -331,7 +331,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
         .cosmology = fastpm->cosmology,
         .fov = CONF(prr->lua, lc_fov),
         .octants = {0, 0, 0, 0, 0, 0, 0, 0},
-        .tol = 2. / CONF(prr->lua, nc) / CONF(prr->lua, lc_smesh_fraction),
+        .tol = 2. / CONF(prr->lua, nc) / pow(CONF(prr->lua, particle_fraction), 0.33333),
     }};
 
     MPI_Barrier(comm);
