@@ -24,7 +24,6 @@ LIBSOURCES = libfastpm.c \
     pgdcorrection.c \
     constrainedgaussian.c \
     lightcone-usmesh.c \
-    lightcone-smesh.c \
     timemachine.c \
     cosmology.c \
     horizon.c \
