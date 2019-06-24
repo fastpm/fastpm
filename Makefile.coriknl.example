@@ -1,0 +1,12 @@
+CC = cc
+CPPFLAGS = -DFASTPM_FFT_PRECISION=32 
+CPPFLAGS +=-I /usr/common/software/gsl/2.1/gnu/include
+GSL_LIBS =-L /usr/common/software/gsl/2.1/gnu/lib -lgsl -lgslcblas -lmvec -lmvec_nonshared
+OPTIMIZE ?= -Ofast -g -march=knl 
+# hugepages
+LDFLAGS = -Wl,--whole-archive,-lhugetlbfs,--no-whole-archive -Wl,-Ttext-segment=0x2000000,-zmax-page-size=0x2000000 \
+
+#          -Wl,@/global/homes/y/yfeng1/m3127/codes/11548173/allinea-profiler.ld
+#       -zmuldefs $(DDT_LINK_DMALLOCTH)
+PFFT_CFLAGS= -Ofast -g -march=knl
+PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx --enable-avx2 --enable-avx512
