@@ -87,8 +87,8 @@ fastpm_horizon_solve(FastPMHorizon * horizon,
     double r, x_lo=a_i, x_hi=a_f, eps;
 
     /* Reorganize to struct later */
-    max_iter = 100;
-    eps = 1e-7;
+    max_iter = 20;
+    eps = 1e-5;
 
     gsl_function F;
 
@@ -124,7 +124,7 @@ fastpm_horizon_solve(FastPMHorizon * horizon,
         //fastpm_info("%5d [%.7f, %.7f] %.7f %.7f %.7f\n", iter, x_lo, x_hi, r, funct(r, &params), x_hi - x_lo);
         //
 
-        if(status == GSL_SUCCESS) {
+        if(status == GSL_SUCCESS || iter == max_iter ) {
             *solution = r;
             //
             // Debug printout #3.1
@@ -133,7 +133,7 @@ fastpm_horizon_solve(FastPMHorizon * horizon,
             return 1;
         }
     }
-    while (status == GSL_CONTINUE && iter < max_iter);
+    while (status == GSL_CONTINUE);
     //
     // Debug printout #3.2
     //fastpm_info("fastpm_lc_intersect() called with parameters %.7f and %.7f, returned status %d.\n\n", a, b, 0);
