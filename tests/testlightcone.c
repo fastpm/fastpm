@@ -10,28 +10,6 @@
 #include <fastpm/string.h>
 
 static void
-smesh_handler(FastPMSMesh * mesh, FastPMLCEvent * lcevent, FastPMSolver * solver)
-{
-    fastpm_info("lc event : a0 = %g a1 = %g, n = %td \n", lcevent->a0, lcevent->a1, lcevent->p->np);
-    char * fn = fastpm_strdup_printf("lightcone_struct");
-    if(lcevent->is_first) {
-        fastpm_info("First iteration\n");
-        fastpm_store_write(lcevent->p, fn, "w", 1, solver->comm);
-    } else {
-        fastpm_info("not first iteration\n");
-        fastpm_store_write(lcevent->p, fn, "a", 1, solver->comm);
-    }
-    free(fn);
-}
-
-static void
-force_handler(FastPMSolver * solver, FastPMForceEvent * event, FastPMSMesh * smesh)
-{
-    fastpm_info("force handler, %g %g\n", event->a_f, event->a_n);
-    fastpm_smesh_compute_potential(smesh, event->pm, event->painter, event->kernel, event->delta_k, event->a_f, event->a_n);
-}
-
-static void
 interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick);
@@ -45,21 +23,11 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 {
 
     FastPMUSMesh usmesh[1];
-    FastPMSMesh  smesh[1];
 
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
     fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
-
-    fastpm_smesh_init(smesh, lc, p->np_upper, 8);
-    fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
-    fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
-
-    fastpm_add_event_handler(&smesh->event_handlers,
-            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) smesh_handler,
-            solver);
 
     fastpm_info("stage 1\n");
 
@@ -81,11 +49,6 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMPainter painter[1];
 
     fastpm_painter_init(painter, solver->basepm, solver->config->PAINTER_TYPE, solver->config->painter_support);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 0.1, 0.5);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 0.5, 1.0);
-    fastpm_smesh_compute_potential(smesh, solver->basepm, painter, solver->config->KERNEL_TYPE, rho_init_ktruth, 1.0, -1.0);
-
-    fastpm_smesh_destroy(smesh);
     fastpm_usmesh_destroy(usmesh);
 
 }
@@ -95,29 +58,9 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 {
     fastpm_info("stage 2\n");
     FastPMUSMesh usmesh[1];
-    FastPMSMesh  smesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
     fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
-
-    fastpm_smesh_init(smesh, lc, p->np_upper, 8);
-    fastpm_smesh_add_layers_healpix(smesh, 
-            pow(solver->config->nc / solver->config->boxsize, 2),
-            pow(solver->config->nc / solver->config->boxsize, 3),
-            0.4, 0.8, 128,
-            solver->comm);
-//    fastpm_smesh_add_layer_healpix(smesh, 32, a, 64, solver->comm);
-//    fastpm_smesh_add_layer_healpix(smesh, 16, a + 64, 64, solver->comm);
-
-    fastpm_add_event_handler(&smesh->event_handlers,
-            FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) smesh_handler,
-            solver);
-
-    fastpm_add_event_handler(&solver->event_handlers,
-            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) force_handler,
-            smesh);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
@@ -134,17 +77,6 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_store_write(usmesh->p, "lightcone-unstruct", "w", 1, solver->comm);
 
-    fastpm_remove_event_handler(&solver->event_handlers,
-            FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_AFTER,
-            (FastPMEventHandlerFunction) force_handler,
-            smesh);
-
-    fastpm_remove_event_handler(&solver->event_handlers,
-            FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
-            (FastPMEventHandlerFunction) interp_handler,
-            smesh);
-
-    fastpm_smesh_destroy(smesh);
     fastpm_usmesh_destroy(usmesh);
 }
 

@@ -70,7 +70,6 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
 void
 fastpm_lc_destroy(FastPMLightCone * lc);
 
-#include "lightcone-smesh.h"
 FASTPM_END_DECLS
 
 #endif
