@@ -348,7 +348,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     size_t np_total = fastpm_store_get_np_total(src, comm);     //based on defn nid->mass, np_total (used in M0) is num of UNsplit ncdms
     
     /* avg mass of UNsplit ncdm site */
-    double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total 
+    double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
     /* divide by n_ncdm to give avg mass of ncdm across the flavors.
        This is overkill atm, but when including more flavor functionality could be useful */
     double Mflav = M0 / nid->n_ncdm;  
