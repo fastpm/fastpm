@@ -222,7 +222,6 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, Fas
 void
 fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 {
-
     fastpm_do_warmup(fastpm, time_step[0]);
 
     FastPMStates * states = malloc(sizeof(FastPMStates));
@@ -358,7 +357,8 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     FastPMForceEvent event[1];
 
-    /* FIXME modify gravity.c to compute delta_k from all species. */
+    /* FIXME modify gravity.c to compute delta_k from all species.
+       [ Only CDM is used to calc N below ] */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
     fastpm_painter_init(painter, pm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);

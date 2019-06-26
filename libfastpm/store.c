@@ -952,6 +952,7 @@ fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
                                               int every, /* take 1 every 'every' per dimension */
                                               FastPMParticleMaskType * mask)
 {
+    /* UNUSED */
     memset(mask, 0, p->np * sizeof(mask[0]));
 
     ptrdiff_t i, d;

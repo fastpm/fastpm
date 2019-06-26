@@ -296,7 +296,6 @@ _fastpm_solver_compute_delta_k(FastPMSolver * fastpm, FastPMPainter * painter, P
 
     double total_mass = 0;
 
-
     FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
 
     pm_clear(pm, canvas);
