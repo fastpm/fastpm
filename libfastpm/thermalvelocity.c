@@ -1,4 +1,4 @@
-#include <string.h>
+2§§#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
