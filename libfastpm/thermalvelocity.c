@@ -299,8 +299,9 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
                 double m = nid->m_ncdm[k];
 
                 /* define mass st sum over split will gives sum_k(m_ncdm[k]) 
+                   (hence no n_ncdm in denom)
                    FIX should change code to distinguish each ncdm flavor more explicitly*/
-                nid->mass[s] = masstab[j] / (12.*n_side*n_side * n_ncdm) * m;
+                nid->mass[s] = masstab[j] / (12.*n_side*n_side) * m;
 
                 double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m);
                 for(d = 0; d < 3; d ++){
