@@ -300,7 +300,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
 
                 /* define mass st sum over split will gives sum_k(m_ncdm[k]) 
                    (hence no n_ncdm in denom)
-                   FIX should change code to distinguish each ncdm flavor more explicitly*/
+                   FIX should change code to distinguish each ncdm mass-estate more explicitly*/
                 nid->mass[s] = masstab[j] / (12.*n_side*n_side) * m;
 
                 double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m);
@@ -350,10 +350,10 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     
     /* avg mass of UNsplit ncdm site */
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
-    /* divide by n_ncdm to give avg mass of ncdm across the flavors.
-       This is overkill atm, but when including more flavor functionality could be useful */
-    double Mflav = M0 / nid->n_ncdm;  
-    fastpm_info("average mass of a ncdm particle is %g\n", Mflav);
+    /* divide by n_ncdm to give avg mass of ncdm across the estates.
+       This is overkill atm, but when including more estate functionality could be useful */
+    double Mestate = M0 / nid->n_ncdm;
+    fastpm_info("average mass of a ncdm particle is %g\n", Mestate);
 
     /* copy and amend meta-data */
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
@@ -378,7 +378,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             /* give id, mass and add thm vel */
             dest->id[r] = s * src->meta._q_size + src->id[i];
             
-            dest->mass[r] = nid->mass[s] * (nid->n_ncdm / nid->m_ncdm_sum) * Mflav;    // this will ensure that the sum of this over split will give n_ncdm*Mflav=M0
+            dest->mass[r] = nid->mass[s] * (nid->n_ncdm / nid->m_ncdm_sum) * Mestate;    // this will ensure that the sum of this over split will give n_ncdm*Mestate=M0
             /* Note atm m_ncdm cancels out.
                In reality m_ncdm will come into play in Omega_ncdm, which should come from cosmo. */
 
