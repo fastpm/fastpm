@@ -1171,7 +1171,7 @@ take_a_snapshot(FastPMSolver * fastpm, Parameters * prr)
                         p->name,
                         fastpm_store_subsample(p, p->mask, NULL),
                         p->attributes & (~COLUMN_ACC) & (~COLUMN_MASK),
-                        FASTPM_MEMORY_HEAP);
+                        FASTPM_MEMORY_FLOATING);
 
             fastpm_store_subsample(p, p->mask, &subsample[si]);
         } else {
