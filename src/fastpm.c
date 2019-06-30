@@ -856,7 +856,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
-    fastpm_info("Unstructured LightCone ready : a0 = %g a1 = %g, n = %td\n", lcevent->a0, lcevent->a1, np);
+    fastpm_info("Unstructured LightCone ready : ai = %g af = %g, n = %td\n", lcevent->ai, lcevent->af, np);
 
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
 
@@ -882,7 +882,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     LEAVE(indexing);
 
     ENTER(io);
-    if(lcevent->is_first) {
+    if(lcevent->whence == TIMESTEP_START) {
         fastpm_info("Creating usmesh catalog in %s\n", filebase);
         write_snapshot_header(fastpm, filebase, fastpm->comm);
         write_parameters(filebase, "Header", prr, fastpm->comm);
@@ -898,7 +898,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     ENTER(io);
 
     if(CONF(prr->lua, write_fof)) {
-        if(lcevent->is_first) {
+        if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
             fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
         } else {
@@ -1086,7 +1086,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
 
     fastpm_fof_init(&fof, p, fastpm->pm);
 
-    double rmin = lc->speedfactor * HorizonDistance(lcevent->a1, lc->horizon);
+    double rmin = lc->speedfactor * HorizonDistance(lcevent->af, lc->horizon);
 
     void * userdata[5];
     userdata[0] = & rmin;
@@ -1255,7 +1255,7 @@ take_a_snapshot(FastPMSolver * fastpm, Parameters * prr)
 static int 
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
 
     int64_t np = usmesh->p->np;
 

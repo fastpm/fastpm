@@ -31,18 +31,22 @@ typedef struct FastPMUSMesh {
     double amax; /* range for largest a; above which no particles will be written */
     double amin; /* range for smallest a; below which no particles will be written */
 
-    int is_first; /* is this the first time an event is emitted. */
+    double ai; /* starting scaling factor of the current p. */
+    double af; /* ending scaling factor of the current p. */
     /* Extensions */
     FastPMEventHandler * event_handlers;
 } FastPMUSMesh;
 
 
+#define TIMESTEP_START 0
+#define TIMESTEP_CUR 1
+#define TIMESTEP_END 2
 typedef struct FastPMLCEvent {
     FastPMEvent base;
-    int is_first;
+    int whence; /* TIMESTEP_START, TIMESTEP_CUR, TIMESTEP_END for first, any, or last event. first and last shall produce no particles. */
     FastPMStore * p;
-    double a0;
-    double a1;
+    double ai;
+    double af;
 } FastPMLCEvent;
 
 void
@@ -65,7 +69,7 @@ void
 fastpm_usmesh_destroy(FastPMUSMesh * mesh);
 
 int
-fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick);
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, int whence, MPI_Comm comm);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);

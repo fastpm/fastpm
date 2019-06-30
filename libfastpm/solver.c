@@ -183,7 +183,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans);
 
 static void
 fastpm_do_interpolation(FastPMSolver * fastpm,
-        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2);
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, int whence);
 
 enum FastPMSpecies
 fastpm_solver_iter_species(FastPMSolver * fastpm, int * iter)
@@ -220,7 +220,7 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, Fas
 
 
 void
-fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep) 
+fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 {
 
     fastpm_do_warmup(fastpm, time_step[0]);
@@ -281,17 +281,24 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
             FastPMDriftFactor drift;
             fastpm_kick_init(&kick, fastpm, a0, a0, a0);
             fastpm_drift_init(&drift, fastpm, a0, a0, a0);
-            fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0);
+            fastpm_do_interpolation(fastpm, &drift, &kick, a0, a0, TIMESTEP_START);
 
         }
     }
+    /* special interpolation event for the end of the simulation. */
+    double a1 = time_step[nstep - 1];
+    FastPMKickFactor kick;
+    FastPMDriftFactor drift;
+    fastpm_kick_init(&kick, fastpm, a1, a1, a1);
+    fastpm_drift_init(&drift, fastpm, a1, a1, a1);
+    fastpm_do_interpolation(fastpm, &drift, &kick, a1, a1, TIMESTEP_END);
     fastpm_tevo_destroy_states(states);
     free(states);
 }
 
 static void
 fastpm_do_interpolation(FastPMSolver * fastpm,
-        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2)
+        FastPMDriftFactor * drift, FastPMKickFactor * kick, double a1, double a2, int whence)
 {
     CLOCK(interpolation);
 
@@ -301,7 +308,9 @@ fastpm_do_interpolation(FastPMSolver * fastpm,
     event->drift = drift;
     event->kick = kick;
     event->a1 = a1;
-    event->a2 =a2;
+    event->a2 = a2;
+    event->whence = whence;
+
     fastpm_emit_event(fastpm->event_handlers,
             FASTPM_EVENT_INTERPOLATION, FASTPM_EVENT_STAGE_BEFORE,
             (FastPMEvent*) event, fastpm);
@@ -428,7 +437,7 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
 
         fastpm_drift_init(&drift, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
-        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
+        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f, TIMESTEP_CUR);
     }
 
     /* Do kick */
@@ -437,7 +446,7 @@ fastpm_do_kick(FastPMSolver * fastpm, FastPMTransition * trans)
     for(si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
         FastPMStore * p = fastpm_solver_get_species(fastpm, si);
         if(!p) continue;
-        
+
         if(kick.ai != p->meta.a_v) {
             fastpm_raise(-1, "kick is inconsitant with state.\n");
         }
@@ -466,7 +475,7 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
         }
         fastpm_kick_init(&kick, fastpm, dual->a.i, dual->a.r, dual->a.f);
 
-        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f);
+        fastpm_do_interpolation(fastpm, &drift, &kick, trans->a.i, trans->a.f, TIMESTEP_CUR);
     }
 
     /* Do drift */

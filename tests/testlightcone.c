@@ -12,7 +12,7 @@
 static void
 interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
 }
 
 double tiles[4*4*4][3];
@@ -41,7 +41,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_usmesh_intersect(usmesh, &drift, &kick);
+    fastpm_usmesh_intersect(usmesh, &drift, &kick, TIMESTEP_CUR, solver->comm);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
     fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);
@@ -77,6 +77,12 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_store_write(usmesh->p, "lightcone-unstruct", "w", 1, solver->comm);
 
+    fastpm_remove_event_handler(&solver->event_handlers,
+        FASTPM_EVENT_INTERPOLATION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) interp_handler,
+        usmesh);
+
     fastpm_usmesh_destroy(usmesh);
 }
 
@@ -85,6 +91,16 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 {
     fastpm_info("stage 3\n");
 
+    FastPMUSMesh usmesh[1];
+
+    FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+
+    fastpm_add_event_handler(&solver->event_handlers,
+        FASTPM_EVENT_INTERPOLATION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) interp_handler,
+        usmesh);
 
     double time_step3[] = {0.1};
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
@@ -92,6 +108,14 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_store_write(fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
             "nonlightconeresultZ=9", "w", 1, solver->comm);
+
+    fastpm_remove_event_handler(&solver->event_handlers,
+        FASTPM_EVENT_INTERPOLATION,
+        FASTPM_EVENT_STAGE_BEFORE,
+        (FastPMEventHandlerFunction) interp_handler,
+        usmesh);
+
+    fastpm_usmesh_destroy(usmesh);
 }
 
 

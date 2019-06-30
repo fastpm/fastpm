@@ -72,7 +72,6 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->lc = lc;
     mesh->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     mesh->ntiles = ntiles;
-    mesh->is_first = 1;
 
     memcpy(mesh->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
 
@@ -286,11 +285,6 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         }
     }
 
-    fastpm_info("Considering Tile %g %g %g\n",
-        params.tileshift[0],
-        params.tileshift[1],
-        params.tileshift[2]);
-
     params.tileshift[3] = 0;
 
     ptrdiff_t i;
@@ -302,7 +296,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         for(i = 0; i < p->np; i ++) {
             double a_emit = 0;
             if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
-            
+
             /* the event is outside the region we care, skip */
             if(a_emit > mesh->amax || a_emit < mesh->amin) continue;
 
@@ -385,41 +379,67 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
     return 0;
 }
 
-int
-fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick)
+void
+fastpm_usmesh_emit(FastPMUSMesh * mesh, int whence)
 {
-    CLOCK(intersect);
-    double a1 = drift->ai > drift->af ? drift->af: drift->ai;
-    double a2 = drift->ai > drift->af ? drift->ai: drift->af;
-
-    /* for each tile */
-    int t;
-    ENTER(intersect);
-    for(t = 0; t < mesh->ntiles; t ++) {
-        fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
-                a1, a2,
-                drift, kick,
-                mesh->source,
-                mesh->p); /*Store particle to get density*/
-
-    }
-    LEAVE(intersect);
-
     /* a portion of light cone is ready between a0 and a1 */
     FastPMLCEvent lcevent[1];
 
     lcevent->p = mesh->p;
-    lcevent->a0 = a1;
-    lcevent->a1 = a2;
-    lcevent->is_first = mesh->is_first;
+    lcevent->ai = mesh->ai;
+    lcevent->af = mesh->af;
+    lcevent->whence = whence;
 
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
             (FastPMEvent*) lcevent, mesh);
 
-    /* now purge the store. */
-    mesh->p->np = 0;
-    mesh->is_first = 0;
+}
 
+int
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, int whence, MPI_Comm comm)
+{
+    CLOCK(intersect);
+    double a1 = drift->ai > drift->af ? drift->af: drift->ai;
+    double a2 = drift->ai > drift->af ? drift->ai: drift->af;
+
+    if (whence == TIMESTEP_START) {
+        mesh->ai = a1;
+        mesh->af = a1;
+        fastpm_info("usmesh start event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+        fastpm_usmesh_emit(mesh, whence);
+    } else
+    if (whence == TIMESTEP_CUR) {
+        /* for each tile */
+        int t;
+        ENTER(intersect);
+        fastpm_info("usmesh intersection from %0.4f to %0.4f with %d tiles.\n", a1, a2, mesh->ntiles);
+
+        for(t = 0; t < mesh->ntiles; t ++) {
+            fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
+                    a1, a2,
+                    drift, kick,
+                    mesh->source,
+                    mesh->p); /*Store particle to get density*/
+
+        }
+        LEAVE(intersect);
+        mesh->af = a2;
+        if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
+            fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+            fastpm_usmesh_emit(mesh, whence);
+            /* now purge the store. */
+            mesh->p->np = 0;
+            mesh->ai = mesh->af;
+        }
+    } else
+    if (whence == TIMESTEP_END) {
+        mesh->af = a2;
+        fastpm_info("usmesh end event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+        fastpm_usmesh_emit(mesh, whence);
+        /* now purge the store. */
+        mesh->p->np = 0;
+        mesh->ai = mesh->af;
+    }
     return 0;
 }

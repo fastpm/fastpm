@@ -20,6 +20,7 @@ typedef struct {
     FastPMKickFactor * kick;
     double a1;
     double a2;
+    int whence; /* TIMESTEP_START, TIMESTEP_CUR, TIMESTEP_END */
 } FastPMInterpolationEvent;
 
 typedef struct {
