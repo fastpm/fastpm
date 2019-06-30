@@ -1,5 +1,5 @@
-CC=cc
-MPICC=mpicc
+CC?=cc
+MPICC?=mpicc
 PREFIX=/usr
 
 all: libradixsort.a libmpsort-mpi.a
@@ -12,7 +12,7 @@ install: libradixsort.a libmpsort-mpi.a
 	install mpsort.h $(PREFIX)/include/mpsort.h
 
 clean:
-	rm *.o *.a	
+	rm -f *.o *.a	
 tests: main main-mpi bench-mpi
 
 main: main.c libmpsort-omp.a libradixsort.a
