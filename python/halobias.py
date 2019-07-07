@@ -47,11 +47,11 @@ else:
     ns1 = cat_ap.parse_args(args)
     ns2 = ns1
 
-def read_cat1(ns, nmin=None):
-    if ns.mesh:
-        mesh = BigFileMesh(ns.catalog, dataset=ns.dataset)
+def read_cat1(ns, ns1, nmin=None):
+    if ns1.mesh:
+        mesh = BigFileMesh(ns1.catalog, dataset=ns1.dataset)
     else:
-        cat = BigFileCatalog(ns.catalog, header='Header', dataset=ns.dataset)
+        cat = BigFileCatalog(ns1.catalog, header='Header', dataset=ns1.dataset)
         volume = cat.attrs['BoxSize'][0] ** 3
 
         if nmin is not None and nmin != 0:
@@ -65,8 +65,8 @@ def read_cat1(ns, nmin=None):
 
     return mesh
 
-def read_cat2(ns, nmin=None):
-    cat = BigFileCatalog(ns.catalog, header='Header', dataset=ns.dataset)
+def read_cat2(ns, ns1, nmin=None):
+    cat = BigFileCatalog(ns1.catalog, header='Header', dataset=ns1.dataset)
     volume = cat.attrs['BoxSize'][0] ** 3
 
     if nmin is not None and nmin != 0:
@@ -81,11 +81,11 @@ def main(ns, ns1, ns2):
     if ns.verbose:
         setup_logging('info')
 
-    cat1 = read_cat1(ns1)
+    cat1 = read_cat1(ns, ns1)
 
     mesh1 = cat1.paint(mode='complex')
 
-    cat2 = read_cat2(ns2)
+    cat2 = read_cat2(ns, ns2)
 
     if ns.unique_k:
         dk = 0
@@ -120,7 +120,7 @@ def main(ns, ns1, ns2):
     if cat1.comm.rank == 0:
         print('# Nmin bias growthrate abundance')
     for nmin1 in nmin:
-        cat2 = read_cat2(ns2, nmin1)
+        cat2 = read_cat2(ns, ns2, nmin1)
         mesh2 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='RSDPosition')
         mesh3 = cat2.to_mesh(interlaced=True, compensated=True, window='tsc', Nmesh=ns.nmesh, position='Position')
 
