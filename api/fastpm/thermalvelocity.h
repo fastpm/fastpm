@@ -1,4 +1,4 @@
-enum FastPMDivideSphere {     //FIX should implement this at some point
+enum FastPMDivideSphere {     //FIXME: should implement this at some point
     FASTPM_DIVIDE_SPHERE_HEALPIX = 0,
     FASTPM_DIVIDE_SPHERE_FIBONACCI = 1,
 };

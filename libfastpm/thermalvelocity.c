@@ -14,8 +14,6 @@
 
 #define NEXT(n, i)  (((n) + (i)/(n)) >> 1) // Needed for Healpix routine
 
-//should i initialize all funcs here?????????????????????
-
 //needed for healpix
 unsigned int isqrt(int number) {
     unsigned int n  = 1;
@@ -219,7 +217,7 @@ void divide_sphere_fibonacci(double *vec_table, int n_fibonacci)
 }
 
 
-//FIX all below is for healpix... can add fibonacci later.
+//FIXME: all below is for healpix... can add fibonacci later.
 
 static void _fastpm_ncdm_init_fill(FastPMncdmInitData* nid);
 
@@ -241,15 +239,15 @@ fastpm_ncdm_init_create(
     nid->m_ncdm_sum = 0;
     for(int i = 0; i < n_ncdm; i ++) {
         nid->m_ncdm[i] = m_ncdm[i];
-        nid->m_ncdm_sum += nid->m_ncdm[i];
+        nid->m_ncdm_sum += m_ncdm[i];
     }
 
-    nid->lvk = lvk;
     nid->n_ncdm = n_ncdm;
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;
     nid->n_side = n_side;
+    nid->lvk = lvk;
 
     /* this is the total number of velocity vectors produced */
     nid->n_split = 12 * n_shells * n_side * n_side * n_ncdm;
@@ -289,25 +287,27 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     masstab = calloc(n_shells,sizeof(double));
     vec_table = malloc(sizeof(double)*12*n_side*n_side*3);
     
-    divide_fd(vel_table,masstab,n_shells,lvk);
+    divide_fd(vel_table,masstab,n_shells,lvk);   // this fills masstab with masses. there are n_shells entries. will add up to 1 (over all shells)
 
     divide_sphere_healpix(vec_table,n_side);
 
     int i, j, k, d;
-    int r = 0;                          //row num
+    int s = 0;                          //row num  (s for split index)
     for(i = 0; i < 12*n_side*n_side; i ++){
         for(j = 0; j < n_shells; j ++){
             for(k = 0; k < n_ncdm; k ++){
                 double m = nid->m_ncdm[k];
 
-                /* mean of sampled masses shall be the expected mass */
-                nid->mass[r] = masstab[j] * n_shells * m;
+                /* define mass st sum over split will gives sum_k(m_ncdm[k]) 
+                   (hence no n_ncdm in denom)
+                   FIXME: maybe should change code to distinguish each ncdm mass-estate more explicitly*/
+                nid->mass[s] = masstab[j] / (12.*n_side*n_side) * m;
 
                 double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m);
                 for(d = 0; d < 3; d ++){
-                    nid->vel[r][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;
+                    nid->vel[s][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;
                 }
-                r++;
+                s++;
             }
         }
     }
@@ -326,7 +326,6 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     free(vec_table);
 }
 
-//FIX CAN REMOVE MPI_COMM FROM ARG NOW THAT YOUVE CHANGED TO UNIFORM GRID SUBSAMPLE
 void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
         FastPMStore * src,
@@ -341,27 +340,30 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     func, but dest has only been init'd.
     */
     
-    dest->np = src->np * nid->n_split;    //need to worry about proc imbalance still?
-
+    dest->np = src->np * nid->n_split;    // FIXME: ? Is proc imbalance an issue that needs to be accounted for?
     if(dest->np > dest->np_upper) {
         fastpm_raise(-1, "exceeding limit on the number limit of particles for the ncdm species \n");
     }
 
-    size_t np_total = fastpm_store_get_np_total(dest, comm); 
-
+    size_t np_total = fastpm_store_get_np_total(src, comm);     //based on defn nid->mass, np_total (used in M0) is num of UNsplit ncdms
+    
+    /* avg mass of UNsplit ncdm site */
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
-    fastpm_info("average mass of a ncdm particle is %g\n", M0);
+    /* divide by n_ncdm to give avg mass of ncdm across the estates.
+       This is overkill atm, but when including more estate functionality could be useful */
+    double Mestate = M0 / nid->n_ncdm;
+    fastpm_info("average mass of a ncdm particle is %g\n", Mestate);
 
     /* copy and amend meta-data */
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
 
-    dest->meta.M0 = 0.; /* will have a mass per particles */
+    dest->meta.M0 = 0.; /* will have a mass per particles. this overwrites M0 set in setup_lpt of src */
 
-    ptrdiff_t i, j, d;
-    ptrdiff_t r = 0;
-    for(i = 0; i < src->np; i ++) {    //loop thru each cdm particle
-        for(j = 0; j < nid->n_split; j ++) {  //loop thru split velocities AND ncdms
-            //copy all cols
+    ptrdiff_t i, s, d;
+    ptrdiff_t r = 0;    //row index of dest
+    for(i = 0; i < src->np; i ++) {    //loop thru each src particle
+        for(s = 0; s < nid->n_split; s ++) {  //loop thru split velocities AND ncdms
+            //copy all cols el by el
             int c;
             for(c = 0; c < 32; c ++) {
                 if (!dest->columns[c] || !src->columns[c]) continue;
@@ -373,12 +375,15 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             }
 
             /* give id, mass and add thm vel */
-            dest->id[r] = j * src->meta._q_size + src->id[i];
-            dest->mass[r] = nid->mass[j] / (nid->m_ncdm_sum / nid->n_ncdm) * M0;
+            dest->id[r] = s * src->meta._q_size + src->id[i];
             
+            dest->mass[r] = nid->mass[s] * (nid->n_ncdm / nid->m_ncdm_sum) * Mestate;    // this will ensure that the sum of this over split will give n_ncdm*Mestate=M0
+            /* Note atm m_ncdm cancels out.
+               In reality m_ncdm will come into play in Omega_ncdm, which should come from cosmo. */
+
             for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
-                dest->v[r][d] += nid->vel[j][d] / (1. + nid->z) / HubbleConstant;
+                dest->v[r][d] += nid->vel[s][d] / (1. + nid->z) / HubbleConstant;
             }
             r ++;
         }
