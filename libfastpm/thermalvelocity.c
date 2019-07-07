@@ -326,7 +326,6 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     free(vec_table);
 }
 
-//FIXME: CAN REMOVE MPI_COMM FROM ARG NOW THAT YOUVE CHANGED TO UNIFORM GRID SUBSAMPLE
 void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
         FastPMStore * src,
