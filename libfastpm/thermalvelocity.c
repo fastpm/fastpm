@@ -217,7 +217,7 @@ void divide_sphere_fibonacci(double *vec_table, int n_fibonacci)
 }
 
 
-//FIX all below is for healpix... can add fibonacci later.
+//FIXME: all below is for healpix... can add fibonacci later.
 
 static void _fastpm_ncdm_init_fill(FastPMncdmInitData* nid);
 
@@ -235,7 +235,7 @@ fastpm_ncdm_init_create(
     FastPMncdmInitData* nid = malloc(sizeof(nid[0]));
 
     nid->BoxSize = BoxSize;
-    nid->Omega_ncdm = 0.001404; /* FIX use new cosmology.c */
+    nid->Omega_ncdm = 0.001404; /* FIXME: use new cosmology.c */
     nid->m_ncdm_sum = 0;
     for(int i = 0; i < n_ncdm; i ++) {
         nid->m_ncdm[i] = m_ncdm[i];
@@ -300,7 +300,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
 
                 /* define mass st sum over split will gives sum_k(m_ncdm[k]) 
                    (hence no n_ncdm in denom)
-                   FIX should change code to distinguish each ncdm mass-estate more explicitly*/
+                   FIXME: maybe should change code to distinguish each ncdm mass-estate more explicitly*/
                 nid->mass[s] = masstab[j] / (12.*n_side*n_side) * m;
 
                 double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m);
@@ -326,7 +326,7 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     free(vec_table);
 }
 
-//FIX CAN REMOVE MPI_COMM FROM ARG NOW THAT YOUVE CHANGED TO UNIFORM GRID SUBSAMPLE
+//FIXME: CAN REMOVE MPI_COMM FROM ARG NOW THAT YOUVE CHANGED TO UNIFORM GRID SUBSAMPLE
 void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
         FastPMStore * src,
@@ -341,7 +341,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     func, but dest has only been init'd.
     */
     
-    dest->np = src->np * nid->n_split;    // FIX? Is proc imbalance an issue that needs to be accounted for?
+    dest->np = src->np * nid->n_split;    // FIXME: ? Is proc imbalance an issue that needs to be accounted for?
     if(dest->np > dest->np_upper) {
         fastpm_raise(-1, "exceeding limit on the number limit of particles for the ncdm species \n");
     }

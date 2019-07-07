@@ -680,7 +680,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
         fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead."); 
-        /*FIX: would make more sense (better approximation) to use a flat power spectrum instead*/
+        /*FIXME: would make more sense (better approximation) to use a flat power spectrum instead*/
         prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift), 
                         CONF(prr->lua, read_lineark), 
@@ -695,7 +695,7 @@ prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
     // perform lpt
     fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, CONF(prr->lua, time_step)[0]);
     
-    // FIX could add writing of Pncdm functionality (as in prepare_cdm for m).
+    // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
     pm_free(fastpm->basepm, delta_k);
     
     // SPLIT

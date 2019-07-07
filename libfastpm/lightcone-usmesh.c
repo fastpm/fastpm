@@ -84,7 +84,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
                 FASTPM_MEMORY_HEAP
     );
 
-    mesh->p->meta.M0 = source->meta.M0;       // FIX? change this for ncdm mass defn?
+    mesh->p->meta.M0 = source->meta.M0;       // FIXME: change this for ncdm mass defn?
 }
 
 void fastpm_usmesh_destroy(FastPMUSMesh * mesh)
