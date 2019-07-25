@@ -8,9 +8,10 @@ boxsize = 1000
 -------- Time Sequence ----
 -- linspace: Uniform time steps in a
 -- logspace: Uniform time steps in loga
-time_step = linspace(0.05,1.,11)
+--time_step = linspace(0.05,1.,41)
+time_step = logspace(math.log10(0.05), 0, 11)
 
-output_redshifts = {19.,0.}  --{19.0, 14., 9., 2., 1., 0.}  -- redshifts of output
+output_redshifts = {19.,9.,4.,2.,1.,0.}  --{19.0, 14., 9., 2., 1., 0.}  -- redshifts of output
 
 -- Cosmology --
 omega_m = 0.307494
@@ -18,9 +19,9 @@ omega_ncdm = 0.001404  --THIS IS HARDCODED ATM. SO THIS PARA DOESNT DO ANYTHING!
 h       = 0.6774
 
 --ncdm split
-m_ncdm = {0.03}
+m_ncdm = {0.05, 0.05, 0.05}--{0.06, 0.02, 0.01}
 n_shell = 10
-n_side = 2
+n_side = 1
 every_ncdm = 2
 lvk = true
 
@@ -64,8 +65,8 @@ force_softening_type = "none"
 filename = string.format("coriE_SH%d_NS%d_every%d_proc%d_nc%d_size%d_lvk%s_rcv%s_fst%s_pnf%d_z%d_m%s", n_shell, n_side, every_ncdm, os.get_nprocs(), nc, boxsize, lvk, remove_cosmic_variance, force_softening_type, pm_nc_factor, linear_density_redshift_ncdm, mass_string)  --add time_step to fname?
 --filename = string.format("LU2_SH10_NS2_Ndm1")
 --loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/Pncdm_init_test/"
-loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/lowz/"
---loc = "/global/cscratch1/sd/abayer/fastpm/trash/"
+--loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/lowz/highres/"
+loc = "/global/cscratch1/sd/abayer/fastpm/trash/"
 
 -- Dark matter particle outputs (all particles)
 write_snapshot = loc .. filename .. "/fastpm" 
