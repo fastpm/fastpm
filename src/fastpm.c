@@ -32,7 +32,8 @@
 typedef struct {
     CLIParameters * cli;
     LUAParameters * lua;
-} Parameters;
+    int iout; /* index of next unwritten snapshot. */
+} RunData;
 
 
 extern void
@@ -42,11 +43,11 @@ static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, Parameters * prr);
+take_a_snapshot(FastPMSolver * fastpm, RunData * prr);
 
 struct usmesh_ready_handler_data {
     FastPMSolver * fastpm;
-    Parameters * prr;
+    RunData * prr;
     FastPMStore tail[1];
     int64_t * hist;
     int64_t * hist_fof;
@@ -73,18 +74,18 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr);
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr);
 
 static void
 run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
         FastPMStore * halos,
-        Parameters * prr,
+        RunData * prr,
         FastPMStore * tail,
         FastPMLightCone * lc);
 
 static void
-write_parameters(const char * filebase, const char * dataset, Parameters * prr, MPI_Comm comm)
+write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI_Comm comm)
 {
     BigFile bf;
     BigBlock bb;
@@ -105,7 +106,7 @@ write_parameters(const char * filebase, const char * dataset, Parameters * prr, 
 
 }
 
-int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm);
+int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
 
@@ -131,7 +132,7 @@ int main(int argc, char ** argv) {
 
     LUAParameters * lua = parse_config_mpi(cli->argv[0], cli->argc, cli->argv, &error, comm);
 
-    Parameters prr[1] = {{cli, lua}};
+    RunData prr[1] = {{cli, lua, 0}};
 
     if(prr->lua) {
         fastpm_info("Configuration %s\n", prr->lua->string);
@@ -213,37 +214,37 @@ int main(int argc, char ** argv) {
 }
 
 static int 
-check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr);
+check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData * prr);
 
 static int 
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * lc);
 
 static int 
-write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
+write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr);
 
 static int 
-report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr);
+report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr);
 
 static int 
-report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr);
+report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, RunData * prr);
 
 static void 
-prepare_cdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm);
 
 static void 
-prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm);
+prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm);
 
 static void
 report_memory(MPI_Comm);
 
 static void
-prepare_lc(FastPMSolver * fastpm, Parameters * prr,
+prepare_lc(FastPMSolver * fastpm, RunData * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh);
 
 static int 
-print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr);
+print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, RunData * prr);
 
-int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
+int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     FastPMSolver fastpm[1];
 
     CLOCK(init);
@@ -362,7 +363,7 @@ int run_fastpm(FastPMConfig * config, Parameters * prr, MPI_Comm comm) {
 }
 
 static void
-prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, Parameters * prr, double aout, 
+prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * prr, double aout, 
                double linear_density_redshift,
                const char lineark_filename[],
                const char powerspectrum_filename[])
@@ -545,7 +546,7 @@ induce:
 }
 
 static void 
-prepare_cdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
+prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm) 
 {
     /* we may need a read gadget ic here too */
     if(CONF(prr->lua, read_runpbic)) {                 //runpbic is old code. dont think about when it comes to ncdm.
@@ -609,7 +610,7 @@ prepare_cdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm)
 }
 
 static void 
-prepare_ncdm(FastPMSolver * fastpm, Parameters * prr, MPI_Comm comm) 
+prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm) 
 {
     if(CONF(prr->lua, omega_ncdm) == 0) return;
 
@@ -721,7 +722,7 @@ _usmesh_ready_handler_free(void * userdata) {
 
 
 static void
-prepare_lc(FastPMSolver * fastpm, Parameters * prr,
+prepare_lc(FastPMSolver * fastpm, RunData * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh)
 {
     {
@@ -848,7 +849,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     CLOCK(indexing);
 
     FastPMSolver * fastpm = data->fastpm;
-    Parameters * prr = data->prr;
+    RunData * prr = data->prr;
     FastPMStore * tail = data->tail;
 
     FastPMStore halos[1];
@@ -916,7 +917,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 }
 
 static int
-check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Parameters * prr)
+check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData * prr)
 {
     fastpm_info("Checking Snapshots (%0.4f %0.4f) with K(%0.4f->%0.4f|%0.4f) D(%0.4f->%0.4f|%0.4f)\n",
         event->a1, event->a2,
@@ -927,10 +928,10 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
     int nout = CONF(prr->lua, n_aout);
-    double * aout= CONF(prr->lua, aout);
+    double * aout = CONF(prr->lua, aout);
 
     int iout;
-    for(iout = 0; iout < nout; iout ++) {
+    for(iout = prr->iout; iout < nout; iout ++) {
         if(event->a1 == event->a2) {
             /* initial condition */
             if(event->a1 != aout[iout]) continue;
@@ -960,12 +961,16 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, Paramet
         take_a_snapshot(snapshot, prr);
 
         fastpm_unset_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
+
+        /* do not rewrite this snapshot. */
+        prr->iout = iout + 1;
     }
+
     return 0;
 }
 
 static void
-run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Parameters * prr)
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr)
 {
     CLOCK(fof);
 
@@ -1045,7 +1050,7 @@ static void
 run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
         FastPMStore * halos,
-        Parameters * prr,
+        RunData * prr,
         FastPMStore * tail,
         FastPMLightCone * lc)
 {
@@ -1122,7 +1127,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
 }
 
 static int 
-take_a_snapshot(FastPMSolver * fastpm, Parameters * prr) 
+take_a_snapshot(FastPMSolver * fastpm, RunData * prr) 
 {
     FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
@@ -1267,7 +1272,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 }
 
 static int 
-print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, Parameters * prr)
+print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, RunData * prr)
 {
     FastPMTransition * trans = event->transition;
     char * action;
@@ -1341,7 +1346,7 @@ report_memory(MPI_Comm comm)
 }
 
 static int
-report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr)
+report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, RunData * prr)
 {
     double dx1_std[3], dx2_std[3];
 
@@ -1362,7 +1367,7 @@ report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, Parameters * prr)
 }
 
 static int
-report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr)
+report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr)
 {
     MPI_Comm comm = fastpm->comm;
 
@@ -1401,7 +1406,7 @@ report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr)
 }
 
 static int
-write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, Parameters * prr) 
+write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr) 
 {
 
     int K_LINEAR = CONF(prr->lua, enforce_broadband_kmax);
