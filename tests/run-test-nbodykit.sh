@@ -8,6 +8,5 @@ echo "---- Validating the output log file -------"
 expect_contains log 'Writing 1894 objects.'
 expect_contains log 'Writing 1668 objects.'
 expect_contains log 'RSD factor.*1.140331e-02'
-expect_contains log 'RSD factor.*1.140331e-02'
 expect_contains log 'sigma8.*0.815897'
 
