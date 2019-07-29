@@ -29,7 +29,7 @@ install:
 script:
     - pushd tests
     - bash runtests.sh
-#    - python plottests.py
+    - bash run-test-nbodykit.sh
     - popd
 
 # after_success: ./update-ghpages.sh
