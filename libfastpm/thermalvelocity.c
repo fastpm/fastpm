@@ -74,7 +74,10 @@ void pix2vec (int pix, double *vec, int n_side)
 }
 
 /* make params struct for functions we will integrate with gsl */
-typedef struct kernel_params {double m[3]; int n;} kernel_params;
+typedef struct kernel_params {
+    double m[3];
+    int n;
+} kernel_params;
 
 double fermi_dirac_kernel_vol_1(double x)
 {
@@ -93,7 +96,6 @@ double fermi_dirac_kernel_vol(double x, void * p)
     // only loop from i=1. i=0 term has been included in result already (r=1)
     for(int i = 1; i < params->n; i ++) {
         double r = params->m[i] / params->m[0];
-        if (r > 1) fastpm_raise(-1, "Please input the heaviest ncdm particle first.\n");
         result += (r*r*r*r) * fermi_dirac_kernel_vol_1(x * r);
     }
     return result;
@@ -118,7 +120,11 @@ double fermi_dirac_dispersion(double x, void * p)
 }
 
 
-void divide_fd(double *vel_table, double *mass, kernel_params * params, int n_shells, int lvk)
+void 
+divide_fd(double *vel_table, double *mass, 
+          kernel_params * params, 
+          int n_shells, 
+          int lvk)
 {
     double fermi_dirac_vel_ncdm[LENGTH_FERMI_DIRAC_TABLE];
     double fermi_dirac_cdf_ncdm[LENGTH_FERMI_DIRAC_TABLE]; //stores CDF
@@ -331,6 +337,9 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)
             double m0 = nid->m_ncdm[0];
             /* define mass st sum over split gives 1*/
             nid->mass[s] = masstab[j] / (12.*n_side*n_side);
+            /* velocity_conversion_factor converts the dimless exponent 
+               in the FD distribution to velocity in km/s.
+               kTc = 50.3 eV/c^2 km/s */
             double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m0);
             for(d = 0; d < 3; d ++){
                 nid->vel[s][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;

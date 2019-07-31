@@ -45,6 +45,14 @@ schema.declare{name='lvk',   type='boolean', required=false, default=false, help
 schema.declare{name='n_side',   type='number', required=false, default=2, help="Number of sides in HEALPix split."}
 schema.declare{name='every_ncdm',   type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
 
+function schema.m_ncdm.action (m_ncdm)
+    for i=2, #m_ncdm do
+        if m_ncdm[i] > m_ncdm[1] then
+            error("Please input the heaviest ncdm particle first.")
+        end
+    end
+end
+
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
 schema.declare{name='painter_support',     type='int', default=2, help="Support (size) of the painting kernel"}
