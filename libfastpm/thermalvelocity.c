@@ -73,29 +73,58 @@ void pix2vec (int pix, double *vec, int n_side)
     vec[2] = z;
 }
 
+/* make params struct for functions we will integrate with gsl */
+typedef struct kernel_params {
+    double m[3];
+    int n;
+} kernel_params;
 
-// Functional form of F-D distribution
-double fermi_dirac_kernel(double x, void * params)
+double fermi_dirac_kernel_vol_1(double x)
 {
-    return x * x / (exp(x) + 1);
+    /* Functional form of FD distribution for 1 particle
+       over the full volume (i.e. no *x^2) */
+    return 1. / (exp(x) + 1);
 }
 
-// Samples the low velocity end more effectively
-double low_vel_kernel(double x, void * params)
+double fermi_dirac_kernel_vol(double x, void * p)
 {
-    return x / (exp(x) + 1);
+    /* FD kernel in the case of multiple particles
+       over the full volume (i.e. no *x^2) */
+    struct kernel_params * params = (struct kernel_params *)p;
+
+    double result = fermi_dirac_kernel_vol_1(x);
+    // only loop from i=1. i=0 term has been included in result already (r=1)
+    for(int i = 1; i < params->n; i ++) {
+        double r = params->m[i] / params->m[0];
+        result += (r*r*r*r) * fermi_dirac_kernel_vol_1(x * r);
+    }
+    return result;
 }
 
-// Needed for calculatin the velocity dispersion
-double fermi_dirac_dispersion(double x, void * params)
+/* now define the 1D kernel and moments */
+double fermi_dirac_kernel(double x, void * p)
 {
-    return x * x * x * x/ (exp(x) + 1);
+    return x*x * fermi_dirac_kernel_vol(x, p);
+}
+
+/* Samples the low velocity end more effectively */
+double low_vel_kernel(double x, void * p)
+{
+    return x * fermi_dirac_kernel_vol(x, p);
+}
+
+/* Needed for calculatin the velocity dispersion */
+double fermi_dirac_dispersion(double x, void * p)
+{
+     return x*x*x*x * fermi_dirac_kernel_vol(x, p);
 }
 
 
-
-
-void divide_fd(double *vel_table, double *mass, int n_shells, int lvk)
+void 
+divide_fd(double *vel_table, double *mass, 
+          kernel_params * params, 
+          int n_shells, 
+          int lvk)
 {
     double fermi_dirac_vel_ncdm[LENGTH_FERMI_DIRAC_TABLE];
     double fermi_dirac_cdf_ncdm[LENGTH_FERMI_DIRAC_TABLE]; //stores CDF
@@ -114,6 +143,10 @@ void divide_fd(double *vel_table, double *mass, int n_shells, int lvk)
         F.function = &fermi_dirac_kernel;
     G.function = &fermi_dirac_kernel;
     H.function = &fermi_dirac_dispersion;
+    
+    F.params = (void*) params;
+    G.params = (void*) params;
+    H.params = (void*) params;
 
     // Initialize the CDF table
     for(i = 0; i < LENGTH_FERMI_DIRAC_TABLE; i++){
@@ -145,7 +178,7 @@ void divide_fd(double *vel_table, double *mass, int n_shells, int lvk)
 
     //Get the bin velocities and bin masses
     double total_mass;
-    gsl_integration_qags (&G, 0, fermi_dirac_vel_ncdm[LENGTH_FERMI_DIRAC_TABLE-1], 0,1e-7 , 1000,
+    gsl_integration_qags (&G, 0, fermi_dirac_vel_ncdm[LENGTH_FERMI_DIRAC_TABLE-1], 0, 1e-7, 1000,
 			  w, &result, &error);
     total_mass = result;
     for(i=0;i<n_shells;i++){
@@ -250,7 +283,7 @@ fastpm_ncdm_init_create(
     nid->lvk = lvk;
 
     /* this is the total number of velocity vectors produced */
-    nid->n_split = 12 * n_shells * n_side * n_side * n_ncdm;
+    nid->n_split = 12 * n_shells * n_side * n_side;
     
     /* recall vel is a pointer to a 3 element array
     so lets make into multidim array of dim (n_split x 3) */
@@ -274,7 +307,7 @@ fastpm_ncdm_init_free(FastPMncdmInitData* nid)
 
 //append the table
 static void
-_fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need for it otherwise.
+_fastpm_ncdm_init_fill(FastPMncdmInitData* nid)
 {   
     int n_shells = nid->n_shells;
     int n_side = nid->n_side;
@@ -287,40 +320,33 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
     masstab = calloc(n_shells,sizeof(double));
     vec_table = malloc(sizeof(double)*12*n_side*n_side*3);
     
-    divide_fd(vel_table,masstab,n_shells,lvk);   // this fills masstab with masses. there are n_shells entries. will add up to 1 (over all shells)
+    /* define the kernel params for dividing fd */
+    kernel_params* params = malloc(sizeof(params[0]));
+    for(int i = 0; i < n_ncdm; i ++) {
+        params->m[i] = nid->m_ncdm[i];
+    }
+    params->n = n_ncdm;
+    
+    divide_fd(vel_table, masstab, params, n_shells, lvk);
 
     divide_sphere_healpix(vec_table,n_side);
-
-    int i, j, k, d;
+    int i, j, d;
     int s = 0;                          //row num  (s for split index)
     for(i = 0; i < 12*n_side*n_side; i ++){
         for(j = 0; j < n_shells; j ++){
-            for(k = 0; k < n_ncdm; k ++){
-                double m = nid->m_ncdm[k];
-
-                /* define mass st sum over split will gives sum_k(m_ncdm[k]) 
-                   (hence no n_ncdm in denom)
-                   FIXME: maybe should change code to distinguish each ncdm mass-estate more explicitly*/
-                nid->mass[s] = masstab[j] / (12.*n_side*n_side) * m;
-
-                double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m);
-                for(d = 0; d < 3; d ++){
-                    nid->vel[s][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;
-                }
-                s++;
+            double m0 = nid->m_ncdm[0];
+            /* define mass st sum over split gives 1*/
+            nid->mass[s] = masstab[j] / (12.*n_side*n_side);
+            /* velocity_conversion_factor converts the dimless exponent 
+               in the FD distribution to velocity in km/s.
+               kTc = 50.3 eV/c^2 km/s */
+            double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m0);
+            for(d = 0; d < 3; d ++){
+                nid->vel[s][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;
             }
+            s++;
         }
     }
-    
-    // the order of above loops ensures we get:
-    // split1 for ncdm1
-    // split1 for ncdm2
-    // split1 for ncdm3
-    // split2 for ncdm1
-    // ...
-    // easier to place all the 3 ncdm's on same grid point this way.
-    // Note,this is a 2d table for '3d data' (3 loops). Could neaten.
-    
     free(vel_table); 
     free(masstab);
     free(vec_table);
@@ -328,11 +354,10 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)    ///call in create.  no need f
 
 void
 fastpm_split_ncdm(FastPMncdmInitData * nid,
-        FastPMStore * src,
-        FastPMStore * dest,
-        MPI_Comm comm)
+                  FastPMStore * src,
+                  FastPMStore * dest,
+                  MPI_Comm comm)
 {
-
     /*
     Takes store src and splits according to the ncdm 
     init data, and uses this to populate an dest store.
@@ -345,12 +370,10 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
         fastpm_raise(-1, "exceeding limit on the number limit of particles for the ncdm species \n");
     }
 
-    size_t np_total = fastpm_store_get_np_total(src, comm);     //based on defn nid->mass, np_total (used in M0) is num of UNsplit ncdms
+    size_t np_total = fastpm_store_get_np_total(src, comm);     //np_total is num of UNsplit ncdms
     
     /* avg mass of UNsplit ncdm site */
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
-    /* divide by n_ncdm to give avg mass of ncdm across the estates.
-       This is overkill atm, but when including more estate functionality could be useful */
     double Mestate = M0 / nid->n_ncdm;
     fastpm_info("average mass of a ncdm particle is %g\n", Mestate);
 
@@ -362,8 +385,8 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     ptrdiff_t i, s, d;
     ptrdiff_t r = 0;    //row index of dest
     for(i = 0; i < src->np; i ++) {    //loop thru each src particle
-        for(s = 0; s < nid->n_split; s ++) {  //loop thru split velocities AND ncdms
-            //copy all cols el by el
+        for(s = 0; s < nid->n_split; s ++) {  //loop thru split velocities
+            /* copy all cols el by el */
             int c;
             for(c = 0; c < 32; c ++) {
                 if (!dest->columns[c] || !src->columns[c]) continue;
@@ -376,11 +399,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
 
             /* give id, mass and add thm vel */
             dest->id[r] = s * src->meta._q_size + src->id[i];
-            
-            dest->mass[r] = nid->mass[s] * (nid->n_ncdm / nid->m_ncdm_sum) * Mestate;    // this will ensure that the sum of this over split will give n_ncdm*Mestate=M0
-            /* Note atm m_ncdm cancels out.
-               In reality m_ncdm will come into play in Omega_ncdm, which should come from cosmo. */
-
+            dest->mass[r] = nid->mass[s] * M0;    // ensures sum over split gives M0
             for(d = 0; d < 3; d ++){
                 /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
                 dest->v[r][d] += nid->vel[s][d] / (1. + nid->z) / HubbleConstant;
