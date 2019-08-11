@@ -1,27 +1,16 @@
 #include <string.h>
-#include <alloca.h>
-#include <math.h>
 #include <mpi.h>
 
 #include <kdcount/kdtree.h>
 
 #include <fastpm/libfastpm.h>
-#include <gsl/gsl_rng.h>
 
 #include <fastpm/prof.h>
 #include <fastpm/logging.h>
 #include <fastpm/store.h>
 
 #include <fastpm/fof.h>
-
-#include "pmpfft.h"
-#include "pm2lpt.h"
 #include "pmghosts.h"
-#include "vpm.h"
-
-#include <fastpm/io.h>
-#include <fastpm/string.h>
-#include <bigfile-mpi.h>
 
 //#define FASTPM_FOF_DEBUG
 
