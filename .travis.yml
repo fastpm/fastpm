@@ -30,6 +30,7 @@ script:
     - pushd tests
     - bash runtests.sh
     - bash run-test-nbodykit.sh
+    - bash run-test-lightcone.sh
     - popd
 
 # after_success: ./update-ghpages.sh
