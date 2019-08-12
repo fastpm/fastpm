@@ -24,6 +24,8 @@ fastpm_fof_init(FastPMFOFFinder * finder,
 
 /* create a halo catalog from the heap.
  * halos->name shall be set before this.
+ *
+ * if active is not NULL, only run fof on particles active[i] != 0.
  * if ihalo is NULL, only return the primary halos.
  * if ihalo is not NULL, set ihalo to the halo id of each particle in p,
  * and halos contains every halo that spans to the rank. primary halos
@@ -36,7 +38,14 @@ void
 fastpm_fof_execute(FastPMFOFFinder * finder,
                    double linkinglength,
                    FastPMStore * halos,
-                   ptrdiff_t ** ihalo);
+                   ptrdiff_t ** ihalo,
+                   FastPMParticleMaskType * active);
+
+void
+fastpm_fof_subsample_and_relabel(FastPMFOFFinder * finder,
+    FastPMStore * halos,
+    FastPMParticleMaskType * mask,
+    ptrdiff_t * head);
 
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder);
