@@ -1072,7 +1072,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
     for(i = 0; i < tail->np; i ++) {
         tail->mask[i] = 0;
     }
-    fastpm_store_append(tail, lcevent->p);
+    fastpm_store_extend(lcevent->p, tail);
     fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/
@@ -1257,7 +1257,7 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
     return 0;
 }
 
-static int 
+static int
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
@@ -1266,7 +1266,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
-    fastpm_info("Total number of particles in light cone: %ld\n", np);
+    fastpm_info("Total number of particles in light cone slice: %ld\n", np);
 
     return 0;
 }

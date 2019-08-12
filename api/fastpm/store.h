@@ -260,7 +260,7 @@ void
 fastpm_store_take(FastPMStore * in, ptrdiff_t i, FastPMStore * out, ptrdiff_t j);
 
 void
-fastpm_store_append(FastPMStore * in, FastPMStore * out);
+fastpm_store_extend(FastPMStore * p, FastPMStore * extra);
 
 void fastpm_store_get_position(FastPMStore * p, ptrdiff_t index, double pos[3]);
 void fastpm_store_get_lagrangian_position(FastPMStore * p, ptrdiff_t index, double pos[3]);

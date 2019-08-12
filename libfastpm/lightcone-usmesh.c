@@ -328,8 +328,8 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
             #pragma omp atomic capture
                 next = pout->np++;
 
-            if(next == pout->np_upper) {
-                fastpm_raise(-1, "Too many particles in the light cone; limit = %td\n", pout->np_upper);
+            if(next >= pout->np_upper) {
+                continue;
             }
 
             /* copy the position if desired */
@@ -376,6 +376,9 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         fastpm_horizon_solve_end(params.context);
     }
 
+    if(pout->np >= pout->np_upper) {
+        fastpm_raise(-1, "Too many particles in the light cone; limit = %td, wanted = %td\n", pout->np_upper, pout->np);
+    }
     return 0;
 }
 
