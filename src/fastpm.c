@@ -1257,7 +1257,7 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
     return 0;
 }
 
-static int 
+static int
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
@@ -1266,7 +1266,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
-    fastpm_info("Total number of particles in light cone: %ld\n", np);
+    fastpm_info("Total number of particles in light cone slice: %ld\n", np);
 
     return 0;
 }
