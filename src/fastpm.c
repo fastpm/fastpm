@@ -1072,7 +1072,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
     for(i = 0; i < tail->np; i ++) {
         tail->mask[i] = 0;
     }
-    fastpm_store_append(tail, lcevent->p);
+    fastpm_store_extend(lcevent->p, tail);
     fastpm_store_destroy(tail);
 
     /* FIXME: register event to mask out particles*/

@@ -908,10 +908,11 @@ fastpm_store_take(FastPMStore * p, ptrdiff_t i, FastPMStore * po, ptrdiff_t j)
     _fastpm_store_copy(p, i, po, j, 1);
 }
 
+/* extends p by extra. */
 void
-fastpm_store_append(FastPMStore * p, FastPMStore * po)
+fastpm_store_extend(FastPMStore * p, FastPMStore * extra)
 {
-    _fastpm_store_copy(p, 0, po, po->np, p->np);
+    _fastpm_store_copy(extra, 0, p, p->np, extra->np);
 }
 
 void
