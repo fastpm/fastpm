@@ -1167,7 +1167,7 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunD
     fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
 
     ENTER(fof);
-    fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    fastpm_fof_execute(&fof, linkinglength, halos, NULL, NULL);
     LEAVE(fof);
 
     fastpm_fof_destroy(&fof);
@@ -1280,7 +1280,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
 
     ptrdiff_t * ihalo;
     ENTER(fof);
-    fastpm_fof_execute(&fof, linkinglength, halos, &ihalo);
+    fastpm_fof_execute(&fof, linkinglength, halos, &ihalo, NULL);
     LEAVE(fof);
 
     _halos_ready(&fof, halos, p, ihalo, userdata);

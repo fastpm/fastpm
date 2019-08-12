@@ -128,7 +128,7 @@ main(int argc, char * argv[])
     ENTER(fof);
 
     fastpm_store_set_name(halos, dataset);
-    fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    fastpm_fof_execute(&fof, linkinglength, halos, NULL, NULL);
 
     LEAVE(fof);
 

@@ -75,7 +75,7 @@ static
 KDNode *
 _create_kdtree (KDTree * tree, int thresh,
     FastPMStore ** stores, int nstore,
-    double boxsize[])
+    double boxsize[], int use_mask)
 {
     /* if boxsize is NULL the tree will be non-periodic. */
     /* the allocator; started empty. */
@@ -100,14 +100,23 @@ _create_kdtree (KDTree * tree, int thresh,
 
     tree->input.dims[1] = 3;
 
+    FastPMParticleMaskType * active = NULL;
     if(tree->input.dims[0] < stores[0]->np_upper) {
         /* if the first store is big enough, use it for the tree */
         tree->input.buffer = (void*) &stores[0]->x[0][0];
+        if(use_mask) {
+            active = &stores[0]->mask[0];
+        }
     } else {
         /* otherwise, allocate a big buffer and make a copy */
         tree->input.buffer = _kdtree_buffered_malloc(pbuffer,
                     tree->input.dims[0] * sizeof(stores[0]->x[0]));
         memcpy(tree->input.buffer, &stores[0]->x[0][0], stores[0]->np * sizeof(stores[0]->x[0]));
+        if(use_mask) {
+            active = _kdtree_buffered_malloc(pbuffer,
+                        tree->input.dims[0] * sizeof(active[0]));
+            memcpy(active, &stores[0]->mask[0], stores[0]->np * sizeof(stores[0]->mask[0]));
+        }
     }
 
     i = stores[0]->np;
@@ -117,7 +126,12 @@ _create_kdtree (KDTree * tree, int thresh,
         memcpy(((char*) tree->input.buffer) + i * sizeof(stores[0]->x[0]),
                 &stores[s]->x[0][0],
                 stores[s]->np * sizeof(stores[0]->x[0]));
-
+        if(use_mask) {
+            memcpy(((char*) active) + i * sizeof(stores[0]->mask[0]),
+                &stores[s]->mask[0],
+                stores[s]->np * sizeof(stores[0]->mask[0])
+            );
+        }
         i = i + stores[s]->np;
     }
 
@@ -127,10 +141,14 @@ _create_kdtree (KDTree * tree, int thresh,
     tree->input.cast = NULL;
 
     tree->ind = _kdtree_buffered_malloc(pbuffer, tree->input.dims[0] * sizeof(tree->ind[0]));
-    for(i = 0; i < tree->input.dims[0]; i ++) {
-        tree->ind[i] = i;
+    ptrdiff_t j;
+    for(i = 0, j = 0; i < tree->input.dims[0]; i ++) {
+        if(!use_mask || active[i]) {
+            tree->ind[j] = i;
+            j++;
+        }
     }
-    tree->ind_size = tree->input.dims[0];
+    tree->ind_size = j;
 
     tree->malloc = _kdtree_buffered_malloc;
     tree->free = _kdtree_buffered_free;
@@ -218,7 +236,7 @@ fastpm_fof_init(FastPMFOFFinder * finder, double max_linkinglength,
     }
 
     PMGhostData * pgd = pm_ghosts_create_full(pm, p,
-            COLUMN_POS | COLUMN_ID | COLUMN_MINID,
+            COLUMN_MASK | COLUMN_POS | COLUMN_ID | COLUMN_MINID,
             below, above
         );
 
@@ -234,12 +252,6 @@ fastpm_fof_init(FastPMFOFFinder * finder, double max_linkinglength,
     #ifdef FASTPM_FOF_DEBUG
     fastpm_ilog(INFO, "Rank %d has %td particles including ghost\n", finder->priv->ThisTask, np_and_ghosts);
     #endif
-
-    FastPMStore * stores[2] = {p, pgd->p};
-
-    finder->priv->root = _create_kdtree(&finder->priv->tree,
-                                        finder->kdtree_thresh,
-                                        stores, 2, finder->priv->boxsize);
 
 }
 
@@ -486,10 +498,13 @@ periodic_add(double x, double wx, double y, double wy, double L)
 
 /*
  * apply mask to a halo storage.
- * relable head, and halo->id
+ * relable head, and halos->id
  * */
-static void
-fastpm_fof_subsample(FastPMFOFFinder * finder, FastPMStore * halos, FastPMParticleMaskType * mask, ptrdiff_t * head)
+void
+fastpm_fof_subsample_and_relabel(FastPMFOFFinder * finder,
+    FastPMStore * halos,
+    FastPMParticleMaskType * mask,
+    ptrdiff_t * head)
 {
     /* mapping goes from the old head[i] value to the new head[i] value */
     ptrdiff_t * mapping = fastpm_memory_alloc(finder->p->mem, "FOFMapping", sizeof(mapping[0]) * halos->np, FASTPM_MEMORY_STACK);
@@ -534,7 +549,7 @@ fastpm_fof_apply_length_cut(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
             mask[i] = 1;
         }
     }
-    fastpm_fof_subsample(finder, halos, mask, head);
+    fastpm_fof_subsample_and_relabel(finder, halos, mask, head);
     fastpm_memory_free(finder->p->mem, mask);
 
     fastpm_info("After length cut we have %td halos (%td including ghost halos).\n", 
@@ -771,7 +786,7 @@ fastpm_fof_remove_empty_halos(FastPMFOFFinder * finder, FastPMStore * halos, uin
         halos->task[i] = finder->priv->ThisTask;
     }
 
-    fastpm_fof_subsample(finder, halos, halos->mask, head);
+    fastpm_fof_subsample_and_relabel(finder, halos, halos->mask, head);
 }
 
 static void
@@ -1005,7 +1020,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     /* give it enough space for rebalancing. */
     fastpm_store_init(halos, NULL, (size_t) (max_halos * 2),
             attributes,
-            FASTPM_MEMORY_HEAP);
+            FASTPM_MEMORY_FLOATING);
 
     halos->np = nhalos;
     halos->meta = finder->p->meta;
@@ -1023,19 +1038,42 @@ void
 fastpm_fof_execute(FastPMFOFFinder * finder,
     double linkinglength,
     FastPMStore * halos,
-    ptrdiff_t ** ihalo)
+    ptrdiff_t ** ihalo,
+    FastPMParticleMaskType * active)
 {
     /* initial decompose -- reduce number of ghosts */
     FastPMStore * p = finder->p;
     PMGhostData * pgd = finder->priv->pgd;
     ptrdiff_t * head = finder->priv->head;
 
+    FastPMParticleMaskType * old_mask = finder->p->mask;
+    int use_mask;
+
+    if(active) {
+        finder->p->mask = active;
+        pm_ghosts_send(pgd, COLUMN_MASK);
+        use_mask = 1;
+    } else {
+        use_mask = 0;
+    }
+
+    FastPMStore * stores[2] = {p, pgd->p};
+
+    finder->priv->root = _create_kdtree(&finder->priv->tree,
+                                        finder->kdtree_thresh,
+                                        stores, 2, finder->priv->boxsize, use_mask);
+
     size_t np_and_ghosts = p->np + pgd->p->np;
 
     FastPMStore savebuff[1];
     fastpm_store_init(savebuff, p->name, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
-    /* local find of p and the the ghosts */
+    /* Watch out: kdcount may switch to use internal indices. */
+    ptrdiff_t i;
+    for(i = 0; i < np_and_ghosts; i ++) {
+        head[i] = i;
+    }
+    /* local find of p and the ghosts */
     kd_fof(finder->priv->root, linkinglength, head);
 
     _fof_global_merge (finder, p, pgd, savebuff->minid, head);
@@ -1044,8 +1082,6 @@ fastpm_fof_execute(FastPMFOFFinder * finder,
     size_t nsegments = _assign_halo_attr(finder, pgd, head, p->np, pgd->p->np, finder->nmin);
 
     fastpm_info("Found %td halos segments >= %d particles; or cross linked. \n", nsegments, finder->nmin);
-    pm_ghosts_free(pgd);
-
     /* create local halos and modify head to index the local halos */
     fastpm_fof_create_local_halos(finder, halos, nsegments);
     /* remove halos without any local particles */
@@ -1084,13 +1120,18 @@ fastpm_fof_execute(FastPMFOFFinder * finder,
     } else {
         fastpm_store_subsample(halos, halos->mask, halos);
     }
+
+    _free_kdtree(&finder->priv->tree, finder->priv->root);
+
+    /* restore mask */
+    finder->p->mask = old_mask;
 }
 
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder)
 {
-    _free_kdtree(&finder->priv->tree, finder->priv->root);
     fastpm_memory_free(finder->p->mem, finder->priv->head);
+    pm_ghosts_free(finder->priv->pgd);
     free(finder->priv);
 }
 

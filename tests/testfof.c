@@ -63,18 +63,23 @@ int main(int argc, char * argv[]) {
         .kdtree_thresh = 8,
     };
 
-    fastpm_fof_init(&fof, linkinglength,
-                          fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
-                          solver->basepm);
+    FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
+    fastpm_fof_init(&fof, linkinglength, p, solver->basepm);
 
     FastPMStore halos[1];
-
+    FastPMStore halos_sub[1];
     fastpm_store_set_name(halos, "FOFHalos");
-    fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    fastpm_fof_execute(&fof, linkinglength, halos, NULL, NULL);
+    fastpm_store_fill_subsample_mask(p, 0.1, p->mask, solver->comm);
+    fastpm_fof_execute(&fof, linkinglength, halos_sub, NULL, p->mask);
 
     char * snapshot = fastpm_strdup_printf("fof-%d", solver->NTask);
     fastpm_sort_snapshot(halos, solver->comm, FastPMSnapshotSortByLength, 0);
     fastpm_store_write(halos, snapshot, "w", 1, solver->comm);
+
+    char * snapshot_sub = fastpm_strdup_printf("fof-sub-%d", solver->NTask);
+    fastpm_sort_snapshot(halos_sub, solver->comm, FastPMSnapshotSortByLength, 0);
+    fastpm_store_write(halos_sub, snapshot_sub, "w", 1, solver->comm);
 
     int task;
     int ntask;
@@ -89,6 +94,8 @@ int main(int argc, char * argv[]) {
             fastpm_ilog(INFO, "Length of halo %d: %d\n", i, halos->length[i]);
         }
     }
+
+    fastpm_store_destroy(halos_sub);
     fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);
 
