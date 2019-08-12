@@ -10,9 +10,9 @@ boxsize = 512
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.1, 1, 3)
+time_step = linspace(0.1, 1, 8)
 
-output_redshifts= {1.0, 0.0}  -- redshifts of output
+output_redshifts= {0.0}  -- redshifts of output
 compute_potential = true
 compute_tidal = true
 
@@ -31,13 +31,13 @@ force_mode = "fastpm"
 -- force_mode = "cola"
 pm_nc_factor = 2            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
 
-np_alloc_factor= 2.0      -- Amount of memory allocated for particle
+np_alloc_factor = 2.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
 -- write_runpb_snapshot= "nbodykit/tpm"
-write_snapshot = "lightcone/fastpm" 
+write_snapshot = "lightcone/fastpm"
 write_fof = "lightcone/fof"
 -- 1d power spectrum (raw), without shotnoise correction
 
@@ -60,15 +60,10 @@ lc_fov = 360
 --]]
 
 -- lc_glmatrix = fastpm.translation(-128, -128, -128)
-lc_smesh_max_nside= 32
 lc_amin = 0.1
 lc_amax = 1.0
-lc_smesh_fraction = 1.0
 
--- lc_smesh_use_linear_fields = true
-
-lc_usmesh_tiles = fastpm.outerproduct({-1, 0}, {-1, 0}, {-1, 0})
-lc_usmesh_fof_padding = 10.0
-lc_usmesh_alloc_factor = 10.0
 lc_write_usmesh = "lightcone/usmesh"
-lc_write_smesh = "lightcone/smesh"
+lc_usmesh_tiles = fastpm.outerproduct({-1, 0}, {-1, 0}, {-1, 0})
+lc_usmesh_fof_padding = 20.0
+lc_usmesh_alloc_factor = 2.0
