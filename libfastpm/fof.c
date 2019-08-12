@@ -19,6 +19,10 @@ struct FastPMFOFFinderPrivate {
     int NTask;
     double * boxsize;
     MPI_Comm comm;
+    PMGhostData * pgd;
+    ptrdiff_t * head;
+    KDTree tree;
+    KDNode * root;
 };
 
 /* creating a kdtree struct
@@ -155,14 +159,16 @@ _free_kdtree (KDTree * tree, KDNode * root)
     free(pbuffer);
 }
 
+static int
+FastPMTargetFOF(FastPMStore * store, ptrdiff_t i, void * userdata);
+
 void
-fastpm_fof_init(FastPMFOFFinder * finder, FastPMStore * store, PM * pm)
+fastpm_fof_init(FastPMFOFFinder * finder, double max_linkinglength,
+                FastPMStore * p, PM * pm)
 {
     finder->priv = malloc(sizeof(FastPMFOFFinderPrivate));
-    finder->p = store;
+    finder->p = p;
     finder->pm = pm;
-
-    finder->event_handlers = NULL;
 
     if (finder->periodic)
         finder->priv->boxsize = pm_boxsize(pm);
@@ -173,25 +179,70 @@ fastpm_fof_init(FastPMFOFFinder * finder, FastPMStore * store, PM * pm)
     MPI_Comm comm = finder->priv->comm;
     MPI_Comm_rank(comm, &finder->priv->ThisTask);
     MPI_Comm_size(comm, &finder->priv->NTask);
-}
 
-static void
-_fof_local_find(FastPMFOFFinder * finder,
-            FastPMStore * p,
-            PMGhostData * pgd,
-            ptrdiff_t * head, double linkinglength)
-{
-    /* local find of p and the the ghosts */
-    KDTree tree;
+    /* only do wrapping for periodic data */
+    if(finder->priv->boxsize)
+        fastpm_store_wrap(p, finder->priv->boxsize);
+
+    double npmax, npmin, npstd, npmean;
+
+    MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
+
+    fastpm_info("load balance before fof decompose : min = %g max = %g mean = %g std = %g\n",
+        npmin, npmax, npmean, npstd
+        );
+
+#if 1
+    /* still route particles to the pm pencils as if they are periodic. */
+    /* should still work (albeit use crazy memory) if we skip this. */
+    if(0 != fastpm_store_decompose(p,
+                (fastpm_store_target_func) FastPMTargetFOF, pm, comm)
+    ) {
+        fastpm_raise(-1, "out of storage space decomposing for FOF\n");
+    }
+#endif
+    MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
+
+    fastpm_info("load balance after fof decompose : min = %g max = %g mean = %g std = %g\n",
+        npmin, npmax, npmean, npstd
+        );
+
+    /* create ghosts mesh size is usually > ll so we are OK here. */
+    double below[3], above[3];
+
+    int d;
+    for(d = 0; d < 3; d ++) {
+        /* bigger padding reduces number of iterations */
+        below[d] = -max_linkinglength * 1;
+        above[d] = max_linkinglength * 1;
+    }
+
+    PMGhostData * pgd = pm_ghosts_create_full(pm, p,
+            COLUMN_POS | COLUMN_ID | COLUMN_MINID,
+            below, above
+        );
+
+    pm_ghosts_send(pgd, COLUMN_POS);
+    pm_ghosts_send(pgd, COLUMN_ID);
+
+    finder->priv->pgd = pgd;
+
+    size_t np_and_ghosts = p->np + pgd->p->np;
+    finder->priv->head = fastpm_memory_alloc(p->mem, "FOFHead",
+                    sizeof(finder->priv->head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
+
+    #ifdef FASTPM_FOF_DEBUG
+    fastpm_ilog(INFO, "Rank %d has %td particles including ghost\n", finder->priv->ThisTask, np_and_ghosts);
+    #endif
 
     FastPMStore * stores[2] = {p, pgd->p};
 
-    KDNode * root = _create_kdtree(&tree, finder->kdtree_thresh, stores, 2, finder->priv->boxsize);
+    finder->priv->root = _create_kdtree(&finder->priv->tree,
+                                        finder->kdtree_thresh,
+                                        stores, 2, finder->priv->boxsize);
 
-    kd_fof(root, linkinglength, head);
-
-    _free_kdtree(&tree, root);
 }
+
 
 static int
 _merge(uint64_t * src, ptrdiff_t isrc, uint64_t * dest, ptrdiff_t idest, ptrdiff_t * head)
@@ -968,73 +1019,24 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
     }
 }
 
-
 void
-fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
+fastpm_fof_execute(FastPMFOFFinder * finder,
+    double linkinglength,
+    FastPMStore * halos,
+    ptrdiff_t ** ihalo)
 {
     /* initial decompose -- reduce number of ghosts */
     FastPMStore * p = finder->p;
-    PM * pm = finder->pm;
-    MPI_Comm comm = finder->priv->comm;
-
-    /* only do wrapping for periodic data */
-    if(finder->priv->boxsize)
-        fastpm_store_wrap(p, finder->priv->boxsize);
-
-    double npmax, npmin, npstd, npmean;
-
-    MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
-
-    fastpm_info("load balance before fof decompose : min = %g max = %g mean = %g std = %g\n",
-        npmin, npmax, npmean, npstd
-        );
-
-#if 1
-    /* still route particles to the pm pencils as if they are periodic. */
-    /* should still work (albeit use crazy memory) if we skip this. */
-    if(0 != fastpm_store_decompose(p,
-                (fastpm_store_target_func) FastPMTargetFOF, pm, comm)
-    ) {
-        fastpm_raise(-1, "out of storage space decomposing for FOF\n");
-    }
-#endif
-    MPIU_stats(comm, p->np, "<->s", &npmin, &npmean, &npmax, &npstd);
-
-    fastpm_info("load balance after fof decompose : min = %g max = %g mean = %g std = %g\n",
-        npmin, npmax, npmean, npstd
-        );
-
-    /* create ghosts mesh size is usually > ll so we are OK here. */
-    double below[3], above[3];
-
-    int d;
-    for(d = 0; d < 3; d ++) {
-        /* bigger padding reduces number of iterations */
-        below[d] = -finder->linkinglength * 1;
-        above[d] = finder->linkinglength * 1;
-    }
-
-    PMGhostData * pgd = pm_ghosts_create_full(pm, p,
-            COLUMN_POS | COLUMN_ID | COLUMN_MINID,
-            below, above
-        );
-
-    pm_ghosts_send(pgd, COLUMN_POS);
-    pm_ghosts_send(pgd, COLUMN_ID);
+    PMGhostData * pgd = finder->priv->pgd;
+    ptrdiff_t * head = finder->priv->head;
 
     size_t np_and_ghosts = p->np + pgd->p->np;
-
-    #ifdef FASTPM_FOF_DEBUG
-    fastpm_ilog(INFO, "Rank %d has %td particles including ghost\n", finder->priv->ThisTask, np_and_ghosts);
-    #endif
-
-    ptrdiff_t * head = fastpm_memory_alloc(p->mem, "FOFHead",
-                    sizeof(head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
 
     FastPMStore savebuff[1];
     fastpm_store_init(savebuff, p->name, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
-    _fof_local_find(finder, p, pgd, head, finder->linkinglength);
+    /* local find of p and the the ghosts */
+    kd_fof(finder->priv->root, linkinglength, head);
 
     _fof_global_merge (finder, p, pgd, savebuff->minid, head);
 
@@ -1069,29 +1071,26 @@ fastpm_fof_execute(FastPMFOFFinder * finder, FastPMStore * halos)
     /* reduce the primary halo attrs */
     fastpm_fof_compute_halo_attrs(finder, halos, head, _convert_extended_halo_attrs, _add_extended_halo_attrs, _reduce_extended_halo_attrs);
 
-    /* the event is called with full halos, only those where mask==1 are primary
+    /* halos stores halos that spans to this rank, with duplication.
+     * only those where mask==1 are primary
      * the others are ghosts with the correct properties but shall not show up in the
      * catalog.
+     *
+     * halos[ihalo[i]] is the hosting halo of particle i, if ihalo[i] >= 0.
      * */
-    FastPMHaloEvent event[1];
-    event->halos = halos;
-    event->p = finder->p;
-    event->ihalo = head;
-
-    fastpm_emit_event(finder->event_handlers, FASTPM_EVENT_HALO,
-                    FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, finder);
-
-    fastpm_memory_free(finder->p->mem, head);
-
-    fastpm_store_subsample(halos, halos->mask, halos);
-
-    fastpm_info("After event: %td halos.\n", fastpm_store_get_np_total(halos, comm));
+    if (ihalo) {
+        /* return the full halo catalog. */
+        *ihalo = head;
+    } else {
+        fastpm_store_subsample(halos, halos->mask, halos);
+    }
 }
 
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder)
 {
-    fastpm_destroy_event_handlers(&finder->event_handlers);
+    _free_kdtree(&finder->priv->tree, finder->priv->root);
+    fastpm_memory_free(finder->p->mem, finder->priv->head);
     free(finder->priv);
 }
 

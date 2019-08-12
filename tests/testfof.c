@@ -57,18 +57,20 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
 
+    double linkinglength = 0.2;
     FastPMFOFFinder fof = {
-        .linkinglength = 0.2,
         .nmin = 32,
         .kdtree_thresh = 8,
     };
 
-    fastpm_fof_init(&fof, fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM), solver->pm);
+    fastpm_fof_init(&fof, linkinglength,
+                          fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
+                          solver->basepm);
 
     FastPMStore halos[1];
 
     fastpm_store_set_name(halos, "FOFHalos");
-    fastpm_fof_execute(&fof, halos);
+    fastpm_fof_execute(&fof, linkinglength, halos, NULL);
 
     char * snapshot = fastpm_strdup_printf("fof-%d", solver->NTask);
     fastpm_sort_snapshot(halos, solver->comm, FastPMSnapshotSortByLength, 0);
