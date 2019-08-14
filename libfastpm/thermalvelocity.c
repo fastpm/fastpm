@@ -260,6 +260,7 @@ fastpm_ncdm_init_create(
     double BoxSize,
     double m_ncdm[3],
     int n_ncdm,
+    double h,
     double z,
     int n_shells,
     int n_side,
@@ -268,14 +269,16 @@ fastpm_ncdm_init_create(
     FastPMncdmInitData* nid = malloc(sizeof(nid[0]));
 
     nid->BoxSize = BoxSize;
-    nid->Omega_ncdm = 0.001404; /* FIXME: use new cosmology.c */
     nid->m_ncdm_sum = 0;
     for(int i = 0; i < n_ncdm; i ++) {
         nid->m_ncdm[i] = m_ncdm[i];
         nid->m_ncdm_sum += m_ncdm[i];
     }
-
     nid->n_ncdm = n_ncdm;
+
+    /* compute Omega_ncdm0
+       (ref Massive neutrinos and cosmology, Lesgourgues) */
+    nid->Omega_ncdm = nid->m_ncdm_sum / 93.14 / (h*h);
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;

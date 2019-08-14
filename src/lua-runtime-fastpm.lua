@@ -34,12 +34,11 @@ function schema.output_redshifts.action(output_redshifts)
 end
 
 schema.declare{name='omega_m',           type='number', required=true, default=0.3, help='cdm + baryon density parameter at z=0'}
-schema.declare{name='omega_ncdm',           type='number', required=false, default=0.0, help='ncdm density parameter at z=0'}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential',   type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
-schema.declare{name='m_ncdm',   type='array:number', required=false, default={0.15}, help="Mass of ncdm particles. Enter in descending order."}
+schema.declare{name='m_ncdm',   type='array:number', required=false, default={}, help="Mass of ncdm particles. Enter in descending order."}
 schema.declare{name='n_shell',   type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
 schema.declare{name='lvk',   type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}
 schema.declare{name='n_side',   type='number', required=false, default=2, help="Number of sides in HEALPix split."}
