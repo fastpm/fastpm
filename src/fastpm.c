@@ -612,13 +612,14 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 static void 
 prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm) 
 {
-    if(CONF(prr->lua, omega_ncdm) == 0) return;
+    if(CONF(prr->lua, n_m_ncdm) == 0) return;
 
     int n_ncdm = CONF(prr->lua, n_m_ncdm);
     double m_ncdm[3];
     for (int i = 0; i < n_ncdm; i ++){
         m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
     }
+    double h = CONF(prr->lua, h);
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
@@ -633,7 +634,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
-            m_ncdm, n_ncdm, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk); 
+            m_ncdm, n_ncdm, h, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk); 
     
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;
     size_t total_np_ncdm = total_np_ncdm_sites * nid->n_split;
