@@ -60,14 +60,14 @@ int main(int argc, char * argv[]) {
     // l1 = 0.25, A1 = 0.012, l6=0.24, A2=0.06, B1=7.02, B2=6.025.
     FastPMRFOFFinder rfof = {
         .nmin = 8,
-        .kdtree_thresh = 8,
+        .kdtree_thresh = 1,
         .linkinglength = 0.2 * 0.3,
-        .l1 = 0.25 * 0.3,
-        .l6 = 0.24 * 0.3,
-        .A1 = 0.012,
-        .A2 = 0.06,
-        .B1 = 7.02,
-        .B2 = 6.025,
+        .l1 = 0.2 * 0.3, //0.25 * 0.3,
+        .l6 = 0.2 * 0.3, 0.24 * 0.3,
+        .A1 = 0, // 0.012 * 0.3,
+        .A2 = 0, //0.06 * 0.3,
+        .B1 = 1000, // 7.02,
+        .B2 = 0, // 6.025,
         .periodic = 1,
     };
 
@@ -76,7 +76,7 @@ int main(int argc, char * argv[]) {
 
     FastPMStore halos[1];
     fastpm_store_set_name(halos, "RFOFHalos");
-    fastpm_rfof_execute(&rfof, halos, NULL, 1.0);
+    fastpm_rfof_execute(&rfof, halos, NULL, 0.0);
 
     char * snapshot = fastpm_strdup_printf("rfof-%d", solver->NTask);
     fastpm_sort_snapshot(halos, solver->comm, FastPMSnapshotSortByLength, 0);
