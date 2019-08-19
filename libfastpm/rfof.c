@@ -151,19 +151,25 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
             save_mask[j] = candidates->length[j] < finder->priv->Np[i]
                         && vdisp < r0 * _std_vdisp(M, Ez);
         }
+        for(j = 0; j < finder->p->np; j ++) {
+            if (!active[j]) continue;
+            if (icandidate[j] < 0) {
+                /* not associated with a halo */
+                active[j] = 0;
+                continue;
+            }
+        }
         /* remove halos not to be saved. */
         fastpm_fof_subsample_and_relabel(&fof, candidates, save_mask, icandidate);
 
         size_t nactive = 0;
         for(j = 0; j < finder->p->np; j ++) {
             if (!active[j]) continue;
-            /* not associated with a saved halo */
-            if (icandidate[j] < 0) {
-                /* Remove particle from next iteration */
+            if (icandidate[j] >= 0) {
+                /* already saved as a halo, remove particle from next iteration. */
                 active[j] = 0;
-                continue;
-            } else {
                 finder->priv->ihalo[j] = icandidate[j] + halos->np;
+                continue;
             }
             nactive ++;
         }
