@@ -49,4 +49,12 @@ fastpm_fof_subsample_and_relabel(FastPMFOFFinder * finder,
 
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder);
+
+void
+fastpm_fof_allocate_halos(FastPMStore * halos,
+    size_t nhalos,
+    FastPMStore * p,
+    int include_q,
+    MPI_Comm comm);
+
 #endif
