@@ -20,7 +20,6 @@ struct FastPMRFOFFinderPrivate {
     double * boxsize;
     MPI_Comm comm;
     int Np[7];
-    FastPMFOFFinder fof[1];
     FastPMCosmology cosmology[1];
     ptrdiff_t * ihalo;
 };
@@ -56,16 +55,7 @@ fastpm_rfof_init(FastPMRFOFFinder * finder,
     MPI_Comm_rank(comm, &finder->priv->ThisTask);
     MPI_Comm_size(comm, &finder->priv->NTask);
 
-    FastPMFOFFinder fof = {
-        .periodic = finder->periodic,
-        .nmin = finder->nmin,
-        .kdtree_thresh = finder->kdtree_thresh,
-    };
-
-    finder->priv->fof[0] = fof;
-
     finder->priv->cosmology[0] = cosmology[0];
-    fastpm_fof_init(finder->priv->fof, fmax(finder->l1, finder->l6), finder->p, finder->pm);
 
 }
 
@@ -109,9 +99,19 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
     ptrdiff_t * icandidate;
     FastPMStore candidates[1];
 
+    fastpm_fof_allocate_halos(halos, finder->p->np / 10, finder->p, finder->priv->boxsize != NULL, finder->priv->comm);
+    halos->np = 0;
+
     finder->priv->ihalo = fastpm_memory_alloc(finder->p->mem,
                 "ihalo", sizeof(ptrdiff_t) * finder->p->np,
                 FASTPM_MEMORY_STACK);
+
+    FastPMFOFFinder fof = {
+        .periodic = finder->periodic,
+        .nmin = finder->nmin,
+        .kdtree_thresh = finder->kdtree_thresh,
+    };
+    fastpm_fof_init(&fof, fmax(finder->l1, finder->l6), finder->p, finder->pm);
 
     FastPMParticleMaskType * active = fastpm_memory_alloc(finder->p->mem,
                     "active",
@@ -125,9 +125,10 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
 
     for(i = 1; i <= 6; i ++) {
         double ll = _fastpm_rfof_get_linkinglength(finder, i, z);
+        fastpm_info("RFOF: FOF with linking length %g (Mpc/h), bin = %d, z= %0.3f, Np=%d", ll, i, z, finder->priv->Np[i]);
 
         fastpm_store_set_name(candidates, "candidates");
-        fastpm_fof_execute(finder->priv->fof, ll, candidates, &icandidate, active);
+        fastpm_fof_execute(&fof, ll, candidates, &icandidate, active);
 
         FastPMParticleMaskType * save_mask = fastpm_memory_alloc(finder->p->mem,
                         "SaveMask",
@@ -150,11 +151,10 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
             save_mask[j] = candidates->length[j] < finder->priv->Np[i]
                         && vdisp < r0 * _std_vdisp(M, Ez);
         }
-
         /* remove halos not to be saved. */
-        fastpm_fof_subsample_and_relabel(finder->priv->fof,
-                candidates, save_mask, icandidate);
+        fastpm_fof_subsample_and_relabel(&fof, candidates, save_mask, icandidate);
 
+        size_t nactive = 0;
         for(j = 0; j < finder->p->np; j ++) {
             if (!active[j]) continue;
             /* not associated with a saved halo */
@@ -165,13 +165,17 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
             } else {
                 finder->priv->ihalo[j] = icandidate[j] + halos->np;
             }
+            nactive ++;
         }
         fastpm_store_extend(halos, candidates);
+        fastpm_info("RFOF: saved %td halos; total halos = %td.", candidates->np, halos->np);
+        fastpm_info("RFOF: remaining active particles = %td.", nactive);
 
         fastpm_memory_free(finder->p->mem, save_mask);
         fastpm_store_destroy(candidates);
     }
     fastpm_memory_free(finder->p->mem, active);
+    fastpm_fof_destroy(&fof);
 
     if(ihalo) {
         *ihalo = finder->priv->ihalo;
