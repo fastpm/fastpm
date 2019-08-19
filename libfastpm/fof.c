@@ -458,7 +458,8 @@ _assign_halo_attr(FastPMFOFFinder * finder, PMGhostData * pgd, ptrdiff_t * head,
 
     /* assign attr index for groups at least contain 1 local particle */
     for(i = 0; i < np + np_ghosts; i ++) {
-        if(has_local[i] && (has_remote[i] || offset[i] >= nmin)) {
+        /* only assign for the head */
+        if(head[i] == i && has_local[i] && (has_remote[i] || offset[i] >= nmin)) {
             offset[i] = it;
             it ++;
         } else {
