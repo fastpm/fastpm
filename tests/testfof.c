@@ -22,7 +22,7 @@ int main(int argc, char * argv[]) {
 
     FastPMConfig * config = & (FastPMConfig) {
         .nc = 64,
-        .boxsize = 64.,
+        .boxsize = 64. * 0.3,
         .alloc_factor = 10.0,
         .cosmology = NULL,
         .vpminit = (VPMInit[]) {
@@ -43,7 +43,7 @@ int main(int argc, char * argv[]) {
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
-        .Norm = 1e7, /* FIXME: this is not any particular sigma8. */
+        .Norm = 2e7, /* FIXME: this is not any particular sigma8. */
         .hubble_param = 0.7,
         .omegam = 0.260,
         .omegab = 0.044,
@@ -57,10 +57,11 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
 
-    double linkinglength = 0.2;
+    double linkinglength = 0.2 * 0.3;
     FastPMFOFFinder fof = {
-        .nmin = 32,
+        .nmin = 8,
         .kdtree_thresh = 8,
+        .periodic = 1,
     };
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
