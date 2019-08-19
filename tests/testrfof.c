@@ -42,7 +42,7 @@ int main(int argc, char * argv[]) {
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
-        .Norm = 1e7, /* FIXME: this is not any particular sigma8. */
+        .Norm = 2e7, /* FIXME: this is not any particular sigma8. */
         .hubble_param = 0.7,
         .omegam = 0.260,
         .omegab = 0.044,
@@ -50,7 +50,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
     fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
-    double time_step[] = {0.1,  0.5, 0.7, 1.0};
+    double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
@@ -58,11 +58,10 @@ int main(int argc, char * argv[]) {
 
     // Parameters fitted for Illustris under 0.3 Mpc/h particle sep, 40 steps.
     // l1 = 0.25, A1 = 0.012, l6=0.24, A2=0.06, B1=7.02, B2=6.025.
-    double linkinglength = 0.2 * 0.3;
     FastPMRFOFFinder rfof = {
         .nmin = 8,
         .kdtree_thresh = 8,
-        .linkinglength = linkinglength,
+        .linkinglength = 0.2 * 0.3,
         .l1 = 0.25 * 0.3,
         .l6 = 0.24 * 0.3,
         .A1 = 0.012,
