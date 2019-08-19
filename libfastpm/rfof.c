@@ -141,8 +141,8 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
             for(d = 0; d < 3; d ++) {
                 vdisp += candidates->vdisp[j][d];
             }
-            /* FIXME: is this correct? */
-            vdisp = sqrt(vdisp / 3.0);
+            /* do not divide by sqrt(3). Total velocity is sum(vi**2) */
+            vdisp = sqrt(vdisp);
 
             double M = candidates->meta.M0 * 1e10 * candidates->length[j];
             double r0 = _fastpm_rfof_get_rejection(finder, z);
