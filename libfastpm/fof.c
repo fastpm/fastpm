@@ -984,17 +984,19 @@ _reduce_extended_halo_attrs(FastPMFOFFinder * finder, FastPMStore * halos, ptrdi
 }
 
 /* This function creates the storage object for halo segments that are local on this
- * rank. We store mnay attributes. We only allow a flucutation of 2 around avg_halos.
+ * rank. We store many attributes. We only allow a flucutation of 2 around avg_halos.
  * this should be OK, since we will only redistribute by the MinID, which are supposed
  * to be very uniform.
  * */
-static void
-fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, size_t nhalos)
+void
+fastpm_fof_allocate_halos(FastPMStore * halos,
+    size_t nhalos,
+    FastPMStore * p,
+    int include_q,
+    MPI_Comm comm)
 {
 
-    MPI_Comm comm = finder->priv->comm;
-
-    FastPMColumnTags attributes = finder->p->attributes;
+    FastPMColumnTags attributes = p->attributes;
     attributes |= COLUMN_MASK;
     attributes |= COLUMN_LENGTH | COLUMN_MINID | COLUMN_TASK;
     attributes |= COLUMN_RDISP | COLUMN_VDISP | COLUMN_RVDISP;
@@ -1005,7 +1007,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
 
     /* store initial position only for periodic case. non-periodic suggests light cone and
      * we cannot infer q from ID sensibly. (crashes there) */
-    if(finder->priv->boxsize) {
+    if(include_q) {
         attributes |= COLUMN_Q;
     } else {
         attributes &= ~COLUMN_Q;
@@ -1024,7 +1026,7 @@ fastpm_fof_create_local_halos(FastPMFOFFinder * finder, FastPMStore * halos, siz
             FASTPM_MEMORY_FLOATING);
 
     halos->np = nhalos;
-    halos->meta = finder->p->meta;
+    halos->meta = p->meta;
 
     ptrdiff_t i;
     for(i = 0; i < halos->np; i++) {
@@ -1083,8 +1085,8 @@ fastpm_fof_execute(FastPMFOFFinder * finder,
     size_t nsegments = _assign_halo_attr(finder, pgd, head, p->np, pgd->p->np, finder->nmin);
 
     fastpm_info("Found %td halos segments >= %d particles; or cross linked. \n", nsegments, finder->nmin);
-    /* create local halos and modify head to index the local halos */
-    fastpm_fof_create_local_halos(finder, halos, nsegments);
+    /* create local halos */
+    fastpm_fof_allocate_halos(halos, nsegments, finder->p, finder->priv->boxsize != NULL, finder->priv->comm);
     /* remove halos without any local particles */
     fastpm_fof_remove_empty_halos(finder, halos, savebuff->minid, head);
 
