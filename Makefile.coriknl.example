@@ -1,11 +1,12 @@
 CC = cc
-CPPFLAGS = -DFASTPM_FFT_PRECISION=32 
+CPPFLAGS = -DFASTPM_FFT_PRECISION=32
 CPPFLAGS +=-I /global/common/sw/cray/cnl7/haswell/gsl/2.5/gcc/8.2.0/sr445ay/include
-GSL_LIBS =-L /global/common/sw/cray/cnl7/haswell/gsl/2.5/gcc/8.2.0/sr445ay/lib -lgsl -lgslcblas # -lmvec -lmvec_nonshared
-OPTIMIZE ?= -Ofast -g -march=knl 
+GSL_LIBS =-L /global/common/sw/cray/cnl7/haswell/gsl/2.5/gcc/8.2.0/sr445ay/lib -lgsl -lgslcblas -lm
+OPTIMIZE ?= -Ofast -g -march=knl
 # hugepages is enabled by default on CLE7
 # LDFLAGS = -Wl,--whole-archive,-lhugetlbfs,--no-whole-archive -Wl,-Ttext-segment=0x2000000,-zmax-page-size=0x2000000 \
 #          -Wl,@/global/homes/y/yfeng1/m3127/codes/11548173/allinea-profiler.ld
 #       -zmuldefs $(DDT_LINK_DMALLOCTH)
-PFFT_CFLAGS= -Ofast -g -march=knl
+# As of Aug 25 2019, using -Ofast in PFFT will produce incorrect results on Cori.
+PFFT_CFLAGS= -O3 -g -march=knl
 PFFT_CONFIGURE_FLAGS = --enable-sse2 --enable-avx --enable-avx2 --enable-avx512
