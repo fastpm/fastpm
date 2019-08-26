@@ -44,6 +44,7 @@ typedef enum { FASTPM_FORCE_FASTPM = 0,
 } FastPMForceType;
 
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
+               FASTPM_KERNEL_1_4,
                FASTPM_KERNEL_GADGET,
                FASTPM_KERNEL_EASTWOOD,
                FASTPM_KERNEL_NAIVE,

@@ -144,33 +144,36 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
     }
 }
 
-void fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to) {
+void
+fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
+{
+    /* order = 0: 1 / kk gives an IC that agrees with linear theory better
+     * at intermidiate scales (desi-cosmosim email archives).
+     * than
+     * order = 1: 1 / sinc(kk) used in original FastPM;
+     * */
+
 #pragma omp parallel
     {
         PMKIter kiter;
-        for(pm_kiter_init(pm, &kiter);
+        pm_kiter_init(pm, &kiter);
+        float ** kklist [3] = {kiter.kk, kiter.kk_finite, kiter.kk_finite2};
+        for(;
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             int d;
-            double kk = 0.;
+            double kk_finite = 0;
             for(d = 0; d < 3; d++) {
-                /* 1 / kk gives an IC that agrees with linear theory better
-                 * at intermidiate scales (desi-cosmosim email archives).
-                 * than 1 / sinc(kk) used in original FastPM; */
-
-                /* Naive finite differentiation */
-                kk += kiter.kk[d][kiter.iabs[d]];
+                kk_finite += kklist[order][d][kiter.iabs[d]];
             }
-            if(kk == 0)
-            {
-                to[kiter.ind + 0] = 0;
-                to[kiter.ind + 1] = 0;
-            }
-            else
-            {
-                /* 1 / k**2 */
-                to[kiter.ind + 0] =  from[kiter.ind + 0]  / kk;
-                to[kiter.ind + 1] =  from[kiter.ind + 1]  / kk;
+            ptrdiff_t ind = kiter.ind;
+            /* 1 / k2 */
+            if(LIKELY(kk_finite != 0)) {
+                to[ind + 0] = from[ind + 0] * (1 / kk_finite);
+                to[ind + 1] = from[ind + 1] * (1 / kk_finite);
+            } else {
+                to[ind + 0] = 0;
+                to[ind + 1] = 0;
             }
         }
     }

@@ -16,7 +16,7 @@ void
 fastpm_apply_multiply_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double value);
 
 void
-fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
+fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order);
 
 void
 fastpm_apply_any_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, fastpm_fkfunc func, void * data);

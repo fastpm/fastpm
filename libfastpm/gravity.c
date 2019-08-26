@@ -12,30 +12,8 @@
 static void
 apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 {
-#pragma omp parallel
-    {
-        PMKIter kiter;
-        pm_kiter_init(pm, &kiter);
-        float ** kklist [3] = {kiter.kk, kiter.kk_finite, kiter.kk_finite2};
-        for(;
-            !pm_kiter_stop(&kiter);
-            pm_kiter_next(&kiter)) {
-            int d;
-            double kk_finite = 0;
-            for(d = 0; d < 3; d++) {
-                kk_finite += kklist[order][d][kiter.iabs[d]];
-            }
-            ptrdiff_t ind = kiter.ind;
-            /* - 1 / k2 */
-            if(LIKELY(kk_finite > 0)) {
-                to[ind + 0] = - from[ind + 0] * (1 / kk_finite);
-                to[ind + 1] = - from[ind + 1] * (1 / kk_finite);
-            } else {
-                to[ind + 0] = 0;
-                to[ind + 1] = 0;
-            }
-        }
-    }
+    fastpm_apply_laplace_transfer(pm, from, to, order);
+    fastpm_apply_multiply_transfer(pm, to, to, -1);
 }
 
 static void
@@ -129,47 +107,68 @@ gaussian36(double k, double * knq)
 }
 
 void
+fastpm_kernel_type_get_orders(FastPMKernelType type,
+    int *potorder,
+    int *gradorder,
+    int *deconvolveorder) 
+{
+    switch(type) {
+        case FASTPM_KERNEL_EASTWOOD:
+            *potorder = 0;
+            *gradorder = 0;
+            /* now sharpen for mass assignment */
+            /* L1 and L2*/
+            *deconvolveorder = 2;
+        break;
+        case FASTPM_KERNEL_NAIVE:
+            *potorder = 0;
+            *gradorder = 0;
+            *deconvolveorder = 0;
+        break;
+        case FASTPM_KERNEL_GADGET:
+            *potorder = 0;
+            *gradorder = 1;
+            *deconvolveorder = 2;
+        break;
+        case FASTPM_KERNEL_1_4:
+            *potorder = 0;
+            *gradorder = 1;
+            *deconvolveorder = 0;
+        break;
+        case FASTPM_KERNEL_3_4:
+            *potorder = 1;
+            *gradorder = 1;
+            *deconvolveorder = 0;
+        break;
+        case FASTPM_KERNEL_5_4:
+            *potorder = 2;
+            *gradorder = 1;
+            *deconvolveorder = 0;
+        break;
+        case FASTPM_KERNEL_3_2:
+            *potorder = 1;
+            *gradorder = 0;
+            *deconvolveorder = 0;
+        break;
+        default:
+            fastpm_raise(-1, "Wrong kernel type\n");
+    }
+}
+
+void
 gravity_apply_kernel_transfer(FastPMKernelType type,
         PM * pm,
         FastPMFloat * delta_k,
         FastPMFloat * canvas, FastPMFieldDescr field)
 {
-    int potorder = 0;
-    int gradorder = 0;
-    switch(type) {
-        case FASTPM_KERNEL_EASTWOOD:
-            potorder = 0;
-            gradorder = 0;
-            /* now sharpen for mass assignment */
-            /* L1 */
-            fastpm_apply_decic_transfer(pm, canvas, canvas);
-            /* L2 */
-            fastpm_apply_decic_transfer(pm, canvas, canvas);
-        break;
-        case FASTPM_KERNEL_NAIVE:
-            potorder = 0;
-            gradorder = 0;
-        break;
-        case FASTPM_KERNEL_GADGET:
-            potorder = 0;
-            gradorder = 1;
-        break;
-        case FASTPM_KERNEL_3_4:
-            potorder = 1;
-            gradorder = 1;
-        break;
-        case FASTPM_KERNEL_5_4:
-            potorder = 2;
-            gradorder = 1;
-        break;
-        case FASTPM_KERNEL_3_2:
-            potorder = 1;
-            gradorder = 0;
-        break;
-        default:
-            fastpm_raise(-1, "Wrong kernel type\n");
-    }
+    int potorder, gradorder, deconvolveorder;
+    fastpm_kernel_type_get_orders(type, &potorder, &gradorder, &deconvolveorder);
 
+    while(deconvolveorder > 0) {
+        fastpm_info("Deconvolveing.... CIC.");
+        fastpm_apply_decic_transfer(pm, canvas, canvas);
+        deconvolveorder--;
+    }
     int d1, d2;
 
     switch(field.attribute) {

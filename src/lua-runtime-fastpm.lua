@@ -194,12 +194,13 @@ schema.declare{name='lc_glmatrix',     type='array:number',
 
 schema.declare{name='za',                      type='boolean', default=false, help='use ZA initial condition not 2LPT'}
 
-schema.declare{name='kernel_type',             type='enum', default="gadget", help='Force kernel; very little effect.'}
+schema.declare{name='kernel_type',             type='enum', default="1_4", help='Force kernel; affects low mass halos 3_4 gives more low mass halos; 1_4 is consistent with fastpm-python.'}
 schema.kernel_type.choices = {
-    ['3_4'] = 'FASTPM_KERNEL_3_4',
-    ['5_4'] = 'FASTPM_KERNEL_5_4',
+    ['1_4'] = 'FASTPM_KERNEL_1_4',  -- consistent with fastpm-python
+    ['3_4'] = 'FASTPM_KERNEL_3_4',  -- legacy fastpm
+    ['gadget'] = 'FASTPM_KERNEL_GADGET', -- GADGET long range without exp smoothing.
+    ['5_4'] = 'FASTPM_KERNEL_5_4',  -- very bad do not use
     ['eastwood'] = 'FASTPM_KERNEL_EASTWOOD',
-    ['gadget'] = 'FASTPM_KERNEL_GADGET',
     ['naive'] = 'FASTPM_KERNEL_NAIVE',
     ['3_2'] = 'FASTPM_KERNEL_3_2',
 }

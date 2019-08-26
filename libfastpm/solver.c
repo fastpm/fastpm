@@ -149,8 +149,8 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
             shift0 = 0;
         }
         double shift[3] = {shift0, shift0, shift0};
-        /* read out values at locations with an inverted shift */
-        pm_2lpt_solve(basepm, delta_k_ic, p, shift);
+        /* ignore deconvolve order and grad order, since particles are likely on the grid.*/
+        pm_2lpt_solve(basepm, delta_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
     }
 
     if(config->USE_DX1_ONLY == 1) {
