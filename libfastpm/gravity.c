@@ -165,7 +165,6 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
     fastpm_kernel_type_get_orders(type, &potorder, &gradorder, &deconvolveorder);
 
     while(deconvolveorder > 0) {
-        fastpm_info("Deconvolveing.... CIC.");
         fastpm_apply_decic_transfer(pm, canvas, canvas);
         deconvolveorder--;
     }
