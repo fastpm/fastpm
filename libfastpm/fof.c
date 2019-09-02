@@ -1071,8 +1071,9 @@ fastpm_fof_execute(FastPMFOFFinder * finder,
     FastPMStore savebuff[1];
     fastpm_store_init(savebuff, p->name, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
 
-    /* Watch out: kdcount may switch to use internal indices. */
     ptrdiff_t i;
+    /* kdcount will only modify the head of active particles.
+     * thus inactive particles are never linked. */
     for(i = 0; i < np_and_ghosts; i ++) {
         head[i] = i;
     }
