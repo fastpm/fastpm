@@ -38,7 +38,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_init(solver, 0, 0, comm);
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -48,8 +48,8 @@ int main(int argc, char * argv[]) {
         .omegab = 0.044,
     };
     
-    fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.2, 0.4, 0.6, 0.8, 1.0};
     //double time_step[] = {0.1, 1.0};
@@ -58,9 +58,9 @@ int main(int argc, char * argv[]) {
     fastpm_tevo_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->basepm, solver->PAINTER_TYPE, solver->painter_support);
+    fastpm_painter_init(painter, solver->pm, solver->PAINTER_TYPE, solver->painter_support);
 
-    pm_free(solver->basepm, rho_init_ktruth);
+    pm_free(solver->pm, rho_init_ktruth);
 
 	fastpm_destroy(solver);
 

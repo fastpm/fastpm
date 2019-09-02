@@ -40,13 +40,11 @@ int main(int argc, char * argv[]) {
     int n_ncdm = 3;
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(config->boxsize, m_ncdm, n_ncdm, 0.6774, 9., 10, 2, 0, 1);
     
-    int f_subsample_1d = 4;
-    int f_subsample_3d = f_subsample_1d*f_subsample_1d*f_subsample_1d;
     FastPMStore * cdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
 
     size_t total_np_cdm = fastpm_store_get_np_total(cdm, comm);
 
-    size_t total_np_ncdm = total_np_cdm / f_subsample_3d * nid->n_split;
+    size_t total_np_ncdm = total_np_cdm * nid->n_split;
 
     FastPMStore ncdm[1];
     fastpm_store_init_evenly(ncdm,
@@ -62,9 +60,9 @@ int main(int argc, char * argv[]) {
 
     //END OF ADD NCDM
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
-    FastPMFloat * rho_final_ktruth = pm_alloc(solver->basepm);
-    FastPMFloat * rho_final_xtruth = pm_alloc(solver->basepm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_xtruth = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -73,8 +71,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
 
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
@@ -89,15 +87,15 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->basepm, config->PAINTER_TYPE, config->painter_support);
+    fastpm_painter_init(painter, solver->pm, config->PAINTER_TYPE, config->painter_support);
 
-    pm_clear(solver->basepm, rho_final_xtruth);
+    pm_clear(solver->pm, rho_final_xtruth);
     fastpm_paint(painter, rho_final_xtruth, fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM), FASTPM_FIELD_DESCR_NONE);
-    //fastpm_utils_dump(solver->basepm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
+    //fastpm_utils_dump(solver->pm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
 
-    pm_free(solver->basepm, rho_final_xtruth);
-    pm_free(solver->basepm, rho_final_ktruth);
-    pm_free(solver->basepm, rho_init_ktruth);
+    pm_free(solver->pm, rho_final_xtruth);
+    pm_free(solver->pm, rho_final_ktruth);
+    pm_free(solver->pm, rho_init_ktruth);
 
     fastpm_store_destroy(ncdm);
     fastpm_solver_destroy(solver);
