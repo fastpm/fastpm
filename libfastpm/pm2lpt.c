@@ -10,8 +10,12 @@
 #include "pm2lpt.h"
 
 void 
-pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3]) 
+pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], FastPMKernelType type)
 {
+    /* read out values at locations with an inverted shift */
+    int potorder, gradorder, deconvolveorder;
+    fastpm_kernel_type_get_orders(type, &potorder, &gradorder, &deconvolveorder);
+
     /* calculate dx1, dx2, for initial fluctuation delta_k.
      * shift: martin has shift = 0.5, 0.5, 0.5.
      * Use shift of 0, 0, 0 if in doublt. 
@@ -51,7 +55,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
 
     for(d = 0; d < 3; d++) {
 
-        fastpm_apply_laplace_transfer(pm, delta_k, workspace);
+        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d);
 
         pm_c2r(pm, workspace);
@@ -62,7 +66,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
     } 
 
     for(d = 0; d< 3; d++) {
-        fastpm_apply_laplace_transfer(pm, delta_k, field[d]);
+        fastpm_apply_laplace_transfer(pm, delta_k, field[d], potorder);
         fastpm_apply_diff_transfer(pm, field[d], field[d], d);
         fastpm_apply_diff_transfer(pm, field[d], field[d], d);
 
@@ -82,7 +86,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
         int d1 = D1[d];
         int d2 = D2[d];
 
-        fastpm_apply_laplace_transfer(pm, delta_k, workspace);
+        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d1);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d2);
 
@@ -100,7 +104,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3])
          * We absorb some the negative factor in za transfer to below;
          *
          * */
-        fastpm_apply_laplace_transfer(pm, source, workspace);
+        fastpm_apply_laplace_transfer(pm, source, workspace, potorder);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d);
 
         pm_c2r(pm, workspace);
