@@ -10,7 +10,6 @@
 #include "pmghosts.h"
 
 static void
-<<<<<<< HEAD
 apply_pot_transfer(PM * pm, FastPMCosmology * c, FastPMFloat * from, FastPMFloat * to, int order)  //remove c?
 {
     fastpm_apply_laplace_transfer(pm, from, to, order);
@@ -108,17 +107,10 @@ gaussian36(double k, double * knq)
 }
 
 void
-<<<<<<< HEAD
 fastpm_kernel_type_get_orders(FastPMKernelType type,
     int *potorder,
     int *gradorder,
-    int *deconvolveorder) 
-=======
-gravity_apply_kernel_transfer(FastPMKernelType type,
-	PM * pm,
-        FastPMFloat * delta_k,
-        FastPMFloat * canvas, FastPMFieldDescr field)
->>>>>>> Fixing merging mess: Adding compatibility in cosmology.c for multiple ncdm of different mass.
+    int *deconvolveorder)
 {
     switch(type) {
         case FASTPM_KERNEL_EASTWOOD:
