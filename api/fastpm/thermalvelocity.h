@@ -1,7 +1,7 @@
-enum FastPMDivideSphere {     //FIXME: should implement this at some point
-    FASTPM_DIVIDE_SPHERE_HEALPIX = 0,
-    FASTPM_DIVIDE_SPHERE_FIBONACCI = 1,
-};
+typedef enum {
+    FASTPM_NCDM_SPHERE_HEALPIX = 0,
+    FASTPM_NCDM_SPHERE_FIBONACCI = 1,
+} FastPMncdmSphereScheme;
 
 typedef struct FastPMncdmInitData{
     double BoxSize;
@@ -12,13 +12,12 @@ typedef struct FastPMncdmInitData{
     double z;   /* initialization redshift of ncdm species */
 
     int n_shells;
+    int n_side;
     int lvk;    /* bool: switch on low velocity kernel? */
 
-    union {
-        int n_side; /* for healpix splits */
-        int n_fib;  /* for fib splits */
-    };
-
+    FastPMncdmSphereScheme ncdm_sphere_scheme;
+    
+    size_t n_sphere; /* number of tiles on the sphere */
     size_t n_split; /* number of phase space splits of each initial position */
     /* a table for quick look up of the coherent thermal velocity and mass of split particles. */
     double (* vel)[3];
@@ -26,7 +25,8 @@ typedef struct FastPMncdmInitData{
 } FastPMncdmInitData;
 
 FastPMncdmInitData *
-fastpm_ncdm_init_create(double BoxSize, double m_ncdm[3], int n_ncdm, double h, double z, int n_shells, int n_side, int lvk);
+fastpm_ncdm_init_create(double BoxSize, double m_ncdm[3], int n_ncdm, double h, double z, int n_shells, int n_side, 
+                        int lvk, FastPMncdmSphereScheme ncdm_sphere_scheme);
 
 void
 fastpm_ncdm_init_free(FastPMncdmInitData* nid);
