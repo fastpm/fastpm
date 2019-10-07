@@ -628,8 +628,8 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */   //????????????????SHould I remove this now 1.5Om in gravity.c? Was this a quick fix by Yu?
-    //double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
-    double potfactor = 1. / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
+    //double potfactor = 1. / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {
@@ -670,8 +670,8 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    //double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
-    double potfactor = 1. / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
+    //double potfactor = 1. / (HubbleDistance * HubbleDistance);
     
 #pragma omp parallel for
     for(i=0; i<np; i++) {

@@ -248,11 +248,11 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
                   + af * (1.0 * i / (kick->nsamples - 1));
 
         if(kick->forcemode == FASTPM_FORCE_FASTPM) {
-            kick->dda[i] = -1 //*1.5 * Omega_cdm                         //why minus?
+            kick->dda[i] = -1.5 * Omega_cdm                         //why minus?
                * 1 / (ac * ac * HubbleEa(ac, c))
                * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
         } else {
-            kick->dda[i] = -1 //*1.5 * Omega_cdm 
+            kick->dda[i] = -1.5 * Omega_cdm
                 * Sphi(ai, ae, ac, fastpm->config->nLPT, c, kick->forcemode == FASTPM_FORCE_COLA);
         }
         kick->Dv1[i] = GrowthFactor(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor(ae, c) - Dv1i;
