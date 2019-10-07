@@ -10,7 +10,7 @@
 #include "pmghosts.h"
 
 static void
-apply_pot_transfer(PM * pm, FastPMCosmology * c, FastPMFloat * from, FastPMFloat * to, int order)  //remove c?
+apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 {
     fastpm_apply_laplace_transfer(pm, from, to, order);
     fastpm_apply_multiply_transfer(pm, to, to, -1);      // FIXME: after master rebase on cosmology branch, I remove the 1.5Om that used to be here.... need to hceck factors etc. Ah, but then in a later commit on cosmo branch I remove 1.5Om, so this should be fine.
