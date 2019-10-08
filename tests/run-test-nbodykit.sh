@@ -9,7 +9,7 @@ assert_success "mpirun -n 4 $FASTPM nbodykit.lua > $log"
 
 echo "---- Validating the log output -------"
 assert_file_contains $log 'Writing 1894 objects.'
-assert_file_contains $log 'Writing 1668 objects.'
+assert_file_contains $log 'Writing 1669 objects.'
 assert_file_contains $log 'RSD factor.*1.140331e-02'
 assert_file_contains $log 'sigma8.*0.815897'
 
