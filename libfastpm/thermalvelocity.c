@@ -233,8 +233,9 @@ void divide_sphere_healpix(double *vec_table, int n_side)  //so is the direction
             vec_table[i*3+k] /= sqrt(v_sq[k]);
 }
 
-void divide_sphere_fibonacci(double *vec_table, int n_fibonacci)
+void divide_sphere_fibonacci(double *vec_table, int n_side)
 {
+    int n_fibonacci = n_side;
     double lat, lon;
     int i, j;
     //int N_tot = 2 * n_fibonacci + 1;
@@ -249,8 +250,20 @@ void divide_sphere_fibonacci(double *vec_table, int n_fibonacci)
     }
 }
 
-
-//FIXME: all below is for healpix... can add fibonacci later.
+void divide_sphere(FastPMncdmSphereScheme ncdm_sphere_scheme,
+                   double *vec_table, int n_side)
+{
+    switch (ncdm_sphere_scheme){
+        case FASTPM_NCDM_SPHERE_HEALPIX:
+            divide_sphere_healpix(vec_table, n_side);
+        break;
+        case FASTPM_NCDM_SPHERE_FIBONACCI:
+            divide_sphere_fibonacci(vec_table, n_side);
+        break;
+        default:
+            fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
+    }
+}
 
 static void _fastpm_ncdm_init_fill(FastPMncdmInitData* nid);
 
@@ -264,7 +277,8 @@ fastpm_ncdm_init_create(
     double z,
     int n_shells,
     int n_side,
-    int lvk)
+    int lvk,
+    FastPMncdmSphereScheme ncdm_sphere_scheme)
 {
     FastPMncdmInitData* nid = malloc(sizeof(nid[0]));
 
@@ -284,16 +298,28 @@ fastpm_ncdm_init_create(
     nid->n_shells = n_shells;
     nid->n_side = n_side;
     nid->lvk = lvk;
-
+    nid->ncdm_sphere_scheme = ncdm_sphere_scheme;
+    
     /* this is the total number of velocity vectors produced */
-    nid->n_split = 12 * n_shells * n_side * n_side;
+    switch (ncdm_sphere_scheme){
+        case FASTPM_NCDM_SPHERE_HEALPIX:
+            nid->n_sphere = 12 * n_side * n_side;
+        break;
+        case FASTPM_NCDM_SPHERE_FIBONACCI:
+            nid->n_sphere = 2 * n_side + 1;
+        break;
+        default:
+            fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
+    }
+    
+    nid->n_split = n_shells * nid->n_sphere;
     
     /* recall vel is a pointer to a 3 element array
     so lets make into multidim array of dim (n_split x 3) */
     //for now store all (3) neutrinos in the same nid table.
     nid->vel = calloc(nid->n_split, sizeof(double[3]));
     nid->mass = calloc(nid->n_split, sizeof(double));   //a 1d array to store all the masses
-
+    
     _fastpm_ncdm_init_fill(nid);
     
     return nid;
@@ -312,16 +338,17 @@ fastpm_ncdm_init_free(FastPMncdmInitData* nid)
 static void
 _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)
 {   
+    int n_ncdm = nid->n_ncdm;
     int n_shells = nid->n_shells;
     int n_side = nid->n_side;
-    int n_ncdm = nid->n_ncdm;
+    int n_sphere = nid->n_sphere;
     int lvk = nid->lvk;
     
     double *vel_table, *vec_table, *masstab;
     vel_table = malloc(sizeof(double)*n_shells);
     /* masstab is the distribution integrated per shell, sums to 1 */
     masstab = calloc(n_shells,sizeof(double));
-    vec_table = malloc(sizeof(double)*12*n_side*n_side*3);
+    vec_table = malloc(sizeof(double)*n_sphere*3);
     
     /* define the kernel params for dividing fd */
     kernel_params* params = malloc(sizeof(params[0]));
@@ -331,15 +358,15 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)
     params->n = n_ncdm;
     
     divide_fd(vel_table, masstab, params, n_shells, lvk);
-
-    divide_sphere_healpix(vec_table,n_side);
+    divide_sphere(nid->ncdm_sphere_scheme, vec_table, n_side);
+    
     int i, j, d;
     int s = 0;                          //row num  (s for split index)
-    for(i = 0; i < 12*n_side*n_side; i ++){
+    for(i = 0; i < n_sphere; i ++){
         for(j = 0; j < n_shells; j ++){
             double m0 = nid->m_ncdm[0];
             /* define mass st sum over split gives 1*/
-            nid->mass[s] = masstab[j] / (12.*n_side*n_side);
+            nid->mass[s] = masstab[j] / n_sphere;
             /* velocity_conversion_factor converts the dimless exponent 
                in the FD distribution to velocity in km/s.
                kTc = 50.3 eV/c^2 km/s */

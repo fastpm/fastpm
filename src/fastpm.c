@@ -634,7 +634,8 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
-            m_ncdm, n_ncdm, h, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk); 
+            m_ncdm, n_ncdm, h, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk, 
+            CONF(prr->lua, ncdm_sphere_scheme)); 
     
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;
     size_t total_np_ncdm = total_np_ncdm_sites * nid->n_split;
