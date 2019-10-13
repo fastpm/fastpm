@@ -253,11 +253,15 @@ void divide_sphere_fibonacci(double *vec_table, int n_side)
 void divide_sphere(FastPMncdmSphereScheme ncdm_sphere_scheme,
                    double *vec_table, int n_side)
 {
-    if (ncdm_sphere_scheme == FASTPM_NCDM_SPHERE_HEALPIX){
-        divide_sphere_healpix(vec_table, n_side);
-    }
-    else if (ncdm_sphere_scheme == FASTPM_NCDM_SPHERE_FIBONACCI){
-        divide_sphere_fibonacci(vec_table, n_side);
+    switch (ncdm_sphere_scheme){
+        case FASTPM_NCDM_SPHERE_HEALPIX:
+            divide_sphere_healpix(vec_table, n_side);
+        break;
+        case FASTPM_NCDM_SPHERE_FIBONACCI:
+            divide_sphere_fibonacci(vec_table, n_side);
+        break;
+        default:
+            fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
     }
 }
 
@@ -297,11 +301,15 @@ fastpm_ncdm_init_create(
     nid->ncdm_sphere_scheme = ncdm_sphere_scheme;
     
     /* this is the total number of velocity vectors produced */
-    if (ncdm_sphere_scheme == FASTPM_NCDM_SPHERE_HEALPIX){
-        nid->n_sphere = 12 * n_side * n_side;
-    }
-    else if (ncdm_sphere_scheme == FASTPM_NCDM_SPHERE_FIBONACCI){
-        nid->n_sphere = 2 * n_side + 1;
+    switch (ncdm_sphere_scheme){
+        case FASTPM_NCDM_SPHERE_HEALPIX:
+            nid->n_sphere = 12 * n_side * n_side;
+        break;
+        case FASTPM_NCDM_SPHERE_FIBONACCI:
+            nid->n_sphere = 2 * n_side + 1;
+        break;
+        default:
+            fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
     }
     
     nid->n_split = n_shells * nid->n_sphere;
