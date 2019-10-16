@@ -232,10 +232,12 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     kick->forcemode = fastpm->config->FORCE_TYPE;
 
     double Omega_cdm = c->Omega_cdm;
+    //double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
     double growth1 = GrowthFactor(ac, c);
     double growth2 = GrowthFactor2(ac, c);
 
     kick->q1 = growth1;
+    //kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
     kick->q2 = growth1*growth1 + 7.0/3.0*growth2;  //?
 
     kick->nsamples = 32;

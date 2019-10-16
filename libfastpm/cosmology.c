@@ -69,7 +69,9 @@ double Omega_ur(FastPMCosmology * c)
 
 double Omega_r(FastPMCosmology * c)
 {
-    /*Omega_r0. This is the energy density of all radiation-like particles.*/
+    /*Omega_r0. This is the energy density of all radiation-like particles.
+      FIXME: really this is Omega_g+ur, not r, because it doesn't have ncdm,r in it 
+      and we define m with ncdm,m. this doesn't affect rest of code, but maybe redefine.*/
     return Omega_g(c) + Omega_ur(c);
 }
 
@@ -79,11 +81,11 @@ double getFtable(int F_id, double y)
     //Gets the interpolated value of Ftable[F_id] at y
     //F_id: 1 for F, 2 for F', 3 for F''
     
-    //if (y == 0.) {               //does this work for double?
-    //    return 0.                //this hack ensures all Omega_ncdm related funcs will return 0.
-    //}else{
+    if (y == 0.) {               //does this work for double?
+        return 0.;                //this hack ensures all Omega_ncdm related funcs will return 0.
+    }else{
     return interpolate(Ftable[0], Ftable[F_id], Fsize, y);
-    //}
+    }
 }
 
 double Fconst(int ncdm_id, FastPMCosmology * c)
@@ -94,12 +96,13 @@ double Fconst(int ncdm_id, FastPMCosmology * c)
     Fconst must be calculated for each ncdm species as it depends on the mass. ncdm_id labels the element of m_ncdm.
     */
     
-    //if (c->T_cmb == 0. || c->N_ncdm == 0) {
-    //    return 0.;                 //T_cmb = 0 => T_nu = 0 => N_nu = 0 => N_ncdm = 0.
-    //}else{
+    if (c->T_cmb == 0. || c->N_ncdm == 0) {
+        return 0.;          // Incase you want to run with no radaition in bkg! This is a bit ugly... because we still go thru all the F funcs
+    }else{
     double T_nu = Gamma_nu(c) * c->T_cmb;
+    //printf("%d %g %g %g %g\n", ncdm_id, c->m_ncdm[ncdm_id], c->m_ncdm[ncdm_id] / (kB * T_nu), kB, T_nu);
     return c->m_ncdm[ncdm_id] / (kB * T_nu);
-    //}
+    }
 }
 
 double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c)   
@@ -257,7 +260,7 @@ static int growth_ode(double a, const double y[], double dyda[], void *params)
     
     double dydlna[4];
     dydlna[0] = y[1];
-    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_cdm_a(a, c) * y[0];
+    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_cdm_a(a, c) * y[0];     //FIXME: maybe need to replace Oc with Om including ncdm matter? 
     dydlna[2] = y[3];
     dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_cdm_a(a, c) * (y[2] - y[0]*y[0]);
     
@@ -296,7 +299,7 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     //Note the normalisation of D is arbitrary as we will only use it to calcualte growth fractor.
     
     //MD initial conditions for now.
-    double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};
+    double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};           // FIXME: these are wrong. See Yu and Jia paper 2018
     //double yini[4] = {1e7*aini, 1e52*aini, -3./7.*aini*aini*1e97, -6./7.*aini*aini/1e50};
    
     //int stat = 
