@@ -167,10 +167,20 @@ double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
     return 1./3. - y / 3. * getFtable(2, y) / getFtable(1, y);
 }
 
+double Omega_Lambda(FastPMCosmology* c)
+{
+    /*Define Omega_Lambda using z=0 values to give 0 curvature.*/
+    double res = 1;
+    res -= c->Omega_cdm;
+    res -= Omega_r(c);
+    res -= Omega_ncdmTimesHubbleEaSq(1, c);
+    return res;
+}
+
 double HubbleEa(double a, FastPMCosmology * c)
 {
     /* H(a) / H0 */
-    return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
+    return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + Omega_Lambda(c));
 }
 
 double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
@@ -246,7 +256,7 @@ double OmegaSum(double a, FastPMCosmology* c)
     double sum = Omega_r(c) / pow(a, 4);
     sum += c->Omega_cdm / pow(a, 3);
     sum += Omega_ncdmTimesHubbleEaSq(a, c);
-    sum += c->Omega_Lambda;
+    sum += Omega_Lambda(c);
     return sum / pow(HubbleEa(a, c), 2);
 }
 

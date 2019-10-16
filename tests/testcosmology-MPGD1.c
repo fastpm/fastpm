@@ -46,7 +46,6 @@ This removes error
 typedef struct {
     double h;
     double Omega_cdm;
-    double Omega_Lambda;
     double T_cmb;    /*related to omegaR*/
     double N_eff;  //N_ur;      /*this is N_eff*/ //actually i might just make this number o fmassless neutrinos, just adds to rad
     double M_nu; ///    m_ncdm[3]; for now assume 3 nus of same mass
@@ -150,7 +149,7 @@ double D2OmegaNuTimesHubbleEaSqDa2(double a, FastPMCosmologyNu * c){
 
 double HubbleEaNu(double a, FastPMCosmologyNu * c){
     /* H(a) / H0 */
-    return sqrt(Omega_g(c)/pow(a,4) + c->Omega_cdm/pow(a,3) + OmegaNuTimesHubbleEaSq(a,c) + c->Omega_Lambda);
+    return sqrt(Omega_g(c)/pow(a,4) + c->Omega_cdm/pow(a,3) + OmegaNuTimesHubbleEaSq(a,c) + Omega_Lambda(c));
 }
 
 double DHubbleEaDaNu(double a, FastPMCosmologyNu * c){
@@ -172,7 +171,7 @@ double D2HubbleEaDa2Nu(double a, FastPMCosmologyNu * c){
 
 double OmegaSum(double a, FastPMCosmologyNu* c){
     //should always equal 1. good for testing.
-    return (Omega_g(c)/pow(a,4) + c->Omega_cdm/pow(a,3) + OmegaNuTimesHubbleEaSq(a,c) + c->Omega_Lambda) / pow(HubbleEaNu(a,c),2);
+    return (Omega_g(c)/pow(a,4) + c->Omega_cdm/pow(a,3) + OmegaNuTimesHubbleEaSq(a,c) + Omega_Lambda(c)) / pow(HubbleEaNu(a,c),2);
 }
 
 
@@ -238,7 +237,7 @@ static ode_soln growth_ode_solveNu(double a, FastPMCosmologyNu * c)
     FF.function = &growth_odeNu;
     FF.jacobian = NULL;
     FF.dimension = 2;
-    //FF.params = (double[]) {c->Omega_cdm, c->Omega_Lambda, c->T_cmb};  //i added this. I had a seg fault before this. Acc online documentaiton, we need ot specify the paras. makes sense. but MPGadget doesn't seem to do this...?
+    //FF.params = (double[]) {c->Omega_cdm, Omega_Lambda(c), c->T_cmb};  //i added this. I had a seg fault before this. Acc online documentaiton, we need ot specify the paras. makes sense. but MPGadget doesn't seem to do this...?
     FF.params = (void*) c;
     
     gsl_odeiv2_driver * drive = gsl_odeiv2_driver_alloc_standard_new(&FF,gsl_odeiv2_step_rkf45, 1e-5, 1e-8,1e-8,1,1);
@@ -830,7 +829,6 @@ int main(int argc, char * argv[]) {
     FastPMCosmologyNu cNu[1] ={{
         .h=0.6772,
         .Omega_cdm=0.3,
-        .Omega_Lambda=0.7,
         .T_cmb=2.73,
         .N_eff=3.046,
         .M_nu=0.3,               //(assuming 3 nus of mass 1ev, this is the sum of their masses)
@@ -841,8 +839,6 @@ int main(int argc, char * argv[]) {
     printf("NU \n");
     printf("OmegaM X d D dD/da d2D/da2 E dE/dA d2E/da2 OmegaG\n");
     for(cNu->Omega_cdm = 0.1; cNu->Omega_cdm < 0.6; cNu->Omega_cdm += 0.1) {
-        //cNu->Omega_Lambda = 0;  //initialize it
-        cNu->Omega_Lambda = 1 - cNu->Omega_cdm - Omega_g(cNu) - OmegaNuTimesHubbleEaSq(1,cNu);
         double a = 0.8;
         printf("%g %g %g %g %g %g %g %g %g %g \n",
             cNu->Omega_cdm,

@@ -32,7 +32,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         FastPMCosmology c[1] = {{
             .h=0.6772,
             .Omega_cdm=0.3,
-            .Omega_Lambda=0.7,
             .T_cmb=2.725,
             .N_eff=3.046,
             .m_ncdm= {1., 0, 0, },

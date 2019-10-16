@@ -171,7 +171,6 @@ int main(int argc, char ** argv) {
     FastPMCosmology cosmology [1] = {{
         .h = CONF(prr->lua, h),
         .Omega_cdm = CONF(prr->lua, Omega_cdm),
-        .Omega_Lambda = 1 - CONF(prr->lua, Omega_cdm),   // FIXME: WRONG with radiation!
         .T_cmb = CONF(prr->lua, T_cmb),
         .N_eff = CONF(prr->lua, N_eff),
         .N_nu = CONF(prr->lua, N_nu),

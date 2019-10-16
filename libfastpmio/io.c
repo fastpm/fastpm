@@ -176,7 +176,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     double f1 = DLogGrowthFactor(aout, fastpm->cosmology);
     double Ea = HubbleEa(aout, fastpm->cosmology);
     double Omega_cdm = fastpm->cosmology->Omega_cdm;
-    double OmegaLambda = fastpm->cosmology->Omega_Lambda;
+    //double OmegaLambda = fastpm->cosmology->Omega_Lambda; //FIXME: Removed Omega_L, maybe want to include radiation input pars?
     double HubbleParam = fastpm->cosmology->h;
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
@@ -207,7 +207,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
     big_block_set_attr(&bb, "Omega_cdm", &Omega_cdm, "f8", 1);
     big_block_set_attr(&bb, "OmegaM", &Omega_cdm, "f8", 1);    //will change later
-    big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
+    //big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
     big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
 
