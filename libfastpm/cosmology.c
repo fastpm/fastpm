@@ -6,12 +6,8 @@
 #include <gsl/gsl_math.h>
 
 #include <gsl/gsl_odeiv2.h>
-#include <gsl/gsl_spline.h>
 
 #include <fastpm/libfastpm.h>
-
-//include Fermi-Dirac integration table for neutrinos
-#include <fastpm/Ftable.h>
 
 #define STEF_BOLT 2.851e-48  // in units: [ h * (10^10Msun/h) * s^-3 * K^-4 ]
 #define rho_crit 27.7455     //rho_crit0 in mass/length (not energy/length)
@@ -22,28 +18,7 @@
 double HubbleDistance = 2997.92458; /* Mpc/h */   /*this c*1e5 in SI units*/
 double HubbleConstant = 100.0; /* Mpc/h / km/s*/     //OTHER WAY ROUND!
 
-double interpolate(const double xa[], const double ya[], size_t size, double xi)
-{
-    /*
-    Linearly interpolate at xi from data xa[] and ya[]
-    */
-    
-    gsl_interp* interp 
-        = gsl_interp_alloc(gsl_interp_linear, size);  //linear
-    gsl_interp_accel* acc 
-        = gsl_interp_accel_alloc();
-    
-    gsl_interp_init(interp, xa, ya, size);
-    
-    double yi = gsl_interp_eval(interp, xa, ya, xi, acc);
-    
-    gsl_interp_free(interp);
-    gsl_interp_accel_free (acc);
-    
-    return yi;
-}
-
-double Omega_g(FastPMCosmology * c)   
+double Omega_g(FastPMCosmology * c)
 {
     /* This is really Omega_g0. All Omegas in this code mean 0, exceot nu!!, I would change notation, but anyway 
     Omega_g0 = 4 \sigma_B T_{CMB}^4 8 \pi G / (3 c^3 H0^2)*/
@@ -75,17 +50,17 @@ double Omega_r(FastPMCosmology * c)
     return Omega_g(c) + Omega_ur(c);
 }
 
-double getFtable(int F_id, double y)
+double getFtable(int F_id, double y, FastPMCosmology * c)
 {
     //Not using size as an arg, it's globally defined
     //Gets the interpolated value of Ftable[F_id] at y
     //F_id: 1 for F, 2 for F', 3 for F''
     
-    if (y == 0.) {               //does this work for double?
-        return 0.;                //this hack ensures all Omega_ncdm related funcs will return 0.
-    }else{
-    return interpolate(Ftable[0], Ftable[F_id], Fsize, y);
-    }
+    //if (y == 0.) {               //does this work for double?
+    //    return 0.;                //this hack ensures all Omega_ncdm related funcs will return 0.
+    //}else{
+    return fastpm_do_fd_interp(c->FDinterp, F_id, y);
+    //}
 }
 
 double Fconst(int ncdm_id, FastPMCosmology * c)
@@ -111,7 +86,7 @@ double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c)
     
     double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
     double Fc = Fconst(ncdm_id, c);
-    double F = getFtable(1, Fc*a);              //row 1 for F
+    double F = getFtable(1, Fc*a, c);              //row 1 for F
     
     return A / (a*a*a*a) * F;
 }
@@ -136,7 +111,7 @@ double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c)
     double FcDF = 0;
     for (int i=0; i<c->N_ncdm; i++) {
         double Fc = Fconst(i, c);
-        double DF = getFtable(2, Fc*a);
+        double DF = getFtable(2, Fc*a, c);
         FcDF += Fc * DF;    //row 2 for F'
     }
     
@@ -153,7 +128,7 @@ double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c)
     double FcFcDDF = 0;
     for (int i=0; i<c->N_ncdm; i++) {
         double Fc = Fconst(i, c);
-        double DDF = getFtable(3, Fc*a);
+        double DDF = getFtable(3, Fc*a, c);
         FcFcDDF += Fc * Fc * DDF;    //row 3 for F''
     }
     
@@ -164,7 +139,7 @@ double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
 {
     /*eos parameter for ith neutrino species*/
     double y = Fconst(ncdm_id, c) * a;
-    return 1./3. - y / 3. * getFtable(2, y) / getFtable(1, y);
+    return 1./3. - y / 3. * getFtable(2, y, c) / getFtable(1, y, c);
 }
 
 double Omega_Lambda(FastPMCosmology* c)

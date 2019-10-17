@@ -73,6 +73,7 @@ typedef double (*fastpm_kernelfunc)(double x, double hsupport);
 #include "store.h"
 #include "painter.h"
 
+#include "FDinterp.h"
 #include "cosmology.h"
 #include "horizon.h"
 #include "transfer.h"

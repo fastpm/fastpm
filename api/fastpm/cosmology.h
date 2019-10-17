@@ -12,6 +12,12 @@ struct FastPMCosmology {
     int N_nu;  // total number of neutrino species (massive and massless) (could use 'N_ur' as number of ur nus, instead, but dont want conflict with CLASS defn)
     double m_ncdm[3]; // masses of massive neutrinos (ncdm) for now assume max of 3 ncdm nus.
     int N_ncdm;
+    
+    /* Fermi Dirac interp for ncdm 
+       It's not really cosmology dependant,
+       but only cosmology uses it, so I guess
+       it makes sense to have a pointer to it here */
+    FastPMFDInterp * FDinterp;   //FIXME: I guess this will just be NULL in the case of no ncdm. Is this ugly?
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);
@@ -21,7 +27,7 @@ double Gamma_nu(FastPMCosmology * c);
 double Omega_ur(FastPMCosmology * c);
 double Omega_r(FastPMCosmology * c);
 
-double getFtable(int F_id, double y);
+double getFtable(int F_id, double y, FastPMCosmology * c);
 double Fconst(int ncdm_id, FastPMCosmology * c);
 
 double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c);
