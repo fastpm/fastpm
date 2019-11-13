@@ -177,6 +177,7 @@ double Omega_ncdm(double a, FastPMCosmology * c)
 double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c)
 {
     /*matter-like part of ncdm_i*/
+    //printf("\n wwww %g %g \n", a, w_ncdm_i(a, ncdm_id, c));
     return (1. - 3 * w_ncdm_i(a, ncdm_id, c)) * Omega_ncdm_i(a, ncdm_id, c);
 }
 
@@ -245,9 +246,9 @@ static int growth_ode(double a, const double y[], double dyda[], void *params)
     
     double dydlna[4];
     dydlna[0] = y[1];
-    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_cdm_a(a, c) * y[0];     //FIXME: maybe need to replace Oc with Om including ncdm matter? 
+    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_m(a, c) * y[0];q
     dydlna[2] = y[3];
-    dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_cdm_a(a, c) * (y[2] - y[0]*y[0]);
+    dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_m(a, c) * (y[2] - y[0]*y[0]);
     
     //divide by  a to get dyda
     for (int i=0; i<4; i++){
@@ -262,7 +263,7 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
     /* This returns an array of {d1, F1, d2, F2}
         Is there a nicer way to do this within one func and no object?*/
-
+    printf("%d\n",1111111);
     gsl_odeiv2_system F;
     F.function = &growth_ode;
     F.jacobian = NULL;
@@ -278,15 +279,28 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
                                                1,
                                                1);
     
-     /* We start early to avoid lambda. ??????????????*/
-    double aini = 1e-5;
+     /* We start early to avoid lambda, but still MD so we use y<<1 Meszearos soln. And assume all nus are radiation*/
+    //double aini = 1e-5;
     
     //Note the normalisation of D is arbitrary as we will only use it to calcualte growth fractor.
     
     //MD initial conditions for now.
-    double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};           // FIXME: these are wrong. See Yu and Jia paper 2018
-    //double yini[4] = {1e7*aini, 1e52*aini, -3./7.*aini*aini*1e97, -6./7.*aini*aini/1e50};
-   
+    //double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};           // FIXME: these are wrong. See Yu and Jia paper 2018
+    
+    //FIXME: 2LPT ICs!!!! Just consider a r+m only universe. 1LPT is Mesezaros, but 2LPT?
+    //double value = 1.5 * c->Omega_cdm / (aini*aini*aini*aini);
+    //double yini[4] = {0, 0, -3./7.*aini*aini * value, -6./7.*aini*aini * value};
+    //yini[0] = 1.5 * c->Omega_cdm / (aini*aini*aini) + Omega_r(c) / (aini*aini*aini*aini) + Omega_ncdmTimesHubbleEaSq(aini, c);
+    //yini[1] = 1.5 * c->Omega_cdm / (aini*aini*aini);
+    
+    // ASSUME RD
+    double aini = 1e-6;
+    double aH = 1e-10;
+    double log_iH = log(aini / aH);
+    double yini[4] = {log_iH, 1, 0, 0};
+    yini[2] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 4 * log_iH + 6 );     // Should really be Omega_m, bu assume matter is just cdm at this time (i.e. all neutrinos are rel).
+    yini[3] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 2 * log_iH + 2 ); 
+    
     //int stat = 
     gsl_odeiv2_driver_apply(drive, &aini, a, yini);
     //if (stat != GSL_SUCCESS) {     //If succesful, stat will = GSL_SUCCESS and yinit will become the final values...
@@ -309,6 +323,7 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     return soln;
 }
 
+/* FIXME: Each of these functions will redo the ode! That's long! */
 double growth(double a, FastPMCosmology * c) {
     //d1
     return growth_ode_solve(a, c).y0;
