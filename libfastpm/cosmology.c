@@ -246,7 +246,7 @@ static int growth_ode(double a, const double y[], double dyda[], void *params)
     
     double dydlna[4];
     dydlna[0] = y[1];
-    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_m(a, c) * y[0];q
+    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_m(a, c) * y[0];
     dydlna[2] = y[3];
     dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_m(a, c) * (y[2] - y[0]*y[0]);
     
@@ -263,7 +263,7 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
     /* This returns an array of {d1, F1, d2, F2}
         Is there a nicer way to do this within one func and no object?*/
-    printf("%d\n",1111111);
+    //printf("%d\n",1111111);
     gsl_odeiv2_system F;
     F.function = &growth_ode;
     F.jacobian = NULL;
