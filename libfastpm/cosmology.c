@@ -263,7 +263,6 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
     /* This returns an array of {d1, F1, d2, F2}
         Is there a nicer way to do this within one func and no object?*/
-    //printf("%d\n",1111111);
     gsl_odeiv2_system F;
     F.function = &growth_ode;
     F.jacobian = NULL;
@@ -273,33 +272,44 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     gsl_odeiv2_driver * drive 
         = gsl_odeiv2_driver_alloc_standard_new(&F,
                                                gsl_odeiv2_step_rkf45, 
-                                               1e-5, 
+                                               1e-6,
                                                1e-8,
                                                1e-8,
                                                1,
                                                1);
     
      /* We start early to avoid lambda, but still MD so we use y<<1 Meszearos soln. And assume all nus are radiation*/
-    //double aini = 1e-5;
     
     //Note the normalisation of D is arbitrary as we will only use it to calcualte growth fractor.
     
-    //MD initial conditions for now.
-    //double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};           // FIXME: these are wrong. See Yu and Jia paper 2018
+    // ASSUME MD, no FS
+    //double aini = 4e-2;
+    //double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};
     
-    //FIXME: 2LPT ICs!!!! Just consider a r+m only universe. 1LPT is Mesezaros, but 2LPT?
+    //FIXME: Consider a R+M only universe. 1LPT is Mesezaros, but 2LPT is currently wrong!
+    //double aini = 1e-5;
     //double value = 1.5 * c->Omega_cdm / (aini*aini*aini*aini);
     //double yini[4] = {0, 0, -3./7.*aini*aini * value, -6./7.*aini*aini * value};
     //yini[0] = 1.5 * c->Omega_cdm / (aini*aini*aini) + Omega_r(c) / (aini*aini*aini*aini) + Omega_ncdmTimesHubbleEaSq(aini, c);
     //yini[1] = 1.5 * c->Omega_cdm / (aini*aini*aini);
     
     // ASSUME RD
-    double aini = 1e-6;
-    double aH = 1e-10;
-    double log_iH = log(aini / aH);
-    double yini[4] = {log_iH, 1, 0, 0};
-    yini[2] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 4 * log_iH + 6 );     // Should really be Omega_m, bu assume matter is just cdm at this time (i.e. all neutrinos are rel).
-    yini[3] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 2 * log_iH + 2 ); 
+    //double aini = 4e-2;
+    //double aH = 1e-5;
+    //double log_iH = log(aini / aH);
+    //double yini[4] = {log_iH, 1, 0, 0};
+    //yini[2] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 4 * log_iH + 6 );     // Should really be Omega_m, but assume matter is just cdm at this time (i.e. all neutrinos are rel).
+    //yini[3] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 2 * log_iH + 2 );
+
+    // ASSUME MD, FS
+    double aini = 4e-2;
+    double f = Omega_ncdm(1, c) / Omega_m(1, c);    //dont think I want to include relativistic nus?
+    double p = 1./4. * (5 - sqrt(25 - 24 * f));
+    double yini[4];
+    yini[0] = pow(aini, 1-p);
+    yini[1] = (1 - p) * yini[0];
+    yini[2] = - 3./7. * (1 - f) / (1 - (9*f - 2*p)/7) * yini[0]*yini[0];
+    yini[3] = 2 * (1 - p) * yini[2];
     
     //int stat = 
     gsl_odeiv2_driver_apply(drive, &aini, a, yini);
@@ -323,7 +333,21 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     return soln;
 }
 
-/* FIXME: Each of these functions will redo the ode! That's long! */
+void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCosmology * c) {
+    ode_soln soln = growth_ode_solve(a, c);
+    ode_soln soln_a1 = growth_ode_solve(1, c);
+    // FIXME: you could save a=1 soln at the start of code (perhaps to cosmo obj) and then never compute again.
+
+    growth_info->a = a;
+    growth_info->c = c;
+    growth_info->D1 = soln.y0 / soln_a1.y0;
+    growth_info->f1 = soln.y1 / soln.y0;    /* f = d log D / d log a. Note soln.y1 is d d1 / d log a */
+    growth_info->D2 = soln.y2 / soln_a1.y2;
+    growth_info->f2 = soln.y3 / soln.y2;
+}
+
+/* FIXME: Some of the below growth functions are still called in io.c, horizon.c and solver.c.
+          This shouldn't be a big deal, but might want to change to growth object later. */
 double growth(double a, FastPMCosmology * c) {
     //d1
     return growth_ode_solve(a, c).y0;
@@ -376,18 +400,20 @@ double DGrowthFactorDa(double a, FastPMCosmology * c) {
     return F1 / a / d0;
 }
 
-double D2GrowthFactorDa2(double a, FastPMCosmology * c) {
+double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
+    /* d^2 D1 / da^2 */
+    double a = growth_info->a;
+    FastPMCosmology * c = growth_info->c;
+
     double E = HubbleEa(a, c);
     double dEda = DHubbleEaDa(a, c);
-    
-    double d1 = growth(a, c);
-    double F1 = DgrowthDlna(a, c);
-    double d0 = growth(1., c);  //0 for today
+    double D1 = growth_info->D1;
+    double f1 = growth_info->f1;
     
     double ans = 0.;
-    ans -= (3. + a / E * dEda) * F1;
-    ans += 1.5 * Omega_cdm_a(a, c) * d1;
-    ans /= d0 * a*a;
+    ans -= (3. + a / E * dEda) * f1 * D1;
+    ans += 1.5 * Omega_m(a, c) * D1;
+    ans /= (a*a);
     return ans;
 }
 

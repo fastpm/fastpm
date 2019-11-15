@@ -197,28 +197,34 @@ fastpm_kick_store(FastPMKickFactor * kick,
     po->meta.a_v = af;
 }
 
-static double G_p(double a, FastPMCosmology * c)
+static double G_p(FastPMGrowthInfo * growth_info)
 {
     /* integral of G_p */
-    return GrowthFactor(a, c);
+    return growth_info->D1;
 }
-static double g_p(double a, FastPMCosmology * c)
+static double g_p(FastPMGrowthInfo * growth_info)
 {
-    return DGrowthFactorDa(a, c);
+    double dDda = growth_info->f1 * growth_info->D1 / growth_info->a;
+    return dDda;
 }
 
-static double G_f(double a, FastPMCosmology * c)           //CHECK gf Gf dont change with nus.
+static double G_f(FastPMGrowthInfo * growth_info)           //CHECK gf Gf dont change with nus.
 {
     /* integral of g_f */
-    return a * a * a * HubbleEa(a, c) * g_p(a, c);
+    double a = growth_info->a;
+    return a * a * a * HubbleEa(a, growth_info->c) * g_p(growth_info);
 }
 
-static double g_f(double a, FastPMCosmology * c)
+static double g_f(FastPMGrowthInfo * growth_info)
 {
-    double dDda = DGrowthFactorDa(a, c);
+    double a = growth_info->a;
+    FastPMCosmology * c = growth_info->c;
+
     double E = HubbleEa(a, c);
     double dEda = DHubbleEaDa(a, c);
-    double d2Dda2 = D2GrowthFactorDa2(a, c);
+
+    double dDda = g_p(growth_info);
+    double d2Dda2 = D2GrowthFactorDa2(growth_info);
 
     double g_f = 3 * a * a * E * dDda
                    + a * a * a * dEda * dDda
@@ -231,34 +237,57 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     FastPMCosmology * c = fastpm->cosmology;
     kick->forcemode = fastpm->config->FORCE_TYPE;
 
-    double Omega_cdm = c->Omega_cdm;
-    //double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
-    double growth1 = GrowthFactor(ac, c);
-    double growth2 = GrowthFactor2(ac, c);
+    FastPMGrowthInfo gi_i;    //maybe memalloc?
+    FastPMGrowthInfo gi_c;
+    FastPMGrowthInfo gi_e;
 
-    kick->q1 = growth1;
+    fastpm_growth_info_init(&gi_i, ai, c);
+    fastpm_growth_info_init(&gi_c, ac, c);
+
+    double E_i = HubbleEa(ai, c);
+    double E_c = HubbleEa(ac, c);
+
+    double D1_i = gi_i.D1;
+    double D2_i = gi_i.D2;
+    double f1_i = gi_i.f1;
+    double f2_i = gi_i.f2;
+
+    double D1_c = gi_c.D1;
+    double D2_c = gi_c.D2;
+
+    double Omega_m0 = Omega_m(1, c);
+    //double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
+
+    kick->q1 = D1_c;
     //kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    kick->q2 = growth1*growth1 + 7.0/3.0*growth2;  //?
+    kick->q2 = D1_c*D1_c + 7.0/3.0*D2_c;  // FIXME: This is wrong.
 
     kick->nsamples = 32;
     int i;
 
-    double Dv1i = GrowthFactor(ai, c) * ai * ai * HubbleEa(ai, c) * DLogGrowthFactor(ai, c);
-    double Dv2i = GrowthFactor2(ai, c) * ai * ai * HubbleEa(ai, c) * DLogGrowthFactor2(ai, c);
+    double Dv1i = D1_i * ai * ai * E_i * f1_i;
+    double Dv2i = D2_i * ai * ai * E_i * f2_i;
     for(i = 0; i < kick->nsamples; i ++) {
         double ae = ai * (1.0 * (kick->nsamples - 1 - i) / (kick->nsamples - 1))
                   + af * (1.0 * i / (kick->nsamples - 1));
 
+        fastpm_growth_info_init(&gi_e, ae, c);
+        double D1_e = gi_e.D1;
+        double f1_e = gi_e.f1;
+        double D2_e = gi_e.D2;
+        double f2_e = gi_e.f2;
+        double E_e = HubbleEa(ae, c);
+
         if(kick->forcemode == FASTPM_FORCE_FASTPM) {
-            kick->dda[i] = -1.5 * Omega_cdm                         //why minus?
-               * 1 / (ac * ac * HubbleEa(ac, c))
-               * (G_f(ae, c) - G_f(ai, c)) / g_f(ac, c);
+            kick->dda[i] = -1.5 * Omega_m0
+               * 1 / (ac * ac * E_c)
+               * (G_f(&gi_e) - G_f(&gi_i)) / g_f(&gi_c);
         } else {
-            kick->dda[i] = -1.5 * Omega_cdm
+            kick->dda[i] = -1.5 * Omega_m0
                 * Sphi(ai, ae, ac, fastpm->config->nLPT, c, kick->forcemode == FASTPM_FORCE_COLA);
         }
-        kick->Dv1[i] = GrowthFactor(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor(ae, c) - Dv1i;
-        kick->Dv2[i] = GrowthFactor2(ae, c) * ae * ae * HubbleEa(ae, c) * DLogGrowthFactor2(ae, c) - Dv2i;
+        kick->Dv1[i] = D1_e * ae * ae * E_e * f1_e - Dv1i;
+        kick->Dv2[i] = D2_e * ae * ae * E_e * f2_e - Dv2i;
     }
 
     kick->ai = ai;
@@ -274,6 +303,23 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
     FastPMCosmology * c = fastpm->cosmology;
     drift->forcemode = fastpm->config->FORCE_TYPE;
 
+    FastPMGrowthInfo gi_i;    //maybe memalloc?
+    FastPMGrowthInfo gi_c;
+    FastPMGrowthInfo gi_e;
+
+    fastpm_growth_info_init(&gi_i, ai, c);
+    fastpm_growth_info_init(&gi_c, ac, c);
+
+    double E_c = HubbleEa(ac, c);
+
+    double D1_i = gi_i.D1;
+    double D2_i = gi_i.D2;
+
+    double D1_c = gi_c.D1;
+    double D2_c = gi_c.D2;
+    double f1_c = gi_c.f1;
+    double f2_c = gi_c.f2;
+
     drift->nsamples = 32;
     int i;
 
@@ -281,20 +327,24 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
         double ae = ai * (1.0 * (drift->nsamples - 1 - i) / (drift->nsamples - 1))
                   + af * (1.0 * i / (drift->nsamples - 1));
 
+        fastpm_growth_info_init(&gi_e, ae, c);     //overwrite for each iteration.
+        double D1_e = gi_e.D1;
+        double D2_e = gi_e.D2;
+
         if(drift->forcemode == FASTPM_FORCE_FASTPM) {
-            drift->dyyy[i] = 1 / (ac * ac * ac * HubbleEa(ac, c))
-                        * (G_p(ae, c) - G_p(ai, c)) / g_p(ac, c);
+            drift->dyyy[i] = 1 / (ac * ac * ac * E_c)
+                        * (G_p(&gi_e) - G_p(&gi_i)) / g_p(&gi_c);
         } else {
             drift->dyyy[i] = Sq(ai, ae, ac, fastpm->config->nLPT, c, drift->forcemode == FASTPM_FORCE_COLA);
         }
-        drift->da1[i] = GrowthFactor(ae, c) - GrowthFactor(ai, c);    // change in D_1lpt
-        drift->da2[i] = GrowthFactor2(ae, c) - GrowthFactor2(ai, c);  // change in D_2lpt
+        drift->da1[i] = D1_e - D1_i;    // change in D_1lpt
+        drift->da2[i] = D2_e - D2_i;  // change in D_2lpt
     }
     drift->af = af;
     drift->ai = ai;
     drift->ac = ac;
-    drift->Dv1 = GrowthFactor(ac, c) * ac * ac * HubbleEa(ac, c) * DLogGrowthFactor(ac, c);
-    drift->Dv2 = GrowthFactor2(ac, c) * ac * ac * HubbleEa(ac, c) * DLogGrowthFactor2(ac, c);
+    drift->Dv1 = D1_c * ac * ac * E_c * f1_c;
+    drift->Dv2 = D2_c * ac * ac * E_c * f2_c;
 }
 
 void

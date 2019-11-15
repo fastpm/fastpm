@@ -146,11 +146,17 @@ pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
 {
     int np = p->np;
 
-    double D1 = GrowthFactor(aout, c);
-    double D2 = GrowthFactor2(aout, c);
+    FastPMGrowthInfo gi;
+    fastpm_growth_info_init(&gi, aout, c);
 
-    double Dv1 = D1 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
-    double Dv2 = D2 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
+    double D1 = gi.D1;
+    double D2 = gi.D2;
+    double f1 = gi.f1;
+    double f2 = gi.f2;
+    double E = HubbleEa(aout, c);
+
+    double Dv1 = D1 * aout * aout * E * f1;
+    double Dv2 = D2 * aout * aout * E * f2;
     if(zaonly) {
         D2 = 0;
         Dv2 = 0;

@@ -60,10 +60,26 @@ typedef struct {
     double y3;
 } ode_soln;
 
+
+typedef struct FastPMGrowthInfo {
+    /* Object to store solutions to growth ode at
+       a certain scale factor, a, and for a certain
+       cosmology, c. */
+    double a;
+    FastPMCosmology * c;
+    double D1;   /* growth factor normalised to 1 today */
+    double D2;
+    double f1;   /* dlogD1 / dloga */
+    double f2;
+} FastPMGrowthInfo;
+
+void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCosmology * c);
+
 //dont put these in .h
 //static int growth_odeNu(double a, const double y[], double dyda[], void *params);
 //static ode_soln growth_ode_solve(double a, FastPMCosmology * c);
 
+//////// FIXME: Phase these out later //////////
 double growth(double a, FastPMCosmology * c);
 double DgrowthDlna(double a, FastPMCosmology * c);
 double growth2(double a, FastPMCosmology * c);
@@ -76,7 +92,9 @@ double DLogGrowthFactor(double a, FastPMCosmology * c);
 double DLogGrowthFactor2(double a, FastPMCosmology * c);
 
 double DGrowthFactorDa(double a, FastPMCosmology * c);
-double D2GrowthFactorDa2(double a, FastPMCosmology * c);
+/////////////////////////////////////////////////
+
+double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info);
 
 double ComovingDistance(double a, FastPMCosmology * c);
 double OmegaA(double a, FastPMCosmology * c);
