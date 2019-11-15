@@ -260,7 +260,7 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
 
     kick->q1 = D1_c;
     //kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    kick->q2 = D1_c*D1_c + 7.0/3.0*D2_c;  // FIXME: This is wrong.
+    kick->q2 = D1_c*D1_c * (1 - D1_c*D1_c/D2_c);  // FIXME: This matches up with old code, but review this!
 
     kick->nsamples = 32;
     int i;
