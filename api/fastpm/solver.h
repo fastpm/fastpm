@@ -173,11 +173,6 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
 void fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
 void fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
 
-double
-fastpm_solver_growth_factor(FastPMSolver * fastpm, double a);
-double
-fastpm_solver_growth_rate(FastPMSolver * fastpm, double a);
-
 void 
 fastpm_kick_store(FastPMKickFactor * kick,
     FastPMStore * pi, FastPMStore * po, double af);

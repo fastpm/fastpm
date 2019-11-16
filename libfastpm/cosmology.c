@@ -346,60 +346,6 @@ void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCos
     growth_info->f2 = soln.y3 / soln.y2;
 }
 
-/* FIXME: Some of the below growth functions are still called in io.c, horizon.c and solver.c.
-          This shouldn't be a big deal, but might want to change to growth object later. */
-double growth(double a, FastPMCosmology * c) {
-    //d1
-    return growth_ode_solve(a, c).y0;
-}
-
-double DgrowthDlna(double a, FastPMCosmology * c) {
-    //F1
-    return growth_ode_solve(a, c).y1;
-}
-
-double growth2(double a, FastPMCosmology * c) {
-    //d2
-    return growth_ode_solve(a, c).y2;
-}
-
-double Dgrowth2Dlna(double a, FastPMCosmology * c) {
-    //F2
-    return growth_ode_solve(a, c).y3;
-}
-
-double GrowthFactor(double a, FastPMCosmology * c) { // growth factor for LCDM
-    return growth(a, c) / growth(1., c);           //[this is D(a)/D_today for LCDM]
-}
-
-double DLogGrowthFactor(double a, FastPMCosmology * c) {
-    /* dlnD1/dlna */
-    double d1 = growth(a, c);
-    double F1 = DgrowthDlna(a, c);
-    
-    return F1 / d1;
-}
-
-double GrowthFactor2(double a, FastPMCosmology * c) {
-    /* Normalised D2. Is this correct???*/
-    // double d0 = growth(1., c);  //0 for today
-    return growth2(a, c) / growth2(1., c); //(d0*d0); // ??????????????????;
-}
-
-double DLogGrowthFactor2(double a, FastPMCosmology * c) {
-    /* dlnD2/dlna */
-    double d2 = growth2(a, c);
-    double F2 = Dgrowth2Dlna(a, c);
-    
-    return F2 / d2;
-}
-
-double DGrowthFactorDa(double a, FastPMCosmology * c) {
-    double d0 = growth(1., c);
-    double F1 = DgrowthDlna(a, c);
-    return F1 / a / d0;
-}
-
 double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
     /* d^2 D1 / da^2 */
     double a = growth_info->a;

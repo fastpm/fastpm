@@ -706,15 +706,3 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     po->attributes = 0;
 
 }
-
-double
-fastpm_solver_growth_factor(FastPMSolver * fastpm, double a)
-{
-    return GrowthFactor(a, fastpm->cosmology);
-}
-
-double
-fastpm_solver_growth_rate(FastPMSolver * fastpm, double a)
-{
-    return DLogGrowthFactor(a, fastpm->cosmology);
-}

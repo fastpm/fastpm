@@ -171,9 +171,11 @@ write_snapshot_header(FastPMSolver * fastpm,
 
     fastpm_info("RSD factor %e\n", RSD);
 
+    FastPMGrowthInfo gi;
+    fastpm_growth_info_init(&gi, aout, fastpm->cosmology);
     double ScalingFactor = aout;
-    double D1 = GrowthFactor(aout, fastpm->cosmology);
-    double f1 = DLogGrowthFactor(aout, fastpm->cosmology);
+    double D1 = gi.D1;
+    double f1 = gi.f1;
     double Ea = HubbleEa(aout, fastpm->cosmology);
     double Omega_cdm = fastpm->cosmology->Omega_cdm;
     //double OmegaLambda = fastpm->cosmology->Omega_Lambda; //FIXME: Removed Omega_L, maybe want to include radiation input pars?

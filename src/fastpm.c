@@ -526,8 +526,12 @@ induce:
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
     {
-        double linear_evolve = fastpm_solver_growth_factor(fastpm, aout) /
-                               fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
+        // FIXME: Is it worth it to make the GI objects just for D1?
+        FastPMGrowthInfo gi_out;
+        FastPMGrowthInfo gi_in;
+        fastpm_growth_info_init(&gi_out, aout, fastpm->cosmology);
+        fastpm_growth_info_init(&gi_in, 1. / (linear_density_redshift + 1), fastpm->cosmology);
+        double linear_evolve = gi_out.D1 / gi_in.D1;
 
         fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift 0.\n", linear_density_redshift, linear_evolve);
 
@@ -985,9 +989,12 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
 
         fastpm_set_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
 
+        FastPMGrowthInfo gi;
+        fastpm_growth_info_init(&gi, aout[iout], fastpm->cosmology);
+
         fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", cdm->meta.a_x, cdm->meta.a_v);
-        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
-        fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_rate(fastpm, aout[iout]), aout[iout]);
+        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", gi.D1, aout[iout]);
+        fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", gi.f1, aout[iout]);
 
         take_a_snapshot(snapshot, prr);
 
@@ -1466,8 +1473,12 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * p
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
-    Plin /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
-    Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
+    //FIXME: Is it worth it to make a growth object just for D1?
+    FastPMGrowthInfo gi;
+    fastpm_growth_info_init(&gi, event->a_f, fastpm->cosmology);
+
+    Plin /= pow(gi.D1, 2.0);
+    Sigma8 /= pow(gi.D1, 2.0);
 
     fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, K_LINEAR * 6.28 / pm_boxsize(event->pm)[0], Plin, Sigma8);
 

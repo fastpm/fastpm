@@ -75,25 +75,6 @@ typedef struct FastPMGrowthInfo {
 
 void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCosmology * c);
 
-//dont put these in .h
-//static int growth_odeNu(double a, const double y[], double dyda[], void *params);
-//static ode_soln growth_ode_solve(double a, FastPMCosmology * c);
-
-//////// FIXME: Phase these out later //////////
-double growth(double a, FastPMCosmology * c);
-double DgrowthDlna(double a, FastPMCosmology * c);
-double growth2(double a, FastPMCosmology * c);
-double Dgrowth2Dlna(double a, FastPMCosmology * c);
-
-double GrowthFactor(double a, FastPMCosmology * c);
-double GrowthFactor2(double a, FastPMCosmology * c);
-
-double DLogGrowthFactor(double a, FastPMCosmology * c);
-double DLogGrowthFactor2(double a, FastPMCosmology * c);
-
-double DGrowthFactorDa(double a, FastPMCosmology * c);
-/////////////////////////////////////////////////
-
 double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info);
 
 double ComovingDistance(double a, FastPMCosmology * c);
