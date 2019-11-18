@@ -73,8 +73,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     if(config->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* Cola requires DX1 and DX2 to be permantly stored. */
-        config->ExtraAttributes |= COLUMN_DX1;
-        config->ExtraAttributes |= COLUMN_DX2;
+        fastpm->config->ExtraAttributes |= COLUMN_DX1;
+        fastpm->config->ExtraAttributes |= COLUMN_DX2;
     }
     
     memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
