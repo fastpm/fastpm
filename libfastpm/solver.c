@@ -73,8 +73,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     if(config->FORCE_TYPE == FASTPM_FORCE_COLA) {
         /* Cola requires DX1 and DX2 to be permantly stored. */
-        fastpm->config->ExtraAttributes |= COLUMN_DX1;
-        fastpm->config->ExtraAttributes |= COLUMN_DX2;
+        config->ExtraAttributes |= COLUMN_DX1;
+        config->ExtraAttributes |= COLUMN_DX2;
     }
     
     memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
@@ -82,9 +82,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm_store_init_evenly(fastpm->cdm,
           fastpm_species_get_name(FASTPM_SPECIES_CDM),
           pow(1.0 * config->nc, 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
-          fastpm->config->alloc_factor,
-          fastpm->comm);
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | config->ExtraAttributes,
+          config->alloc_factor,
+          comm);
 
     fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, fastpm->cdm);   //add CDM [why make np_total a double?]
     
