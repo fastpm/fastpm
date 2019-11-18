@@ -229,7 +229,6 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
 
     const double omega = OmegaA(aa, fastpm->cosmology);
 
-    //FIXME: Make object just for D1?
     FastPMGrowthInfo gi;
     fastpm_growth_info_init(&gi, aa, fastpm->cosmology);
     const float DplusIC = gi.D1;

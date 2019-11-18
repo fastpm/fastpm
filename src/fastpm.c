@@ -526,7 +526,6 @@ induce:
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
     {
-        // FIXME: Is it worth it to make the GI objects just for D1?
         FastPMGrowthInfo gi_out;
         FastPMGrowthInfo gi_in;
         fastpm_growth_info_init(&gi_out, aout, fastpm->cosmology);
@@ -1473,7 +1472,6 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * p
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
-    //FIXME: Is it worth it to make a growth object just for D1?
     FastPMGrowthInfo gi;
     fastpm_growth_info_init(&gi, event->a_f, fastpm->cosmology);
 

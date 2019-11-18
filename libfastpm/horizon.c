@@ -21,7 +21,7 @@ fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology)
         horizon->xi_a[i] = HubbleDistance * ComovingDistance(a, horizon->cosmology);
         FastPMGrowthInfo gi;
         fastpm_growth_info_init(&gi, a, horizon->cosmology);
-        horizon->growthfactor_a[i] = gi.D1;     // FIXME: Is it a bit of a waste to create a growth object each time just to get D1?
+        horizon->growthfactor_a[i] = gi.D1;
     }
 }
 
