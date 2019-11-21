@@ -9,11 +9,11 @@
 
 #include <fastpm/libfastpm.h>
 
-#define STEF_BOLT 2.851e-48  // in units: [ h * (10^10Msun/h) * s^-3 * K^-4 ]
+#define STEF_BOLT 2.85087e-48  // in units: [ h * (10^10Msun/h) * s^-3 * K^-4 ]
 #define rho_crit 27.7455     //rho_crit0 in mass/length (not energy/length)
-#define LIGHT 9.722e-15      // in units: [ h * (Mpc/h) * s^-1 ]      //need to update all these units and change Omega_g
+#define LIGHT 9.715614e-15      // in units: [ h * (Mpc/h) * s^-1 ]      //need to update all these units and change Omega_g
 
-#define kB 8.617330350e-5    //boltzman in eV/K   i th
+#define kB 8.617333262145e-5    //boltzman in eV/K   i th
 
 double HubbleDistance = 2997.92458; /* Mpc/h */   /*this c*1e5 in SI units*/
 double HubbleConstant = 100.0; /* Mpc/h / km/s*/     //OTHER WAY ROUND!
@@ -31,7 +31,7 @@ double Gamma_nu(FastPMCosmology * c)
     if (c->N_nu == 0) {      //avoids nan because N_nu in denom (N_nu=0 => N_eff=0 => Gamma_nu=0)
         return 0.;
     }else{
-        return pow(c->N_eff / c->N_nu, 1./4.) * pow( 4./11., 1./3.);
+        return pow(4./11., 1./3.) * pow(c->N_eff / c->N_nu, 1./4.);  //* 1.00328; //copy gadget prepgramming. but gadget also assumes 3 m_nus, so maybe not the best idea. for debugging tho let's do this.
     }
 }
 

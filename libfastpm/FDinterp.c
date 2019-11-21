@@ -12,9 +12,9 @@
 void fastpm_fd_interp_init(FastPMFDInterp * FDinterp)
 {
     FDinterp->size = Fsize;  //might want to neaten how Fsize comes into play 
-    FDinterp->F   = gsl_interp_alloc(gsl_interp_linear, Fsize);
-    FDinterp->DF  = gsl_interp_alloc(gsl_interp_linear, Fsize);
-    FDinterp->DDF = gsl_interp_alloc(gsl_interp_linear, Fsize);
+    FDinterp->F   = gsl_interp_alloc(gsl_interp_cspline, Fsize);
+    FDinterp->DF  = gsl_interp_alloc(gsl_interp_cspline, Fsize);
+    FDinterp->DDF = gsl_interp_alloc(gsl_interp_cspline, Fsize);
     FDinterp->acc = gsl_interp_accel_alloc();
     
     //FIXME: do i want to init here? I think so.
