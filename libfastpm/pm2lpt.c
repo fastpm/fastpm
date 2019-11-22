@@ -3,6 +3,7 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include <fastpm/transfer.h>
 
 #include "pmpfft.h"
@@ -157,6 +158,9 @@ pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
 
     double Dv1 = D1 * aout * aout * E * f1;
     double Dv2 = D2 * aout * aout * E * f2;
+
+    fastpm_info("2LPT ICs set at z=%g: E=%g D1=%g, D2=%g, f1=%g, f2=%g\n", 1./aout-1, E, D1, D2, f1, f2);
+
     if(zaonly) {
         D2 = 0;
         Dv2 = 0;
