@@ -110,7 +110,7 @@ fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double
             /* no drift; to protect the pgdc line */
             if (drift->ai == drift->af) continue;
             xo[d] += 0.5 * p->pgdc[i][d] * dyyy / drift->dyyy[drift->nsamples-1];
-	}
+        }
     }
 }
 static inline void
@@ -256,6 +256,7 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     double D2_c = gi_c.D2;
 
     double Omega_m0 = Omega_m(1, c);
+    double Omega_mc =  Omega_m(ac, c);
     //double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
 
     kick->q1 = D1_c;
@@ -279,8 +280,8 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
         double E_e = HubbleEa(ae, c);
 
         if(kick->forcemode == FASTPM_FORCE_FASTPM) {
-            kick->dda[i] = -1.5 * Omega_m0
-               * 1 / (ac * ac * E_c)
+            kick->dda[i] = -1.5 * Omega_mc * ac
+               * E_c
                * (G_f(&gi_e) - G_f(&gi_i)) / g_f(&gi_c);
         } else {
             kick->dda[i] = -1.5 * Omega_m0
