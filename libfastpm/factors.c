@@ -296,7 +296,7 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     kick->af = af;
 
     /* Output growth and FastPM factor at af for reference.
-    This is a weird place to put this, but it's convenient because G and g are static */.
+    This is a weird place to put this, but it's convenient because G and g are static */
     fastpm_info("Growth/FastPM factors at a = %6.4f: D1=%g, D2=%g, f1=%g, f2=%g, G_p=%g, G_f=%g, g_p=%g, g_f=%g\n",
                ai,
                gi_i.D1,
