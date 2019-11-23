@@ -57,4 +57,25 @@ fastpm_powerspectrum_scale(FastPMPowerSpectrum * ps, double factor);
 void
 fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize);
 
+typedef struct FastPMFuncK {
+    size_t size;
+    double *k;
+    double *f;
+} FastPMFuncK;
+
+void
+fastpm_funck_init(FastPMFuncK * fk, const size_t size);
+
+int
+fastpm_funck_init_from_string(FastPMFuncK * fk, const char * string);
+
+double
+fastpm_funck_eval2(double k, FastPMFuncK * fk);
+
+double
+fastpm_funck_eval(FastPMFuncK * fk, double k);
+
+void
+fastpm_funck_destroy(FastPMFuncK * fk);
+
 FASTPM_END_DECLS

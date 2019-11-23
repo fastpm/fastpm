@@ -939,3 +939,32 @@ write_aemit_hist(const char * filebase, const char * dataset,
     free(offset);
 }
 
+int
+read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm)
+{
+    int myrank;
+    MPI_Comm_rank(comm, &myrank);
+    char * content;
+    if(myrank == 0) {
+        content = fastpm_file_get_content(filename);
+        if(content == NULL) {
+            fastpm_raise(-1, "Failed to read file %s\n", filename);
+        }
+        int size = strlen(content);
+        MPI_Bcast(&size, 1, MPI_INT, 0, comm);
+        MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
+    } else {
+        int size = 0;
+        MPI_Bcast(&size, 1, MPI_INT, 0, comm);
+        content = malloc(size + 1);
+        MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
+    }
+    if (0 != fastpm_funck_init_from_string(fk, content)) {
+        fastpm_raise(-1, "Failed to parse file %s\n", filename);
+    }
+    free(content);
+
+    //fastpm_info("Found %d pairs of values \n", ps->size);
+
+    return 0;
+}

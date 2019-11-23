@@ -117,6 +117,7 @@ void
 fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         enum FastPMSpecies species,
         FastPMFloat * delta_k_ic,
+        FastPMFuncK * growth_rate_k_ic,
         double a0)
 {
 
@@ -136,6 +137,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
 
     int temp_dx1 = 0;
     int temp_dx2 = 0;
+    int temp_dv1 = 0;
     if(p->dx1 == NULL) {
         p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
         temp_dx1 = 1;
@@ -143,6 +145,10 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     if(p->dx2 == NULL) {
         p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
         temp_dx2 = 1;
+    }
+    if(p->dv1 == NULL && growth_rate_k_ic) {
+        p->dv1 = fastpm_memory_alloc(p->mem, "DV1", sizeof(p->dv1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+        temp_dv1 = 1;
     }
 
     FastPMLPTEvent event[1];
@@ -162,7 +168,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         }
         double shift[3] = {shift0, shift0, shift0};
         /* ignore deconvolve order and grad order, since particles are likely on the grid.*/
-        pm_2lpt_solve(basepm, delta_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
+        pm_2lpt_solve(basepm, delta_k_ic, growth_rate_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
     }
 
     if(config->USE_DX1_ONLY == 1) {
@@ -174,6 +180,10 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_LPT,
                 FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
 
+    if(temp_dv1) {
+        fastpm_memory_free(p->mem, p->dv1);
+        p->dv1 = NULL;
+    }
     if(temp_dx2) {
         fastpm_memory_free(p->mem, p->dx2);
         p->dx2 = NULL;

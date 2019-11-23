@@ -108,10 +108,12 @@ end
 -- Initial condition --
 schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}
 schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum for cdm.'}
+schema.declare{name='read_linear_growth_rate', type ='file', help='file to read te linear growth rate (f_1) of cdm. If left empty it will use internal scale independent f_1.'}
 schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
 
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
 schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
+schema.declare{name='read_linear_growth_rate_ncdm', type ='file', help='file to read te linear growth rate (f_1) of ncdm. If left empty it will use internal scale independent f_1.'}
 schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field. '}
 
 schema.declare{name='read_grafic',        type='string'}

@@ -191,6 +191,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(acc, COLUMN_ACC, "f4", 3);
     DEFINE_COLUMN(dx1, COLUMN_DX1, "f4", 3);
     DEFINE_COLUMN(dx2, COLUMN_DX2, "f4", 3);
+    DEFINE_COLUMN(dv1, COLUMN_DV1, "f4", 3);
     DEFINE_COLUMN(aemit, COLUMN_AEMIT, "f4", 1);
     DEFINE_COLUMN(rho, COLUMN_DENSITY, "f4", 1);
     DEFINE_COLUMN(potential, COLUMN_POTENTIAL, "f4", 1);
@@ -211,6 +212,7 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(rho).to_double = to_double_f4;
     COLUMN_INFO(dx1).to_double = to_double_f4;
     COLUMN_INFO(dx2).to_double = to_double_f4;
+    COLUMN_INFO(dv1).to_double = to_double_f4;
     COLUMN_INFO(acc).to_double = to_double_f4;
     COLUMN_INFO(mass).to_double = to_double_f4;
 
@@ -219,6 +221,7 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(pgdc).from_double = from_double_f4;
     COLUMN_INFO(dx1).from_double = from_double_f4;
     COLUMN_INFO(dx2).from_double = from_double_f4;
+    COLUMN_INFO(dv1).from_double = from_double_f4;
     COLUMN_INFO(potential).from_double = from_double_f4;
     COLUMN_INFO(tidal).from_double = from_double_f4;
 

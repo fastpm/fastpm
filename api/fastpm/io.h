@@ -63,5 +63,8 @@ write_aemit_hist(const char * fn, const char * ds,
             size_t nedges,
             MPI_Comm comm);
 
+int
+read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm);
+
 FASTPM_END_DECLS
 #endif

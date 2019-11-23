@@ -596,7 +596,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         }
 
         read_runpb_ic(fastpm, p, CONF(prr->lua, read_runpbic));
-        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, CONF(prr->lua, time_step)[0]);
+        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, NULL, CONF(prr->lua, time_step)[0]);
         if(temp_dx2) {
             fastpm_memory_free(p->mem, p->dx2);
             p->dx2 = NULL;
@@ -606,7 +606,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
             p->dx1 = NULL;
         }
         return;
-    } 
+    }
 
     FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
 
@@ -615,8 +615,17 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
                    CONF(prr->lua, read_lineark), 
                    CONF(prr->lua, read_powerspectrum));
 
-    /* our write out and clean up stuff.*/
+    /* Check if linear growth rate has been input for cdm */
+    FastPMFuncK * growth_rate_k = NULL;
+    if (CONF(prr->lua, read_linear_growth_rate)) {
+        growth_rate_k = malloc(sizeof(FastPMFuncK));
+        read_funck(growth_rate_k, CONF(prr->lua, read_linear_growth_rate), comm);
+        fastpm_info("Reading cdm linear growth rate from file: %s\n", CONF(prr->lua, read_linear_growth_rate));
+    } else {
+        fastpm_info("No cdm linear growth rate file input.\n");
+    }
 
+    /* our write out and clean up stuff.*/
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
         write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
@@ -637,8 +646,10 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, CONF(prr->lua, time_step)[0]);
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, growth_rate_k, CONF(prr->lua, time_step)[0]);
 
+    if (growth_rate_k)
+        fastpm_funck_destroy(growth_rate_k);
     pm_free(fastpm->basepm, delta_k);
 }
 
@@ -727,10 +738,21 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
                         CONF(prr->lua, read_powerspectrum_ncdm));
     }
     
+    /* Check if linear growth rate has been input for ncdm */
+    FastPMFuncK * growth_rate_k = NULL;
+    if (CONF(prr->lua, read_linear_growth_rate_ncdm)) {
+        growth_rate_k = malloc(sizeof(FastPMFuncK));
+        read_funck(growth_rate_k, CONF(prr->lua, read_linear_growth_rate_ncdm), comm);
+        fastpm_info("Reading ncdm linear growth rate from file: %s\n", CONF(prr->lua, read_linear_growth_rate_ncdm));
+    } else {
+        fastpm_info("No ncdm linear growth rate file input. Using internal scale-independent linear growth rate for ICs instead\n");
+    }
     // perform lpt
-    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, CONF(prr->lua, time_step)[0]);
-    
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, growth_rate_k, CONF(prr->lua, time_step)[0]);
+
     // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
+    if (growth_rate_k)
+        fastpm_funck_destroy(growth_rate_k);
     pm_free(fastpm->basepm, delta_k);
     
     // SPLIT

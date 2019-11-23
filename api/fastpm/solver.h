@@ -160,6 +160,7 @@ void
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
                 enum FastPMSpecies species,
                 FastPMFloat * delta_k_ic,
+                FastPMFuncK * growth_rate_k_ic,
                 double a0);
 
 PM *

@@ -415,3 +415,106 @@ fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * str
     }
     return 0;
 }
+
+
+/* FIMXE: Probably shouldn't have belwo in this file, but it's similar to above, so perhaps can merge? */
+void
+fastpm_funck_init(FastPMFuncK * fk, const size_t size)
+{
+    fk->size = size;
+    fk->k = malloc(sizeof(fk->k[0]) * fk->size);
+    fk->f = malloc(sizeof(fk->f[0]) * fk->size);
+}
+
+int
+fastpm_funck_init_from_string(FastPMFuncK * fk, const char * string)
+{
+    char ** list = fastpm_strsplit(string, "\n");
+    char ** line;
+    ptrdiff_t i;
+    int pass = 0;
+    /* two pass parsing, first pass for counting */
+    /* second pass for assignment */
+    while(pass < 2) {
+        i = 0;
+        for (line = list; *line; line++) {
+            double k, f;
+            if(2 == sscanf(*line, "%lg\t%lg", &k, &f)) {   // note I changes space ot tab here. Could make more general?
+                if(pass == 1) {
+                    fk->k[i] = k;
+                    fk->f[i] = f;
+                }
+                i ++;
+            }
+        }
+        if(pass == 0) {
+            fastpm_funck_init(fk, i);
+        }
+        pass ++;
+    }
+
+    free(list);
+    if(fk->size == 0) {
+        /* Nothing is savagable in the file.*/
+        return 0;
+    }
+    return 0;
+}
+
+/* inverted calling signature for callbacks */
+double
+fastpm_funck_eval2(double k, FastPMFuncK * fk)
+{
+    return fastpm_funck_eval(fk, k);
+}
+
+double
+fastpm_funck_eval(FastPMFuncK * fk, double k)
+{
+
+    /* ignore the 0 mode */
+
+    if(k == 0) return 1;
+
+    int l = 0;
+    int r = fk->size - 1;
+
+    while(r - l > 1) {
+        int m = (r + l) / 2;
+        if(k < fk->k[m])
+            r = m;
+        else
+            l = m;
+    }
+    double k2 = fk->k[r],
+           k1 = fk->k[l];
+    double f2 = fk->f[r],
+           f1 = fk->f[l];
+
+    if(l == r) {
+        return fk->f[l];
+    }
+
+    if(f1 == 0 || f2 == 0 || k1 == 0 || k2 == 0) {
+        /* if any of the f is zero, use linear interpolation */
+        double f = (k - k1) * f2 + (k2 - k) * f1;
+        f /= (k2 - k1);
+        return f;
+    } else {
+        k = log(k);
+        f1 = log(f1);
+        f2 = log(f2);
+        k1 = log(k1);
+        k2 = log(k2);
+        double f = (k - k1) * f2 + (k2 - k) * f1;
+        f /= (k2 - k1);
+        return exp(f);
+    }
+}
+
+void
+fastpm_funck_destroy(FastPMFuncK * fk)
+{
+    free(fk->f);
+    free(fk->k);
+}
