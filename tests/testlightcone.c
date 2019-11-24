@@ -48,7 +48,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     FastPMPainter painter[1];
 
-    fastpm_painter_init(painter, solver->basepm, solver->config->PAINTER_TYPE, solver->config->painter_support);
+    fastpm_painter_init(painter, solver->pm, solver->config->PAINTER_TYPE, solver->config->painter_support);
     fastpm_usmesh_destroy(usmesh);
 
 }
@@ -146,7 +146,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_solver_init(solver, config, comm);
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -155,8 +155,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     {
         int p = 0;
@@ -213,7 +213,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_lc_destroy(lc);
 
-    pm_free(solver->basepm, rho_init_ktruth);
+    pm_free(solver->pm, rho_init_ktruth);
     fastpm_solver_destroy(solver);
 
     libfastpm_cleanup();
