@@ -14,7 +14,7 @@ static void * verbose_mpiu_malloc_func(const char * name, size_t size, const cha
     int rank;
     MPI_Comm_rank(comm, &rank);
     void * ptr = malloc(size);
-    fprintf(stderr, "MPIU_Malloc: T%04d %016X : %s size = %ld, %s:%d\n", rank, ptr, name, size, file, line);
+    fprintf(stderr, "MPIU_Malloc: T%04d %16p : %s size = %ld, %s:%d\n", rank, ptr, name, size, file, line);
     return ptr;
 }
 
@@ -22,7 +22,7 @@ static void verbose_mpiu_free_func(void * ptr, const char * file, const int line
     MPI_Comm comm = (MPI_Comm) (intptr_t) userdata;
     int rank;
     MPI_Comm_rank(comm, &rank);
-    fprintf(stderr, "MPIU_Free: T%04d %016X : %s:%d\n", rank, ptr, file, line);
+    fprintf(stderr, "MPIU_Free: T%04d %16p : %s:%d\n", rank, ptr, file, line);
     free(ptr);
 }
 

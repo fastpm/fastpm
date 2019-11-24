@@ -581,10 +581,10 @@ mpsort_mpi_histogram_sort(struct crstruct d, struct crmpistruct o, struct TIMER 
         policy = REQUIRED;
     }
 
-    MPI_Alltoallv(
+    MPIU_Alltoallv(
             o.mybase, SendCount, SendDispl, o.MPI_TYPE_DATA,
             buffer, RecvCount, RecvDispl, o.MPI_TYPE_DATA,
-            o.comm);
+            o.comm, policy);
 
     if(o.myoutbase == o.mybase) {
         memcpy(o.myoutbase, buffer, o.myoutnmemb * d.size);
