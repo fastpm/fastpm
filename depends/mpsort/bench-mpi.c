@@ -8,21 +8,11 @@
 
 #include <mpi.h>
 #include "mpsort.h"
-
-static double wtime() {
-    struct timespec t1;
-    clock_gettime(CLOCK_REALTIME, &t1);
-    return (double)((t1.tv_sec+t1.tv_nsec*1e-9));
-}
+#include "mpiu.h"
 
 static void radix_int(const void * ptr, void * radix, void * arg) {
-    *(int64_t*)radix = *(const int64_t*) ptr + INT64_MIN;
+    *(uint64_t*)radix = *(const int64_t*) ptr + INT64_MIN;
 }
-static int compar_int(const void * p1, const void * p2) {
-    const int64_t * i1 = p1, *i2 = p2;
-    return (*i1 > *i2) - (*i1 < *i2);
-}
-
 static int64_t
 checksum(int64_t * data, size_t localsize, MPI_Comm comm)
 {
@@ -31,10 +21,10 @@ checksum(int64_t * data, size_t localsize, MPI_Comm comm)
     for(i = 0; i < localsize; i ++) {
         sum += data[i];
     }
-    
     MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG, MPI_SUM, comm);
     return sum;
 }
+
 static void
 generate(int64_t * data, size_t localsize, int bits, int seed)
 {
@@ -57,7 +47,7 @@ check_sorted(int64_t * data, size_t localsize, MPI_Comm comm)
     MPI_Comm_rank(comm, &ThisTask);
     MPI_Comm_size(comm, &NTask);
 
-    int TAG = 0xbeef;
+    const int TAG = 0xbeef;
 
     ptrdiff_t dummy[1] = {INT64_MIN};
 
@@ -79,28 +69,28 @@ check_sorted(int64_t * data, size_t localsize, MPI_Comm comm)
             if(localsize > 0) {
                 ptr = &data[localsize - 1];
             }
-            MPI_Send(ptr, 1, MPI_LONG, ThisTask + 1, 0xbeef, comm);
+            MPI_Send(ptr, 1, MPI_LONG, ThisTask + 1, TAG, comm);
             break;
         }
         if(ThisTask == NTask - 1) {
             MPI_Recv(&prev, 1, MPI_LONG,
-                    ThisTask - 1, 0xbeef, comm, MPI_STATUS_IGNORE);
+                    ThisTask - 1, TAG, comm, MPI_STATUS_IGNORE);
             break;
         }
         /* else */
         if(localsize == 0) {
             /* simply pass through whatever we get */
-            MPI_Recv(&prev, 1, MPI_LONG, ThisTask - 1, 0xbeef, comm, MPI_STATUS_IGNORE);
-            MPI_Send(&prev, 1, MPI_LONG, ThisTask + 1, 0xbeef, comm);
+            MPI_Recv(&prev, 1, MPI_LONG, ThisTask - 1, TAG, comm, MPI_STATUS_IGNORE);
+            MPI_Send(&prev, 1, MPI_LONG, ThisTask + 1, TAG, comm);
             break;
         }
-        /* else */
-        { 
+        else
+        {
             MPI_Sendrecv(
                     &data[localsize - 1], 1, MPI_LONG, 
-                    ThisTask + 1, 0xbeef, 
+                    ThisTask + 1, TAG, 
                     &prev, 1, MPI_LONG,
-                    ThisTask - 1, 0xbeef, comm, MPI_STATUS_IGNORE);
+                    ThisTask - 1, TAG, comm, MPI_STATUS_IGNORE);
             break;
         }
     }
@@ -109,7 +99,7 @@ check_sorted(int64_t * data, size_t localsize, MPI_Comm comm)
         if(localsize > 0) {
 //                printf("ThisTask = %d prev = %d\n", ThisTask, prev);
             if(prev > data[0]) {
-                fprintf(stderr, "global ordering fail\n");
+                fprintf(stderr, "Task %d global ordering fail: %ld > %ld\n", ThisTask, prev, data[0]);
                 MPI_Abort(comm, -1);
             }
         }
@@ -121,7 +111,6 @@ static void usage()
 }
 
 int main(int argc, char * argv[]) {
-    int i;
     MPI_Init(&argc, &argv);
 
     int ThisTask;
@@ -136,26 +125,17 @@ int main(int argc, char * argv[]) {
     int opt;
 
     int staggered = 0;
-    int bits;
+    int bits=64;
 
-    while(-1 != (opt = getopt(argc, argv, "IiSsGgb:"))) {
+    while(-1 != (opt = getopt(argc, argv, "vSsGgb:"))) {
         switch(opt) {
+            case 'v':
+                MPIU_Set_verbose_malloc(MPI_COMM_WORLD);
+                break;
             case 'b':
                 bits = atoi(optarg);
                 if(ThisTask == 0) {
                     printf("Bit width = %d\n", bits);
-                }
-                break;
-            case 'i':
-                mpsort_mpi_set_options(MPSORT_DISABLE_IALLREDUCE);
-                if(ThisTask == 0) {
-                    printf("DISABLE_IALLREDUCE\n");
-                }
-                break;
-            case 'I':
-                /* default */
-                if(ThisTask == 0) {
-                    printf("REQUIRE_IALLREDUCE\n");
                 }
                 break;
             case 'g':
@@ -194,7 +174,6 @@ int main(int argc, char * argv[]) {
         usage();
         exit(-1);
     }
-    
     int64_t srcsize = atoi(argv[optind]);
 
     if(ThisTask == 0) {

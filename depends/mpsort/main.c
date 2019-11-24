@@ -40,7 +40,7 @@ int main(int argc, char * argv[]) {
 
     {
         double t0 = wtime();
-        radix_sort_omp(data2, NUMITEMS, sizeof(int),
+        mpsort_omp(data2, NUMITEMS, sizeof(int),
                 radix_int, sizeof(int),
                 NULL);
         double t1 = wtime();
