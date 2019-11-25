@@ -5,6 +5,7 @@
 #include <string.h>
 #include "bigfile-mpi.h"
 #include "bigfile-internal.h"
+#include "mp-mpiu.h"
 
 /* disable aggregation by default */
 static size_t _BigFileAggThreshold = 0;
@@ -278,20 +279,19 @@ big_file_mpi_broadcast_anyerror(int rt, MPI_Comm comm)
 {
     int rank;
     MPI_Comm_rank(comm, &rank);
+    int root, loc = 0;
+    /* Add 1 so we do not swallow errors on rank 0*/
+    if(rt != 0)
+        loc = rank+1;
 
-    struct {
-        int value;
-        int loc;
-    } ii = {rt != 0, rank};
+    MPI_Allreduce(&loc, &root, 1, MPI_INT, MPI_MAX, comm);
 
-    MPI_Allreduce(MPI_IN_PLACE, &ii, 1, MPI_2INT, MPI_MAXLOC, comm);
-
-    if (ii.value == 0) {
+    if (root == 0) {
         /* no errors */
         return 0;
     }
-    int root = ii.loc;
 
+    root -= 1;
     char * error = big_file_get_error_message();
 
     int errorlen;
@@ -336,176 +336,11 @@ big_block_mpi_broadcast(BigBlock * bb, int root, MPI_Comm comm)
 
     MPI_Bcast(buf, bytes, MPI_BYTE, root, comm);
 
-    _big_block_unpack(bb, buf);
-
+    if(rank != root) {
+        _big_block_unpack(bb, buf);
+    }
     free(buf);
     return 0;
-}
-
-static int
-_assign_colors(size_t glocalsize, size_t * sizes, int * ncolor, MPI_Comm comm)
-{
-    int NTask;
-    int ThisTask;
-    MPI_Comm_rank(comm, &ThisTask);
-    MPI_Comm_size(comm, &NTask);
-
-    int i;
-    int mycolor;
-    size_t current_size = 0;
-    int current_color = 0;
-    int lastcolor = 0;
-    for(i = 0; i < NTask; i ++) {
-        lastcolor = current_color;
-
-        if(i == ThisTask) {
-            mycolor = lastcolor;
-        }
-
-        if (_big_file_mpi_verbose) {
-            if(ThisTask == 0) {
-                printf("current_size %td, sizes[i] %td, glocalsize %td, current_color %d\n",
-                    current_size, sizes[i], glocalsize, current_color);
-            }
-        }
-        current_size += sizes[i];
-
-        if(current_size >= glocalsize) {
-            current_size = 0;
-            current_color ++;
-        }
-    }
-    /* no data for color of -1; exclude them later with special cases */
-    if(sizes[ThisTask] == 0) {
-        mycolor = -1;
-    }
-    *ncolor = lastcolor + 1;
-    return mycolor;
-}
-
-static size_t
-_collect_sizes(size_t localsize, size_t * sizes, size_t * myoffset, MPI_Comm comm)
-{
-
-    int ThisTask, NTask;
-
-    MPI_Comm_size(comm, &NTask);
-    MPI_Comm_rank(comm, &ThisTask);
-
-    size_t totalsize;
-
-    sizes[ThisTask] = localsize;
-
-    MPI_Datatype MPI_PTRDIFFT;
-
-    if(sizeof(ptrdiff_t) == sizeof(long)) {
-        MPI_PTRDIFFT = MPI_LONG;
-    } else if(sizeof(ptrdiff_t) == sizeof(int)) {
-        MPI_PTRDIFFT = MPI_INT;
-    } else { abort(); }
-
-    MPI_Allreduce(&sizes[ThisTask], &totalsize, 1, MPI_PTRDIFFT, MPI_SUM, comm);
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, sizes, 1, MPI_PTRDIFFT, comm);
-
-    int i;
-    *myoffset = 0;
-    for(i = 0; i < ThisTask; i ++) {
-        (*myoffset) += sizes[i];
-    }
-
-    return totalsize;
-}
-
-struct SegmentGroupDescr {
-    /* data model: rank <- segment <- group */
-    int Ngroup;
-    int Nsegments;
-    int GroupID; /* ID of the group of this rank */
-    int ThisSegment; /* SegmentID of the local data chunk on this rank*/
-
-    int segment_start; /* segments responsible in this group */
-    int segment_end;
-
-    int is_group_leader;
-    int group_leader_rank;
-    int segment_leader_rank;
-    MPI_Comm Group;  /* communicator for all ranks in the group */
-    MPI_Comm Leader; /* communicator for all ranks that are group leaders */
-    MPI_Comm Segment; /* communicator for all ranks in this segment */
-};
-
-static void
-_create_segment_group(struct SegmentGroupDescr * descr, size_t * sizes, size_t avgsegsize, int Ngroup, MPI_Comm comm)
-{
-    int i;
-    int ThisTask, NTask;
-
-    MPI_Comm_size(comm, &NTask);
-    MPI_Comm_rank(comm, &ThisTask);
-
-    descr->ThisSegment = _assign_colors(avgsegsize, sizes, &descr->Nsegments, comm);
-
-    if(descr->ThisSegment >= 0) {
-        /* assign segments to groups.
-         * if Nsegments < Ngroup, some groups will have no segments, and thus no ranks belong to them. */
-        descr->GroupID = ((size_t) descr->ThisSegment) * Ngroup / descr->Nsegments;
-    } else {
-        descr->GroupID = Ngroup + 1;
-        descr->ThisSegment = NTask + 1;
-    }
-
-    descr->Ngroup = Ngroup;
-
-    MPI_Comm_split(comm, descr->GroupID, ThisTask, &descr->Group);
-
-    MPI_Allreduce(&descr->ThisSegment, &descr->segment_start, 1, MPI_INT, MPI_MIN, descr->Group);
-    MPI_Allreduce(&descr->ThisSegment, &descr->segment_end, 1, MPI_INT, MPI_MAX, descr->Group);
-
-    descr->segment_end ++;
-
-    int rank;
-
-    MPI_Comm_rank(descr->Group, &rank);
-
-    struct {
-        size_t val;
-        int   rank;
-    } leader_st;
-
-    leader_st.val = sizes[ThisTask];
-    leader_st.rank = rank;
-
-    MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MAXLOC, descr->Group);
-
-    descr->is_group_leader = rank == leader_st.rank;
-    descr->group_leader_rank = leader_st.rank;
-
-    MPI_Comm_split(comm, rank == leader_st.rank? 0 : 1, ThisTask, &descr->Leader);
-
-    MPI_Comm_split(descr->Group, descr->ThisSegment, ThisTask, &descr->Segment);
-    int rank2;
-
-    MPI_Comm_rank(descr->Segment, &rank2);
-
-    leader_st.val = sizes[ThisTask];
-    leader_st.rank = rank2;
-
-    MPI_Allreduce(MPI_IN_PLACE, &leader_st, 1, MPI_LONG_INT, MPI_MINLOC, descr->Segment);
-    descr->segment_leader_rank = leader_st.rank;
-
-    if (_big_file_mpi_verbose) {
-        printf("bigfile: ThisTask = %d ThisSegment = %d / %d GroupID = %d / %d rank = %d rank in segment = %d segstart = %d segend = %d segroot = %d\n",
-            ThisTask, descr->ThisSegment, descr->Nsegments, descr->GroupID, descr->Ngroup, rank, rank2, descr->segment_start, descr->segment_end, descr->segment_leader_rank);
-    }
-}
-
-static void
-_destroy_segment_group(struct SegmentGroupDescr * descr)
-{
-
-    MPI_Comm_free(&descr->Segment);
-    MPI_Comm_free(&descr->Group);
-    MPI_Comm_free(&descr->Leader);
 }
 
 static int
@@ -532,7 +367,7 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
     MPI_Comm_size(comm, &NTask);
     MPI_Comm_rank(comm, &ThisTask);
 
-    struct SegmentGroupDescr seggrp[1];
+    MPIU_Segmenter seggrp[1];
 
     if(concurrency <= 0) {
         concurrency = NTask;
@@ -543,7 +378,7 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
     size_t myoffset;
     size_t * sizes = malloc(sizeof(sizes[0]) * NTask);
 
-    size_t totalsize = _collect_sizes(localsize, sizes, &myoffset, comm);
+    size_t totalsize = MPIU_Segmenter_collect_sizes(localsize, sizes, &myoffset, comm);
 
     /* try to create as many segments as number of groups (thus one segment per group) */
     avgsegsize = totalsize / concurrency;
@@ -553,7 +388,7 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
     /* no segment shall exceed the memory bound set by maxsegsize, since it will be collected to a single rank */
     if(avgsegsize > _BigFileAggThreshold) avgsegsize = _BigFileAggThreshold;
 
-    _create_segment_group(seggrp, sizes, avgsegsize, concurrency, comm);
+    MPIU_Segmenter_init(seggrp, sizes, NULL, avgsegsize, concurrency, comm);
 
     free(sizes);
 
@@ -585,7 +420,7 @@ _throttle_action(MPI_Comm comm, int concurrency, BigBlock * block,
         big_block_seek_rel(block, ptr, totalsize);
     }
 
-    _destroy_segment_group(seggrp);
+    MPIU_Segmenter_destroy(seggrp);
     return rt;
 }
 

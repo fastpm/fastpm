@@ -27,7 +27,7 @@
 #define RAISE(ex, errormsg, ...) { __raise__(errormsg, __FILE__, __LINE__, ##__VA_ARGS__); goto ex; } 
 #define RAISEIF(condition, ex, errormsg, ...) { if(condition) RAISE(ex, errormsg, ##__VA_ARGS__); }
 
-#if __STDC_VERSION__ >= 201112L
+#if __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
     #include <stdatomic.h>
 static char * volatile _Atomic ERRORSTR = NULL;
 #else
@@ -108,7 +108,7 @@ big_file_set_error_message(char * msg)
     char * errorstr;
     if(msg != NULL) msg = _strdup(msg);
 
-#if __STDC_VERSION__ >= 201112L
+#if __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
     errorstr = atomic_exchange(&ERRORSTR, msg);
 #elif defined(__ATOMIC_SEQ_CST)
     errorstr = __atomic_exchange_n(&ERRORSTR, msg, __ATOMIC_SEQ_CST);
@@ -187,7 +187,6 @@ __raise__(const char * msg, const char * file, const int line, ...)
 int
 big_file_open(BigFile * bf, const char * basename)
 {
-    memset(bf, 0, sizeof(bf[0]));
     struct stat st;
     RAISEIF(0 != stat(basename, &st),
             ex_stat,
@@ -200,7 +199,6 @@ ex_stat:
 }
 
 int big_file_create(BigFile * bf, const char * basename) {
-    memset(bf, 0, sizeof(bf[0]));
     bf->basename = _strdup(basename);
     RAISEIF(0 != _big_file_mksubdir_r(NULL, basename),
         ex_subdir,
@@ -1005,12 +1003,13 @@ _dtype_normalize(char * dst, const char * src)
         case '>':
         case '|':
         case '=':
-            strcpy(dst, src);
+            strncpy(dst, src, 8);
         break;
         default:
             dst[0] = '=';
-            strcpy(dst + 1, src);
+            strncpy(dst + 1, src, 7);
     }
+    dst[7]='\0';
     if(dst[0] == '=') {
         dst[0] = MACHINE_ENDIANNESS;
     }
@@ -1735,7 +1734,10 @@ attrset_set_attr(BigAttrSet * attrset, const char * attrname, const void * data,
       "Attribute name cannot contain blanks (space, tab or newline)"
     );
 
-    attrset_remove_attr(attrset, attrname);
+    /* Remove it if it exists*/
+    attr = attrset_lookup_attr(attrset, attrname);
+    if(attr)
+        attrset_remove_attr(attrset, attrname);
     /* add ensures the dtype has been normalized! */
     RAISEIF(0 != attrset_add_attr(attrset, attrname, dtype, nmemb),
             ex_add,
@@ -1869,6 +1871,7 @@ _big_block_pack(BigBlock * block, size_t * bytes)
         memcpy(ptr, block->fchecksum, (Nfile + 1) * sizeof(block->fchecksum[0]));
     ptr += (Nfile + 1) * sizeof(block->fchecksum[0]);
     memcpy(ptr, attrset, attrsize);
+    free(attrset);
     ptr += attrsize;
 
     return buf;
