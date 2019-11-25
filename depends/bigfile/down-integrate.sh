@@ -11,6 +11,6 @@ fi
 trap "rm -rf $tmp" EXIT
 git clone https://github.com/rainwoodman/bigfile $tmp
 sha=$(cd $tmp; git rev-parse --verify HEAD)
-rsync -avz $tmp/src/* .
+rsync -avz -f '- /*/' $tmp/src/* .
 git add *.[ch] Makefile *.txt
 git commit -m "Update bigfile to $sha"

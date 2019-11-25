@@ -11,6 +11,6 @@ fi
 trap "rm -rf $tmp" EXIT
 git clone https://github.com/rainwoodman/MP-Sort $tmp
 sha=$(cd $tmp; git rev-parse --verify HEAD)
-rsync -avz $tmp/* .
+rsync -avz -f '+ /stdlib/' -f '- /*/' $tmp/* .
 git add *.[ch] Makefile
 git commit -m "Update mp-sort to $sha"
