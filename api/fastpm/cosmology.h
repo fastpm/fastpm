@@ -6,18 +6,14 @@ extern double HubbleDistance;
 struct FastPMCosmology {
     double h;
     double Omega_cdm;
-    double T_cmb;    /*related to Omega_g*/
-    //double T_nu;    //todays neutrino temperature (maybe use T_nu0?) HARD CODED FOR NOW.
-    double N_eff;   //3.046
-    int N_nu;  // total number of neutrino species (massive and massless) (could use 'N_ur' as number of ur nus, instead, but dont want conflict with CLASS defn)
-    double m_ncdm[3]; // masses of massive neutrinos (ncdm) for now assume max of 3 ncdm nus.
+    double T_cmb;      /*related to Omega_g*/
+    //double T_nu;     //todays neutrino temperature HARD CODED FOR NOW
+    double N_eff;
+    int N_nu;          // total number of neutrino species (massive and massless)
+    double m_ncdm[3];  // masses of massive neutrinos (ncdm) for now assume max of 3 ncdm nus.
     int N_ncdm;
     
-    /* Fermi Dirac interp for ncdm 
-       It's not really cosmology dependant,
-       but only cosmology uses it, so I guess
-       it makes sense to have a pointer to it here */
-    FastPMFDInterp * FDinterp;   //FIXME: I guess this will just be NULL in the case of no ncdm. Is this ugly?
+    FastPMFDInterp * FDinterp;   //FIXME:? Will just be NULL in the case of no ncdm.
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);

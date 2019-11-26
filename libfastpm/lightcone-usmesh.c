@@ -363,7 +363,6 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
                 pout->mask[next] = p->mask[i];
 
             double potfactor = 1.5 * lc->cosmology->Omega_cdm / (HubbleDistance * HubbleDistance);
-            //double potfactor = 1. / (HubbleDistance * HubbleDistance);
             /* convert to dimensionless potential */
             if(pout->potential)
                 pout->potential[next] = p->potential[i] / a_emit * potfactor;

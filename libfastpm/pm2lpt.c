@@ -58,7 +58,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_k, FastP
     }
     FastPMFieldDescr DX1[] = { {COLUMN_DX1, 0}, {COLUMN_DX1, 1}, {COLUMN_DX1, 2}};
     FastPMFieldDescr DX2[] = { {COLUMN_DX2, 0}, {COLUMN_DX2, 1}, {COLUMN_DX2, 2}};
-    FastPMFieldDescr DV1[] = { {COLUMN_DV1, 0}, {COLUMN_DV1, 1}, {COLUMN_DV1, 2}};  //This will do nothing throughout the function if !p->v1. Ugly?
+    FastPMFieldDescr DV1[] = { {COLUMN_DV1, 0}, {COLUMN_DV1, 1}, {COLUMN_DV1, 2}};  //This will do nothing throughout the function if !p->v1
     int D1[] = {1, 2, 0};
     int D2[] = {2, 0, 1};
 

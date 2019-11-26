@@ -278,7 +278,7 @@ fastpm_ncdm_init_create(
 
     /* compute Omega_ncdm0
        (ref Massive neutrinos and cosmology, Lesgourgues) */
-    nid->Omega_ncdm = nid->m_ncdm_sum / 93.14 / (h*h);
+    nid->Omega_ncdm = nid->m_ncdm_sum / 93.14 / (h*h);    //FIXME: Use Omega_ncdm from cosmology instead?
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;

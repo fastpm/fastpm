@@ -13,7 +13,7 @@ static void
 apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 {
     fastpm_apply_laplace_transfer(pm, from, to, order);
-    fastpm_apply_multiply_transfer(pm, to, to, -1);      // FIXME: after master rebase on cosmology branch, I remove the 1.5Om that used to be here.... need to hceck factors etc. Ah, but then in a later commit on cosmo branch I remove 1.5Om, so this should be fine.
+    fastpm_apply_multiply_transfer(pm, to, to, -1);
 }
 
 static void
@@ -170,23 +170,6 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
     }
     int d1, d2;
     
-    /*
-    Below we have a switch which applies the relevant transfer func 
-    (i.e. operator) to delta_k in order to calculate a certain atribute.
-    - For the potential, apply the pot_transfer func (this transfers delta_k
-    to the pot by defn).
-    - For density, just multiply by 1 (trivial)
-    - For tidal, e.g. LHS of poisson (grad^2phi), first transfer delta_k to phi,
-    then apply grad twice. (note codewise we transfer delta_k to something
-    called canvas, then transfer canvas to new canvas until we get result.
-    Note tidal is just a general double application of grad, NOT the Laplacian!
-    d1 and d2 represent perms of of the components of grad * grad. I.e.
-    d1=0 d2=2 means grad_2 * grad_0.
-    - For acceleration, first transfer delta_k to phi, then apply one grad.
-    (force ~ acceleration... is mass important with multiple species?????????????????????????????????)
-    - Note gradorder and potorder are options for the grad and
-    pot transfer funcs which we decided just above depending on the KernelType
-    */
     switch(field.attribute) {
         case COLUMN_POTENTIAL:
             apply_pot_transfer(pm, delta_k, canvas, potorder);

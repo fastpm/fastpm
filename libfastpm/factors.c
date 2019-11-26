@@ -129,7 +129,7 @@ fastpm_kick_lookup(FastPMKickFactor * kick, double af, double * dda, double * Dv
         *Dv1 = kick->Dv1[0];
         *Dv2 = kick->Dv2[0];
         return;
-    }                                  //why not use else if and else?
+    }   // FIXME: Should there be an else here?
     {
         ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
         int l = floor(ind);
@@ -147,7 +147,6 @@ fastpm_kick_lookup(FastPMKickFactor * kick, double af, double * dda, double * Dv
 inline void
 fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[3], double af)
 {
-    //[performs kick on the ith particle (i.e. on one particle)]
     double dda_i, Dv1_i, Dv2_i;
     double dda_f, Dv1_f, Dv2_f;
     double dda, Dv1, Dv2;
@@ -160,7 +159,7 @@ fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[
 
     int d;
     for(d = 0; d < 3; d++) {
-        float ax = p->acc[i][d];               //unlike a_x, which means a at which x is calcd.
+        float ax = p->acc[i][d];       //unlike a_x, which means a at which x is calcd
         if(kick->forcemode == FASTPM_FORCE_COLA) {
             ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
         }
@@ -208,7 +207,7 @@ static double g_p(FastPMGrowthInfo * growth_info)
     return dDda;
 }
 
-static double G_f(FastPMGrowthInfo * growth_info)           //CHECK gf Gf dont change with nus.
+static double G_f(FastPMGrowthInfo * growth_info)
 {
     /* integral of g_f */
     double a = growth_info->a;
@@ -237,7 +236,7 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     FastPMCosmology * c = fastpm->cosmology;
     kick->forcemode = fastpm->config->FORCE_TYPE;
 
-    FastPMGrowthInfo gi_i;    //maybe memalloc?
+    FastPMGrowthInfo gi_i;
     FastPMGrowthInfo gi_c;
     FastPMGrowthInfo gi_e;
 

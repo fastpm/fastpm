@@ -1,28 +1,23 @@
-#Integral for Fermi-Dirac. Using M. Zennaro
+#Integral for Fermi-Dirac. See M. Zennaro 2016 for reference
 
 import os
 import numpy as np
 from scipy.integrate import quad
 
-#these numbers are ONLY used to get an idea of what y to start at. Because I'll use specifically for neutrinos here, I will choose y_min as the y at which a=1e-5 in the neutrino context, and y_max as a=1.
+# These numbers are only used to get an idea of what y to start and end at
+# Choose y_min as the y at which a=1e-5 in the neutrino context, and y_max as a=1e2
 
 k = 8.617330350e-5         #boltzman in eV/K
 T_g = 2.73                 #photon temp today in K
-#omega_g0 = 2.47e-5        #this can be determined directly from T_g only! Could type in formula.   
-
 Gamma_nu = 0.71649         #neutrino/photon temp today (including non-instantaneous decoupling effects)
 T_nu = Gamma_nu * T_g      #neutrino temp today
-
 N_nu = 3
-
-m_nu_i = [0.02]*N_nu          #nu mass in eV. give them all the same mass for now
+m_nu_i = [0.02]*N_nu       #nu mass in eV. give them all the same mass for now
 M_nu = sum(m_nu_i)
 
-#for choosing range of y to tabulate 
-#maybe testcosmology.c will change paras to change a, so have given some leway around recomb and today
 a_min = 1e-6
 a_max = 1e2
-log_y_min = np.log10(M_nu/N_nu / (k*T_nu) * a_min)  #because will log space
+log_y_min = np.log10(M_nu/N_nu / (k*T_nu) * a_min)
 log_y_max = np.log10(M_nu/N_nu / (k*T_nu) * a_max)
 
 
@@ -37,28 +32,20 @@ def d2Idy2(x,y):
     return x**2 / y / (x**2 + y**2) * dIdy(x,y)
     
 def solve_integral(integrand, y):
-    """y is the para, assumed to be an np.ndarray"""
-    #as defined in (6)
-    #quad does not vectorize nicely
+    """ y is the parameter, as defined in (6), assumed to be an np.ndarray. """
     solnarr = np.empty(len(y))
     for i in range(len(y)):
         yy = y[i]
         soln = quad(integrand, 0, np.inf, args=(yy))
         solnarr[i] = soln[0]
     return solnarr
-    
-
-#def omega_nu_times_E2(a):
-    #(11)*h**2 : omega_nu(a) * E(a)**2
-#    return 15. / np.pi**4 * N_nu * Gamma_nu**4 * omega_g0 / a**4 * F(M_nu/N_nu / (k*T_nu) * a)
 
 Na = 10000
 Ncols = 4
 y_arr = np.empty(Na) 
-table = np.empty((Na, Ncols))             #want to make dictionary like structure in .c
+table = np.empty((Na, Ncols))
 
-#put 0 at start of table. maybe end would be cleaner for indexing? meh.
-y_arr = np.logspace(log_y_min,log_y_max,Na) #is linspace the best idea? maybe log? maybe do log interp later?
+y_arr = np.logspace(log_y_min,log_y_max,Na)
 
 table[:,0] = y_arr
 table[:,1] = solve_integral(I, y_arr)          #F
@@ -66,7 +53,7 @@ table[:,2] = solve_integral(dIdy, y_arr)       #F'
 table[:,3] = solve_integral(d2Idy2, y_arr)     #F'' 
 
 filename = "Ftable"
-array_init = "double Ftable[%d][%d]" % (Ncols, Na)   #swapped for .T
+array_init = "double Ftable[%d][%d]" % (Ncols, Na)
 size_defn = "#define Fsize (%d)\n" % Na
 
 #output to .c file
@@ -75,28 +62,17 @@ with open(filename+".c", "w+") as file:
     file.write("// y F(y) F'(y) F''(y)\n")
     file.write(array_init)
     file.write(" = {\n\t{")
-    np.savetxt(file, table.T, delimiter = ", ", newline = "},\n\t{")   #Yu said loop and file.write instead of this incase numpy change what this does in the future.
+    np.savetxt(file, table.T, delimiter = ", ", newline = "},\n\t{")
     
-    #remove the \t{ from the final line (complicated when not in binary bode)
+    #remove the \t{ from the final line
     file.seek(0, os.SEEK_END)                 # seek to end of file
     file.seek(file.tell() - 2, os.SEEK_SET)   # go backwards 2 bytes (chars)
     
-    file.write("};")
+    file.write("};\n")
 
 #make .h file with matching variable names to .c
-#makefile has certain directories to take a .h, otherwise it'll be unhappy, so put it in the api dir with all the other .h's
 with open("../api/fastpm/"+filename+".h", "w+") as file:
     file.write(size_defn)
     file.write("extern ")
     file.write(array_init)
-    file.write(";")
-
-    #maybe need this too 
-    #ifndef nuenergy_h
-    #define nuenergy_h
-
-
-    #endif /* nuenergy_h */
-
-    
-#probably just add to make file instead of all this include and .h stuff. This is just a quick fix.
+    file.write(";\n")

@@ -208,7 +208,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     big_block_set_attr(&bb, "HubbleE", &Ea, "f8", 1);
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
     big_block_set_attr(&bb, "Omega_cdm", &Omega_cdm, "f8", 1);
-    big_block_set_attr(&bb, "OmegaM", &Omega_cdm, "f8", 1);    //will change later
+    big_block_set_attr(&bb, "OmegaM", &Omega_cdm, "f8", 1);    // FIXME: Probably want to remove this
     //big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
     big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));

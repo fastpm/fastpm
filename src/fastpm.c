@@ -331,10 +331,8 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
     
-    // need to init the FD interp before prep delta_k in cdm
-    /* prepare the interpolation object for
-       FD tables */
-    if (CONF(prr->lua, n_m_ncdm) > 0){   //ugly
+    /* prepare the interpolation object for FD tables */
+    if (CONF(prr->lua, n_m_ncdm) > 0){
         FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
         fastpm_fd_interp_init(FDinterp);
         fastpm->cosmology->FDinterp = FDinterp;
@@ -373,14 +371,12 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     }
 
     {
-        /* destroy ncdm if allocated 
-           also destroy FD table
-           FIXME: clean this up */
+        /* Destroy ncdm if allocated. Also destroy FD table. */
         FastPMStore * ncdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM);
         if(ncdm) {
             fastpm_store_destroy(ncdm);
             free(ncdm);
-            fastpm_fd_interp_free(fastpm->cosmology->FDinterp);  //FIXME: Quite ugly I think, order should be fine
+            fastpm_fd_interp_free(fastpm->cosmology->FDinterp);
         }
     }
     fastpm_solver_destroy(fastpm);
@@ -625,7 +621,6 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         fastpm_info("No cdm linear growth rate file input.\n");
     }
 
-    /* our write out and clean up stuff.*/
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
         write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);

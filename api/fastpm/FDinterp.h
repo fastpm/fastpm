@@ -1,8 +1,6 @@
-#include <gsl/gsl_spline.h> //should this be in an h file?
+#include <gsl/gsl_spline.h>
 
 typedef struct FastPMFDInterp{
-    /* maybe would be nicer to index these, ratehr than name
-      then you could loop thru nicer*/
     size_t size;
     gsl_interp * F;
     gsl_interp * DF;
