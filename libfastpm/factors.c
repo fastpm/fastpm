@@ -203,8 +203,7 @@ static double G_p(FastPMGrowthInfo * growth_info)
 }
 static double g_p(FastPMGrowthInfo * growth_info)
 {
-    double dDda = growth_info->f1 * growth_info->D1 / growth_info->a;
-    return dDda;
+    return DGrowthFactorDa(growth_info);
 }
 
 static double G_f(FastPMGrowthInfo * growth_info)
@@ -256,11 +255,18 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
 
     double Omega_m0 = Omega_m(1, c);
     double Omega_mc =  Omega_m(ac, c);
-    //double Om143 = pow(OmegaA(ac, c), 1.0/143.0);
 
     kick->q1 = D1_c;
-    //kick->q2 = growth1*growth1*(1.0 + 7.0/3.0*Om143);
-    kick->q2 = D1_c*D1_c * (1 - D1_c*D1_c/D2_c);  // FIXME: This matches up with old code, but review this!
+    switch (c->growth_mode){
+        case FASTPM_GROWTH_MODE_LCDM:
+            kick->q2 = D1_c*D1_c * (1.0 + 7.0/3.0 * pow(Omega_mc, 1.0/143.0));
+        break;
+        case FASTPM_GROWTH_MODE_ODE:
+            kick->q2 = D1_c*D1_c * (1 - D1_c*D1_c/D2_c);  // FIXME: This matches up with old code mathematically, but review this!
+        break;
+        default:
+            fastpm_raise(-1, "Please enter a valid growth mode.\n");
+    }
 
     kick->nsamples = 32;
     int i;

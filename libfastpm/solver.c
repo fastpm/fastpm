@@ -42,6 +42,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
             .N_eff=3.046,
             .m_ncdm= {1., 0, 0,},
             .N_nu = 3,
+            .growth_mode = FASTPM_GROWTH_MODE_LCDM,
             .FDinterp = &FDinterp,
         }};
         memcpy(fastpm->cosmology, c, sizeof(c[0]));

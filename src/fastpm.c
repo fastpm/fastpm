@@ -380,6 +380,7 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
     c->N_eff = CONF(prr->lua, N_eff);
     c->N_nu = CONF(prr->lua, N_nu);
     c->N_ncdm = CONF(prr->lua, n_m_ncdm);
+    c->growth_mode = CONF(prr->lua, growth_mode);
 
     int i;
     double m_ncdm_i;

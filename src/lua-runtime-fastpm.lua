@@ -64,6 +64,13 @@ function schema.m_ncdm.action (m_ncdm)
     end
 end
 
+-- Growth calculation --
+schema.declare{name='growth_mode', type='enum', default='ODE', help='Evaluate growth factors using LCDM-only assumption, or with full ODE.'}
+schema.growth_mode.choices = {
+    LCDM = 'FASTPM_GROWTH_MODE_LCDM',
+    ODE = 'FASTPM_GROWTH_MODE_ODE',
+}
+
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
 schema.declare{name='painter_support',     type='int', default=2, help="Support (size) of the painting kernel"}

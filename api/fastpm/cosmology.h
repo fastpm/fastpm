@@ -3,6 +3,11 @@ FASTPM_BEGIN_DECLS
 extern double HubbleConstant;
 extern double HubbleDistance;
 
+typedef enum {
+    FASTPM_GROWTH_MODE_LCDM = 0,
+    FASTPM_GROWTH_MODE_ODE = 1,
+} FastPMGrowthMode;
+
 struct FastPMCosmology {
     double h;
     double Omega_m;
@@ -15,6 +20,7 @@ struct FastPMCosmology {
     double m_ncdm[3];  // masses of massive neutrinos (ncdm) for now assume max of 3 ncdm nus.
     int N_ncdm;
     
+    FastPMGrowthMode growth_mode;
     FastPMFDInterp * FDinterp;   //FIXME:? Will just be NULL in the case of no ncdm.
 };
 
@@ -58,7 +64,6 @@ typedef struct {
     double y3;
 } ode_soln;
 
-
 typedef struct FastPMGrowthInfo {
     /* Object to store solutions to growth ode at
        a certain scale factor, a, and for a certain
@@ -73,6 +78,7 @@ typedef struct FastPMGrowthInfo {
 
 void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCosmology * c);
 
+double DGrowthFactorDa(FastPMGrowthInfo * growth_info);
 double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info);
 
 double ComovingDistance(double a, FastPMCosmology * c);

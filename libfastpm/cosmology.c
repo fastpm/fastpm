@@ -8,6 +8,7 @@
 #include <gsl/gsl_odeiv2.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 
 #define STEF_BOLT 2.85087e-48  // in units: [ h * (10^10Msun/h) * s^-3 * K^-4 ]
 #define rho_crit 27.7455     //rho_crit0 in mass/length (not energy/length)
@@ -246,6 +247,39 @@ double OmegaSum(double a, FastPMCosmology* c)
     return sum / pow(HubbleEa(a, c), 2);
 }
 
+static double growth_int(double a, void *param)
+{
+    double * p = (double*) param;
+    double Omega_m = p[0];
+    double Omega_Lambda = p[1];
+    return pow(a / (Omega_m + (1 - Omega_m - Omega_Lambda) * a + Omega_Lambda * a * a * a), 1.5);
+}
+
+
+static double solve_growth_int(double a, FastPMCosmology * c)
+{
+    /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
+
+    int WORKSIZE = 100000;
+
+    double result, abserr;
+    gsl_integration_workspace *workspace;
+    gsl_function F;
+
+
+    workspace = gsl_integration_workspace_alloc(WORKSIZE);
+
+    F.function = &growth_int;
+    F.params = (double[]) {c->Omega_m, c->Omega_Lambda};
+
+    gsl_integration_qag(&F, 0, a, 0, 1.0e-9, WORKSIZE, GSL_INTEG_GAUSS41,
+            workspace, &result, &abserr);
+
+    gsl_integration_workspace_free(workspace);
+
+    return HubbleEa(a, c) * result;
+}
+
 static int growth_ode(double a, const double y[], double dyda[], void *params)
 {
     //is yy needed?
@@ -344,32 +378,94 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
 }
 
 void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCosmology * c) {
-    ode_soln soln = growth_ode_solve(a, c);
-    ode_soln soln_a1 = growth_ode_solve(1, c);
-    // FIXME: you could save a=1 soln at the start of code (perhaps to cosmo obj) and then never compute again.
-
     growth_info->a = a;
     growth_info->c = c;
-    growth_info->D1 = soln.y0 / soln_a1.y0;
-    growth_info->f1 = soln.y1 / soln.y0;    /* f = d log D / d log a. Note soln.y1 is d d1 / d log a */
-    growth_info->D2 = soln.y2 / soln_a1.y2;
-    growth_info->f2 = soln.y3 / soln.y2;
+
+    switch (c->growth_mode) {
+        case FASTPM_GROWTH_MODE_LCDM: {
+            double d1 = solve_growth_int(a, c);
+            double d1_a1 = solve_growth_int(1, c);
+            double Om = Omega_m(a, c);
+
+            growth_info->D1 = d1 / d1_a1;
+            growth_info->f1 = pow(Om, 5./9.);
+            /* FIXME: D2 needs to be checked.
+               Note, the Om(a=1) on the denominator, and the lack of the -3/7, is a fix to ensure D_2=1 today.
+               Old code said the 3/7 was absorbed into dx2, but was it? Or is it just to ensure normalisation to 1
+               today. Need to check this, becasue it could mean ODE mode is incorrect.*/
+            growth_info->D2 = growth_info->D1 * growth_info->D1 * pow(Om/Omega_m(1, c), -1./143.);
+            growth_info->f2 = 2 * pow(Om, 6./11.);
+        break; }
+        case FASTPM_GROWTH_MODE_ODE: {
+            ode_soln soln = growth_ode_solve(a, c);
+            ode_soln soln_a1 = growth_ode_solve(1, c);
+
+            growth_info->D1 = soln.y0 / soln_a1.y0;
+            growth_info->f1 = soln.y1 / soln.y0;    /* f = d log D / d log a. Note soln.y1 is d d1 / d log a */
+            growth_info->D2 = soln.y2 / soln_a1.y2;
+            growth_info->f2 = soln.y3 / soln.y2;
+        break; }
+        default:
+            fastpm_raise(-1, "Please enter a valid growth mode.\n");
+    }
+}
+
+double DGrowthFactorDa(FastPMGrowthInfo * growth_info) {
+    /* dD/da
+       FIXME: Only re-introduced this to reproduce LCDM results from before.
+       Maybe we don't care about this so much.*/
+    double a = growth_info->a;
+    FastPMCosmology * c = growth_info->c;
+    
+    double ans = 0;
+    switch (c->growth_mode) {
+        case FASTPM_GROWTH_MODE_LCDM: {
+            double E = HubbleEa(a, c);
+            double EI = solve_growth_int(1.0, c);
+            double t1 = DHubbleEaDa(a, c) * growth_info->D1 / E;
+            double t2 = E * pow(a * E, -3) / EI;
+            ans = t1 + t2;
+        break; }
+        case FASTPM_GROWTH_MODE_ODE:
+            ans = growth_info->f1 * growth_info->D1 / growth_info->a;
+        break;
+        default:
+            fastpm_raise(-1, "Please enter a valid growth mode.\n");
+    }
+    return ans;
 }
 
 double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
     /* d^2 D1 / da^2 */
+    /* FIXME: Technically the ODE version should agree with LCDM version, 
+       but I'm yet to prove this, so I've hard coded the old version in. */
     double a = growth_info->a;
     FastPMCosmology * c = growth_info->c;
-
-    double E = HubbleEa(a, c);
-    double dEda = DHubbleEaDa(a, c);
-    double D1 = growth_info->D1;
-    double f1 = growth_info->f1;
     
-    double ans = 0.;
-    ans -= (3. + a / E * dEda) * f1 * D1;
-    ans += 1.5 * Omega_m(a, c) * D1;
-    ans /= (a*a);
+    double ans = 0;
+    switch (c->growth_mode) {
+        case FASTPM_GROWTH_MODE_LCDM: {
+            double d2Eda2 = D2HubbleEaDa2(a, c);
+            double dEda = DHubbleEaDa(a, c);
+            double E = HubbleEa(a, c);
+            double EI = solve_growth_int(1., c);
+            double t1 = d2Eda2 * growth_info->D1 / E;
+            double t2 = (dEda + 3 / a * E) * pow(a * E, -3) / EI;
+            ans = t1 - t2;
+        break; }
+        case FASTPM_GROWTH_MODE_ODE: {
+            double E = HubbleEa(a, c);
+            double dEda = DHubbleEaDa(a, c);
+            double D1 = growth_info->D1;
+            double f1 = growth_info->f1;
+
+            ans -= (3. + a / E * dEda) * f1;
+            ans += 1.5 * Omega_m(a, c);
+            ans *= D1 / (a*a);
+        break; }
+        default:
+            fastpm_raise(-1, "Please enter a valid growth mode.\n");
+    }
     return ans;
 }
 
