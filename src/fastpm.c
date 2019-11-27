@@ -354,7 +354,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     }
 
     {
-        /* Destroy ncdm if allocated. Also destroy FD table. */
+        /* destroy ncdm if allocated */
         FastPMStore * ncdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM);
         if(ncdm) {
             fastpm_store_destroy(ncdm);
