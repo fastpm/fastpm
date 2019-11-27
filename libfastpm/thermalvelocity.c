@@ -258,9 +258,7 @@ static void _fastpm_ncdm_init_fill(FastPMncdmInitData* nid);
 FastPMncdmInitData* 
 fastpm_ncdm_init_create(
     double BoxSize,
-    double m_ncdm[3],
-    int n_ncdm,
-    double h,
+    FastPMCosmology * c,
     double z,
     int n_shells,
     int n_side,
@@ -270,15 +268,14 @@ fastpm_ncdm_init_create(
 
     nid->BoxSize = BoxSize;
     nid->m_ncdm_sum = 0;
-    for(int i = 0; i < n_ncdm; i ++) {
-        nid->m_ncdm[i] = m_ncdm[i];
-        nid->m_ncdm_sum += m_ncdm[i];
+    for(int i = 0; i < c->N_ncdm; i ++) {
+        nid->m_ncdm[i] = c->m_ncdm[i];
+        nid->m_ncdm_sum += c->m_ncdm[i];
     }
-    nid->n_ncdm = n_ncdm;
+    nid->n_ncdm = c->N_ncdm;
 
-    /* compute Omega_ncdm0
-       (ref Massive neutrinos and cosmology, Lesgourgues) */
-    nid->Omega_ncdm = nid->m_ncdm_sum / 93.14 / (h*h);    //FIXME: Use Omega_ncdm from cosmology instead?
+    /* compute MATTER part of Omega_ncdm0 */
+    nid->Omega_ncdm = Omega_ncdm_mTimesHubbleEaSq(1, c);  //FIXME: Should we use the 93.14 approx instead?
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;

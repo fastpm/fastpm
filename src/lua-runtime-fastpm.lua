@@ -33,19 +33,13 @@ function schema.output_redshifts.action(output_redshifts)
     end
 end
 
-schema.declare{name='omega_m',          type='number', required=false, default=0.3, help='cdm + baryon density parameter at z=0'}  --remove
-schema.declare{name='Omega_cdm',        type='number', required=false}
-schema.declare{name='N_eff',            type='number', required=false, default=3.046}
-schema.declare{name='N_nu',             type='number', required=false, default=3, help="Total number of neutrinos, massive and massless."}
-schema.declare{name='m_ncdm',           type='array:number', required=false, default={}, help="Mass of ncdm particles. Enter in descending order."}
-schema.declare{name='T_cmb',            type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation. a common value is 2.725." }
 
-function schema.omega_m.action(value)
-    if value ~= nil then
-        schema.Omega_cdm.default = value
-    end
-end
-
+schema.declare{name='omega_m',           type='number', required=false, help='Please use Omega_m. This will be removed eventually.'}
+schema.declare{name='Omega_m',           type='number', required=false, help='Total matter (cdm + baryon + ncdm) density parameter at z=0'}
+schema.declare{name='N_eff',             type='number', required=false, default=3.046}
+schema.declare{name='N_nu',              type='number', required=false, default=3, help="Total number of neutrinos, massive and massless."}
+schema.declare{name='m_ncdm',            type='array:number', required=false, default={}, help="Mass of ncdm particles. Enter in descending order."}
+schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
@@ -54,6 +48,13 @@ schema.declare{name='n_shell',           type='number', required=false, default=
 schema.declare{name='lvk',               type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}
 schema.declare{name='n_side',            type='number', required=false, default=2, help="Number of sides in HEALPix split."}
 schema.declare{name='every_ncdm',        type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
+
+-- allow backward compatibility wth lowercase o
+function schema.omega_m.action(value)
+     if value ~= nil then
+         schema.Omega_m.default = value
+     end
+ end
 
 function schema.m_ncdm.action (m_ncdm)
     for i=2, #m_ncdm do

@@ -28,14 +28,21 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->config[0] = *config;
 
     if(!(config->cosmology)) {
-        /* Use a default fiducial cosmology */
+        /* Use a default fiducial cosmology. */
+        /* FIXME: This is a weird fiducial cosmology. */
+        FastPMFDInterp FDinterp;
+        fastpm_fd_interp_init(&FDinterp);
+
         FastPMCosmology c[1] = {{
             .h=0.6772,
+            .Omega_m=0.323839,
             .Omega_cdm=0.3,
+            .Omega_Lambda=0.67616,
             .T_cmb=2.725,
             .N_eff=3.046,
-            .m_ncdm= {1., 0, 0, },
+            .m_ncdm= {1., 0, 0,},
             .N_nu = 3,
+            .FDinterp = &FDinterp,
         }};
         memcpy(fastpm->cosmology, c, sizeof(c[0]));
     } else {

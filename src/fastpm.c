@@ -106,6 +106,12 @@ write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI
 
 }
 
+static void
+prepare_cosmology(FastPMCosmology * c, RunData * prr);
+
+static void
+destroy_cosmology(FastPMCosmology * c);
+
 int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
@@ -168,24 +174,8 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr->lua, np_alloc_factor));
 
-    FastPMCosmology cosmology [1] = {{
-        .h = CONF(prr->lua, h),
-        .Omega_cdm = CONF(prr->lua, Omega_cdm),
-        .T_cmb = CONF(prr->lua, T_cmb),
-        .N_eff = CONF(prr->lua, N_eff),
-        .N_nu = CONF(prr->lua, N_nu),
-        .N_ncdm = CONF(prr->lua, n_m_ncdm),
-    }};
-
-    {
-        /* copy the neutrino masses, if any. */
-        int i;
-        for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
-            cosmology->m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
-        }
-    }
-
-    /* FIXME: call fastpm_cosmology_init_flat_lcdm() here to set Oemga_Lambda properly for flat */
+    FastPMCosmology * cosmology = malloc(sizeof(cosmology[0]));
+    prepare_cosmology(cosmology, prr);
 
     FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr->lua, nc),
@@ -273,7 +263,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     CLOCK(sort);
     CLOCK(indexing);
 
-    const double M0 = CONF(prr->lua, omega_m) * FASTPM_CRITICAL_DENSITY
+    const double M0 = fastpm->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
                     * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
     fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
@@ -331,13 +321,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
     
-    /* prepare the interpolation object for FD tables */
-    if (CONF(prr->lua, n_m_ncdm) > 0){
-        FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
-        fastpm_fd_interp_init(FDinterp);
-        fastpm->cosmology->FDinterp = FDinterp;
-    }
-    
     ENTER(cdmic);
     prepare_cdm(fastpm, prr, comm);
     LEAVE(cdmic);
@@ -376,16 +359,56 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
         if(ncdm) {
             fastpm_store_destroy(ncdm);
             free(ncdm);
-            fastpm_fd_interp_free(fastpm->cosmology->FDinterp);
         }
     }
     fastpm_solver_destroy(fastpm);
+
+    destroy_cosmology(config->cosmology);
 
     report_memory(comm);
 
     fastpm_clock_stat(comm);
 
     return 0;
+}
+
+static void
+prepare_cosmology(FastPMCosmology * c, RunData * prr) {
+    c->h = CONF(prr->lua, h);
+    c->Omega_m = CONF(prr->lua, Omega_m);
+    c->T_cmb = CONF(prr->lua, T_cmb);
+    c->N_eff = CONF(prr->lua, N_eff);
+    c->N_nu = CONF(prr->lua, N_nu);
+    c->N_ncdm = CONF(prr->lua, n_m_ncdm);
+
+    int i;
+    double m_ncdm_i;
+    double m_ncdm_sum = 0;
+    for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
+        m_ncdm_i = CONF(prr->lua, m_ncdm)[i];
+        c->m_ncdm[i] = m_ncdm_i;
+        m_ncdm_sum += m_ncdm_i;
+    }
+
+    /* prepare the interpolation object for FD tables. */
+    if (c->N_ncdm > 0) {
+        FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
+        fastpm_fd_interp_init(FDinterp);
+        c->FDinterp = FDinterp;
+    }
+
+    // Better to use the exact value of O_ncdm_m from cosmology.c rather than assume 93.14
+    // FIXME: Is this 2-fluid consideration over the top?
+    c->Omega_cdm = c->Omega_m - Omega_ncdm_mTimesHubbleEaSq(1, c);
+
+    // Set Omega_Lambda at z=0 to give no curvature
+    c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c) - Omega_ncdm_rTimesHubbleEaSq(1, c);
+}
+
+static void
+destroy_cosmology(FastPMCosmology * c) {
+    if (c->N_ncdm > 0) fastpm_fd_interp_free(c->FDinterp);
+    free(c);
 }
 
 static void
@@ -653,12 +676,6 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 {
     if(CONF(prr->lua, n_m_ncdm) == 0) return;
 
-    int n_ncdm = CONF(prr->lua, n_m_ncdm);
-    double m_ncdm[3];
-    for (int i = 0; i < n_ncdm; i ++){
-        m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
-    }
-    double h = CONF(prr->lua, h);
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
@@ -673,7 +690,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
-            m_ncdm, n_ncdm, h, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk); 
+            fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk);
     
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;
     size_t total_np_ncdm = total_np_ncdm_sites * nid->n_split;

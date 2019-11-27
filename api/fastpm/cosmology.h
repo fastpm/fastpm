@@ -5,7 +5,9 @@ extern double HubbleDistance;
 
 struct FastPMCosmology {
     double h;
+    double Omega_m;
     double Omega_cdm;
+    double Omega_Lambda;
     double T_cmb;      /*related to Omega_g*/
     //double T_nu;     //todays neutrino temperature HARD CODED FOR NOW
     double N_eff;
@@ -33,8 +35,8 @@ double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c);
 double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c);
 
 double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c);
-
-double Omega_Lambda(FastPMCosmology * c);
+double Omega_ncdm_mTimesHubbleEaSq(double a, FastPMCosmology * c);
+double Omega_ncdm_rTimesHubbleEaSq(double a, FastPMCosmology * c);
 
 double HubbleEa(double a, FastPMCosmology * c);
 double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c);

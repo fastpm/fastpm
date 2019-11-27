@@ -23,7 +23,9 @@ int main(int argc, char * argv[]){
 
     FastPMCosmology c[1] = {{
         .h = 0.6774,
-        .Omega_cdm = 0.30398434328,  //0.307494,
+        .Omega_m = 0.3175,
+        .Omega_Lambda = 0.6825,   // FIXME Note this test cosmology isn't properly closed
+        .Omega_cdm = 0.31392413966,
         .T_cmb = 2.72548,
         .N_eff = 3.046,
         .N_nu = 3,
@@ -45,7 +47,7 @@ int main(int argc, char * argv[]){
         double On = Omega_ncdm(a, c);
         double Onm = Omega_ncdm_m(a, c);
         double Om = Omega_m(a, c);
-        double OL = Omega_Lambda(c) / (E*E);
+        double OL = c->Omega_Lambda / (E*E);
         //double w = w_ncdm_i(a,0,c);   //look at w of species 0 as example.
         
         fprintf (pFile, "%g %g %g %g %g %g %g %g %g\n", z, E, Oc, Og, Our, On, Onm, Om, OL);
