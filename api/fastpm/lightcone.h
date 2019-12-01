@@ -70,10 +70,22 @@ void
 fastpm_usmesh_destroy(FastPMUSMesh * mesh);
 
 int
-fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, int whence, MPI_Comm comm);
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick,
+    double a1, double a2,
+    int whence, MPI_Comm comm);
 
 void
 fastpm_lc_destroy(FastPMLightCone * lc);
+
+int
+fastpm_shell_intersects_bbox(
+    double xmin[3],
+    double xmax[3],
+    double glmatrix[4][4],
+    double tileshift[3],
+    double radius1,
+    double radius2
+);
 
 FASTPM_END_DECLS
 

@@ -12,7 +12,10 @@
 static void
 interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick,
+            event->drift->ai,
+            event->drift->af,
+            event->whence, fastpm->comm);
 }
 
 double tiles[4*4*4][3];
@@ -41,7 +44,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_usmesh_intersect(usmesh, &drift, &kick, TIMESTEP_CUR, solver->comm);
+    fastpm_usmesh_intersect(usmesh, &drift, &kick, 0.1, 1.0, TIMESTEP_CUR, solver->comm);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
     fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);

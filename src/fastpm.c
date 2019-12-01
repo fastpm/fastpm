@@ -1267,7 +1267,11 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
 static int
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
+    double a1 = event->drift->ai > event->drift->af ? event->drift->af: event->drift->ai;
+    double a2 = event->drift->ai > event->drift->af ? event->drift->ai: event->drift->af;
+
+    /* TODO if a1 and a2 are far, split the range to constrain memory usage of usmesh->p */
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, a1, a2, event->whence, fastpm->comm);
 
     int64_t np_lc = usmesh->np_before + usmesh->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
