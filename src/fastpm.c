@@ -859,7 +859,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
-    fastpm_info("Unstructured LightCone ready : ai = %g af = %g, n = %td\n", lcevent->ai, lcevent->af, np);
+    double max_np;
+    int max_rank;
+    MPIU_stats(fastpm->comm, np, ">.", &max_np, &max_rank);
+
+    fastpm_info("Unstructured LightCone ready : ai = %g af = %g, n = %td max = %g on Task %d\n",
+             lcevent->ai, lcevent->af, np, max_np, max_rank);
 
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
 
@@ -1264,12 +1269,9 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 {
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
 
-    int64_t np = usmesh->p->np;
-
-    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
-
-    fastpm_info("Total number of particles in light cone slice: %ld\n", np);
-
+    int64_t np_lc = usmesh->np_before + usmesh->p->np;
+    MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+    fastpm_info("Total number of particles wrote into lightcone: %ld\n", np_lc);
     return 0;
 }
 

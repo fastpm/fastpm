@@ -72,6 +72,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->lc = lc;
     mesh->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     mesh->ntiles = ntiles;
+    mesh->np_before = 0;
 
     memcpy(mesh->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
 
@@ -410,6 +411,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         mesh->ai = a1;
         mesh->af = a1;
         fastpm_info("usmesh start event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+        mesh->np_before = 0;
         fastpm_usmesh_emit(mesh, whence);
     } else
     if (whence == TIMESTEP_CUR) {
@@ -431,6 +433,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
             fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
             fastpm_usmesh_emit(mesh, whence);
+            mesh->np_before += mesh->p->np;
             /* now purge the store. */
             mesh->p->np = 0;
             mesh->ai = mesh->af;
@@ -440,6 +443,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         mesh->af = a2;
         fastpm_info("usmesh end event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
         fastpm_usmesh_emit(mesh, whence);
+        mesh->np_before += mesh->p->np;
         /* now purge the store. */
         mesh->p->np = 0;
         mesh->ai = mesh->af;

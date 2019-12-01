@@ -33,6 +33,7 @@ typedef struct FastPMUSMesh {
 
     double ai; /* starting scaling factor of the current p. */
     double af; /* ending scaling factor of the current p. */
+    size_t np_before; /* number of particles already written to the lightcone, on this rank.*/
     /* Extensions */
     FastPMEventHandler * event_handlers;
 } FastPMUSMesh;
