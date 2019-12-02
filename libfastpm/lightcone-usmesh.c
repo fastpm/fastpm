@@ -541,8 +541,8 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
             double af = (i + 1 == steps)?a2 : a1 + da * (i + 1);
 
             for(t = 0; t < mesh->ntiles; t ++) {
-                /* the tile does not intersects the lightcone. */
-                if(!fastpm_shell_intersects_bbox(
+                /* for spherical geometry, skip if the tile does not intersects the lightcone. */
+                if(mesh->lc->fov > 0 && !fastpm_shell_intersects_bbox(
                     xmin, xmax, mesh->lc->glmatrix, &mesh->tileshifts[t][0], r2, r1)) {
                     continue;
                 }
