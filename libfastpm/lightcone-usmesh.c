@@ -541,6 +541,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         for(int i = 0; i < steps; i ++) {
             double ai = a1 + da * i;
             double af = (i + 1 == steps)?a2 : a1 + da * (i + 1);
+            fastpm_info("usmesh: intersection step %d / %d a = %g %g .\n", i, steps, ai, af);
 
             int ntiles = 0;
             for(t = 0; t < mesh->ntiles; t ++) {
