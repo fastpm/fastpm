@@ -515,7 +515,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
     if (whence == TIMESTEP_CUR) {
         double xmin[3] = {0};
         double xmax[3] = {0};
-        double padding = 0.5; /* add a 500 Kpc/h padding */
+        double padding = 0.5; /* rainwoodman: add a 500 Kpc/h padding; need a better estimate. */
         fastpm_compute_bbox(mesh->source, drift, a1, a2, padding, xmin, xmax, comm);
 
         fastpm_info("usmesh: bounding box computed for a = (%g, %g), AABB = [ %g %g %g ] - [ %g %g %g]",
