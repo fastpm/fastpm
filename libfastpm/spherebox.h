@@ -2,13 +2,18 @@
  *
  * Retrieved from http://theorangeduck.com/page/correct-box-sphere-intersection
  *
+ * rainwoodman:
  * The original blog post is listed mostly as is. Except the following changes in the source code:
  *  - double -> real
  *  - bool -> int
  *  - Added the missing type definitions.
  *  - box type also remembers its corners.
  *  - Add box_in_sphere (uses the corners).
+ *  - rename sphere_intersects_box to sphere_intersects_or_contains_box.
  *
+ * Text starting with ">" are quoted from the original blog post.
+ *
+ * -----------------------------
  * > Created on April 2, 2013, 1:21 p.m.
  *
  * > Edit [31/03/2019]:
