@@ -32,8 +32,9 @@ int _big_block_create(BigBlock * bb, const char * basename, const char * dtype, 
 static inline char *
 _strdup(const char * s)
 {
-    size_t l = strlen(s);
+    size_t l = strnlen(s,8192);
     char * r = malloc(l + 1);
-    strcpy(r, s);
+    strncpy(r, s, l);
+    r[l] = '\0';
     return r;
 }

@@ -7,20 +7,9 @@
 #include <mpi.h>
 #include "mpsort.h"
 
-static double wtime() {
-    struct timespec t1;
-    clock_gettime(CLOCK_REALTIME, &t1);
-    return (double)((t1.tv_sec+t1.tv_nsec*1e-9));
-}
-
 static void radix_int(const void * ptr, void * radix, void * arg) {
     *(int*)radix = *(const int*) ptr;
 }
-static int compar_int(const void * p1, const void * p2) {
-    const unsigned int * i1 = p1, *i2 = p2;
-    return (*i1 > *i2) - (*i1 < *i2);
-}
-
 int main(int argc, char * argv[]) {
     int i;
     MPI_Init(&argc, &argv);

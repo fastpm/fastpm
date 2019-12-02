@@ -119,6 +119,8 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     double shift[3] = {shift0, shift0, shift0};
 
     fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM), fastpm->basepm, shift, NULL);
+
+    fastpm->pm = fastpm_find_pm(fastpm, 0.0);
 }
 
 void
@@ -132,7 +134,8 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     FastPMStore * p = fastpm_solver_get_species(fastpm, species);
     if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
 
-    PM * basepm = fastpm->basepm;
+
+    PM * pm = fastpm->pm;
     FastPMConfig * config = fastpm->config;
 
     double BoxSize = fastpm->config->boxsize;
@@ -160,7 +163,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     }
 
     FastPMLPTEvent event[1];
-    event->pm = basepm;
+    event->pm = pm;
     event->delta_k = delta_k_ic;
     event->p = p;
 
@@ -176,7 +179,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         }
         double shift[3] = {shift0, shift0, shift0};
         /* ignore deconvolve order and grad order, since particles are likely on the grid.*/
-        pm_2lpt_solve(basepm, delta_k_ic, growth_rate_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
+        pm_2lpt_solve(pm, delta_k_ic, growth_rate_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
     }
 
     if(config->USE_DX1_ONLY == 1) {

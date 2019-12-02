@@ -263,7 +263,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     CLOCK(sort);
     CLOCK(indexing);
 
-    const double M0 = fastpm->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
+    const double M0 = CONF(prr->lua, omega_m) * FASTPM_CRITICAL_DENSITY
                     * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
     fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
@@ -320,7 +320,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     }};
 
     MPI_Barrier(comm);
-    
+
     ENTER(cdmic);
     prepare_cdm(fastpm, prr, comm);
     LEAVE(cdmic);
@@ -628,9 +628,9 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         return;
     }
 
-    FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
+    FastPMFloat * delta_k = pm_alloc(fastpm->pm);
 
-    prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0,
+    prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0,
                    CONF(prr->lua, linear_density_redshift), 
                    CONF(prr->lua, read_lineark), 
                    CONF(prr->lua, read_powerspectrum));
@@ -647,13 +647,13 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
-        write_complex(fastpm->basepm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
+        write_complex(fastpm->pm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
     }
 
     if(CONF(prr->lua, write_powerspectrum)) {
         FastPMPowerSpectrum ps;
         /* calculate the power spectrum */
-        fastpm_powerspectrum_init_from_delta(&ps, fastpm->basepm, delta_k, delta_k);
+        fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
 
         char buf[1024];
         sprintf(buf, "%s_linear.txt", CONF(prr->lua, write_powerspectrum));
@@ -691,7 +691,8 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             CONF(prr->lua, boxsize),
-            fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk);
+            fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk,
+            CONF(prr->lua, ncdm_sphere_scheme));
     
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;
     size_t total_np_ncdm = total_np_ncdm_sites * nid->n_split;
@@ -732,20 +733,20 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     
     // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
     ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
-    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), fastpm->basepm, shift, Nc_ncdm);
+    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), fastpm->pm, shift, Nc_ncdm);
     
     // compute delta_k for ncdm
-    FastPMFloat * delta_k = pm_alloc(fastpm->basepm);
+    FastPMFloat * delta_k = pm_alloc(fastpm->pm);
     
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
         fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead."); 
         /*FIXME: would make more sense (better approximation) to use a flat power spectrum instead*/
-        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
+        prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift), 
                         CONF(prr->lua, read_lineark), 
                         CONF(prr->lua, read_powerspectrum));
     } else {
-        prepare_deltak(fastpm, fastpm->basepm, delta_k, prr, 1.0, 
+        prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift_ncdm), 
                         CONF(prr->lua, read_lineark_ncdm), 
                         CONF(prr->lua, read_powerspectrum_ncdm));
@@ -766,7 +767,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
     if (growth_rate_k)
         fastpm_funck_destroy(growth_rate_k);
-    pm_free(fastpm->basepm, delta_k);
+    pm_free(fastpm->pm, delta_k);
     
     // SPLIT
     fastpm_split_ncdm(nid, ncdm_sites, ncdm, comm);
@@ -857,7 +858,7 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
 
         for (i = 0; i < ntiles; i ++) {
             for (j = 0; j < 3; j ++) {
-                tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
+                tiles[i][j] = (*c) * pm_boxsize(fastpm->pm)[j];
                 c ++;
             }
             fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,

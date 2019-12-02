@@ -48,7 +48,11 @@ schema.declare{name='n_shell',           type='number', required=false, default=
 schema.declare{name='lvk',               type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}
 schema.declare{name='n_side',            type='number', required=false, default=2, help="Number of sides in HEALPix split."}
 schema.declare{name='every_ncdm',        type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
-
+schema.declare{name='ncdm_sphere_scheme',type='enum', required=false, default="fibonacci", help="Split sphere with 'fibonacci' or 'healpix'?"}
+schema.ncdm_sphere_scheme.choices = {
+    healpix = 'FASTPM_NCDM_SPHERE_HEALPIX',
+    fibonacci = 'FASTPM_NCDM_SPHERE_FIBONACCI',
+}
 -- allow backward compatibility wth lowercase o
 function schema.omega_m.action(value)
      if value ~= nil then

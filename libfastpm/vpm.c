@@ -13,6 +13,8 @@ vpm_find(VPM * vpm, double a)
     for (i = 0; !vpm[i].end; i ++) {
         if(vpm[i].a_start > a) break;
     }
+    /* Start with the first pm. */
+    if (i == 0) i = 1;
     return &vpm[i-1];
 }
 

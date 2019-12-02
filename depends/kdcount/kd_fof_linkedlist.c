@@ -66,21 +66,22 @@ extern struct {
 } last_traverse;
 
 int 
-kd_fof_linkedlist(KDNode * tree, double linking_length, ptrdiff_t * head)
+kd_fof_linkedlist(KDNode * node, double linking_length, ptrdiff_t * head)
 {
-    KDNode * nodes[2] = {tree, tree};
+    KDNode * nodes[2] = {node, node};
     TraverseData * trav = & (TraverseData) {};
 
     trav->head = head;
-    trav->next = malloc(sizeof(trav->next[0]) * tree->size);
-    trav->len = malloc(sizeof(trav->len[0]) * tree->size);
+    trav->next = malloc(sizeof(trav->next[0]) * node->tree->input.dims[0]);
+    trav->len = malloc(sizeof(trav->len[0]) * node->tree->input.dims[0]);
     trav->ll = linking_length;
 
     ptrdiff_t i;
-    for(i = 0; i < tree->size; i ++) {
-        trav->head[i] = i;
-        trav->next[i] = -1;
-        trav->len[i] = 1;
+    for(i = node->start; i < node->start + node->size; i ++) {
+        ptrdiff_t j = node->tree->ind[i];
+        trav->head[j] = j;
+        trav->next[j] = -1;
+        trav->len[j] = 1;
     }
 
     trav->visited = 0;

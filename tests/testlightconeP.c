@@ -39,7 +39,7 @@ int main(int argc, char * argv[]) {
     FastPMKickFactor kick;
     fastpm_solver_init(solver, config, comm);
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -48,8 +48,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2005, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2005, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     FastPMLightConeP lcp[1] = {{
         .speedfactor = 1,//0.2,
@@ -137,7 +137,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_lcp_destroy(lcp);
 
-    pm_free(solver->basepm, rho_init_ktruth);
+    pm_free(solver->pm, rho_init_ktruth);
     fastpm_solver_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();

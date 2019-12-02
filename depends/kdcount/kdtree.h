@@ -118,7 +118,7 @@ static inline double kd_attr_get(KDAttr * attr, ptrdiff_t i, ptrdiff_t d) {
     return kd_array_get(&attr->input, attr->tree->ind[i], d);
 }
 
-static inline void 
+static inline void
 kd_realminmax(KDTree * tree, double min, double max, double * realmin, double * realmax, int d) 
 {
     if(tree->boxsize) {
@@ -266,7 +266,7 @@ kd_enum_full(KDNode * nodes[2], double maxr,
 int
 kd_fof(KDNode * tree, double linking_length, ptrdiff_t * head);
 int
-kd_fof_linked_list(KDNode * tree, double linking_length, ptrdiff_t * head);
+kd_fof_linkedlist(KDNode * tree, double linking_length, ptrdiff_t * head);
 int
 kd_fof_allpairs(KDNode * tree, double linking_length, ptrdiff_t * head);
 int 
