@@ -1564,7 +1564,7 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
     }
     free(content);
 
-    fastpm_info("Found %d pairs of values in input spectrum table\n", ps->size);
+    fastpm_info("Found %d pairs of values in input spectrum table\n", ps->base.size);
 
     double sigma8_input= fastpm_powerspectrum_sigma(ps, 8);
     fastpm_info("Input power spectrum sigma8 %f\n", sigma8_input);
