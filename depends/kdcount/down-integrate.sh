@@ -11,6 +11,6 @@ fi
 trap "rm -rf $tmp" EXIT
 git clone https://github.com/rainwoodman/kdcount $tmp
 sha=$(cd $tmp; git rev-parse --verify HEAD)
-rsync -avz -f '- /*/' -f '- *.py' -f '- *.pyx' $tmp/kdcount/* .
+rsync -avz -f '- /*/' -f '- *.py' -f '- *.pyx' -f '- pykdcount.c' $tmp/kdcount/* .
 git add *.[ch] Makefile
 git commit -m "Update kdcount to $sha"
