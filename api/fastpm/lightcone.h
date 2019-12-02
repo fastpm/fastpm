@@ -27,6 +27,7 @@ typedef struct FastPMUSMesh {
 
     double (* tileshifts)[3];
     int ntiles;
+    double target_volume; /* target this volume size per light cone shell during intersection search */
     /* we need to apply a cut in time, because at early time we tend to write too many particles. */
     double amax; /* range for largest a; above which no particles will be written */
     double amin; /* range for smallest a; below which no particles will be written */
@@ -61,7 +62,9 @@ fastpm_lc_distance(FastPMLightCone * lc, double x[3]);
 
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh,
-                FastPMLightCone * lc, FastPMStore * source,
+                FastPMLightCone * lc,
+                double target_volume,
+                FastPMStore * source,
                 size_t np_upper,
                 double (*tileshifts)[3], int ntiles,
                 double amin, double amax);

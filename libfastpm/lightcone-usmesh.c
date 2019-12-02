@@ -58,6 +58,7 @@ fastpm_lc_destroy(FastPMLightCone * lc)
 
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
+            double target_volume,
             FastPMStore * source,
             size_t np_upper,
             double (*tileshifts)[3],
@@ -66,6 +67,7 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
             double amax)
 {
 
+    mesh->target_volume = target_volume;
     mesh->source = source;
     mesh->amin = amin;
     mesh->amax = amax;
@@ -528,30 +530,41 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         double r1 = mesh->lc->speedfactor * HorizonDistance(a1, mesh->lc->horizon);
         double r2 = mesh->lc->speedfactor * HorizonDistance(a2, mesh->lc->horizon);
 
-        for(t = 0; t < mesh->ntiles; t ++) {
-            /* the tile does not intersects the lightcone. */
-            if(!fastpm_shell_intersects_bbox(
-                xmin, xmax, mesh->lc->glmatrix, &mesh->tileshifts[t][0], r2, r1)) {
-                continue;
+        double volume = 4 * M_PI / 3 * (pow(r1, 3) - pow(r2, 3));
+
+        int steps = (int) ((volume / mesh->target_volume) + 0.5);
+        if(steps == 0) steps = 1;
+        double da = (a1 - a2) / steps;
+
+        for(int i = 0; i < steps; i ++) {
+            double ai = a1 + da * i;
+            double af = (i + 1 == steps)?a2 : a1 + da * (i + 1);
+
+            for(t = 0; t < mesh->ntiles; t ++) {
+                /* the tile does not intersects the lightcone. */
+                if(!fastpm_shell_intersects_bbox(
+                    xmin, xmax, mesh->lc->glmatrix, &mesh->tileshifts[t][0], r2, r1)) {
+                    continue;
+                }
+                fastpm_info("usmesh: tile %d bounding box intersects shell r = (%g %g)", t, r2, r1);
+
+                fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
+                        ai, af,
+                        drift, kick,
+                        mesh->source,
+                        mesh->p); /*Store particle to get density*/
+
             }
-            fastpm_info("usmesh: tile %d bounding box intersects shell r = (%g %g)", t, r2, r1);
-
-            fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
-                    a1, a2,
-                    drift, kick,
-                    mesh->source,
-                    mesh->p); /*Store particle to get density*/
-
-        }
-        LEAVE(intersect);
-        mesh->af = a2;
-        if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
-            fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
-            fastpm_usmesh_emit(mesh, whence);
-            mesh->np_before += mesh->p->np;
-            /* now purge the store. */
-            mesh->p->np = 0;
-            mesh->ai = mesh->af;
+            LEAVE(intersect);
+            mesh->af = af;
+            if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
+                fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+                fastpm_usmesh_emit(mesh, whence);
+                mesh->np_before += mesh->p->np;
+                /* now purge the store. */
+                mesh->p->np = 0;
+                mesh->ai = mesh->af;
+            }
         }
     } else
     if (whence == TIMESTEP_END) {

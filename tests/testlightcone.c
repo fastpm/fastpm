@@ -30,7 +30,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_info("stage 1\n");
 
@@ -63,7 +63,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
@@ -97,7 +97,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,

@@ -797,6 +797,7 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
+                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->pm),
                 p,
                 CONF(prr->lua, lc_usmesh_alloc_factor) *
                 p->np_upper,
