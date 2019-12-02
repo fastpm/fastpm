@@ -276,8 +276,10 @@ fastpm_compute_bbox(FastPMStore * p,
             if(xo[d] > xmax[d]) xmax[d] = xo[d];
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, xmin, 3, MPI_DOUBLE, MPI_MIN, comm);
-    MPI_Allreduce(MPI_IN_PLACE, xmax, 3, MPI_DOUBLE, MPI_MAX, comm);
+    // It is sufficient not doing a reduce; each rank can cull its own
+    // volume.
+    // MPI_Allreduce(MPI_IN_PLACE, xmin, 3, MPI_DOUBLE, MPI_MIN, comm);
+    // MPI_Allreduce(MPI_IN_PLACE, xmax, 3, MPI_DOUBLE, MPI_MAX, comm);
     for(int d = 0; d < 3; d ++) {
         xmin[d] -= padding;
         xmax[d] += padding;
@@ -540,21 +542,24 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
             double ai = a1 + da * i;
             double af = (i + 1 == steps)?a2 : a1 + da * (i + 1);
 
+            int ntiles = 0;
             for(t = 0; t < mesh->ntiles; t ++) {
                 /* for spherical geometry, skip if the tile does not intersects the lightcone. */
                 if(mesh->lc->fov > 0 && !fastpm_shell_intersects_bbox(
                     xmin, xmax, mesh->lc->glmatrix, &mesh->tileshifts[t][0], r2, r1)) {
                     continue;
                 }
-                fastpm_info("usmesh: tile %d bounding box intersects shell r = (%g %g)", t, r2, r1);
-
                 fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
                         ai, af,
                         drift, kick,
                         mesh->source,
                         mesh->p); /*Store particle to get density*/
-
+                ntiles ++;
             }
+            double ntiles_max, ntiles_min, ntiles_mean;
+            MPIU_stats(comm, ntiles, "<->", &ntiles_min, &ntiles_mean, &ntiles_max);
+            fastpm_info("usmesh: number of bounding box intersects shell r = (%g %g), min = %g max = %g, mean=%g",
+                  r2, r1, ntiles_min, ntiles_max, ntiles_mean);
             LEAVE(intersect);
             mesh->af = af;
             if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
