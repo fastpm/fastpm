@@ -193,7 +193,12 @@ int sphere_intersects_plane(sphere s, plane p) {
  * shapes such as view frustums (which was my original application). When
  * constructing these planes it is important to ensure all the plane normals
  * face outward.
-
+ *
+ * rainwoodman: the algebra definitions of inside, intersect and outside are
+ *   - inside : s * b = s
+ *   - intersects_or_contains : 0 != s * b < s  (this includes b inside s)
+ *   - outside : s * b = 0
+ *
  * >The test for if a sphere is inside a box is easy. Just check that the sphere
  * is inside all of the face planes.
  */
@@ -216,7 +221,6 @@ int sphere_inside_box(sphere s, box b) {
  * closest point on the place where the sphere is intersecting, and also the
  * radius of the circle which is produced by the intersection.
  */
-
 int sphere_intersects_plane_point(sphere s, plane p, vec3* point, real* radius) {
   real d = plane_distance(p, s.center);
   vec3 proj = vec3_mul(p.direction, d);
@@ -232,7 +236,8 @@ int sphere_intersects_plane_point(sphere s, plane p, vec3* point, real* radius) 
  */
 
 /* rainwoodman: this returns true if the box is inside the sphere;
- * so not exactly "intersects" box.
+ * so not exactly "intersects" box; renamed the function to avoid
+ * confusion.
  */
 int sphere_intersects_or_contains_box(sphere s, box b) {
 
