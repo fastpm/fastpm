@@ -30,6 +30,8 @@ particle_fraction = 1.0
 force_mode = "fastpm"
 kernel_type = "1_4"
 
+growth_mode = "LCDM"
+
 pm_nc_factor = {{0.0, 1}, {0.01, 2}}
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle

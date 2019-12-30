@@ -30,9 +30,9 @@ script:
     - pushd tests
     - bash runtests.sh
     - bash run-test-nbodykit.sh
-    - bash run-test-nbodykit-LCDM.sh
+    - bash run-test-nbodykit-ODE.sh
     - bash run-test-lightcone.sh
-    - bash run-test-lightcone-LCDM.sh
+    - bash run-test-lightcone-ODE.sh
     - popd
 
 # after_success: ./update-ghpages.sh

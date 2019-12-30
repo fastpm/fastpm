@@ -69,7 +69,7 @@ function schema.m_ncdm.action (m_ncdm)
 end
 
 -- Growth calculation --
-schema.declare{name='growth_mode', type='enum', default='ODE', help='Evaluate growth factors using LCDM-only assumption, or with full ODE.'}
+schema.declare{name='growth_mode', type='enum', default='LCDM', help='Evaluate growth factors using the popular LCDM-only approximations or with ODE with MD initial conditions.'}
 schema.growth_mode.choices = {
     LCDM = 'FASTPM_GROWTH_MODE_LCDM',
     ODE = 'FASTPM_GROWTH_MODE_ODE',

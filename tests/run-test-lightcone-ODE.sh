@@ -5,7 +5,7 @@ source testfunctions.sh
 FASTPM="`dirname $0`/../src/fastpm -T 1"
 log=`mktemp`
 
-assert_success "mpirun -n 4 $FASTPM lightcone-LCDM.lua > $log"
+assert_success "mpirun -n 4 $FASTPM lightcone-ODE.lua > $log"
 
 echo "---- Validating the log output -------"
 assert_file_contains $log 'Total number of particles in light cone slice: 3083305'
@@ -24,7 +24,7 @@ assert_file_contains $log 'Writing 7666753 objects.'
 assert_file_contains $log 'Writing 4978336 objects.'
 assert_file_contains $log 'Writing 453 objects.'
 assert_file_contains $log 'Writing 2097152 objects.'
-assert_file_contains $log 'Writing 22062 objects.'
+assert_file_contains $log 'Writing 22063 objects.'
 assert_file_contains $log 'Writing 1607204 objects.'
 assert_file_contains $log 'Writing 4983 objects.'
 assert_file_contains $log 'sigma8.*0.815897'
