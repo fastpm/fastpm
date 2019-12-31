@@ -37,8 +37,8 @@ end
 schema.declare{name='omega_m',           type='number', required=false, help='Please use Omega_m. This will be removed eventually.'}
 schema.declare{name='Omega_m',           type='number', required=false, help='Total matter (cdm + baryon + ncdm) density parameter at z=0'}
 schema.declare{name='N_eff',             type='number', required=false, default=3.046}
-schema.declare{name='N_nu',              type='number', required=false, default=3, help="Total number of neutrinos, massive and massless."}
-schema.declare{name='m_ncdm',            type='array:number', required=false, default={}, help="Mass of ncdm particles. Enter in descending order."}
+schema.declare{name='N_nu',              type='number', required=false, default=0, help="Total number of neutrinos, massive and massless."}
+schema.declare{name='m_ncdm',            type='array:number', required=false, default={}, help="Mass of ncdm particles in eV. Enter in descending order."}
 schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
@@ -54,13 +54,22 @@ schema.ncdm_sphere_scheme.choices = {
     fibonacci = 'FASTPM_NCDM_SPHERE_FIBONACCI',
 }
 -- allow backward compatibility wth lowercase o
-function schema.omega_m.action(value)
+function schema.omega_m.action (value)
      if value ~= nil then
          schema.Omega_m.default = value
      end
- end
+end
 
+-- check for bad input
 function schema.m_ncdm.action (m_ncdm)
+    if #m_ncdm ~= 0 then
+        function schema.T_cmb.action (T_cmb)
+            if T_cmb == 0 then
+                error("For a run with ncdm particles use T_cmb > 0 to include an ncdm background.")
+            end
+        end
+    end
+    
     for i=2, #m_ncdm do
         if m_ncdm[i] > m_ncdm[1] then
             error("Please input the heaviest ncdm particle first.")
@@ -120,12 +129,12 @@ end
 -- Initial condition --
 schema.declare{name='read_lineark',        type='string', help='lineark for cdm'}
 schema.declare{name='read_powerspectrum', type='file', help='file to read the linear power spectrum for cdm.'}
-schema.declare{name='read_linear_growth_rate', type ='file', help='file to read te linear growth rate (f_1) of cdm. If left empty it will use internal scale independent f_1.'}
+schema.declare{name='read_linear_growth_rate', type ='file', help='file to read the linear growth rate (f_1) of cdm. If left empty, will use internal f_1.'}
 schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
 
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
 schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
-schema.declare{name='read_linear_growth_rate_ncdm', type ='file', help='file to read te linear growth rate (f_1) of ncdm. If left empty it will use internal scale independent f_1.'}
+schema.declare{name='read_linear_growth_rate_ncdm', type ='file', help='file to read the linear growth rate (f_1) of ncdm. If left empty, will use internal f_1.'}
 schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field. '}
 
 schema.declare{name='read_grafic',        type='string'}

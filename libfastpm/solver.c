@@ -109,7 +109,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->basepm = malloc(sizeof(PM));
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
-    
+
     double shift0;
     if(config->USE_SHIFT) {
         shift0 = config->boxsize / config->nc * 0.5;
@@ -127,7 +127,7 @@ void
 fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         enum FastPMSpecies species,
         FastPMFloat * delta_k_ic,
-        FastPMFuncK * growth_rate_k_ic,
+        FastPMFuncK * growth_rate_func_k_ic,
         double a0)
 {
 
@@ -157,7 +157,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
         temp_dx2 = 1;
     }
-    if(p->dv1 == NULL && growth_rate_k_ic) {
+    if(p->dv1 == NULL && growth_rate_func_k_ic) {
         p->dv1 = fastpm_memory_alloc(p->mem, "DV1", sizeof(p->dv1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
         temp_dv1 = 1;
     }
@@ -179,7 +179,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         }
         double shift[3] = {shift0, shift0, shift0};
         /* ignore deconvolve order and grad order, since particles are likely on the grid.*/
-        pm_2lpt_solve(pm, delta_k_ic, growth_rate_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
+        pm_2lpt_solve(pm, delta_k_ic, growth_rate_func_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
     }
 
     if(config->USE_DX1_ONLY == 1) {
@@ -690,7 +690,7 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
 
     /* potfactor converts fastpm Phi to dimensionless */
     double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);   // FIXME: Change to Omege_m(a) in neutrino run?
-    
+
 #pragma omp parallel for
     for(i=0; i<np; i++) {
 

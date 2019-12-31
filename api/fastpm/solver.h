@@ -157,10 +157,10 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, Fas
 
 void 
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
-                enum FastPMSpecies species,
-                FastPMFloat * delta_k_ic,
-                FastPMFuncK * growth_rate_k_ic,
-                double a0);
+                        enum FastPMSpecies species,
+                        FastPMFloat * delta_k_ic,
+                        FastPMFuncK * growth_rate_func_k_ic,
+                        double a0);
 
 PM *
 fastpm_find_pm(FastPMSolver * fastpm, double a);

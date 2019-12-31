@@ -147,7 +147,7 @@ typedef struct {
 
 typedef struct {
     FastPMColumnTags attribute;
-    int memb;   // for a vecotr field, this number represents the component. (each component is a sept FastPMFieldDescr)
+    int memb;   // for a vector field, this number represents the component
 } FastPMFieldDescr;
 
 const static FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};

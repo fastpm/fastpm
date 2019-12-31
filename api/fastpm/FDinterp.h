@@ -6,7 +6,6 @@ typedef struct FastPMFDInterp{
     gsl_interp * DF;
     gsl_interp * DDF;
     gsl_interp_accel * acc;
-    
 } FastPMFDInterp;
 
 void fastpm_fd_interp_init(FastPMFDInterp * FDinterp);

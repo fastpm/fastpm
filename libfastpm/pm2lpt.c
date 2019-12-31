@@ -11,7 +11,7 @@
 #include "pm2lpt.h"
 
 void 
-pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_k, FastPMStore * p, double shift[3], FastPMKernelType type)
+pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, FastPMStore * p, double shift[3], FastPMKernelType type)
 {
     /* read out values at locations with an inverted shift */
     int potorder, gradorder, deconvolveorder;
@@ -36,7 +36,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_k, FastP
     fastpm_painter_init(painter, pm, FASTPM_PAINTER_CIC, 0);
 
     PMGhostData * pgd;
-    if (p->dv1) {   //could alternatively use if (growth_rate_k)
+    if (p->dv1) {   //could alternatively use if (growth_rate_func_k)
         pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2 | COLUMN_DV1, painter->support);
     } else {
         pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2, painter->support);
@@ -70,7 +70,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_k, FastP
 
         if (p->dv1) {
             memcpy(workspace_v1, workspace, sizeof(workspace[0]) * pm->allocsize);
-            fastpm_apply_any_transfer(pm, workspace_v1, workspace_v1, (fastpm_fkfunc) fastpm_funck_eval2, growth_rate_k);
+            fastpm_apply_any_transfer(pm, workspace_v1, workspace_v1, (fastpm_fkfunc) fastpm_funck_eval2, growth_rate_func_k);
             pm_c2r(pm, workspace_v1);
 
             fastpm_readout_local(painter, workspace_v1, p, p->np, DV1[d]);

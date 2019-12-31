@@ -338,8 +338,6 @@ fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * str
     return r;
 }
 
-
-/* FIMXE: Probably shouldn't have belwo in this file, but it's similar to above, so perhaps can merge? */
 void
 fastpm_funck_init(FastPMFuncK * fk, const size_t size)
 {
@@ -361,7 +359,7 @@ fastpm_funck_init_from_string(FastPMFuncK * fk, const char * string)
         i = 0;
         for (line = list; *line; line++) {
             double k, f;
-            if(2 == sscanf(*line, "%lg\t%lg", &k, &f)) {   // note I changes space ot tab here. Could make more general?
+            if(2 == sscanf(*line, "%lg\t%lg", &k, &f)) {   // note tab. Could make more general?
                 if(pass == 1) {
                     fk->k[i] = k;
                     fk->f[i] = f;

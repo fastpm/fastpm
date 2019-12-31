@@ -6,7 +6,6 @@ typedef struct FastPMFuncK {
     double *f;
 } FastPMFuncK;
 
-
 typedef struct {
     FastPMFuncK base;
     double *edges;

@@ -3,28 +3,22 @@ typedef enum {
     FASTPM_NCDM_SPHERE_FIBONACCI = 1,
 } FastPMncdmSphereScheme;
 
-enum FastPMDivideSphere {     //FIXME: should implement this at some point
-    FASTPM_DIVIDE_SPHERE_HEALPIX = 0,
-    FASTPM_DIVIDE_SPHERE_FIBONACCI = 1,
-};
-
 typedef struct FastPMncdmInitData{
     double BoxSize;
     double Omega_ncdm;
     double m_ncdm[3];
-    int n_ncdm; /* number of ncdm species, each has a m_ncdm */
-    double m_ncdm_sum; /* total ev mass of all ncdm */
-    double z;   /* initialization redshift of ncdm species */
+    int n_ncdm;        /* number of ncdm species, each has a m_ncdm */
+    double m_ncdm_sum; /* total eV mass of all ncdm */
+    double z;          /* initialization redshift of ncdm species */
 
-    int n_shells;
-    int n_side;
-    int lvk;    /* bool: switch on low velocity kernel? */
-
+    int n_shells;    /* number of shells for splitting velocity magnitude distribution */
     FastPMncdmSphereScheme ncdm_sphere_scheme;
-    
+    int n_side;      /* n_side for healpix, also n_fib for fibonacci */
     size_t n_sphere; /* number of tiles on the sphere */
-    size_t n_split; /* number of phase space splits of each initial position */
-    /* a table for quick look up of the coherent thermal velocity and mass of split particles. */
+    size_t n_split;  /* total number of phase space splits */
+    int lvk;         /* bool: switch on low velocity kernel? */
+    
+    /* a table for look up of the coherent thermal velocity and mass of split particles */
     double (* vel)[3];
     double * mass;
 } FastPMncdmInitData;

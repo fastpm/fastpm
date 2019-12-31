@@ -169,7 +169,7 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
         deconvolveorder--;
     }
     int d1, d2;
-    
+
     switch(field.attribute) {
         case COLUMN_POTENTIAL:
             apply_pot_transfer(pm, delta_k, canvas, potorder);

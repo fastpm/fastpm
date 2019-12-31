@@ -129,7 +129,7 @@ fastpm_kick_lookup(FastPMKickFactor * kick, double af, double * dda, double * Dv
         *Dv1 = kick->Dv1[0];
         *Dv2 = kick->Dv2[0];
         return;
-    }   // FIXME: Should there be an else here?
+    }
     {
         ind = (af - kick->ai) / (kick->af - kick->ai) * (kick->nsamples - 1);
         int l = floor(ind);
@@ -159,7 +159,7 @@ fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p, ptrdiff_t i, float vo[
 
     int d;
     for(d = 0; d < 3; d++) {
-        float ax = p->acc[i][d];       //unlike a_x, which means a at which x is calcd
+        float ax = p->acc[i][d];       // unlike a_x, which means a at which x is calcd
         if(kick->forcemode == FASTPM_FORCE_COLA) {
             ax += (p->dx1[i][d]*kick->q1 + p->dx2[i][d]*kick->q2);
         }
@@ -312,23 +312,6 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
                G_f(&gi_i),
                g_p(&gi_i),
                g_f(&gi_i));
-
-    /*
-    // for debugging FIXME: remove eventually
-    FILE * pFile;
-    pFile = fopen ("factors_test_mncdm15.txt","a+");
-    fprintf (pFile, "%g %g %g %g %g %g %g %g %g\n",
-               ai,
-               gi_i.D1,
-               gi_i.D2,
-               gi_i.f1,
-               gi_i.f2,
-               G_p(&gi_i),
-               G_f(&gi_i),
-               g_p(&gi_i),
-               g_f(&gi_i));
-    fclose(pFile);
-    */
 }
 
 void
@@ -338,7 +321,7 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
     FastPMCosmology * c = fastpm->cosmology;
     drift->forcemode = fastpm->config->FORCE_TYPE;
 
-    FastPMGrowthInfo gi_i;    //maybe memalloc?
+    FastPMGrowthInfo gi_i;
     FastPMGrowthInfo gi_c;
     FastPMGrowthInfo gi_e;
 
@@ -362,11 +345,11 @@ fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm,
         double ae = ai * (1.0 * (drift->nsamples - 1 - i) / (drift->nsamples - 1))
                   + af * (1.0 * i / (drift->nsamples - 1));
 
-        fastpm_growth_info_init(&gi_e, ae, c);     //overwrite for each iteration.
+        fastpm_growth_info_init(&gi_e, ae, c);     // overwrite each iteration
         double D1_e = gi_e.D1;
         double D2_e = gi_e.D2;
 
-        if(drift->forcemode == FASTPM_FORCE_FASTPM) {
+        if (drift->forcemode == FASTPM_FORCE_FASTPM) {
             drift->dyyy[i] = 1 / (ac * ac * ac * E_c)
                         * (G_p(&gi_e) - G_p(&gi_i)) / g_p(&gi_c);
         } else {

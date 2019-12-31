@@ -13,15 +13,15 @@ struct FastPMCosmology {
     double Omega_m;
     double Omega_cdm;
     double Omega_Lambda;
-    double T_cmb;      /*related to Omega_g*/
-    //double T_nu;     //todays neutrino temperature HARD CODED FOR NOW
+    double T_cmb;
+    //double T_nu;     // todays neutrino temperature HARD CODED FOR NOW
     double N_eff;
     int N_nu;          // total number of neutrino species (massive and massless)
-    double m_ncdm[3];  // masses of massive neutrinos (ncdm) for now assume max of 3 ncdm nus.
+    double m_ncdm[3];  // masses of massive neutrinos (ncdm) for now assume max of 3 ncdms
     int N_ncdm;
     
     FastPMGrowthMode growth_mode;
-    FastPMFDInterp * FDinterp;   //FIXME:? Will just be NULL in the case of no ncdm.
+    FastPMFDInterp * FDinterp;   // FIXME:? Will just be NULL in the case of no ncdm
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);

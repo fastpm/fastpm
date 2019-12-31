@@ -4,97 +4,81 @@
 #include <gsl/gsl_sf_hyperg.h> 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
-
 #include <gsl/gsl_odeiv2.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
 #define STEF_BOLT 2.85087e-48  // in units: [ h * (10^10Msun/h) * s^-3 * K^-4 ]
-#define rho_crit 27.7455     //rho_crit0 in mass/length (not energy/length)
-#define LIGHT 9.715614e-15      // in units: [ h * (Mpc/h) * s^-1 ]      //need to update all these units and change Omega_g
+#define rho_crit 27.7455       // rho_crit0 in mass/length
+#define LIGHT 9.715614e-15     // in units: [ h * (Mpc/h) * s^-1 ]
 
-#define kB 8.617333262145e-5    //boltzman in eV/K   i th
+#define kB 8.617333262145e-5   // boltzman in eV/K
 
-double HubbleDistance = 2997.92458; /* Mpc/h */   /*this c*1e5 in SI units*/
-double HubbleConstant = 100.0; /* Mpc/h / km/s*/     //OTHER WAY ROUND!
+double HubbleDistance = 2997.92458; /* Mpc/h */
+double HubbleConstant = 100.0;      /* km/s / Mpc/h */
 
 double Omega_g(FastPMCosmology * c)
 {
-    /* This is really Omega_g0. All Omegas in this code mean 0, exceot nu!!, I would change notation, but anyway 
-    Omega_g0 = 4 \sigma_B T_{CMB}^4 8 \pi G / (3 c^3 H0^2)*/
+    /* FIXME: This is really Omega_g0. Might want to redefine all Omegas in the code */
     return 4 * STEF_BOLT * pow(c->T_cmb, 4) / pow(LIGHT, 3) / rho_crit / pow(c->h, 2);
 }
 
 double Gamma_nu(FastPMCosmology * c)
 {
     /* nu to photon temp ratio today */
-    if (c->N_nu == 0) {      //avoids nan because N_nu in denom (N_nu=0 => N_eff=0 => Gamma_nu=0)
-        return 0.;
-    }else{
-        return pow(4./11., 1./3.) * pow(c->N_eff / c->N_nu, 1./4.);  //* 1.00328; //copy gadget prepgramming. but gadget also assumes 3 m_nus, so maybe not the best idea. for debugging tho let's do this.
+    if (c->N_nu == 0) {
+        return 0;
+    } else {
+        return pow(4./11., 1./3.) * pow(c->N_eff / c->N_nu, 1./4.);
     }
 }
 
 double Omega_ur(FastPMCosmology * c)
 {
-    /*Omega_ur0. This is the energy density of all massless nus.*/
-    int N_ur = c->N_nu - c->N_ncdm;    //number of massless nus. Different to CLASS defn
+    /* Omega_ur0. This is the energy density of all massless nus */
+    int N_ur = c->N_nu - c->N_ncdm;    // number of massless nus (different to CLASS defn)
     return 7./8. * N_ur * pow(Gamma_nu(c), 4) * Omega_g(c);
 }
 
 double Omega_r(FastPMCosmology * c)
 {
-    /*Omega_r0. This is the energy density of all radiation-like particles.
-      FIXME: really this is Omega_g+ur, not r, because it doesn't have ncdm,r in it 
-      and we define m with ncdm,m. this doesn't affect rest of code, but maybe redefine.*/
+    /* Omega_r0. This is the energy density of all radiation-like particles.
+       FIXME: really this is Omega_g+ur, not r, because it doesn't have ncdm,r in it 
+       and we define m with ncdm,m. this doesn't affect rest of code, but maybe redefine.*/
     return Omega_g(c) + Omega_ur(c);
 }
 
 double getFtable(int F_id, double y, FastPMCosmology * c)
 {
-    //Not using size as an arg, it's globally defined
-    //Gets the interpolated value of Ftable[F_id] at y
-    //F_id: 1 for F, 2 for F', 3 for F''
-    
-    //if (y == 0.) {               //does this work for double?
-    //    return 0.;                //this hack ensures all Omega_ncdm related funcs will return 0.
-    //}else{
+    /* Not using size as an arg, it's globally defined
+       Gets the interpolated value of Ftable[F_id] at y
+       F_id: 1 for F, 2 for F', 3 for F'' */
     return fastpm_do_fd_interp(c->FDinterp, F_id, y);
-    //}
 }
 
 double Fconst(int ncdm_id, FastPMCosmology * c)
 {
-    /*
-    This is a cosmology dependent constant which is the argument divided by a of F, DF, DDF used repeatedly in code
-    To be clear, evaluate F at Fconst*a.
-    Fconst must be calculated for each ncdm species as it depends on the mass. ncdm_id labels the element of m_ncdm.
-    */
-    
-    if (c->T_cmb == 0. || c->N_ncdm == 0) {
-        return 0.;          // Incase you want to run with no radaition in bkg! This is a bit ugly... because we still go thru all the F funcs
-    }else{
+    /* This is a cosmology dependent constant 
+       which is the argument divided by a of F, DF, DDF */
     double T_nu = Gamma_nu(c) * c->T_cmb;
-    //printf("%d %g %g %g %g\n", ncdm_id, c->m_ncdm[ncdm_id], c->m_ncdm[ncdm_id] / (kB * T_nu), kB, T_nu);
     return c->m_ncdm[ncdm_id] / (kB * T_nu);
-    }
 }
 
 double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c)   
 {
-    /* Use interpolation to find Omega_ncdm_i(a) * E(a)^2 */
+    /* Omega_ncdm_i(a) * E(a)^2 */
     
     double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
     double Fc = Fconst(ncdm_id, c);
-    double F = getFtable(1, Fc*a, c);              //row 1 for F
+    double F = getFtable(1, Fc*a, c);         //row 1 for F
     
     return A / (a*a*a*a) * F;
 }
 
 double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c)   
 {
-    //sum the fermi-dirac integration results for each ncdm species
+    // sum over ncdm species
     double res = 0;
     for (int i=0; i<c->N_ncdm; i++) {
         res += Omega_ncdm_iTimesHubbleEaSq(a, i, c);
@@ -102,7 +86,6 @@ double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c)
     return res;
 }
 
-//lots of repn in the below funcs, should we define things globally (seems messy), or object orient?
 double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c)
 {
     double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
@@ -138,14 +121,14 @@ double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c)
 
 double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
 {
-    /*eos parameter for ith neutrino species*/
+    /* eos parameter for ith ncdm species */
     double y = Fconst(ncdm_id, c) * a;
     return 1./3. - y / 3. * getFtable(2, y, c) / getFtable(1, y, c);
 }
 
 double Omega_ncdm_mTimesHubbleEaSq(double a, FastPMCosmology * c)
 {
-    // useful for prepare_cosmology.
+    /* matter-like part */
     double res = 0;
     for (int i=0; i<c->N_ncdm; i++) {
         res += (1. - 3 * w_ncdm_i(a, i, c)) * Omega_ncdm_iTimesHubbleEaSq(a, i, c);
@@ -155,7 +138,7 @@ double Omega_ncdm_mTimesHubbleEaSq(double a, FastPMCosmology * c)
 
 double Omega_ncdm_rTimesHubbleEaSq(double a, FastPMCosmology * c)
 {
-    // useful for prepare_cosmology.
+    /* radiation-like part */
     double res = 0;
     for (int i=0; i<c->N_ncdm; i++) {
         res += 3 * w_ncdm_i(a, i, c) * Omega_ncdm_iTimesHubbleEaSq(a, i, c);
@@ -187,14 +170,13 @@ double Omega_ncdm(double a, FastPMCosmology * c)
 
 double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c)
 {
-    /*matter-like part of ncdm_i*/
-    //printf("\n wwww %g %g \n", a, w_ncdm_i(a, ncdm_id, c));
+    /* matter-like part of ncdm_i */
     return (1. - 3 * w_ncdm_i(a, ncdm_id, c)) * Omega_ncdm_i(a, ncdm_id, c);
 }
 
 double Omega_ncdm_m(double a, FastPMCosmology * c)
 {
-    /*total ncdm matter-like part*/
+    /* total ncdm matter-like part */
     double res = 0;
     for (int i=0; i<c->N_ncdm; i++) {
         res += Omega_ncdm_i_m(a, i, c);
@@ -204,18 +186,19 @@ double Omega_ncdm_m(double a, FastPMCosmology * c)
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
 {
-    //as a func of a. I dont like this. I would use 0s in struct instead. ask yu.
+    /* as a func of a 
+       FIXME: remove the _a and put in 0s for today's value elsewhere */
     double E = HubbleEa(a, c);
     return c->Omega_cdm / (a*a*a) / (E*E);
 }
 
 double OmegaA(double a, FastPMCosmology * c) {
-    //this is what I called Omega_cdm_a above. choose which to use later.
+    // FIXME: Outdated, remove.
     return Omega_cdm_a(a, c);
 }
 
 double Omega_m(double a, FastPMCosmology * c){
-    /*Total matter component (cdm + ncdm_m)*/
+    /* Total matter component (cdm + ncdm_m) */
     return Omega_cdm_a(a, c) + Omega_ncdm_m(a, c);
 }
 
@@ -239,7 +222,6 @@ double D2HubbleEaDa2(double a, FastPMCosmology * c)
 
 double OmegaSum(double a, FastPMCosmology* c)
 {
-    //should always equal 1. good for testing.
     double sum = Omega_r(c) / pow(a, 4);
     sum += c->Omega_cdm / pow(a, 3);
     sum += Omega_ncdmTimesHubbleEaSq(a, c);
@@ -282,7 +264,6 @@ static double solve_growth_int(double a, FastPMCosmology * c)
 
 static int growth_ode(double a, const double y[], double dyda[], void *params)
 {
-    //is yy needed?
     FastPMCosmology* c = (FastPMCosmology * ) params;
     
     const double E = HubbleEa(a, c);
@@ -304,9 +285,7 @@ static int growth_ode(double a, const double y[], double dyda[], void *params)
 
 static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
 {
-    /* NOTE that the analytic COLA growthDtemp() is 6 * pow(1 - c.OmegaM, 1.5) times growth() */
-    /* This returns an array of {d1, F1, d2, F2}
-        Is there a nicer way to do this within one func and no object?*/
+    /* This returns an array of {d1, F1, d2, F2} (unnormalised) */
     gsl_odeiv2_system F;
     F.function = &growth_ode;
     F.jacobian = NULL;
@@ -322,32 +301,9 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
                                                1,
                                                1);
     
-     /* We start early to avoid lambda, but still MD so we use y<<1 Meszearos soln. And assume all nus are radiation*/
-    
-    //Note the normalisation of D is arbitrary as we will only use it to calcualte growth fractor.
-    
-    // ASSUME MD, no FS
-    //double aini = 4e-2;
-    //double yini[4] = {aini, aini, -3./7.*aini*aini, -6./7.*aini*aini};
-    
-    //FIXME: Consider a R+M only universe. 1LPT is Mesezaros, but 2LPT is currently wrong!
-    //double aini = 1e-5;
-    //double value = 1.5 * c->Omega_cdm / (aini*aini*aini*aini);
-    //double yini[4] = {0, 0, -3./7.*aini*aini * value, -6./7.*aini*aini * value};
-    //yini[0] = 1.5 * c->Omega_cdm / (aini*aini*aini) + Omega_r(c) / (aini*aini*aini*aini) + Omega_ncdmTimesHubbleEaSq(aini, c);
-    //yini[1] = 1.5 * c->Omega_cdm / (aini*aini*aini);
-    
-    // ASSUME RD
-    //double aini = 4e-2;
-    //double aH = 1e-5;
-    //double log_iH = log(aini / aH);
-    //double yini[4] = {log_iH, 1, 0, 0};
-    //yini[2] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 4 * log_iH + 6 );     // Should really be Omega_m, but assume matter is just cdm at this time (i.e. all neutrinos are rel).
-    //yini[3] = - 3 / 2 * Omega_cdm_a(aini, c) * ( log_iH*log_iH - 2 * log_iH + 2 );
-
-    // ASSUME MD, FS
-    double aini = 4e-2;
-    double f = Omega_ncdm(1, c) / Omega_m(1, c);    //dont think I want to include relativistic nus?
+    // assume matter domination and free streaming.
+    double aini = 4e-2;  // FIXME: need to make sure this is less than the starting a
+    double f = Omega_ncdm(1, c) / Omega_m(1, c);    // FIXME: ncdm or ncdm_m or ncdm_ur?
     double p = 1./4. * (5 - sqrt(25 - 24 * f));
     double yini[4];
     yini[0] = pow(aini, 1-p);
@@ -355,18 +311,12 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     yini[2] = - 3./7. * (1 - f) / (1 - (9*f - 2*p)/7) * yini[0]*yini[0];
     yini[3] = 2 * (1 - p) * yini[2];
     
-    //int stat = 
-    gsl_odeiv2_driver_apply(drive, &aini, a, yini);
-    //if (stat != GSL_SUCCESS) {     //If succesful, stat will = GSL_SUCCESS and yinit will become the final values...
-        //endrun(1,"gsl_odeiv in growth: %d. Result at %g is %g %g\n",stat, curtime, yinit[0], yinit[1]); //need to define endrun
-    //    printf(stat);    //quick fix for now 
-    //}
+    int status = gsl_odeiv2_driver_apply(drive, &aini, a, yini);
+    if (status != GSL_SUCCESS) {
+        fastpm_raise(-1, "Growth ODE unsuccesful at a=%g.", a);
+    }
     
     gsl_odeiv2_driver_free(drive);
-    /*Store derivative of D if needed.*/
-    //if(dDda) {
-    //    *dDda = yinit[1]/pow(a,3)/(hubble_function(a)/CP->Hubble);
-    //}
     
     ode_soln soln;
     soln.y0 = yini[0];
@@ -411,9 +361,9 @@ void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCos
 }
 
 double DGrowthFactorDa(FastPMGrowthInfo * growth_info) {
-    /* dD/da
-       FIXME: Only re-introduced this to reproduce LCDM results from before.
-       Maybe we don't care about this so much.*/
+    /* dD/da */
+    /* FIXME: Technically the ODE version should agree with LCDM version
+              but to ensure backwards compatibility both versions are here. */
     double a = growth_info->a;
     FastPMCosmology * c = growth_info->c;
     
@@ -437,8 +387,8 @@ double DGrowthFactorDa(FastPMGrowthInfo * growth_info) {
 
 double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
     /* d^2 D1 / da^2 */
-    /* FIXME: Technically the ODE version should agree with LCDM version, 
-       but I'm yet to prove this, so I've hard coded the old version in. */
+    /* FIXME: Technically the ODE version should agree with LCDM version
+              but to ensure backwards compatibility both versions are here. */
     double a = growth_info->a;
     FastPMCosmology * c = growth_info->c;
     
