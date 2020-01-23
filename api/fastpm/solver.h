@@ -52,6 +52,7 @@ typedef struct {
     double alloc_factor;
 
     FastPMCosmology * cosmology;
+
     VPMInit * vpminit;
     int USE_DX1_ONLY;
     int USE_SHIFT;

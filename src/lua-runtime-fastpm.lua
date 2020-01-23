@@ -135,7 +135,7 @@ schema.declare{name='linear_density_redshift', type='number', default=0, help='r
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
 schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
 schema.declare{name='read_linear_growth_rate_ncdm', type ='file', help='file to read the linear growth rate (f_1) of ncdm. If left empty, will use internal f_1.'}
-schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field. '}
+schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field.'}
 
 schema.declare{name='read_grafic',        type='string'}
 schema.declare{name='read_runpbic',       type='string'}

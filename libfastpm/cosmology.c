@@ -302,7 +302,7 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
                                                1);
     
     // assume matter domination and free streaming.
-    double aini = 4e-2;  // FIXME: need to make sure this is less than the starting a
+    double aini = 0.00625;  // FIXME: need to make sure this is less than the starting a. For now using z=159.
     double f = Omega_ncdm(1, c) / Omega_m(1, c);    // FIXME: ncdm or ncdm_m or ncdm_ur?
     double p = 1./4. * (5 - sqrt(25 - 24 * f));
     double yini[4];
