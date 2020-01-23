@@ -393,12 +393,12 @@ fastpm_funck_eval(FastPMFuncK * fk, double k)
 {
 
     /* ignore the 0 mode */
-
     if(k == 0) return 1;
 
     int l = 0;
     int r = fk->size - 1;
 
+    /* determine the right and left values around k */
     while(r - l > 1) {
         int m = (r + l) / 2;
         if(k < fk->k[m])
@@ -415,8 +415,8 @@ fastpm_funck_eval(FastPMFuncK * fk, double k)
         return fk->f[l];
     }
 
-    if(f1 == 0 || f2 == 0 || k1 == 0 || k2 == 0) {
-        /* if any of the f is zero, use linear interpolation */
+    if(f1 <= 0 || f2 <= 0 || k1 == 0 || k2 == 0) {
+        /* if any of the f is zero, or negative, use linear interpolation */
         double f = (k - k1) * f2 + (k2 - k) * f1;
         f /= (k2 - k1);
         return f;
