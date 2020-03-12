@@ -27,9 +27,11 @@ ap = ArgumentParser()
 ap.add_argument("-r", "--restore", action='store_true', default=False,
             help="Reverse the operation; recover the files instead of backup.")
 ap.add_argument("-g", "--debug", action='store_true', default=False, help="print debugging information.")
+ap.add_argument("--dry-run", action='store_true', default=False, help="Only print the commands.")
 
-ap.add_argument("-p", "--pattern", type=string, action='append',
-                default=[], help="only include files that match patterns in this list; relative to the src.")
+ap.add_argument("-p", "--pattern", type=str, action='append',
+                default=[], help="only include files and tars that fnmatch patterns in this list. "
+                                 "Relative to src. '/' has no special meaning.")
 # use these options to recover a failed / partial operation.
 ap.add_argument("-f", "--file-start", type=int, default=0, help="start the retrieval of files from this")
 ap.add_argument("-F", "--file-end", type=int, default=None,
@@ -46,6 +48,9 @@ import os
 from fnmatch import fnmatch
 from subprocess import check_call, check_output, CalledProcessError
 import subprocess
+
+def print_call(args, cwd, stderr):
+   print("( cd %(cwd)s; %(cmd)s )" % dict(cwd=cwd, cmd=" ".join(args)))
 
 def find_tarables(rootdir, relpath=True, leaflist=[]):
     """ discover directories and files that can be htar or hsi put.
@@ -103,8 +108,10 @@ def hpathnames(files):
     else:
         return '%s : %s' % (files, files)
 
-def hput(workdir, targetdir, files, verbose=False):
-    if verbose:
+def hput(workdir, targetdir, files, verbose=False, dry_run=False):
+    if dry_run:
+        run = print_call
+    elif verbose:
         run = check_call
     else:
         run = check_output
@@ -114,11 +121,16 @@ def hput(workdir, targetdir, files, verbose=False):
         files=' '.join(hpathnames(files)))
         ], cwd=workdir, stderr=subprocess.STDOUT)
 
-def hget(workdir, targetdir, files, verbose=False):
-    if verbose:
+def hget(workdir, targetdir, files, verbose=False, dry_run=False):
+    if dry_run:
+        run = print_call
+    elif verbose:
         run = check_call
     else:
         run = check_output
+
+    if len(files) == 0:
+        return
 
     return run(["hsi" , "-q", "cd %(hpss)s; get %(files)s" % dict(
         hpss=targetdir,
@@ -140,9 +152,11 @@ def hexists(workdir, file, verbose=False):
 
     return True
 
-def htar(mode, workdir, target, src, verbose=False):
+def htar(mode, workdir, target, src, verbose=False, dry_run=False):
     """ mode can be c, t, x """
-    if verbose:
+    if dry_run:
+        run = print_call
+    elif verbose:
         run = check_call
     else:
         run = check_output
@@ -155,10 +169,10 @@ def htar(mode, workdir, target, src, verbose=False):
     return run(["htar", "-q", "-P", "-%s%sf" % (mode, verbose), target, src], cwd=workdir, stderr=subprocess.STDOUT)
 
 def match_filename(ns, filename):
-    if len(pattern) == 0:
+    if len(ns.pattern) == 0:
         return True
     for pattern in ns.pattern:
-        if glob.fnmatch(filename, pattern):
+        if fnmatch(filename, pattern):
             return True
     return False
 
@@ -220,11 +234,13 @@ def backup(ns):
         matched = [fn for fn in extrafiles[i:i1] if match_filename(ns, fn)]
 
         if ns.restore:
-            print("Retriving extra files (%d / %d) ..." %( i, len(extrafiles)))
-            hget(ns.src, ns.dest, matched, verbose=ns.debug)
+            print("Retriving extra file (%d / %d) ..." %(i, len(extrafiles)))
+            print(" ".join(matched))
+            hget(ns.src, ns.dest, matched, verbose=ns.debug, dry_run=ns.dry_run)
         else:
             print("Storing extra files (%d / %d) ..." %( i, len(extrafiles)))
-            hput(ns.src, ns.dest, matched, verbose=ns.debug)
+            print(" ".join(matched))
+            hput(ns.src, ns.dest, matched, verbose=ns.debug, dry_run=ns.dry_run)
 
     for i in range(ns.tar_start, ns.tar_end):
         tarable = tarables[i]
@@ -234,16 +250,19 @@ def backup(ns):
 
         if ns.restore:
             print("Retreving tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
-            htar('x', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
+            htar('x', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable,
+                verbose=ns.debug, dry_run=ns.dry_run)
         else:
             print("Creating tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
 
             if hexists(ns.src, os.path.join(ns.dest, "%s.tar.idx" % tarable)):
                 print("File %s already exists with the following contenxt. Delete it if you want to overwrite it." % os.path.join(ns.dest, "%s.tar" % tarable))
                 # use verbose to obtain list of files on stdout
-                htar('t', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=True)
+                htar('t', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable,
+                    verbose=True, dry_run=ns.dry_run)
             else:
-                htar('c', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
+                htar('c', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable,
+                    verbose=ns.debug, dry_run=ns.dry_run)
 
 if __name__ == "__main__":
     ns = ap.parse_args()
