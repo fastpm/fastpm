@@ -918,6 +918,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     free(filebase);
 }
 
+static int cmp_double(const void * p1, const void * p2)
+{
+    const double * d1 = (const double *) p1;
+    const double * d2 = (const double *) p2;
+    return (*d1 > *d2) - (*d2 > *d1);
+}
 static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData * prr)
 {
@@ -930,7 +936,14 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
     /* interpolate and write snapshots, assuming p 
      * is at time a_x and a_v. */
     int nout = CONF(prr->lua, n_aout);
-    double * aout = CONF(prr->lua, aout);
+    double * aout = malloc(sizeof(double) * nout);
+    memcpy(aout, CONF(prr->lua, aout), sizeof(double) * nout);
+
+    /* the following algorithm requires a sorted aout.
+     * since CONF(prr->lua, aout) is immutable, we will always get the same
+     * aout array. but it would be better to store the sorted aout somewhere,
+     * e.g. refactor this function to a snapshot checker object. */
+    qsort(aout, nout, sizeof(double), cmp_double);
 
     int iout;
     for(iout = prr->iout; iout < nout; iout ++) {
@@ -968,6 +981,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
         prr->iout = iout + 1;
     }
 
+    free(aout);
     return 0;
 }
 
