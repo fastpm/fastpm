@@ -1,7 +1,7 @@
 #! /usr/bin/python -u
 #SBATCH -q xfer
 #SBATCH -o %x.%j
-#SBATCH -t 24:00:00
+#SBATCH -t 48:00:00
 
 from __future__ import print_function
 """
@@ -28,6 +28,8 @@ ap.add_argument("-r", "--restore", action='store_true', default=False,
             help="Reverse the operation; recover the files instead of backup.")
 ap.add_argument("-g", "--debug", action='store_true', default=False, help="print debugging information.")
 
+ap.add_argument("-p", "--pattern", type=string, action='append',
+                default=[], help="only include files that match patterns in this list; relative to the src.")
 # use these options to recover a failed / partial operation.
 ap.add_argument("-f", "--file-start", type=int, default=0, help="start the retrieval of files from this")
 ap.add_argument("-F", "--file-end", type=int, default=None,
@@ -152,6 +154,14 @@ def htar(mode, workdir, target, src, verbose=False):
 
     return run(["htar", "-q", "-P", "-%s%sf" % (mode, verbose), target, src], cwd=workdir, stderr=subprocess.STDOUT)
 
+def match_filename(ns, filename):
+    if len(pattern) == 0:
+        return True
+    for pattern in ns.pattern:
+        if glob.fnmatch(filename, pattern):
+            return True
+    return False
+
 def backup(ns):
     print("FastPM snapshots on local systems at:")
     print(ns.src)
@@ -207,15 +217,21 @@ def backup(ns):
         i1 = i + chunksize
         if i1 > ns.file_end:
             i1 = ns.file_end
+        matched = [fn for fn in extrafiles[i:i1] if match_filename(ns, fn)]
+
         if ns.restore:
             print("Retriving extra files (%d / %d) ..." %( i, len(extrafiles)))
-            hget(ns.src, ns.dest, extrafiles[i:i1], verbose=ns.debug)
+            hget(ns.src, ns.dest, matched, verbose=ns.debug)
         else:
             print("Storing extra files (%d / %d) ..." %( i, len(extrafiles)))
-            hput(ns.src, ns.dest, extrafiles[i:i1], verbose=ns.debug)
+            hput(ns.src, ns.dest, matched, verbose=ns.debug)
 
     for i in range(ns.tar_start, ns.tar_end):
         tarable = tarables[i]
+        if not match_filename(ns, tarable):
+            print("Skipped tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
+            continue
+
         if ns.restore:
             print("Retreving tar for dataset (%d / %d) %s : " % (i, len(tarables), tarable))
             htar('x', ns.src, os.path.join(ns.dest, "%s.tar" % tarable), tarable, verbose=ns.debug)
