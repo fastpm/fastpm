@@ -797,6 +797,7 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
+                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->pm),
                 p,
                 CONF(prr->lua, lc_usmesh_alloc_factor) *
                 p->np_upper,
@@ -859,7 +860,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
-    fastpm_info("Unstructured LightCone ready : ai = %g af = %g, n = %td\n", lcevent->ai, lcevent->af, np);
+    double max_np;
+    int max_rank;
+    MPIU_stats(fastpm->comm, np, ">.", &max_np, &max_rank);
+
+    fastpm_info("Unstructured LightCone ready : ai = %g af = %g, n = %td max = %g on Task %d\n",
+             lcevent->ai, lcevent->af, np, max_np, max_rank);
 
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
 
@@ -1276,14 +1282,14 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
 static int
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
+    double a1 = event->drift->ai > event->drift->af ? event->drift->af: event->drift->ai;
+    double a2 = event->drift->ai > event->drift->af ? event->drift->ai: event->drift->af;
 
-    int64_t np = usmesh->p->np;
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, a1, a2, event->whence, fastpm->comm);
 
-    MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
-
-    fastpm_info("Total number of particles in light cone slice: %ld\n", np);
-
+    int64_t np_lc = usmesh->np_before + usmesh->p->np;
+    MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
+    fastpm_info("Total number of particles wrote into lightcone: %ld\n", np_lc);
     return 0;
 }
 

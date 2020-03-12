@@ -14,7 +14,8 @@ TEST_SOURCES = testpm.c \
                testfof.c \
                testconstrained.c \
                testlightcone.c \
-               testangulargrid.c
+               testangulargrid.c \
+               testboxsphere.c
 
 #			   testlightconeP.c
 
@@ -40,6 +41,10 @@ testconstrained : .objs/testconstrained.o $(LIBFASTPM_LIBS)
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testlightcone : .objs/testlightcone.o $(LIBFASTPM_LIBS)
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) $(GSL_LIBS) -lm
+
+testboxsphere: .objs/testboxsphere.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
