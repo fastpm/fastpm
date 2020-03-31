@@ -138,14 +138,6 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     PM * pm = fastpm->pm;
     FastPMConfig * config = fastpm->config;
 
-    double BoxSize = fastpm->config->boxsize;
-    uint64_t NC = fastpm->config->nc;
-
-    double Omega_cdm = fastpm->cosmology->Omega_cdm;
-    double M0 = Omega_cdm * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
-
-    p->meta.M0 = M0;
-
     int temp_dx1 = 0;
     int temp_dx2 = 0;
     int temp_dv1 = 0;
@@ -390,13 +382,15 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     FastPMForceEvent event[1];
 
-    /* FIXME modify gravity.c to compute delta_k from all species.
-       [ Only CDM is used to calc N below ] */
+    /* FIXME modify gravity.c to compute delta_k from all species. */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+    int64_t N = p->np;
+    if (fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM)) {
+        FastPMStore * ncdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM);
+        N += ncdm->np;
+    }
 
     fastpm_painter_init(painter, pm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
-
-    int64_t N = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 

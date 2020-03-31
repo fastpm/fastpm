@@ -263,7 +263,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     CLOCK(sort);
     CLOCK(indexing);
 
-    const double M0 = fastpm->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
+    const double M0 = config->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
                     * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
     fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
@@ -665,6 +665,13 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
+    /* set the mass */
+    double BoxSize = fastpm->config->boxsize;
+    uint64_t NC = fastpm->config->nc;
+    double Omega_cdm = fastpm->cosmology->Omega_cdm;
+    double M0 = Omega_cdm * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+    fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->meta.M0 = M0;
+
     fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, growth_rate_func_k, CONF(prr->lua, time_step)[0]);
 
     if (growth_rate_func_k)
@@ -677,12 +684,15 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 {
     if(CONF(prr->lua, n_m_ncdm) == 0) return;
 
+    double boxsize = CONF(prr->lua, boxsize);
+    double BoxSize[3] = {boxsize, boxsize, boxsize};
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
     int every = CONF(prr->lua, every_ncdm);
 
-    size_t nc_ncdm = CONF(prr->lua, nc) / every;
+    size_t nc_cdm = CONF(prr->lua, nc);
+    size_t nc_ncdm = nc_cdm / every;
 
     if (CONF(prr->lua, nc) % every != 0) {
         fastpm_raise(-1, "TODO: check this in parameter file. ");
@@ -690,7 +700,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
-            CONF(prr->lua, boxsize),
+            boxsize,
             fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk,
             CONF(prr->lua, ncdm_sphere_scheme));
     
@@ -708,7 +718,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
           fastpm->config->alloc_factor,
           comm);
     
-    // create store for ncdm sites (i.e.before splitting) 
+    // create store for ncdm sites (i.e. before splitting)
     // (analogously to how cdm is created in solver_init)
     FastPMStore * ncdm_sites = malloc(sizeof(FastPMStore));
     fastpm_store_init_evenly(ncdm_sites,
@@ -718,10 +728,6 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
           fastpm->config->alloc_factor,
           comm);
 
-    fastpm_solver_add_species(fastpm, 
-                              FASTPM_SPECIES_NCDM, 
-                              ncdm_sites);         //will replace after splitting.
-    
     // call fastpm_store_fill on ncdm to give correct qs
     double shift0;
     if(fastpm->config->USE_SHIFT) {
@@ -730,11 +736,40 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         shift0 = 0;
     }
     double shift[3] = {shift0, shift0, shift0};
-    
+
     // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
     ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
-    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), fastpm->pm, shift, Nc_ncdm);
+    fastpm_store_fill(ncdm_sites, fastpm->pm, shift, Nc_ncdm);
+
+    // stagger the ncdm grid wrt the cdm grid. FIXME: Does this conflict with the shift stuff above?
+    int i, d;
+    for(i = 0; i < ncdm_sites->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            ncdm_sites->x[i][d] += fastpm->config->boxsize / nc_cdm * 0.5;
+            if (ncdm_sites->q)
+                ncdm_sites->q[i][d] += fastpm->config->boxsize / nc_cdm * 0.5;
+        }
+    }
+
+    // SPLIT
+    fastpm_split_ncdm(nid, ncdm_sites, ncdm, comm);
+
+    // replace ncdm species with the split ncdm
+    fastpm_solver_add_species(fastpm,
+                              FASTPM_SPECIES_NCDM,
+                              ncdm);
+
+    /* after splitting, the ncdm particles have moved so we must
+       apply periodic boundary and move particles to the correct rank */
+    PM * pm = fastpm->pm;   // FIXME: I'm not sure this is what we want it to be. I think this is overwritten a lot throughout the solver.
+    int NTask;
+    MPI_Comm_size(fastpm->comm, &NTask);
     
+    fastpm_store_wrap(ncdm, BoxSize);
+    fastpm_store_decompose(ncdm,
+                           (fastpm_store_target_func) FastPMTargetPM, pm,
+                           fastpm->comm);
+
     // compute delta_k for ncdm
     FastPMFloat * delta_k = pm_alloc(fastpm->pm);
     
@@ -768,14 +803,6 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     if (growth_rate_func_k)
         fastpm_funck_destroy(growth_rate_func_k);
     pm_free(fastpm->pm, delta_k);
-    
-    // SPLIT
-    fastpm_split_ncdm(nid, ncdm_sites, ncdm, comm);
-    
-    // replace ncdm species with the split ncdm
-    fastpm_solver_add_species(fastpm, 
-                              FASTPM_SPECIES_NCDM, 
-                              ncdm);
     
     fastpm_store_destroy(ncdm_sites);
     fastpm_ncdm_init_free(nid);

@@ -195,7 +195,7 @@ pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
             p->x[i][d] += D1 * p->dx1[i][d] + D2 * p->dx2[i][d];
 
             if(p->v) {
-                p->v[i][d] = p->dx2[i][d]*Dv2;
+                p->v[i][d] += p->dx2[i][d]*Dv2;
                 if (p->dv1) {
                     p->v[i][d] += dv1_prefac * p->dv1[i][d];
                 } else {
