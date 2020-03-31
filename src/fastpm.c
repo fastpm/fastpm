@@ -759,15 +759,14 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
                               FASTPM_SPECIES_NCDM,
                               ncdm);
 
-    /* after splitting, the ncdm particles have moved so we must
-       apply periodic boundary and move particles to the correct rank */
-    PM * pm = fastpm->pm;   // FIXME: I'm not sure this is what we want it to be. I think this is overwritten a lot throughout the solver.
+    /* after splitting, the ncdm particles have moved so we
+       must wrap and move particles to the correct rank */
     int NTask;
     MPI_Comm_size(fastpm->comm, &NTask);
-    
     fastpm_store_wrap(ncdm, BoxSize);
     fastpm_store_decompose(ncdm,
-                           (fastpm_store_target_func) FastPMTargetPM, pm,
+                           (fastpm_store_target_func) FastPMTargetPM,
+                           fastpm->pm,
                            fastpm->comm);
 
     // compute delta_k for ncdm
