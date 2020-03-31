@@ -364,10 +364,11 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)
     divide_sphere(nid->ncdm_sphere_scheme, vec_table, n_side);
     
     /* velocity_conversion_factor converts the dimless exponent
-       in the FD distribution to velocity in km/s.
+       in the FD distribution to velocity in FastPM units:
+       conjugate momentum (a^2 xdot, where x is comoving dist).
        kTc = 50.3 eV/c^2 km/s */
     double m0 = nid->m_ncdm[0];
-    double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m0);
+    double velocity_conversion_factor = 50.3 / m0 / HubbleConstant;
 
     int i, j, d;
     int s = 0;                          //row num  (s for split index)
@@ -422,7 +423,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     int n_sphere = nid->n_sphere;
     double vthm_max = 0;
     for (int d = 0; d < 3; d ++)
-        vthm_max += nid->vel[n_sphere*n_shells][d]*nid->vel[n_sphere*n_shells][d];
+        vthm_max += nid->vel[n_sphere*n_shells-1][d]*nid->vel[n_sphere*n_shells-1][d];
     vthm_max = sqrt(vthm_max);
     double disp_factor = 0.5 * nid->BoxSize / nid->n_ncdm / vthm_max * (n_shells - 1) / n_shells;
 
@@ -447,9 +448,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             dest->mass[r] = nid->mass[s] * M0;    // ensures sum over split gives M0
 
             for(d = 0; d < 3; d ++){
-                /* convert thermal velcoity into FastPM units
-                   conjugate momentum unit [a^2 xdot, where x is comoving dist] */
-                vthm = nid->vel[s][d] / (1. + nid->z) / HubbleConstant;
+                vthm = nid->vel[s][d];
                 dest->v[r][d] = vthm;
                 dest->x[r][d] += vthm * disp_factor;
                 if (dest->q) dest->q[r][d] += vthm * disp_factor;
