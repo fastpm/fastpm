@@ -12,6 +12,7 @@ CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 
 TEST_SOURCES = testpm.c \
                testfof.c \
+               testrfof.c \
                testconstrained.c \
                testlightcone.c \
                testangulargrid.c \
@@ -33,6 +34,10 @@ testpm : .objs/testpm.o $(LIBFASTPM_LIBS)
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 testfof : .objs/testfof.o $(LIBFASTPM_LIBS)
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) $(GSL_LIBS) -lm
+
+testrfof : .objs/testrfof.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 

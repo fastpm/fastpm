@@ -40,6 +40,7 @@ LIBSOURCES = libfastpm.c \
     pmapi.c \
     string.c \
     fof.c \
+    rfof.c \
     version.c \
     chealpix.c \
     thermalvelocity.c
