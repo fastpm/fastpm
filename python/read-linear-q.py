@@ -15,7 +15,19 @@ particle, where powerspectrum.txt is at /home/yfeng1/source/fastpm/tests
 
   python read-linear-q.py ../tests/nbodykit/fastpm_1.0000/ linear --cwd /home/yfeng1/source/fastpm/tests/
 
-If we do not want to write to ../tests/nbodykit/fastpm_1.0000, then add --ocatalog="here".
+If we do not want to write to ../tests/nbodykit/fastpm_1.0000, then add --ocatalog=here.
+
+For a read-only CrowCanyon-II dataset, something like this would work:
+
+  python read-linear-q.py /.../readonly/5001-8192/lightcone/usmesh/ linear \
+       --ocatalog=/global/cscratch1/sd/yfeng1/m3404/desi/5001-8192/lightcone/usmesh/
+
+There was no need for cwd because we use absolute paths in CrowCanyon2.
+
+
+This script will likely not work with ncdm, because the way ncdm particle ID relates to Q. 
+A fix should be trivial.
+
 """
 
 from nbodykit.lab import BigFileCatalog
