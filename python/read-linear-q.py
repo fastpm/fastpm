@@ -39,6 +39,7 @@ from mpi4py import MPI
 import os
 from pmesh.pm import ParticleMesh
 from nbodykit import setup_logging
+import dask.array as da
 
 ap = argparse.ArgumentParser()
 ap.add_argument("catalog", help="e.g. fastpm_1.0000 or fof_1.0000")
@@ -142,16 +143,8 @@ def main():
     strides = cat.attrs["q.strides"]
     scale = cat.attrs["q.scale"]
     shift = cat.attrs["q.shift"]
-    ID = cat['ID'].compute()  # read all IDs in
-    Q = id2q(ID, strides=strides, scale=scale, shift=shift)
-
-    if cat.comm.rank == 0 and len(Q) > 0:
-        cat.logger.info("On rank 0, Q = [ %s ] - [ %s ]", Q.min(axis=0), Q.max(axis=0))
 
     pm = ParticleMesh([nmesh] * 3, cat.attrs['BoxSize'], comm=cat.comm)
-    wn = pm.generate_whitenoise(params['random_seed'],
-                                unitary=params['remove_cosmic_variance'],
-                                type='untransposedcomplex')
 
     k, Pk = params.read_powerspectrum()
     def pklin(k_):
@@ -159,21 +152,66 @@ def main():
     def tf(k_):
         return (pklin(k_.normp(2, zeromode=1.0)**0.5) / pm.BoxSize.prod())
 
-    dlin = wn.apply(lambda k, v: tf(k) * v).c2r()
-    layout = pm.decompose(Q)
-    if cat.comm.rank == 0:
-        cat.logger.info("decompose finished.")
-    delta = dlin.readout(Q, layout=layout)
-    if cat.comm.rank == 0:
-        cat.logger.info("readout done.")
-    cat[ns.ocolumn] = delta
+    dlin = pm.generate_whitenoise(params['random_seed'],
+                                unitary=params['remove_cosmic_variance'],
+                                type='untransposedcomplex')
+    dlin = dlin.apply(lambda k, v: tf(k) * v).c2r()
 
     if cat.comm.rank == 0:
-        cat.logger.info("On rank0, <delta> = %g, std(delta) = %g", delta.mean(), delta.std())
+        cat.logger.info("linear field generated.")
+
+    Nchunks = max(cat.comm.allgather(cat.size)) // (4 * 1024 * 1024)
+    Nchunks = max(1, Nchunks)
+
+    if cat.comm.rank == 0:
+        cat.logger.info("Nchunks = %d", Nchunks)
+
+    ID = cat['ID']
+
+    delta = numpy.empty(len(ID), dtype='f4')
+    
+    if cat.comm.rank == 0:
+        cat.logger.info("delta allocated for %d particles.", cat.csize)
+
+    def work(ID, i):
+        if cat.comm.rank == 0:
+            cat.logger.info("%d / %d", i, Nchunks)
+        Q = id2q(ID, strides=strides, scale=scale, shift=shift)
+        csize = cat.comm.allreduce(ID.size)
+        if csize == 0:
+            return numpy.zeros(len(Q), dtype='f4')
+        cmin = numpy.min(cat.comm.allgather(Q.min(axis=0)), axis=0)
+        cmax = numpy.max(cat.comm.allgather(Q.max(axis=0)), axis=0)
+        if cat.comm.rank == 0:
+            cat.logger.info("Q = [ %s ] - [ %s ], len(Q) = %d", cmin, cmax, csize)
+
+        layout = pm.decompose(Q)
+        if cat.comm.rank == 0:
+            cat.logger.info("decompose finished.")
+        delta = dlin.readout(Q, layout=layout)
+        if cat.comm.rank == 0:
+            cat.logger.info("readout done.")
+        csum1 = cat.comm.allreduce(delta.sum())
+        csum2 = cat.comm.allreduce((delta ** 2).sum())
+        cmean = csum1 / csize
+        cstd = (csum2 / csize - (csum1 / csize)**2) ** 0.5
+        if cat.comm.rank == 0:
+            cat.logger.info("On rank0, <delta> = %g, std(delta) = %g", cmean, cstd)
+        return delta
+
+    for i in range(Nchunks):
+        chunk = slice(i * len(ID) // Nchunks, (i + 1) * len(ID) // Nchunks)
+        delta[chunk] = work(ID[chunk].compute(), i)
+
+    cat[ns.ocolumn] = delta
+
     if ns.ocatalog is None:
         ns.ocatalog = ns.catalog
 
     cat.save(ns.ocatalog, columns=[ns.ocolumn], header=None, dataset=ns.dataset)
+    cat.comm.barrier()
+    if cat.comm.rank == 0:
+        cat.logger.info("done")
 
 if __name__ == "__main__":
     main()
