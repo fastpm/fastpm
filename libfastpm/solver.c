@@ -382,13 +382,10 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     FastPMForceEvent event[1];
 
-    /* FIXME modify gravity.c to compute delta_k from all species. */
+    /* N is shotnoise of total CDM
+       No need to include NCDM due to mass weighting */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
     int64_t N = p->np;
-    if (fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM)) {
-        FastPMStore * ncdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM);
-        N += ncdm->np;
-    }
 
     fastpm_painter_init(painter, pm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
 
