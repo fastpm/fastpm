@@ -150,7 +150,8 @@ def main():
 
     pm = ParticleMesh([nmesh] * 3, cat.attrs['BoxSize'], comm=cat.comm)
     wn = pm.generate_whitenoise(params['random_seed'],
-                                unitary=params['remove_cosmic_variance'])
+                                unitary=params['remove_cosmic_variance'],
+                                type='untransposedcomplex')
 
     k, Pk = params.read_powerspectrum()
     def pklin(k_):
