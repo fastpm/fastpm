@@ -12,7 +12,10 @@
 static void
 interp_handler(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * usmesh)
 {
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, event->whence, fastpm->comm);
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick,
+            event->drift->ai,
+            event->drift->af,
+            event->whence, fastpm->comm);
 }
 
 double tiles[4*4*4][3];
@@ -27,7 +30,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_info("stage 1\n");
 
@@ -41,7 +44,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_drift_init(&drift, solver, 0.1, 0.1, 1.0);
     fastpm_kick_init(&kick, solver, 0.1, 0.1, 1.0);
 
-    fastpm_usmesh_intersect(usmesh, &drift, &kick, TIMESTEP_CUR, solver->comm);
+    fastpm_usmesh_intersect(usmesh, &drift, &kick, 0.1, 1.0, TIMESTEP_CUR, solver->comm);
     fastpm_info("%td particles are in the light cone\n", usmesh->p->np);
 
     fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);
@@ -60,7 +63,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
@@ -94,7 +97,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,

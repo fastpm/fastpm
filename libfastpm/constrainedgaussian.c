@@ -154,6 +154,14 @@ fastpm_cg_apply_constraints(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *
             double r = 0;
             for(d = 0; d < 3; ++d) {
                 double dx = constraints[i].x[d] - constraints[j].x[d];
+                
+                if(dx > 0.5*pm->BoxSize[d]){
+                    dx -= pm->BoxSize[d];
+                }
+                else if(dx < -0.5*pm->BoxSize[d]){
+                    dx += pm->BoxSize[d];
+                }
+                
                 r += dx * dx;
             }
             r = sqrt(r);
@@ -178,6 +186,14 @@ fastpm_cg_apply_constraints(FastPMConstrainedGaussian *cg, PM * pm, FastPM2PCF *
             double r = 0;
             for(d = 0; d < 3; d ++) {
                 double dx = xiter.iabs[d] * pm->CellSize[d] - constraints[i].x[d];
+                
+                if(dx > 0.5*pm->BoxSize[d]){
+                    dx -= pm->BoxSize[d];
+                }
+                else if(dx < -0.5*pm->BoxSize[d]){
+                    dx += pm->BoxSize[d];
+                }
+                
                 r += dx * dx;
             }
             r = sqrt(r);

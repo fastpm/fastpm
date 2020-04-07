@@ -58,6 +58,7 @@ fastpm_lc_destroy(FastPMLightCone * lc)
 
 void
 fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
+            double target_volume,
             FastPMStore * source,
             size_t np_upper,
             double (*tileshifts)[3],
@@ -66,12 +67,14 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
             double amax)
 {
 
+    mesh->target_volume = target_volume;
     mesh->source = source;
     mesh->amin = amin;
     mesh->amax = amax;
     mesh->lc = lc;
     mesh->tileshifts = malloc(sizeof(tileshifts[0]) * ntiles);
     mesh->ntiles = ntiles;
+    mesh->np_before = 0;
 
     memcpy(mesh->tileshifts, tileshifts, sizeof(tileshifts[0]) * ntiles);
 
@@ -243,6 +246,99 @@ fastpm_lc_inside(FastPMLightCone * lc, double vec[3])
     }
 }
 
+/* Compute an approximate AABB of all particles
+ * based on position at two times, assuming linear motion.
+ * */
+static void
+fastpm_compute_bbox(FastPMStore * p,
+        FastPMDriftFactor * drift,
+        double a1,
+        double a2,
+        double padding,
+        double xmin[3],
+        double xmax[3],
+        MPI_Comm comm
+) {
+    ptrdiff_t i;
+    for(int d = 0; d < 3; d ++) {
+        xmin[d] = 1e20;
+        xmax[d] = -1e20;
+    }
+    for(i = 0; i < p->np; i ++) {
+        int d;
+        for(d = 0; d < 3; d ++) {
+            double xo[3];
+            fastpm_drift_one(drift, p, i, xo, a1);
+            if(xo[d] < xmin[d]) xmin[d] = xo[d];
+            if(xo[d] > xmax[d]) xmax[d] = xo[d];
+            fastpm_drift_one(drift, p, i, xo, a2);
+            if(xo[d] < xmin[d]) xmin[d] = xo[d];
+            if(xo[d] > xmax[d]) xmax[d] = xo[d];
+        }
+    }
+    // It is sufficient not doing a reduce; each rank can cull its own
+    // volume.
+    // MPI_Allreduce(MPI_IN_PLACE, xmin, 3, MPI_DOUBLE, MPI_MIN, comm);
+    // MPI_Allreduce(MPI_IN_PLACE, xmax, 3, MPI_DOUBLE, MPI_MAX, comm);
+    for(int d = 0; d < 3; d ++) {
+        xmin[d] -= padding;
+        xmax[d] += padding;
+    }
+}
+
+#include "spherebox.h"
+void
+rotate_vec3(vec3 v3, double glmatrix[4][4], int translate) {
+    double xi[4];
+    double xo[4];
+    for(int d = 0; d < 3; d ++) {
+        xi[d] = v3.v[d];
+    }
+    if(translate) xi[3] = 1;
+    else xi[3] = 0;
+    fastpm_gldot(glmatrix, xi, xo);
+    for(int d = 0; d < 3; d ++) {
+        v3.v[d] = xo[d];
+    }
+}
+/*
+ * if a shell in (radius1, radius2) intersects a AABB box at xmin to xmax.
+ *
+ * Apply glmatrix and tileshift to the AABB first to transform it to the intended location.
+ * */
+int
+fastpm_shell_intersects_bbox(
+    double xmin[3],
+    double xmax[3],
+    double glmatrix[4][4],
+    double tileshift[3],
+    double radius1,
+    double radius2
+)
+{
+    box bbox = make_box(xmin, xmax);
+
+    /* rotate all planes, and apply tileshift */
+    for(int i = 0; i < 6; i ++) {
+        rotate_vec3(bbox.planes[i].position, glmatrix, 1);
+        rotate_vec3(bbox.planes[i].direction, glmatrix, 0);
+        for(int d = 0; d < 3; d ++) {
+            bbox.planes[i].position.v[d] += tileshift[d];
+        }
+    }
+    for(int i = 0; i < 8; i ++) {
+        rotate_vec3(bbox.corners[i], glmatrix, 1);
+        for(int d = 0; d < 3; d ++) {
+            bbox.corners[i].v[d] += tileshift[d];
+        }
+    }
+    sphere s1 = make_sphere0(radius1);
+    if (box_inside_sphere(bbox, s1)) return 0;
+    sphere s2 = make_sphere0(radius2);
+    if (sphere_outside_box(s2, bbox)) return 0;
+
+    return 1;
+}
 /* FIXME:
  * the function shall take ai, af as input,
  *
@@ -400,49 +496,92 @@ fastpm_usmesh_emit(FastPMUSMesh * mesh, int whence)
 }
 
 int
-fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick, int whence, MPI_Comm comm)
+fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKickFactor * kick,
+    double a1, double a2, int whence, MPI_Comm comm)
 {
+    {
+        double t1 = a1, t2 = a2;
+        a1 = fmin(t1, t2);
+        a2 = fmax(t1, t2);
+    }
     CLOCK(intersect);
-    double a1 = drift->ai > drift->af ? drift->af: drift->ai;
-    double a2 = drift->ai > drift->af ? drift->ai: drift->af;
-
     if (whence == TIMESTEP_START) {
         mesh->ai = a1;
         mesh->af = a1;
         fastpm_info("usmesh start event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+        mesh->np_before = 0;
         fastpm_usmesh_emit(mesh, whence);
     } else
     if (whence == TIMESTEP_CUR) {
+        double xmin[3] = {0};
+        double xmax[3] = {0};
+        double padding = 0.5; /* rainwoodman: add a 500 Kpc/h padding; need a better estimate. */
+        fastpm_compute_bbox(mesh->source, drift, a1, a2, padding, xmin, xmax, comm);
+
+        fastpm_info("usmesh: bounding box computed for a = (%g, %g), AABB = [ %g %g %g ] - [ %g %g %g]",
+                a1, a2,
+                xmin[0], xmin[1], xmin[2],
+                xmax[0], xmax[1], xmax[2]
+            );
+
         /* for each tile */
         int t;
         ENTER(intersect);
         fastpm_info("usmesh intersection from %0.4f to %0.4f with %d tiles.\n", a1, a2, mesh->ntiles);
 
-        for(t = 0; t < mesh->ntiles; t ++) {
-            fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
-                    a1, a2,
-                    drift, kick,
-                    mesh->source,
-                    mesh->p); /*Store particle to get density*/
+        double r1 = mesh->lc->speedfactor * HorizonDistance(a1, mesh->lc->horizon);
+        double r2 = mesh->lc->speedfactor * HorizonDistance(a2, mesh->lc->horizon);
 
-        }
-        LEAVE(intersect);
-        mesh->af = a2;
-        if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
-            fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
-            fastpm_usmesh_emit(mesh, whence);
-            /* now purge the store. */
-            mesh->p->np = 0;
-            mesh->ai = mesh->af;
+        double volume = 4 * M_PI / 3 * (pow(r1, 3) - pow(r2, 3));
+
+        int steps = (int) ((volume / mesh->target_volume) + 0.5);
+        if(steps == 0) steps = 1;
+        double da = (a1 - a2) / steps;
+
+        for(int i = 0; i < steps; i ++) {
+            double ai = a1 + da * i;
+            double af = (i + 1 == steps)?a2 : a1 + da * (i + 1);
+            fastpm_info("usmesh: intersection step %d / %d a = %g %g .\n", i, steps, ai, af);
+
+            int ntiles = 0;
+            for(t = 0; t < mesh->ntiles; t ++) {
+                /* for spherical geometry, skip if the tile does not intersects the lightcone. */
+                if(mesh->lc->fov > 0 && !fastpm_shell_intersects_bbox(
+                    xmin, xmax, mesh->lc->glmatrix, &mesh->tileshifts[t][0], r2, r1)) {
+                    continue;
+                }
+                fastpm_usmesh_intersect_tile(mesh, &mesh->tileshifts[t][0],
+                        ai, af,
+                        drift, kick,
+                        mesh->source,
+                        mesh->p); /*Store particle to get density*/
+                ntiles ++;
+            }
+            double ntiles_max, ntiles_min, ntiles_mean;
+            MPIU_stats(comm, ntiles, "<->", &ntiles_min, &ntiles_mean, &ntiles_max);
+            fastpm_info("usmesh: number of bounding box intersects shell r = (%g %g), min = %g max = %g, mean=%g",
+                  r2, r1, ntiles_min, ntiles_max, ntiles_mean);
+            LEAVE(intersect);
+            mesh->af = af;
+            if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
+                fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
+                fastpm_usmesh_emit(mesh, whence);
+                mesh->np_before += mesh->p->np;
+                /* now purge the store. */
+                mesh->p->np = 0;
+                mesh->ai = mesh->af;
+            }
         }
     } else
     if (whence == TIMESTEP_END) {
         mesh->af = a2;
         fastpm_info("usmesh end event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
         fastpm_usmesh_emit(mesh, whence);
+        mesh->np_before += mesh->p->np;
         /* now purge the store. */
         mesh->p->np = 0;
         mesh->ai = mesh->af;
     }
     return 0;
 }
+
