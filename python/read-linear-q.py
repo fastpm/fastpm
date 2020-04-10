@@ -150,7 +150,7 @@ def main():
     def pklin(k_):
         return  numpy.interp(k_, k, Pk)
     def tf(k_):
-        return (pklin(k_.normp(2, zeromode=1.0)**0.5) / pm.BoxSize.prod())
+        return (pklin(k_.normp(2, zeromode=1.0)**0.5) / pm.BoxSize.prod()**0.5)
 
     dlin = pm.generate_whitenoise(params['random_seed'],
                                 unitary=params['remove_cosmic_variance'],
