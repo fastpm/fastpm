@@ -503,6 +503,15 @@ fastpm_store_write(FastPMStore * p,
     return 0;
 }
 
+int 
+fastpm_store_read(FastPMStore * p,
+        const char * filebase,
+        int Nreaders,
+        MPI_Comm comm)
+{
+    return fastpm_store_write(p, filebase, "r", Nreaders, comm);
+}
+
 int
 read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase)
 {
