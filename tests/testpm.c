@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/io.h>
 #include <fastpm/logging.h>
 
 int main(int argc, char * argv[]) {
@@ -87,8 +88,10 @@ int main(int argc, char * argv[]) {
     fastpm_painter_init(painter, solver->pm, config->PAINTER_TYPE, config->painter_support);
 
     pm_clear(solver->pm, rho_final_xtruth);
-    fastpm_paint(painter, rho_final_xtruth, fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM), FASTPM_FIELD_DESCR_NONE);
+    fastpm_paint(painter, rho_final_xtruth, cdm, FASTPM_FIELD_DESCR_NONE);
     //fastpm_utils_dump(solver->pm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
+
+    fastpm_store_write(cdm, "cdm", "w", 1, solver->comm);
 
     pm_free(solver->pm, rho_final_xtruth);
     pm_free(solver->pm, rho_final_ktruth);
