@@ -93,6 +93,13 @@ int main(int argc, char * argv[]) {
 
     fastpm_store_write(cdm, "cdm", "w", 1, solver->comm);
 
+    FastPMStore cdm2[1] = {0};
+    fastpm_store_init(cdm2, "1", cdm->np_upper, cdm->attributes, FASTPM_MEMORY_FLOATING);
+    fastpm_store_read(cdm2, "cdm", 1, solver->comm);
+    fastpm_info("a_x = %g", cdm2->meta.a_x);
+    fastpm_info("a_v = %g", cdm2->meta.a_v);
+    fastpm_store_destroy(cdm2);
+
     pm_free(solver->pm, rho_final_xtruth);
     pm_free(solver->pm, rho_final_ktruth);
     pm_free(solver->pm, rho_init_ktruth);
