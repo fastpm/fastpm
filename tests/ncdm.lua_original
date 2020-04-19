@@ -44,9 +44,6 @@ linear_density_redshift_ncdm = 19. -- the redshift of the linear density field.
 power_fname_ncdm = string.format("Pncdm%d_mncdm%s.txt", linear_density_redshift_ncdm, mass_string)
 read_powerspectrum_ncdm = power_loc .. power_fname_ncdm
 
-read_powerspectrum= "Pcb.txt"
-read_powerspectrum_ncdm= "Pncdm.txt"
-
 random_seed= 42
 particle_fraction = 1.0
 
