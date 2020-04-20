@@ -34,6 +34,7 @@ script:
     - bash run-test-nbodykit-wCDM.sh
     - bash run-test-lightcone.sh
     - bash run-test-lightcone-ODE.sh
+    - bash run-test-restart.sh
     - popd
 
 # after_success: ./update-ghpages.sh
