@@ -31,8 +31,12 @@ parse_cli_args(int argc, char ** argv)
     prr->Nwriters = 0;
     prr->MemoryPerRank = 0;
     prr->MaxThreads = -1;
-    while ((opt = getopt(argc, argv, "h?T:y:fW:m:")) != -1) {
+    prr->RestartSnapshotPath = NULL;
+    while ((opt = getopt(argc, argv, "h?T:y:fW:m:r:")) != -1) {
         switch(opt) {
+            case 'r':
+                prr->RestartSnapshotPath = _strdup(optarg);
+            break;
             case 'y':
                 prr->NprocY = atoi(optarg);
             break;
@@ -70,6 +74,7 @@ usage:
     "-f Use FFTW / slab decomposition \n"
     "-m limit memory usage (die if exceeds this)\n"
     "-y Set the number of processes in the 2D mesh along the Y direction. \n"
+    "-r Restart from a given snapshot.\n"
 );
     free(prr);
     return NULL;

@@ -3,6 +3,7 @@ typedef struct {
     int NprocY;
     int Nwriters;
     int MaxThreads;
+    char * RestartSnapshotPath;
     size_t MemoryPerRank;
 
     char ** argv;

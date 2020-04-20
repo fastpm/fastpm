@@ -607,12 +607,15 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     /* Fake the attributes */
     po->attributes = p->attributes;
 
-    /* update position; before kick to use the old velocity */
-    fastpm_drift_store(drift, p, po, aout);
+    if(drift) {
+        /* update position; before kick to use the old velocity */
+        fastpm_drift_store(drift, p, po, aout);
+    }
 
-    /* update velocity */
-    fastpm_kick_store(kick, p, po, aout);
-
+    if(kick) {
+        /* update velocity */
+        fastpm_kick_store(kick, p, po, aout);
+    }
     ptrdiff_t i;
 
     /* convert units */
@@ -680,12 +683,14 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
         }
     }
 
-    /* revert velocity */
-    fastpm_kick_store(kick, po, po, p->meta.a_v);
-
-    /* revert position */
-    fastpm_drift_store(drift, po, po, p->meta.a_x);
-
+    if(kick) {
+        /* revert velocity */
+        fastpm_kick_store(kick, po, po, p->meta.a_v);
+    }
+    if(drift) {
+        /* revert position */
+        fastpm_drift_store(drift, po, po, p->meta.a_x);
+    }
     /* steal back columns */
     fastpm_store_steal(po, p, p->attributes);
 
