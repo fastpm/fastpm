@@ -235,6 +235,9 @@ report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr);
 static int 
 report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, RunData * prr);
 
+static double * 
+prepare_time_step(RunData * prr, double a0, size_t * n_time_step);
+
 static void 
 prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm);
 
@@ -339,11 +342,15 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
         prepare_lc(fastpm, prr, lc, &usmesh);
     }
 
+    size_t n_time_step;
+    double * time_step = prepare_time_step(prr, p->meta.a_x, &n_time_step);
+     
     MPI_Barrier(comm);
     ENTER(evolve);
-    fastpm_solver_evolve(fastpm, CONF(prr->lua, time_step), CONF(prr->lua, n_time_step));
+    fastpm_solver_evolve(fastpm, time_step, n_time_step);
     LEAVE(evolve);
 
+    free(time_step);
     if(usmesh)
         fastpm_usmesh_destroy(usmesh);
 
@@ -575,9 +582,47 @@ induce:
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 }
 
-static void 
-prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm) 
+static double * 
+prepare_time_step(RunData * prr, double a0, size_t * n_time_step) 
 {
+    double * time_step = (double*) malloc((CONF(prr->lua, n_time_step) + 1) * sizeof(double));
+    double * all_time_step = CONF(prr->lua, time_step);
+    int i;
+    for(i = -1; i < CONF(prr->lua, n_time_step) - 1; i++) {
+        /* give some slack to cover inaccurate equal. */
+        if(all_time_step[i + 1] > a0 + 1e-7) {
+            break;
+        }
+    }
+    /* copy from i + 1: -> 1: Is this buggy?*/
+    time_step[0] = a0;
+    int j;
+    for(j = 1; j + i < CONF(prr->lua, n_time_step); j ++ ) {
+        time_step[j] = all_time_step[j + i];
+    }
+    *n_time_step = j;
+    return time_step;
+}
+
+static void
+prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
+{
+    if(prr->cli->RestartSnapshotPath) {
+        if(CONF(prr->lua, particle_fraction) != 1) {
+            fastpm_raise(-1, "Cannot restart because subsampling of particles is enabled.\n");
+        }
+        fastpm_info("Restarting from snapshot at `%s`.\n", prr->cli->RestartSnapshotPath);
+        FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+        FastPMStore po[1];
+        fastpm_set_species_snapshot(fastpm, p, NULL, NULL, po, 1.0);
+        fastpm_store_read(po, prr->cli->RestartSnapshotPath, prr->cli->Nwriters, comm);
+        if(po->meta.a_x != po->meta.a_v) {
+            fastpm_raise(-1, "Snapshot velocity and position are out of sync. a_x =% g, a_v = %g.\n", p->meta.a_x, p->meta.a_v);
+        }
+        fastpm_unset_species_snapshot(fastpm, p, NULL, NULL, po, po->meta.a_x);
+
+        return;
+    }
     /* we may need a read gadget ic here too */
     if(CONF(prr->lua, read_runpbic)) {                 //runpbic is old code. dont think about when it comes to ncdm.
         FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
@@ -662,6 +707,10 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     /* don't prepare ncdm when there are no ncdm particles */
     if(CONF(prr->lua, n_m_ncdm) == 0
         || CONF(prr->lua, n_shell) == 0) return;
+
+    if(prr->cli->RestartSnapshotPath) {
+        fastpm_raise(-1, "FIXME: add ncdm restart support.\n");
+    }
 
     double boxsize = CONF(prr->lua, boxsize);
     double BoxSize[3] = {boxsize, boxsize, boxsize};
@@ -801,6 +850,11 @@ static void
 prepare_lc(FastPMSolver * fastpm, RunData * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh)
 {
+    if(prr->cli->RestartSnapshotPath) {
+        /* We do not svae the tail store, thus the lightcone will have gaps. */
+        fastpm_raise(-1, "FIXME: Restarting and lightcone are currently incompatible.");
+    }
+
     {
         if(CONF(prr->lua, ndim_lc_glmatrix) != 2 ||
            CONF(prr->lua, shape_lc_glmatrix)[0] != 4 ||
@@ -1494,11 +1548,12 @@ report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr)
         fastpm_store_summary(p, COLUMN_POS, comm, "<>", min, max);
         fastpm_store_summary(p, COLUMN_VEL, comm, "s", std);
 
-        fastpm_info("Position range : min = %g %g %g max = %g %g %g \n",
+        fastpm_info("Position range (a = %06.4f): min = %g %g %g max = %g %g %g \n",
+                p->meta.a_x,
                 min[0], min[1], min[2],
                 max[0], max[1], max[2]);
-        fastpm_info("Velocity dispersion: std = %g %g %g\n",
-                std[0], std[1], std[2]);
+        fastpm_info("Velocity dispersion (a = %06.4f): std = %g %g %g\n",
+                p->meta.a_v, std[0], std[1], std[2]);
     }
 
     return 0;
