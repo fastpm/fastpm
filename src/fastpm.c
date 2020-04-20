@@ -344,7 +344,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     size_t n_time_step;
     double * time_step = prepare_time_step(prr, p->meta.a_x, &n_time_step);
-     
+
     MPI_Barrier(comm);
     ENTER(evolve);
     fastpm_solver_evolve(fastpm, time_step, n_time_step);
@@ -1083,7 +1083,10 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
     for(iout = prr->iout; iout < nout; iout ++) {
         if(event->a1 == event->a2) {
             /* initial condition */
+            /* not requested */
             if(event->a1 != aout[iout]) continue;
+            /* Restarting from this snapshot, no need to write again. */
+            if(prr->cli->RestartSnapshotPath) continue;
         } else {
             if(event->a1 >= aout[iout]) continue;
             if(event->a2 < aout[iout]) continue;
