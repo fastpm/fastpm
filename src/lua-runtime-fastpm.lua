@@ -42,6 +42,7 @@ schema.declare{name='N_eff',             type='number', required=false, default=
 schema.declare{name='N_nu',              type='number', required=false, default=0, help="Total number of neutrinos, massive and massless."}
 schema.declare{name='m_ncdm',            type='array:number', required=false, default={}, help="Mass of ncdm particles in eV. Enter in descending order."}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
+schema.declare{name='lpt_nc_factor',     type='number', required=false, default=1, help="PM resolution use in lpt and linear density field."}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential', type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
 schema.declare{name='n_shell',           type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}

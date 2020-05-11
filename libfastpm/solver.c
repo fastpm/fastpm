@@ -110,6 +110,17 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->basepm = malloc(sizeof(PM));
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
 
+    PMInit lptpminit = {
+            .Nmesh = config->nc * config->lpt_nc_factor,
+            .BoxSize = config->boxsize,
+            .NprocY = config->NprocY, /* 0 for auto, 1 for slabs */
+            .transposed = 0, /* use untransposed to make sure we see all kz on a rank; this speeds up IC */
+            .use_fftw = config->UseFFTW,
+        };
+
+    fastpm->lptpm = malloc(sizeof(PM));
+    pm_init(fastpm->lptpm, &lptpminit, fastpm->comm);
+
     double shift0;
     if(config->USE_SHIFT) {
         shift0 = config->boxsize / config->nc * 0.5;
@@ -120,7 +131,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM), fastpm->basepm, shift, NULL);
 
-    fastpm->pm = fastpm_find_pm(fastpm, 0.0);
+    fastpm->pm = fastpm->lptpm;
 }
 
 void
@@ -523,6 +534,8 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 void
 fastpm_solver_destroy(FastPMSolver * fastpm) 
 {
+    pm_destroy(fastpm->lptpm);
+    free(fastpm->lptpm);
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
     fastpm_store_destroy(fastpm->cdm);

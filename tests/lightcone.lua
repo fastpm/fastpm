@@ -30,8 +30,8 @@ remove_cosmic_variance=true
 force_mode = "fastpm"
 -- force_mode = "cola"
 growth_mode = "LCDM"
-pm_nc_factor = {{0, 1}, {0.001, 2}}
-
+pm_nc_factor = 2
+lpt_nc_factor = 1
 np_alloc_factor = 2.0      -- Amount of memory allocated for particle
 
 -------- Output ---------------
