@@ -119,69 +119,11 @@ double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c)
     return -12. / (a*a) * OncdmESq - 8. / a * DOncdmESqDa + A / (a*a*a*a) * FcFcDDF;
 }
 
-double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
-{
-    /* eos parameter for ith ncdm species */
-    double y = Fconst(ncdm_id, c) * a;
-    return 1./3. - y / 3. * getFtable(2, y, c) / getFtable(1, y, c);
-}
-
-double Omega_ncdm_mTimesHubbleEaSq(double a, FastPMCosmology * c)
-{
-    /* matter-like part */
-    double res = 0;
-    for (int i=0; i<c->N_ncdm; i++) {
-        res += (1. - 3 * w_ncdm_i(a, i, c)) * Omega_ncdm_iTimesHubbleEaSq(a, i, c);
-    }
-    return res;
-}
-
-double Omega_ncdm_rTimesHubbleEaSq(double a, FastPMCosmology * c)
-{
-    /* radiation-like part */
-    double res = 0;
-    for (int i=0; i<c->N_ncdm; i++) {
-        res += 3 * w_ncdm_i(a, i, c) * Omega_ncdm_iTimesHubbleEaSq(a, i, c);
-    }
-    return res;
-}
-
 double HubbleEa(double a, FastPMCosmology * c)
 {
-    /* H(a) / H0 */
+    /* H(a) / H0 
+       ncdm is NOT assumed to be matter like here */
     return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
-}
-
-double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c)
-{
-    double E = HubbleEa(a, c);
-    return Omega_ncdm_iTimesHubbleEaSq(a, ncdm_id, c) / (E*E);
-}
-
-double Omega_ncdm(double a, FastPMCosmology * c)
-{
-    /*total ncdm*/
-    double res = 0;
-    for (int i=0; i<c->N_ncdm; i++) {
-        res += Omega_ncdm_i(a, i, c);
-    }
-    return res;
-}
-
-double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c)
-{
-    /* matter-like part of ncdm_i */
-    return (1. - 3 * w_ncdm_i(a, ncdm_id, c)) * Omega_ncdm_i(a, ncdm_id, c);
-}
-
-double Omega_ncdm_m(double a, FastPMCosmology * c)
-{
-    /* total ncdm matter-like part */
-    double res = 0;
-    for (int i=0; i<c->N_ncdm; i++) {
-        res += Omega_ncdm_i_m(a, i, c);
-    }
-    return res;
 }
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
@@ -192,14 +134,10 @@ double Omega_cdm_a(double a, FastPMCosmology * c)
     return c->Omega_cdm / (a*a*a) / (E*E);
 }
 
-double OmegaA(double a, FastPMCosmology * c) {
-    // FIXME: Outdated, remove.
-    return Omega_cdm_a(a, c);
-}
-
 double Omega_m(double a, FastPMCosmology * c){
-    /* Total matter component (cdm + ncdm_m) */
-    return Omega_cdm_a(a, c) + Omega_ncdm_m(a, c);
+    /* Total matter component (cdm + ncdm) assming all ncdm is matter like */
+    double E = HubbleEa(a, c);
+    return c->Omega_m / (a*a*a) / (E*E);
 }
 
 double DHubbleEaDa(double a, FastPMCosmology * c)
@@ -218,15 +156,6 @@ double D2HubbleEaDa2(double a, FastPMCosmology * c)
     double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a,c);
 
     return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6) + 12 * c->Omega_cdm / pow(a,5) + D2OncdmESqDa2 - 2 * pow(dEda,2) );
-}
-
-double OmegaSum(double a, FastPMCosmology* c)
-{
-    double sum = Omega_r(c) / pow(a, 4);
-    sum += c->Omega_cdm / pow(a, 3);
-    sum += Omega_ncdmTimesHubbleEaSq(a, c);
-    sum += c->Omega_Lambda;
-    return sum / pow(HubbleEa(a, c), 2);
 }
 
 static double growth_int(double a, void *param)

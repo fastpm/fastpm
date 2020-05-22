@@ -227,7 +227,7 @@ read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename)
         fastpm_raise(0030, "mismatch %d != %d\n", offset, p->np);
     }
 
-    const double omega = OmegaA(aa, fastpm->cosmology);
+    const double omega = Omega_cdm_a(aa, fastpm->cosmology);
 
     FastPMGrowthInfo gi;
     fastpm_growth_info_init(&gi, aa, fastpm->cosmology);

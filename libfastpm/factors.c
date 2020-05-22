@@ -253,8 +253,8 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     double D1_c = gi_c.D1;
     double D2_c = gi_c.D2;
 
-    double Omega_m0 = Omega_m(1, c);
-    double Omega_mc =  Omega_m(ac, c);
+    double Omega_m0 = c->Omega_m;
+    double Omega_mc = Omega_m(ac, c);   // assumes all ncdm is matter like
 
     kick->q1 = D1_c;
     switch (c->growth_mode){

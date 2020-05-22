@@ -294,8 +294,8 @@ fastpm_ncdm_init_create(
     }
     nid->n_ncdm = c->N_ncdm;
 
-    /* compute MATTER part of Omega_ncdm0 */
-    nid->Omega_ncdm = Omega_ncdm_mTimesHubbleEaSq(1, c);  //FIXME: Should we use the 93.14 approx instead?
+    /* Normalize Omega_ncdm assuming all ncdm is matter like. */
+    nid->Omega_ncdm = Omega_ncdmTimesHubbleEaSq(1, c);
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;

@@ -398,12 +398,11 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
         c->FDinterp = FDinterp;
     }
 
-    // Better to use the exact value of O_ncdm_m from cosmology.c rather than assume 93.14
-    // FIXME: Is this 2-fluid consideration over the top?
-    c->Omega_cdm = c->Omega_m - Omega_ncdm_mTimesHubbleEaSq(1, c);
+    // Compute Omega_cdm assuming all ncdm is matter like
+    c->Omega_cdm = c->Omega_m - Omega_ncdmTimesHubbleEaSq(1, c);
 
     // Set Omega_Lambda at z=0 to give no curvature
-    c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c) - Omega_ncdm_rTimesHubbleEaSq(1, c);
+    c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c);
 }
 
 static void

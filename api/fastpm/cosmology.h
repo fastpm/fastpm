@@ -40,22 +40,11 @@ double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c);
 double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c);
 double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c);
 
-double w_ncdm_i(double a, int ncdm_id, FastPMCosmology * c);
-double Omega_ncdm_mTimesHubbleEaSq(double a, FastPMCosmology * c);
-double Omega_ncdm_rTimesHubbleEaSq(double a, FastPMCosmology * c);
-
 double HubbleEa(double a, FastPMCosmology * c);
-double Omega_ncdm_i(double a, int ncdm_id, FastPMCosmology * c);
-double Omega_ncdm(double a, FastPMCosmology * c);
-double Omega_ncdm_i_m(double a, int ncdm_id, FastPMCosmology * c);
-double Omega_ncdm_m(double a, FastPMCosmology * c);
 double Omega_cdm_a(double a, FastPMCosmology * c);
-double OmegaA(double a, FastPMCosmology * c);
 double Omega_m(double a, FastPMCosmology * c);
 double DHubbleEaDa(double a, FastPMCosmology * c);
 double D2HubbleEaDa2(double a, FastPMCosmology * c);
-
-double OmegaSum(double a, FastPMCosmology* c);
 
 typedef struct {
     double y0;
