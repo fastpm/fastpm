@@ -3,6 +3,7 @@
 from nbodykit.lab import Gadget1Catalog
 import numpy
 from argparse import ArgumentParser
+import bigfile
 
 ap = ArgumentParser()
 ap.add_argument('source', help='FastPM snapshot (bigfile)')
@@ -45,6 +46,12 @@ def main(ns):
         cat = cat[::ns.subsample]
 
     cat.save(ns.dest, columns=['Position', 'Velocity', 'ID'], dataset='1', header='Header')
+    with bigfile.File(ns.dest) as ff:
+        ff.create('1', dtype=None, size=None, Nfile=0)
+        with ff['1'] as column:
+        column.attrs['a.x']=cat.attrs['Time']
+        column.attrs['a.v']=cat.attrs['Time']
+        column.attrs['Mo']=cat.attrs['M0']
 
 if __name__ == '__main__':
     ns = ap.parse_args()
