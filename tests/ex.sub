@@ -1,0 +1,12 @@
+mpirun -np 10 ../src/fastpm restart-large.lua |tee restart-large.log
+
+
+
+
+(in tests directory)
+../src/fastpm restart.lua
+rm -rf restart-full-run; cp -r restart restart-full-run
+../src/fastpm -r restart/fastpm_0.5000 restart.lua
+
+Then the files under restart and under restart-full-run after a=0.5000 are
+supposed to be almost identical.
