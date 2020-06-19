@@ -1,0 +1,6 @@
+MODULE LOADED:
+intel-mpi/2019.4.243-intel-19.0.4
+gsl/2.5-intel-19.0.4
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** JOB 861267 ON cas354 CANCELLED AT 2020-05-23T22:58:30 ***
+slurmstepd: error: *** STEP 861267.0 ON cas354 CANCELLED AT 2020-05-23T22:58:30 ***

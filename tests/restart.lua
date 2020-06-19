@@ -10,9 +10,9 @@ boxsize = 384.0
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = {0.1, 0.5, 0.75, 1.0}
+time_step = {0.02, 0.1, 0.5, 0.75, 1.0}
 
-aout = {0.1, 0.5, 1.0}  -- redshifts of output
+aout = {0.02, 0.1, 0.5, 1.0}  -- scale factors of output
 
 -- Cosmology --
 omega_m = 0.307494
@@ -37,9 +37,7 @@ np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 -------- Output ---------------
 
 -- Dark matter particle outputs (all particles)
-write_runpb_snapshot= "restart/tpm"
-write_snapshot= "restart/fastpm" 
+write_snapshot= "/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm_massive_in_and_out/restart/fastpm" 
 -- 1d power spectrum (raw), without shotnoise correction
-write_powerspectrum = "restart/powerspec"
-write_fof = "restart/fastpm"
+write_powerspectrum = "/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm_massive_in_and_out/restart/powerspec"
 

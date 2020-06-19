@@ -267,6 +267,10 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     fastpm_solver_init(fastpm, config, comm);
 
+    fastpm_info("1 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x);
+    fastpm_info("1 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_v  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x);
+    fastpm_info("1 fastpm->species[FASTPM_SPECIES_CDM]->meta.M0  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.M0);
+
     fastpm_info("BaseProcMesh : %d x %d\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
 #ifdef _OPENMP
@@ -274,38 +278,44 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 #endif
 
     LEAVE(init);
+    fastpm_info("After fastpm_solver_init\n");
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_LPT,
         FASTPM_EVENT_STAGE_AFTER,
         (FastPMEventHandlerFunction) report_lpt,
         prr);
+    fastpm_info("After report_lpt\n");
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_FORCE,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) report_domain,
         prr);
+    fastpm_info("After report_domain\n");
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_FORCE,
         FASTPM_EVENT_STAGE_AFTER,
         (FastPMEventHandlerFunction) write_powerspectrum,
         prr);
+    fastpm_info("After write_powerspectrum\n");
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) check_snapshots,
         prr);
+    fastpm_info("After check_snapshots\n");
 
     fastpm_add_event_handler(&fastpm->event_handlers,
         FASTPM_EVENT_TRANSITION,
         FASTPM_EVENT_STAGE_BEFORE,
         (FastPMEventHandlerFunction) print_transition,
         prr);
-
+    fastpm_info("After print_transition\n");
     /* initialize the lightcone */
+
     FastPMLightCone lc[1] = {{
         .speedfactor = CONF(prr->lua, dh_factor),
         .cosmology = fastpm->cosmology,
@@ -316,17 +326,36 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
 
+    fastpm_info("2 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x);
+    fastpm_info("2 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_v  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x);
+    fastpm_info("2 fastpm->species[FASTPM_SPECIES_CDM]->meta.M0  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.M0);
+
     ENTER(cdmic);
     prepare_cdm(fastpm, prr, comm);
     LEAVE(cdmic);
 
+    fastpm_info("3 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x);
+    fastpm_info("3 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_v  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x);
+    fastpm_info("3 fastpm->species[FASTPM_SPECIES_CDM]->meta.M0  %f\n", fastpm->species[FASTPM_SPECIES_CDM]->meta.M0);
+
+    fastpm_info("In run_fastpm, just finished preparing cdm.\n");
     ENTER(ncdmic);
     prepare_ncdm(fastpm, prr, comm);
     LEAVE(ncdmic);
+    fastpm_info("In run_fastpm, just finished preparing ncdm.\n");
 
     /* FIXME: subsample all species -- probably need different fraction for each species */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
+    fastpm_info("p->meta.a_x  %f\n", p->meta.a_x);
+    fastpm_info("p->meta.a_v  %f\n", p->meta.a_v);
+    fastpm_info("p->meta.M0  %f\n", p->meta.M0);
+
     fastpm_store_fill_subsample_mask(p, CONF(prr->lua, particle_fraction), p->mask, comm);
+
+    fastpm_info("p->meta.a_x  %f\n", p->meta.a_x);
+    fastpm_info("p->meta.a_v  %f\n", p->meta.a_v);
+    fastpm_info("p->meta.M0  %f\n", p->meta.M0);
 
     FastPMUSMesh * usmesh = NULL;
 
@@ -336,6 +365,10 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     size_t n_time_step;
     double * time_step = prepare_time_step(prr, p->meta.a_x, &n_time_step);
+
+    fastpm_info("p->meta.a_x  %f\n", p->meta.a_x);
+    fastpm_info("p->meta.a_v  %f\n", p->meta.a_v);
+    fastpm_info("p->meta.M0  %f\n", p->meta.M0);
 
     MPI_Barrier(comm);
     ENTER(evolve);
@@ -583,9 +616,28 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         }
         fastpm_info("Restarting from snapshot at `%s`.\n", prr->cli->RestartSnapshotPath);
         FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
+        fastpm_info("prepare p->meta.a_x  %f\n", p->meta.a_x);
+        fastpm_info("prepare p->meta.a_v  %f\n", p->meta.a_x);
+        fastpm_info("prepare p->meta.M0  %f\n", p->meta.M0);
+
         FastPMStore po[1];
         fastpm_set_species_snapshot(fastpm, p, NULL, NULL, po, 1.0);
+
+        fastpm_info("prepare p->meta.a_x  %f\n", p->meta.a_x);
+        fastpm_info("prepare p->meta.a_v  %f\n", p->meta.a_x);
+        fastpm_info("prepare p->meta.M0  %f\n", p->meta.M0);
+
+        fastpm_info("prepare po->meta.a_x  %f\n", po->meta.a_x);
+        fastpm_info("prepare po->meta.a_v  %f\n", po->meta.a_x);
+        fastpm_info("prepare po->meta.M0  %f\n", po->meta.M0);
+
         fastpm_store_read(po, prr->cli->RestartSnapshotPath, prr->cli->Nwriters, comm);
+        fastpm_info("prepare po->meta.a_x  %f\n", po->meta.a_x);
+        fastpm_info("prepare po->meta.a_v  %f\n", po->meta.a_x);
+        fastpm_info("prepare po->meta.M0  %f\n", po->meta.M0);
+
+
         if(po->meta.a_x != po->meta.a_v) {
             fastpm_raise(-1, "Snapshot velocity and position are out of sync. a_x =% g, a_v = %g.\n", p->meta.a_x, p->meta.a_v);
         }

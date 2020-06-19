@@ -1,0 +1,619 @@
+[ 0000000.0009 ]: This is FastPM, with libfastpm version 1.0..
+[ 0000000.2644 ]: Configuration {
+[ 0000000.2644 ]: 	boxsize = 384.0,
+[ 0000000.2644 ]: 	compute_potential = false,
+[ 0000000.2644 ]: 	dh_factor = 1.0,
+[ 0000000.2644 ]: 	enforce_broadband_kmax = 4,
+[ 0000000.2644 ]: 	every_ncdm = 4,
+[ 0000000.2644 ]: 	f_nl_type = "none",
+[ 0000000.2644 ]: 	fof_kdtree_thresh = 8,
+[ 0000000.2644 ]: 	fof_linkinglength = 0.200000000000000011,
+[ 0000000.2644 ]: 	fof_nmin = 20,
+[ 0000000.2644 ]: 	force_mode = "fastpm",
+[ 0000000.2644 ]: 	force_softening_type = "none",
+[ 0000000.2644 ]: 	h = 0.677400000000000002,
+[ 0000000.2644 ]: 	inverted_ic = false,
+[ 0000000.2644 ]: 	kernel_type = "1_4",
+[ 0000000.2644 ]: 	kmax_primordial_over_knyquist = 0.25,
+[ 0000000.2644 ]: 	lc_fov = 0.0,
+[ 0000000.2644 ]: 	lc_usmesh_alloc_factor = 1.0,
+[ 0000000.2644 ]: 	lc_usmesh_fof_padding = 10.0,
+[ 0000000.2644 ]: 	linear_density_redshift = 0.0,
+[ 0000000.2644 ]: 	linear_density_redshift_ncdm = 0,
+[ 0000000.2644 ]: 	lvk = false,
+[ 0000000.2644 ]: 	n_shell = 10,
+[ 0000000.2644 ]: 	n_side = 2,
+[ 0000000.2644 ]: 	nc = 128,
+[ 0000000.2644 ]: 	ncdm_sphere_scheme = "fibonacci",
+[ 0000000.2644 ]: 	np_alloc_factor = 4.0,
+[ 0000000.2644 ]: 	omega_m = 0.30749399999999999,
+[ 0000000.2644 ]: 	painter_support = 2,
+[ 0000000.2644 ]: 	painter_type = "cic",
+[ 0000000.2644 ]: 	particle_fraction = 1.0,
+[ 0000000.2644 ]: 	pgdc = false,
+[ 0000000.2644 ]: 	pgdc_A = 4.0,
+[ 0000000.2644 ]: 	pgdc_B = 8.0,
+[ 0000000.2644 ]: 	pgdc_alpha0 = 0.800000000000000044,
+[ 0000000.2644 ]: 	pgdc_kl = 2.0,
+[ 0000000.2644 ]: 	pgdc_ks = 10.0,
+[ 0000000.2644 ]: 	random_seed = 100,
+[ 0000000.2644 ]: 	read_powerspectrum = "powerspec.txt",
+[ 0000000.2644 ]: 	remove_cosmic_variance = false,
+[ 0000000.2644 ]: 	set_mode_method = "override",
+[ 0000000.2644 ]: 	shift = false,
+[ 0000000.2644 ]: 	sigma8 = 0,
+[ 0000000.2644 ]: 	sort_snapshot = true,
+[ 0000000.2644 ]: 	write_fof = "restart/fastpm",
+[ 0000000.2644 ]: 	write_powerspectrum = "restart/powerspec",
+[ 0000000.2644 ]: 	write_runpb_snapshot = "restart/tpm",
+[ 0000000.2644 ]: 	write_snapshot = "restart/fastpm",
+[ 0000000.2644 ]: 	za = false,
+[ 0000000.2644 ]: 	m_ncdm = { },
+[ 0000000.2644 ]: 	aout = {
+[ 0000000.2644 ]: 		0.02,
+[ 0000000.2644 ]: 		0.100000000000000006,
+[ 0000000.2644 ]: 		0.5,
+[ 0000000.2644 ]: 		1.0,
+[ 0000000.2644 ]: 	},
+[ 0000000.2644 ]: 	lc_glmatrix = {
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			1,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			1,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			1,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			1,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 	},
+[ 0000000.2644 ]: 	lc_octants = {
+[ 0000000.2644 ]: 		0,
+[ 0000000.2644 ]: 		1,
+[ 0000000.2644 ]: 		2,
+[ 0000000.2644 ]: 		3,
+[ 0000000.2644 ]: 		4,
+[ 0000000.2644 ]: 		5,
+[ 0000000.2644 ]: 		6,
+[ 0000000.2644 ]: 		7,
+[ 0000000.2644 ]: 	},
+[ 0000000.2644 ]: 	lc_usmesh_tiles = {
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 			0,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 	},
+[ 0000000.2644 ]: 	pm_nc_factor = {
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			0.0,
+[ 0000000.2644 ]: 			1,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 		{
+[ 0000000.2644 ]: 			0.01,
+[ 0000000.2644 ]: 			2,
+[ 0000000.2644 ]: 		},
+[ 0000000.2644 ]: 	},
+[ 0000000.2644 ]: 	time_step = {
+[ 0000000.2644 ]: 		0.02,
+[ 0000000.2644 ]: 		0.100000000000000006,
+[ 0000000.2644 ]: 		0.5,
+[ 0000000.2644 ]: 		0.75,
+[ 0000000.2644 ]: 		1.0,
+[ 0000000.2644 ]: 	},
+[ 0000000.2644 ]: }
+[ 0000000.2905 ]: np_alloc_factor = 4
+[ 0000000.3050 ]: mass of a CDM particle is 230.353 1e10 Msun/h
+[ 0000000.7432 ]: 1 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x  0.000000
+[ 0000000.7536 ]: 1 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_v  0.000000
+[ 0000000.7536 ]: 1 fastpm->species[FASTPM_SPECIES_CDM]->meta.M0  0.000000
+[ 0000000.7540 ]: BaseProcMesh : 32 x 20
+[ 0000000.7540 ]: 1 Threads
+[ 0000000.7541 ]: After fastpm_solver_init
+[ 0000000.7544 ]: After report_lpt
+[ 0000000.7595 ]: After report_domain
+[ 0000000.7595 ]: After write_powerspectrum
+[ 0000000.7596 ]: After check_snapshots
+[ 0000000.7596 ]: After print_transition
+[ 0000000.7712 ]: 2 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x  0.000000
+[ 0000000.7712 ]: 2 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_v  0.000000
+[ 0000000.7712 ]: 2 fastpm->species[FASTPM_SPECIES_CDM]->meta.M0  0.000000
+[ 0000000.7714 ]: Restarting from snapshot at `restart/fastpm_0.0200`.
+[ 0000000.7715 ]: prepare p->meta.a_x  0.000000
+[ 0000000.7715 ]: prepare p->meta.a_v  0.000000
+[ 0000000.7716 ]: prepare p->meta.M0  0.000000
+[ 0000000.7719 ]: prepare p->meta.a_x  0.000000
+[ 0000000.7726 ]: prepare p->meta.a_v  0.000000
+[ 0000000.7726 ]: prepare p->meta.M0  0.000000
+[ 0000000.7727 ]: prepare po->meta.a_x  0.000000
+[ 0000000.7727 ]: prepare po->meta.a_v  0.000000
+[ 0000000.7729 ]: prepare po->meta.M0  0.000000
+[ 0000000.7808 ]: Reading a catalog from restart/fastpm_0.0200 [1]
+[ 0000000.8142 ]: Reading block Position of (f8, 3) from 1 files with 16 writers
+[ 0000000.9034 ]: Reading block Velocity of (f4, 3) from 1 files with 16 writers
+[ 0000001.0166 ]: Reading block ID of (i8, 1) from 1 files with 16 writers
+[ 0000001.0666 ]: prepare po->meta.a_x  0.020000
+[ 0000001.0666 ]: prepare po->meta.a_v  0.020000
+[ 0000001.0666 ]: prepare po->meta.M0  230.352519
+[ 0000001.0669 ]: 3 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_x  0.020000
+[ 0000001.0672 ]: 3 fastpm->species[FASTPM_SPECIES_CDM]->meta.a_v  0.020000
+[ 0000001.0672 ]: 3 fastpm->species[FASTPM_SPECIES_CDM]->meta.M0  230.352519
+[ 0000001.0673 ]: In run_fastpm, just finished preparing cdm.
+[ 0000001.0682 ]: In run_fastpm, just finished preparing ncdm.
+[ 0000001.0683 ]: p->meta.a_x  0.020000
+[ 0000001.0683 ]: p->meta.a_v  0.020000
+[ 0000001.0685 ]: p->meta.M0  230.352519
+[ 0000001.0688 ]: p->meta.a_x  0.020000
+[ 0000001.0700 ]: p->meta.a_v  0.020000
+[ 0000001.0700 ]: p->meta.M0  230.352519
+[ 0000001.0718 ]: p->meta.a_x  0.020000
+[ 0000001.0768 ]: p->meta.a_v  0.020000
+[ 0000001.0768 ]: p->meta.M0  230.352519
+[ 0000001.0771 ]: Start to evove in fastpm_solver_evolve...... 
+[ 0000001.0896 ]: Before transit ...... 
+[ 0000001.1075 ]: ==== -> 001 [000 000 000] a_i = 0.0200 a_f = 0.0200 a_r = 0.0200 Action = FORCE(0) ====
+[ 0000001.1083 ]: Task 0 Peak memory usage max: 0.945312 MB min : 0.898438 MB
+[ 0000001.1083 ]: S 0x000000000256e460 : 0000118784 :              PMAlloc:             pmpfft.c:262
+[ 0000001.1083 ]: S 0x00002b6096f59010 : 0000753664 :          FastPMStore:             solver.c:76
+[ 0000001.1374 ]: Send buffer size : min=0 max=229376 mean=194220, std=63249.9 bytes
+[ 0000001.1378 ]: Recv buffer size : min=128512 max=256576 mean=194220, std=26502.3 bytes
+[ 0000001.1382 ]: Decomposition iter 0,  exchange of 1942197 particles; need 1942197
+[ 0000001.1383 ]: Using sparse Alltoallv
+[ 0000001.1695 ]: Force Calculation Nmesh = 256 ====
+[ 0000001.1768 ]: Load imbalance: min = 0.612793 max = 1.22345 std = 0.0866978
+[ 0000001.1776 ]: Position range (a = 0.0200): min = 0 0 7.59976e-05 max = 384 384 384 
+[ 0000001.1778 ]: Velocity dispersion (a = 0.0200): std = 0.0100956 0.0108914 0.0122378
+[ 0000001.1987 ]: Sending ghosts: min = 117 max = 1283 mean = 693.486 std = 220.566
+[ 0000001.1989 ]: Receiving ghosts: min = 196 max = 1166 mean = 693.486 std = 206.405
+[ 0000001.1993 ]: Using sparse Alltoallv
+[ 0000001.1999 ]: Using sparse Alltoallv
+[ 0000001.2294 ]: p1    acc[0]: -0.609711 0.118992 -0.0109898 0.613469
+[ 0000001.2295 ]: p1    acc[1]: -0.74518 0.128025 -0.00237364 0.609626
+[ 0000001.2297 ]: p1    acc[2]: -0.695674 0.144664 -1.24585e-05 0.695279
+[ 0000001.2298 ]: ghost acc[0]: -0.509456 0.0844624 0.0519281 0.47959
+[ 0000001.2300 ]: ghost acc[1]: -0.660602 0.111408 0.0112157 0.579935
+[ 0000001.2301 ]: ghost acc[2]: -0.637576 0.124592 5.8868e-05 0.687006
+[ 0000001.2303 ]: p1+g  acc[0]: -0.609711 0.118992 -0.0109898 0.613469
+[ 0000001.2305 ]: p1+g  acc[1]: -0.74518 0.128025 -0.00237364 0.609626
+[ 0000001.2306 ]: p1+g  acc[2]: -0.695674 0.144664 -1.24585e-05 0.695279
+[ 0000001.2307 ]: Using sparse Alltoallv
+[ 0000001.2314 ]: Force dispersion: std = 0.130373 0.140429 0.157473
+[ 0000001.2940 ]: D^2(0.02, 1.0) P(k<0.0654167) = 14081.1 Sigma8 = 4.19908e+16
+[ 0000001.2990 ]: writing power spectrum to restart/powerspec_0.0200.txt
+[ 0000001.3248 ]: After transit ...... 
+[ 0000001.4886 ]: Checking Snapshots (0.0200 0.0200) with K(0.0200->0.0200|0.0200) D(0.0200->0.0200|0.0200)
+[ 0000001.4968 ]: Before transit ...... 
+[ 0000001.4978 ]: ==== -> 002 [000 001 000] a_i = 0.0200 a_f = 0.0447 a_r = 0.0200 Action = KICK(1) ====
+[ 0000002.6086 ]: Task 550 Peak memory usage max: 1.30078 MB min : 0.949219 MB
+[ 0000002.6087 ]: S 0x00002af3ef476010 : 0000233472 :              SendBuf:              store.c:580
+[ 0000002.6087 ]: S 0x0000000002d82d30 : 0000118784 :              PMAlloc:             solver.c:361
+[ 0000002.6087 ]: S 0x00002af3ed0dd010 : 0000753664 :          FastPMStore:             solver.c:76
+[ 0000001.5885 ]: After transit ...... 
+[ 0000001.5927 ]: Before transit ...... 
+[ 0000001.5958 ]: ==== -> 003 [001 001 000] a_i = 0.0200 a_f = 0.0447 a_r = 0.0447 Action = DRIFT(2) ====
+[ 0000001.7627 ]: Checking Snapshots (0.0200 0.0447) with K(0.0447->0.0200|0.0200) D(0.0200->0.0447|0.0447)
+[ 0000001.7705 ]: After transit ...... 
+[ 0000001.7843 ]: Before transit ...... 
+[ 0000001.7847 ]: ==== -> 004 [002 001 000] a_i = 0.0447 a_f = 0.1000 a_r = 0.0447 Action = DRIFT(2) ====
+[ 0000001.8640 ]: After transit ...... 
+[ 0000001.8680 ]: Before transit ...... 
+[ 0000001.8700 ]: ==== -> 005 [002 001 002] a_i = 0.0200 a_f = 0.1000 a_r = 0.1000 Action = FORCE(0) ====
+[ 0000001.8839 ]: Send buffer size : min=192 max=8960 mean=1374.3, std=1106.9 bytes
+[ 0000001.8842 ]: Recv buffer size : min=192 max=9216 mean=1374.3, std=1089.62 bytes
+[ 0000001.8844 ]: Decomposition iter 0,  exchange of 13743 particles; need 13743
+[ 0000001.8849 ]: Using sparse Alltoallv
+[ 0000001.8851 ]: Force Calculation Nmesh = 256 ====
+[ 0000001.8853 ]: Load imbalance: min = 0.614319 max = 1.22284 std = 0.0851457
+[ 0000001.8858 ]: Position range (a = 0.1000): min = 1.14352e-05 0.000102398 0.000206252 max = 384 384 384 
+[ 0000001.8859 ]: Velocity dispersion (a = 0.0447): std = 0.0340279 0.0366734 0.0411541
+[ 0000001.8869 ]: Sending ghosts: min = 131 max = 1245 mean = 691.275 std = 196.269
+[ 0000001.8871 ]: Receiving ghosts: min = 240 max = 1161 mean = 691.275 std = 185.412
+[ 0000001.8875 ]: Using sparse Alltoallv
+[ 0000001.8880 ]: Using sparse Alltoallv
+[ 0000001.9030 ]: p1    acc[0]: -3.06762 0.609377 -0.0286689 3.19804
+[ 0000001.9032 ]: p1    acc[1]: -3.75777 0.644378 0.00113037 3.22151
+[ 0000001.9033 ]: p1    acc[2]: -3.43022 0.725579 -0.00110619 3.53238
+[ 0000001.9035 ]: ghost acc[0]: -2.50178 0.274713 0.135897 2.24149
+[ 0000001.9036 ]: ghost acc[1]: -2.96279 0.443626 -0.00535823 2.92084
+[ 0000001.9038 ]: ghost acc[2]: -2.98976 0.491001 0.00524358 3.0951
+[ 0000001.9040 ]: p1+g  acc[0]: -3.06762 0.609377 -0.0286689 3.19804
+[ 0000001.9041 ]: p1+g  acc[1]: -3.75777 0.644378 0.00113037 3.22151
+[ 0000001.9042 ]: p1+g  acc[2]: -3.43022 0.725579 -0.00110619 3.53238
+[ 0000001.9044 ]: Using sparse Alltoallv
+[ 0000001.9049 ]: Force dispersion: std = 0.648746 0.699356 0.784472
+[ 0000001.9068 ]: D^2(0.1, 1.0) P(k<0.0654167) = 14091.6 Sigma8 = 1.66867e+18
+[ 0000001.9070 ]: writing power spectrum to restart/powerspec_0.1000.txt
+[ 0000001.9124 ]: After transit ...... 
+[ 0000001.9125 ]: Before transit ...... 
+[ 0000001.9126 ]: ==== -> 006 [002 002 002] a_i = 0.0447 a_f = 0.1000 a_r = 0.1000 Action = KICK(1) ====
+[ 0000002.0750 ]: Checking Snapshots (0.0447 0.1000) with K(0.0447->0.1000|0.1000) D(0.1000->0.0447|0.0447)
+[ 0000002.0836 ]: Snapshot a_x = 0.1000, a_v = 0.1000 
+[ 0000002.0857 ]: Growth factor of snapshot 0.1276 (a=0.1000)
+[ 0000002.0875 ]: Growth rate of snapshot 0.9988 (a=0.1000)
+[ 0000002.1146 ]: load balance before fof decompose : min = 2013 max = 4007 mean = 3276.8 std = 279.005
+[ 0000002.1154 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000002.1157 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000002.1159 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000002.1160 ]: Using sparse Alltoallv
+[ 0000002.1162 ]: load balance after fof decompose : min = 2013 max = 4007 mean = 3276.8 std = 279.005
+[ 0000002.1168 ]: Sending ghosts: min = 472 max = 1722 mean = 1059.85 std = 208.498
+[ 0000002.1170 ]: Receiving ghosts: min = 498 max = 1654 mean = 1059.85 std = 172.193
+[ 0000002.1175 ]: Using sparse Alltoallv
+[ 0000002.1184 ]: Using sparse Alltoallv
+[ 0000002.1193 ]: Creating KDTree with 1605 nodes for 4402 particles
+[ 0000002.1295 ]: Using sparse Alltoallv
+[ 0000002.1298 ]: Using sparse Alltoallv
+[ 0000002.1301 ]: FOF reduction iteration 0 : merged 0 crosslinks
+[ 0000002.1303 ]: Found 904 halos segments >= 20 particles; or cross linked. 
+[ 0000002.1310 ]: Allocating 2958 halos per rank for final catalog.
+[ 0000002.1533 ]: Send buffer size : min=82016 max=259600 mean=163391, std=28876.8 bytes
+[ 0000002.1535 ]: Recv buffer size : min=156112 max=170368 mean=163391, std=2619.12 bytes
+[ 0000002.1538 ]: Decomposition iter 0,  exchange of 594149 particles; need 594149
+[ 0000002.1540 ]: Using MPI's Alltoallv
+[ 0000002.1765 ]: Send buffer size : min=156112 max=170368 mean=163391, std=2619.12 bytes
+[ 0000002.1767 ]: Recv buffer size : min=82016 max=259600 mean=163391, std=28876.8 bytes
+[ 0000002.1770 ]: Decomposition iter 0,  exchange of 594149 particles; need 594149
+[ 0000002.1771 ]: Using MPI's Alltoallv
+[ 0000002.1818 ]: After length cut we have 0 halos (0 including ghost halos).
+[ 0000002.1829 ]: After event: 0 halos.
+[ 0000002.2322 ]: number of particles after sorting: min = 2013 max = 4007 mean = 3276.8 std = 279.005
+[ 0000002.2324 ]: Writing a snapshot header to restart/fastpm_0.1000
+[ 0000002.2514 ]: RSD factor 5.696304e-03
+[ 0000002.2554 ]: Writing a catalog to restart/fastpm_0.1000 [1]
+[ 0000002.2649 ]: Writing 2097152 objects.
+[ 0000002.2840 ]: Writing block Position of (f8, 3) from 1 files with 16 writers
+[ 0000002.4654 ]: Writing block Velocity of (f4, 3) from 1 files with 16 writers
+[ 0000002.9039 ]: Writing block ID of (i8, 1) from 1 files with 16 writers
+[ 0000003.1679 ]: snapshot restart/fastpm_0.1000 [1] written at z = 9.0000 a = 0.1000 
+[ 0000003.2007 ]: number of particles after sorting: min = 0 max = 0 mean = 0 std = 0
+[ 0000003.2007 ]: Writing a snapshot header to restart/fastpm_0.1000
+[ 0000003.2885 ]: RSD factor 5.696304e-03
+[ 0000003.5109 ]: Writing a catalog to restart/fastpm_0.1000 [LL-0.200]
+[ 0000003.5343 ]: Writing 0 objects.
+[ 0000003.7772 ]: fof restart/fastpm_0.1000 [LL-0.200] written at z = 9.0000 a = 0.1000 
+[ 0000003.7791 ]: Writing to 2097152 paritlces to  1 files
+[ 0000006.1841 ]: runpb snapshot restart/tpm_0.1000.bin written z = 9.0000 a = 0.1000
+[ 0000006.1938 ]: After transit ...... 
+[ 0000006.2114 ]: Before transit ...... 
+[ 0000006.2372 ]: ==== -> 007 [002 003 002] a_i = 0.1000 a_f = 0.2236 a_r = 0.1000 Action = KICK(1) ====
+[ 0000007.4791 ]: Task 326 Peak memory usage max: 4.87109 MB min : 4.80859 MB
+[ 0000006.3514 ]: After transit ...... 
+[ 0000006.3691 ]: Before transit ...... 
+[ 0000007.4792 ]: S 0x00000000017cb4a0 : 0000069632 :          FastPMStore:           pmghosts.c:183
+[ 0000007.4792 ]: S 0x00000000017b0db0 : 0000004096 :            Ghost2Par:           pmghosts.c:180
+[ 0000007.4792 ]: S 0x00002ac6d575c010 : 0000753664 :          FastPMStore:             solver.c:76
+[ 0000007.4792 ]: H 0x00000000017f19f0 : 0000040960 :          FastPMStore:                fof.c:1046
+[ 0000007.4792 ]: H 0x00000000017e79e0 : 0000040960 :              FOFHead:                fof.c:1043
+[ 0000006.3772 ]: ==== -> 008 [003 003 002] a_i = 0.1000 a_f = 0.2236 a_r = 0.2236 Action = DRIFT(2) ====
+[ 0000006.4459 ]: Checking Snapshots (0.1000 0.2236) with K(0.2236->0.1000|0.1000) D(0.1000->0.2236|0.2236)
+[ 0000006.4626 ]: After transit ...... 
+[ 0000006.4763 ]: Before transit ...... 
+[ 0000006.4852 ]: ==== -> 009 [004 003 002] a_i = 0.2236 a_f = 0.5000 a_r = 0.2236 Action = DRIFT(2) ====
+[ 0000006.5569 ]: After transit ...... 
+[ 0000006.5710 ]: Before transit ...... 
+[ 0000006.5782 ]: ==== -> 010 [004 003 004] a_i = 0.1000 a_f = 0.5000 a_r = 0.5000 Action = FORCE(0) ====
+[ 0000006.7422 ]: Send buffer size : min=101568 max=256448 mean=201817, std=23017.6 bytes
+[ 0000006.8112 ]: Recv buffer size : min=85760 max=310720 mean=201817, std=33393.3 bytes
+[ 0000006.8462 ]: Decomposition iter 0,  exchange of 2018168 particles; need 2018168
+[ 0000006.8712 ]: Using sparse Alltoallv
+[ 0000006.9232 ]: Force Calculation Nmesh = 256 ====
+[ 0000006.9902 ]: Load imbalance: min = 0.53894 max = 1.48163 std = 0.144642
+[ 0000007.1271 ]: Position range (a = 0.5000): min = 7.71385e-05 0.000169306 0.000419225 max = 384 384 384 
+[ 0000007.1424 ]: Velocity dispersion (a = 0.2236): std = 0.3783 0.407815 0.457482
+[ 0000007.2113 ]: Sending ghosts: min = 411 max = 1016 mean = 696.189 std = 104.328
+[ 0000007.2742 ]: Receiving ghosts: min = 461 max = 1026 mean = 696.189 std = 98.7675
+[ 0000007.2994 ]: Using sparse Alltoallv
+[ 0000007.3514 ]: Using sparse Alltoallv
+[ 0000007.5482 ]: p1    acc[0]: -30.0016 3.16707 -0.0223699 35.6804
+[ 0000007.5614 ]: p1    acc[1]: -26.8755 3.37378 -0.0161941 33.2873
+[ 0000007.5743 ]: p1    acc[2]: -28.6261 3.71969 -0.00176058 28.7891
+[ 0000007.6522 ]: ghost acc[0]: -24.7025 1.90282 0.10529 19.6556
+[ 0000007.6653 ]: ghost acc[1]: -19.5169 2.04086 0.0762218 22.8592
+[ 0000007.6783 ]: ghost acc[2]: -21.3092 2.20305 0.00828666 23.3107
+[ 0000007.7442 ]: p1+g  acc[0]: -30.0016 3.16707 -0.0223699 35.6804
+[ 0000007.7573 ]: p1+g  acc[1]: -26.8755 3.37378 -0.0161941 33.2873
+[ 0000007.7693 ]: p1+g  acc[2]: -28.6261 3.71969 -0.00176058 28.7891
+[ 0000007.7932 ]: Using sparse Alltoallv
+[ 0000007.8912 ]: Force dispersion: std = 3.39155 3.6194 3.98728
+[ 0000007.9415 ]: D^2(0.5, 1.0) P(k<0.0654167) = 13931.6 Sigma8 = 1.6664
+[ 0000007.9682 ]: writing power spectrum to restart/powerspec_0.5000.txt
+[ 0000007.9814 ]: After transit ...... 
+[ 0000007.9944 ]: Before transit ...... 
+[ 0000008.0053 ]: ==== -> 011 [004 004 004] a_i = 0.2236 a_f = 0.5000 a_r = 0.5000 Action = KICK(1) ====
+[ 0000008.0783 ]: Checking Snapshots (0.2236 0.5000) with K(0.2236->0.5000|0.5000) D(0.5000->0.2236|0.2236)
+[ 0000008.0914 ]: Snapshot a_x = 0.5000, a_v = 0.5000 
+[ 0000008.1005 ]: Growth factor of snapshot 0.6092 (a=0.5000)
+[ 0000008.1093 ]: Growth rate of snapshot 0.8713 (a=0.5000)
+[ 0000008.1752 ]: load balance before fof decompose : min = 1766 max = 4855 mean = 3276.8 std = 473.964
+[ 0000008.1781 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000008.1783 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000008.1785 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000008.1790 ]: Using sparse Alltoallv
+[ 0000008.1795 ]: load balance after fof decompose : min = 1766 max = 4855 mean = 3276.8 std = 473.964
+[ 0000008.1807 ]: Sending ghosts: min = 545 max = 1240 mean = 848.402 std = 111.729
+[ 0000008.1809 ]: Receiving ghosts: min = 514 max = 1194 mean = 848.402 std = 108.129
+[ 0000008.1819 ]: Using sparse Alltoallv
+[ 0000008.1831 ]: Using sparse Alltoallv
+[ 0000008.1841 ]: Creating KDTree with 1519 nodes for 3912 particles
+[ 0000008.1921 ]: Using sparse Alltoallv
+[ 0000008.1924 ]: Using sparse Alltoallv
+[ 0000008.1927 ]: FOF reduction iteration 0 : merged 16 crosslinks
+[ 0000008.1929 ]: Using sparse Alltoallv
+[ 0000008.1931 ]: FOF reduction iteration 1 : merged 0 crosslinks
+[ 0000008.1933 ]: Found 689 halos segments >= 20 particles; or cross linked. 
+[ 0000008.1935 ]: Allocating 2080 halos per rank for final catalog.
+[ 0000008.1946 ]: Send buffer size : min=81136 max=182864 mean=128517, std=16074.9 bytes
+[ 0000008.1948 ]: Recv buffer size : min=110704 max=141328 mean=128517, std=4089.07 bytes
+[ 0000008.1952 ]: Decomposition iter 0,  exchange of 467334 particles; need 467334
+[ 0000008.1954 ]: Using MPI's Alltoallv
+[ 0000008.1989 ]: Send buffer size : min=110704 max=141328 mean=128517, std=4089.07 bytes
+[ 0000008.1992 ]: Recv buffer size : min=81136 max=182864 mean=128517, std=16074.9 bytes
+[ 0000008.1995 ]: Decomposition iter 0,  exchange of 467334 particles; need 467334
+[ 0000008.1997 ]: Using MPI's Alltoallv
+[ 0000008.2016 ]: After length cut we have 14 halos (17 including ghost halos).
+[ 0000008.2020 ]: Send buffer size : min=0 max=176 mean=4.675, std=28.301 bytes
+[ 0000008.2022 ]: Recv buffer size : min=0 max=352 mean=4.675, std=33.0355 bytes
+[ 0000008.2024 ]: Decomposition iter 0,  exchange of 17 particles; need 17
+[ 0000008.2025 ]: Using sparse Alltoallv
+[ 0000008.2030 ]: Send buffer size : min=0 max=352 mean=4.675, std=33.0355 bytes
+[ 0000008.2032 ]: Recv buffer size : min=0 max=176 mean=4.675, std=28.301 bytes
+[ 0000008.2033 ]: Decomposition iter 0,  exchange of 17 particles; need 17
+[ 0000008.2035 ]: Using sparse Alltoallv
+[ 0000008.2037 ]: After event: 14 halos.
+[ 0000008.2135 ]: number of particles after sorting: min = 1766 max = 4855 mean = 3276.8 std = 473.964
+[ 0000008.2137 ]: Writing a snapshot header to restart/fastpm_0.5000
+[ 0000008.2224 ]: RSD factor 1.126433e-02
+[ 0000008.2257 ]: Writing a catalog to restart/fastpm_0.5000 [1]
+[ 0000008.2304 ]: Writing 2097152 objects.
+[ 0000008.2404 ]: Writing block Position of (f8, 3) from 1 files with 16 writers
+[ 0000008.6237 ]: Writing block Velocity of (f4, 3) from 1 files with 16 writers
+[ 0000008.8803 ]: Writing block ID of (i8, 1) from 1 files with 16 writers
+[ 0000009.2678 ]: snapshot restart/fastpm_0.5000 [1] written at z = 1.0000 a = 0.5000 
+[ 0000009.3791 ]: number of particles after sorting: min = 0 max = 1 mean = 0.021875 std = 0.146275
+[ 0000009.3793 ]: Writing a snapshot header to restart/fastpm_0.5000
+[ 0000009.3823 ]: RSD factor 1.126433e-02
+[ 0000009.3857 ]: Writing a catalog to restart/fastpm_0.5000 [LL-0.200]
+[ 0000009.3945 ]: Writing 14 objects.
+[ 0000009.4053 ]: Writing block Position of (f8, 3) from 1 files with 16 writers
+[ 0000009.7175 ]: Writing block InitialPosition of (f4, 3) from 1 files with 16 writers
+[ 0000010.0130 ]: Writing block Velocity of (f4, 3) from 1 files with 16 writers
+[ 0000010.3202 ]: Writing block ID of (i8, 1) from 1 files with 16 writers
+[ 0000010.3452 ]: Writing block Length of (i4, 1) from 1 files with 16 writers
+[ 0000010.3749 ]: Writing block MinID of (i8, 1) from 1 files with 16 writers
+[ 0000010.3988 ]: Writing block Task of (i4, 1) from 1 files with 16 writers
+[ 0000010.6414 ]: Writing block Rdisp of (f4, 6) from 1 files with 16 writers
+[ 0000011.1794 ]: Writing block Vdisp of (f4, 6) from 1 files with 16 writers
+[ 0000011.5574 ]: Writing block RVdisp of (f4, 9) from 1 files with 16 writers
+[ 0000011.6633 ]: fof restart/fastpm_0.5000 [LL-0.200] written at z = 1.0000 a = 0.5000 
+[ 0000011.7003 ]: Writing to 2097152 paritlces to  1 files
+[ 0000013.9918 ]: runpb snapshot restart/tpm_0.5000.bin written z = 1.0000 a = 0.5000
+[ 0000013.9933 ]: After transit ...... 
+[ 0000014.0047 ]: Before transit ...... 
+[ 0000014.0174 ]: ==== -> 012 [004 005 004] a_i = 0.5000 a_f = 0.6124 a_r = 0.5000 Action = KICK(1) ====
+[ 0000015.1913 ]: Task 550 Peak memory usage max: 4.87891 MB min : 4.80859 MB
+[ 0000015.1915 ]: S 0x0000000002db8e70 : 0000053248 :          FastPMStore:           pmghosts.c:183
+[ 0000015.1915 ]: S 0x0000000002d88c20 : 0000008192 :            Ghost2Par:           pmghosts.c:180
+[ 0000015.1915 ]: S 0x00002af3ed0dd010 : 0000753664 :          FastPMStore:             solver.c:76
+[ 0000015.1915 ]: H 0x0000000002dd1e90 : 0000053248 :          FastPMStore:                fof.c:1046
+[ 0000015.1915 ]: H 0x0000000002dc5e80 : 0000049152 :              FOFHead:                fof.c:1043
+[ 0000014.0914 ]: After transit ...... 
+[ 0000014.1045 ]: Before transit ...... 
+[ 0000014.1163 ]: ==== -> 013 [005 005 004] a_i = 0.5000 a_f = 0.6124 a_r = 0.6124 Action = DRIFT(2) ====
+[ 0000014.1860 ]: Checking Snapshots (0.5000 0.6124) with K(0.6124->0.5000|0.5000) D(0.5000->0.6124|0.6124)
+[ 0000014.1994 ]: After transit ...... 
+[ 0000014.2044 ]: Before transit ...... 
+[ 0000014.2173 ]: ==== -> 014 [006 005 004] a_i = 0.6124 a_f = 0.7500 a_r = 0.6124 Action = DRIFT(2) ====
+[ 0000014.3509 ]: After transit ...... 
+[ 0000014.3602 ]: Before transit ...... 
+[ 0000014.3763 ]: ==== -> 015 [006 005 006] a_i = 0.5000 a_f = 0.7500 a_r = 0.7500 Action = FORCE(0) ====
+[ 0000014.5402 ]: Send buffer size : min=95680 max=310720 mean=201992, std=31936 bytes
+[ 0000014.6082 ]: Recv buffer size : min=84480 max=353216 mean=201992, std=40024 bytes
+[ 0000014.6422 ]: Decomposition iter 0,  exchange of 2019915 particles; need 2019915
+[ 0000014.6672 ]: Using sparse Alltoallv
+[ 0000014.7183 ]: Force Calculation Nmesh = 256 ====
+[ 0000014.7862 ]: Load imbalance: min = 0.485535 max = 1.68427 std = 0.187007
+[ 0000014.9222 ]: Position range (a = 0.7500): min = 2.51314e-05 8.66943e-05 0.000734619 max = 384 384 384 
+[ 0000014.9393 ]: Velocity dispersion (a = 0.6124): std = 1.63934 1.75859 1.95117
+[ 0000015.0162 ]: Sending ghosts: min = 353 max = 1313 mean = 695.597 std = 144.047
+[ 0000015.0812 ]: Receiving ghosts: min = 424 max = 1337 mean = 695.597 std = 134.304
+[ 0000015.1074 ]: Using sparse Alltoallv
+[ 0000015.1534 ]: Using sparse Alltoallv
+[ 0000015.4862 ]: p1    acc[0]: -56.6568 5.36916 -0.0647318 60.7094
+[ 0000015.4954 ]: p1    acc[1]: -57.2781 5.61144 -0.0475964 60.5118
+[ 0000015.5123 ]: p1    acc[2]: -55.7937 5.98952 0.000180886 60.6091
+[ 0000015.5832 ]: ghost acc[0]: -53.8292 3.34623 0.304937 53.2338
+[ 0000015.6003 ]: ghost acc[1]: -44.473 3.42233 0.224216 52.0301
+[ 0000015.6093 ]: ghost acc[2]: -42.4978 3.5886 -0.000852058 56.7907
+[ 0000015.6862 ]: p1+g  acc[0]: -56.6568 5.36916 -0.0647318 60.7094
+[ 0000015.7033 ]: p1+g  acc[1]: -57.2781 5.61144 -0.0475964 60.5118
+[ 0000015.7123 ]: p1+g  acc[2]: -55.7937 5.98952 0.000180886 60.6091
+[ 0000015.7542 ]: Using sparse Alltoallv
+[ 0000015.8320 ]: Force dispersion: std = 5.74462 5.99832 6.42285
+[ 0000015.8709 ]: D^2(0.75, 1.0) P(k<0.0654167) = 13868.4 Sigma8 = 1.05019
+[ 0000015.8952 ]: writing power spectrum to restart/powerspec_0.7500.txt
+[ 0000015.9106 ]: After transit ...... 
+[ 0000015.9164 ]: Before transit ...... 
+[ 0000015.9253 ]: ==== -> 016 [006 006 006] a_i = 0.6124 a_f = 0.7500 a_r = 0.7500 Action = KICK(1) ====
+[ 0000016.0020 ]: Checking Snapshots (0.6124 0.7500) with K(0.6124->0.7500|0.7500) D(0.7500->0.6124|0.6124)
+[ 0000016.0111 ]: After transit ...... 
+[ 0000016.0204 ]: Before transit ...... 
+[ 0000016.0293 ]: ==== -> 017 [006 007 006] a_i = 0.7500 a_f = 0.8660 a_r = 0.7500 Action = KICK(1) ====
+[ 0000016.1013 ]: After transit ...... 
+[ 0000016.1093 ]: Before transit ...... 
+[ 0000016.1223 ]: ==== -> 018 [007 007 006] a_i = 0.7500 a_f = 0.8660 a_r = 0.8660 Action = DRIFT(2) ====
+[ 0000016.1402 ]: Checking Snapshots (0.7500 0.8660) with K(0.8660->0.7500|0.7500) D(0.7500->0.8660|0.8660)
+[ 0000016.1525 ]: After transit ...... 
+[ 0000016.1526 ]: Before transit ...... 
+[ 0000016.1528 ]: ==== -> 019 [008 007 006] a_i = 0.8660 a_f = 1.0000 a_r = 0.8660 Action = DRIFT(2) ====
+[ 0000016.1567 ]: After transit ...... 
+[ 0000016.1588 ]: Before transit ...... 
+[ 0000016.1589 ]: ==== -> 020 [008 007 008] a_i = 0.7500 a_f = 1.0000 a_r = 1.0000 Action = FORCE(0) ====
+[ 0000016.1604 ]: Send buffer size : min=9024 max=42560 mean=19145.3, std=4671.56 bytes
+[ 0000016.1607 ]: Recv buffer size : min=3264 max=66112 mean=19145.3, std=8866.7 bytes
+[ 0000016.1608 ]: Decomposition iter 0,  exchange of 191453 particles; need 191453
+[ 0000016.1613 ]: Using sparse Alltoallv
+[ 0000016.1616 ]: Force Calculation Nmesh = 256 ====
+[ 0000016.1618 ]: Load imbalance: min = 0.46936 max = 1.87103 std = 0.217416
+[ 0000016.1623 ]: Position range (a = 1.0000): min = 0.000112077 0.000166822 0.00017633 max = 384 384 384 
+[ 0000016.1625 ]: Velocity dispersion (a = 0.8660): std = 2.45142 2.6297 2.91182
+[ 0000016.1630 ]: Sending ghosts: min = 326 max = 1529 mean = 699.109 std = 172.562
+[ 0000016.1632 ]: Receiving ghosts: min = 388 max = 1422 mean = 699.109 std = 161.848
+[ 0000016.1636 ]: Using sparse Alltoallv
+[ 0000016.1642 ]: Using sparse Alltoallv
+[ 0000016.1791 ]: p1    acc[0]: -106.919 7.97784 -0.106065 101.677
+[ 0000016.1793 ]: p1    acc[1]: -103.475 8.23251 -0.0804126 114.825
+[ 0000016.1795 ]: p1    acc[2]: -100.587 8.54761 0.00337337 103.552
+[ 0000016.1797 ]: ghost acc[0]: -102.617 5.1151 0.497138 80.0325
+[ 0000016.1798 ]: ghost acc[1]: -89.1001 5.08063 0.376902 98.9006
+[ 0000016.1799 ]: ghost acc[2]: -99.6809 5.16543 -0.0158113 89.3983
+[ 0000016.1802 ]: p1+g  acc[0]: -106.919 7.97784 -0.106065 101.677
+[ 0000016.1803 ]: p1+g  acc[1]: -103.475 8.23251 -0.0804126 114.825
+[ 0000016.1805 ]: p1+g  acc[2]: -100.587 8.54761 0.00337337 103.552
+[ 0000016.1806 ]: Using sparse Alltoallv
+[ 0000016.1812 ]: Force dispersion: std = 8.53854 8.78782 9.1721
+[ 0000016.1832 ]: D^2(1, 1.0) P(k<0.0654167) = 13801.5 Sigma8 = 0.885723
+[ 0000016.1835 ]: writing power spectrum to restart/powerspec_1.0000.txt
+[ 0000016.1856 ]: After transit ...... 
+[ 0000016.1858 ]: Before transit ...... 
+[ 0000016.1859 ]: ==== -> 021 [008 008 008] a_i = 0.8660 a_f = 1.0000 a_r = 1.0000 Action = KICK(1) ====
+[ 0000016.1940 ]: Checking Snapshots (0.8660 1.0000) with K(0.8660->1.0000|1.0000) D(1.0000->0.8660|0.8660)
+[ 0000016.1947 ]: Snapshot a_x = 1.0000, a_v = 1.0000 
+[ 0000016.1950 ]: Growth factor of snapshot 1.0000 (a=1.0000)
+[ 0000016.1951 ]: Growth rate of snapshot 0.5194 (a=1.0000)
+[ 0000016.1955 ]: load balance before fof decompose : min = 1538 max = 6131 mean = 3276.8 std = 712.429
+[ 0000016.1961 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.1963 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.1965 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000016.1966 ]: Using sparse Alltoallv
+[ 0000016.1969 ]: load balance after fof decompose : min = 1538 max = 6131 mean = 3276.8 std = 712.429
+[ 0000016.1975 ]: Sending ghosts: min = 462 max = 1739 mean = 847.633 std = 179.117
+[ 0000016.1977 ]: Receiving ghosts: min = 455 max = 1680 mean = 847.633 std = 173.179
+[ 0000016.1982 ]: Using sparse Alltoallv
+[ 0000016.1990 ]: Using sparse Alltoallv
+[ 0000016.1998 ]: Creating KDTree with 1517 nodes for 3553 particles
+[ 0000016.2075 ]: Using sparse Alltoallv
+[ 0000016.2078 ]: Using sparse Alltoallv
+[ 0000016.2080 ]: FOF reduction iteration 0 : merged 517 crosslinks
+[ 0000016.2082 ]: Using sparse Alltoallv
+[ 0000016.2084 ]: FOF reduction iteration 1 : merged 3 crosslinks
+[ 0000016.2086 ]: Using sparse Alltoallv
+[ 0000016.2089 ]: FOF reduction iteration 2 : merged 0 crosslinks
+[ 0000016.2091 ]: Found 531 halos segments >= 20 particles; or cross linked. 
+[ 0000016.2093 ]: Allocating 1898 halos per rank for final catalog.
+[ 0000016.2101 ]: Send buffer size : min=64592 max=166672 mean=106113, std=16303 bytes
+[ 0000016.2103 ]: Recv buffer size : min=94688 max=118976 mean=106113, std=4002.86 bytes
+[ 0000016.2105 ]: Decomposition iter 0,  exchange of 385866 particles; need 385866
+[ 0000016.2107 ]: Using MPI's Alltoallv
+[ 0000016.2127 ]: Send buffer size : min=94688 max=118976 mean=106113, std=4002.86 bytes
+[ 0000016.2129 ]: Recv buffer size : min=64592 max=166672 mean=106113, std=16303 bytes
+[ 0000016.2131 ]: Decomposition iter 0,  exchange of 385866 particles; need 385866
+[ 0000016.2133 ]: Using MPI's Alltoallv
+[ 0000016.2157 ]: After length cut we have 4178 halos (5454 including ghost halos).
+[ 0000016.2162 ]: Send buffer size : min=0 max=5104 mean=1497.38, std=780.301 bytes
+[ 0000016.2164 ]: Recv buffer size : min=0 max=4048 mean=1497.38, std=645.315 bytes
+[ 0000016.2165 ]: Decomposition iter 0,  exchange of 5445 particles; need 5445
+[ 0000016.2167 ]: Using sparse Alltoallv
+[ 0000016.2185 ]: Send buffer size : min=0 max=4048 mean=1497.38, std=645.315 bytes
+[ 0000016.2187 ]: Recv buffer size : min=0 max=5104 mean=1497.38, std=780.301 bytes
+[ 0000016.2189 ]: Decomposition iter 0,  exchange of 5445 particles; need 5445
+[ 0000016.2190 ]: Using sparse Alltoallv
+[ 0000016.2193 ]: After event: 4178 halos.
+[ 0000016.2366 ]: number of particles after sorting: min = 1538 max = 6131 mean = 3276.8 std = 712.429
+[ 0000016.2369 ]: Writing a snapshot header to restart/fastpm_1.0000
+[ 0000016.2548 ]: RSD factor 1.000000e-02
+[ 0000016.2603 ]: Writing a catalog to restart/fastpm_1.0000 [1]
+[ 0000016.2651 ]: Writing 2097152 objects.
+[ 0000016.2760 ]: Writing block Position of (f8, 3) from 1 files with 16 writers
+[ 0000016.3788 ]: Writing block Velocity of (f4, 3) from 1 files with 16 writers
+[ 0000016.5544 ]: Writing block ID of (i8, 1) from 1 files with 16 writers
+[ 0000016.9424 ]: snapshot restart/fastpm_1.0000 [1] written at z = 0.0000 a = 1.0000 
+[ 0000017.3674 ]: number of particles after sorting: min = 0 max = 24 mean = 6.52813 std = 3.6528
+[ 0000017.3806 ]: Writing a snapshot header to restart/fastpm_1.0000
+[ 0000017.4684 ]: RSD factor 1.000000e-02
+[ 0000017.6279 ]: Writing a catalog to restart/fastpm_1.0000 [LL-0.200]
+[ 0000017.6329 ]: Writing 4178 objects.
+[ 0000017.6458 ]: Writing block Position of (f8, 3) from 1 files with 16 writers
+[ 0000017.6770 ]: Writing block InitialPosition of (f4, 3) from 1 files with 16 writers
+[ 0000017.7020 ]: Writing block Velocity of (f4, 3) from 1 files with 16 writers
+[ 0000017.7482 ]: Writing block ID of (i8, 1) from 1 files with 16 writers
+[ 0000017.7875 ]: Writing block Length of (i4, 1) from 1 files with 16 writers
+[ 0000017.9767 ]: Writing block MinID of (i8, 1) from 1 files with 16 writers
+[ 0000018.4476 ]: Writing block Task of (i4, 1) from 1 files with 16 writers
+[ 0000019.0387 ]: Writing block Rdisp of (f4, 6) from 1 files with 16 writers
+[ 0000019.5767 ]: Writing block Vdisp of (f4, 6) from 1 files with 16 writers
+[ 0000020.1688 ]: Writing block RVdisp of (f4, 9) from 1 files with 16 writers
+[ 0000020.2539 ]: fof restart/fastpm_1.0000 [LL-0.200] written at z = 0.0000 a = 1.0000 
+[ 0000020.2543 ]: Writing to 2097152 paritlces to  1 files
+[ 0000022.8724 ]: runpb snapshot restart/tpm_1.0000.bin written z = 0.0000 a = 1.0000
+[ 0000022.8791 ]: After transit ...... 
+[ 0000022.9048 ]: Checking Snapshots (1.0000 1.0000) with K(1.0000->1.0000|1.0000) D(1.0000->1.0000|1.0000)
+[ 0000024.0948 ]: Task 532 Peak memory usage max: 4.92578 MB min : 4.80859 MB
+[ 0000024.0950 ]: S 0x0000000002bcb780 : 0000073728 :          FastPMStore:           pmghosts.c:183
+[ 0000024.0950 ]: S 0x0000000002b85fe0 : 0000008192 :            Ghost2Par:           pmghosts.c:180
+[ 0000024.0950 ]: S 0x00002b4f7eb2b010 : 0000753664 :          FastPMStore:             solver.c:76
+[ 0000024.0950 ]: H 0x0000000002bed7a0 : 0000065536 :          FastPMStore:                fof.c:1046
+[ 0000024.0950 ]: H 0x0000000002bdd790 : 0000065536 :              FOFHead:                fof.c:1043
+[ 0000022.9984 ]:      min      max     mean 
+[ 0000023.0214 ]: --------------------------------------------------------------------------
+[ 0000023.0444 ]:     0.30     0.30     0.30         cdmic : run_fastpm : fastpm.c 
+[ 0000023.1134 ]:    21.84    21.85    21.84        evolve : run_fastpm : fastpm.c 
+[ 0000023.1734 ]:     0.00     0.00     0.00      indexing : run_fastpm : fastpm.c 
+[ 0000023.2404 ]:     0.43     0.43     0.43          init : run_fastpm : fastpm.c 
+[ 0000023.2989 ]:     0.00     0.00     0.00            io : run_fastpm : fastpm.c 
+[ 0000023.3654 ]:     0.00     0.00     0.00        ncdmic : run_fastpm : fastpm.c 
+[ 0000023.4349 ]:     0.00     0.00     0.00          sort : run_fastpm : fastpm.c 
+[ 0000023.4674 ]: --------------------------------------------------------------------------
+[ 0000023.5069 ]:     0.18     0.19     0.19           fof : run_fof : fastpm.c 
+[ 0000023.5364 ]: --------------------------------------------------------------------------
+[ 0000023.5799 ]:     9.71    15.78    12.62            io : take_a_snapshot : fastpm.c 
+[ 0000023.6479 ]:     0.62     0.65     0.63          sort : take_a_snapshot : fastpm.c 
+[ 0000023.6754 ]: --------------------------------------------------------------------------
+[ 0000023.7254 ]:     0.15     0.18     0.17       compute : write_powerspectrum : fastpm.c 
+[ 0000023.7984 ]:     0.01     0.06     0.02            io : write_powerspectrum : fastpm.c 
+[ 0000023.8304 ]: --------------------------------------------------------------------------
+[ 0000023.8619 ]:     0.00     0.00     0.00         paint : _fastpm_solver_compute_delta_k : gravity.c 
+[ 0000023.9434 ]:     0.00     0.10     0.07           r2c : _fastpm_solver_compute_delta_k : gravity.c 
+[ 0000024.0119 ]:     0.00     0.00     0.00      transfer : _fastpm_solver_compute_delta_k : gravity.c 
+[ 0000024.0414 ]: --------------------------------------------------------------------------
+[ 0000024.0919 ]:     0.21     0.31     0.24           c2r : _fastpm_solver_compute_force : gravity.c 
+[ 0000024.1669 ]:     0.00     0.00     0.00       readout : _fastpm_solver_compute_force : gravity.c 
+[ 0000024.2419 ]:     0.10     0.12     0.11        reduce : _fastpm_solver_compute_force : gravity.c 
+[ 0000024.3169 ]:     0.00     0.02     0.01      transfer : _fastpm_solver_compute_force : gravity.c 
+[ 0000024.3250 ]: --------------------------------------------------------------------------
+[ 0000024.3969 ]:     0.49     0.52     0.51        ghosts : _fastpm_solver_create_ghosts : gravity.c 
+[ 0000024.4050 ]: --------------------------------------------------------------------------
+[ 0000024.4719 ]:     0.00     0.00     0.00       dealias : fastpm_solver_compute_force : gravity.c 
+[ 0000024.4800 ]: --------------------------------------------------------------------------
+[ 0000024.5469 ]:     0.00     0.02     0.01          meta : fastpm_store_write : io.c 
+[ 0000024.5550 ]: --------------------------------------------------------------------------
+[ 0000024.6219 ]:     0.00     0.02     0.01          meta : write_runpb_snapshot : runpb.c 
+[ 0000024.6300 ]: --------------------------------------------------------------------------
+[ 0000024.7019 ]:     0.00     0.01     0.00         drift : fastpm_do_drift : solver.c 
+[ 0000024.7030 ]: --------------------------------------------------------------------------
+[ 0000024.7032 ]:     0.56     0.60     0.59     decompose : fastpm_do_force : solver.c 
+[ 0000024.7033 ]:     0.33     0.38     0.34         event : fastpm_do_force : solver.c 
+[ 0000024.7035 ]:     1.59     1.62     1.60         force : fastpm_do_force : solver.c 
+[ 0000024.7037 ]:     0.00     0.00     0.00          pgdc : fastpm_do_force : solver.c 
+[ 0000024.7038 ]: --------------------------------------------------------------------------
+[ 0000024.7041 ]:    16.77    17.03    16.82  interpolation : fastpm_do_interpolation : solver.c 
+[ 0000024.7042 ]: --------------------------------------------------------------------------
+[ 0000024.7043 ]:     0.00     0.00     0.00          kick : fastpm_do_kick : solver.c 
+[ 0000024.7045 ]: --------------------------------------------------------------------------
+[ 0000024.7046 ]:     0.00     0.00     0.00        warmup : fastpm_do_warmup : solver.c 
+[ 0000024.7047 ]: --------------------------------------------------------------------------
+[ 0000024.7049 ]:     0.00     0.00     0.00  aftertransit : fastpm_solver_evolve : solver.c 
+[ 0000024.7050 ]:     1.02     1.13     1.04  beforetransit : fastpm_solver_evolve : solver.c 

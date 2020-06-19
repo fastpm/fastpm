@@ -242,6 +242,7 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
     FastPMTransition transition[1];
 
+    fastpm_info("Start to evove in fastpm_solver_evolve...... \n");
     /* The last step is the 'terminal' step */
     int i;
     for(i = 1; states->table[i].force != -1; i ++) {
@@ -252,6 +253,7 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
 
         CLOCK(beforetransit);
         ENTER(beforetransit);
+        fastpm_info("Before transit ...... \n");
         fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_TRANSITION,
                 FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
         LEAVE(beforetransit);
@@ -267,7 +269,7 @@ fastpm_solver_evolve(FastPMSolver * fastpm, double * time_step, int nstep)
                 fastpm_do_force(fastpm, transition);
             break;
         }
-
+        fastpm_info("After transit ...... \n");
         CLOCK(aftertransit);
         ENTER(aftertransit);
         fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_TRANSITION,

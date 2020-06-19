@@ -1,0 +1,1516 @@
+configure: ****************************************************************
+configure: *      Configuring in common/pfft                              *
+configure: ****************************************************************
+checking build system type... x86_64-unknown-linux-gnu
+checking host system type... x86_64-unknown-linux-gnu
+checking for a BSD-compatible install... /usr/bin/install -c
+checking whether build environment is sane... yes
+checking for a thread-safe mkdir -p... /usr/bin/mkdir -p
+checking for gawk... gawk
+checking whether make sets $(MAKE)... yes
+checking whether make supports nested variables... yes
+checking for style of include used by make... GNU
+checking for gcc... mpicc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether we are using the GNU C compiler... yes
+checking whether mpicc accepts -g... yes
+checking for mpicc option to accept ISO C89... none needed
+checking whether mpicc understands -c and -o together... yes
+checking dependency style of mpicc... gcc3
+checking for function MPI_Init... yes
+checking for mpi.h... yes
+checking for mpicc option to accept ISO C99... -std=gnu99
+checking for inline... inline
+checking for mpicc -std=gnu99 option to support OpenMP... -fopenmp
+checking for  option to support OpenMP... unsupported
+checking how to print strings... printf
+checking for a sed that does not truncate output... /usr/bin/sed
+checking for grep that handles long lines and -e... /usr/bin/grep
+checking for egrep... /usr/bin/grep -E
+checking for fgrep... /usr/bin/grep -F
+checking for ld used by mpicc -std=gnu99... /usr/bin/ld
+checking if the linker (/usr/bin/ld) is GNU ld... yes
+checking for BSD- or MS-compatible name lister (nm)... /usr/bin/nm -B
+checking the name lister (/usr/bin/nm -B) interface... BSD nm
+checking whether ln -s works... yes
+checking the maximum length of command line arguments... 3458764513820540925
+checking how to convert x86_64-unknown-linux-gnu file names to x86_64-unknown-linux-gnu format... func_convert_file_noop
+checking how to convert x86_64-unknown-linux-gnu file names to toolchain format... func_convert_file_noop
+checking for /usr/bin/ld option to reload object files... -r
+checking for objdump... objdump
+checking how to recognize dependent libraries... pass_all
+checking for dlltool... no
+checking how to associate runtime and link libraries... printf %s\n
+checking for ar... ar
+checking for archiver @FILE support... @
+checking for strip... strip
+checking for ranlib... ranlib
+checking command to parse /usr/bin/nm -B output from mpicc -std=gnu99 object... ok
+checking for sysroot... no
+checking for a working dd... /usr/bin/dd
+checking how to truncate binary pipes... /usr/bin/dd bs=4096 count=1
+checking for mt... no
+checking if : is a manifest tool... no
+checking how to run the C preprocessor... mpicc -std=gnu99 -E
+checking for ANSI C header files... yes
+checking for sys/types.h... yes
+checking for sys/stat.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for memory.h... yes
+checking for strings.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for unistd.h... yes
+checking for dlfcn.h... yes
+checking for objdir... .libs
+checking if mpicc -std=gnu99 supports -fno-rtti -fno-exceptions... no
+checking for mpicc -std=gnu99 option to produce PIC... -fPIC -DPIC
+checking if mpicc -std=gnu99 PIC flag -fPIC -DPIC works... yes
+checking if mpicc -std=gnu99 static flag -static works... yes
+checking if mpicc -std=gnu99 supports -c -o file.o... yes
+checking if mpicc -std=gnu99 supports -c -o file.o... (cached) yes
+checking whether the mpicc -std=gnu99 linker (/usr/bin/ld -m elf_x86_64) supports shared libraries... yes
+checking dynamic linker characteristics... GNU/Linux ld.so
+checking how to hardcode library paths into programs... immediate
+checking whether stripping libraries is possible... yes
+checking if libtool supports shared libraries... yes
+checking whether to build shared libraries... no
+checking whether to build static libraries... yes
+checking for sincos in -lm... yes
+checking for ptrdiff_t... yes
+checking for long double... yes
+checking size of ptrdiff_t... 8
+checking size of MPI_Fint... 4
+checking for library containing log... none required
+configure: disable build of user manual
+checking that generated files are newer than configure... done
+configure: creating ./config.status
+config.status: creating doc/latexinc.sh
+config.status: creating Makefile
+config.status: creating pfft.pc
+config.status: creating api/pfft.f
+config.status: creating api/pfft.f03
+config.status: creating api/pfftl.f03
+config.status: creating kernel/Makefile
+config.status: creating util/Makefile
+config.status: creating api/Makefile
+config.status: creating gcell/Makefile
+config.status: creating tests/Makefile
+config.status: creating tests/fortran/Makefile
+config.status: creating tests/f03/Makefile
+config.status: creating tests/openmp/Makefile
+config.status: creating doc/Makefile
+config.status: creating config.h
+config.status: config.h is unchanged
+config.status: creating fconfig.h
+config.status: linking /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/tests/build_checks.sh to tests/build_checks.sh
+config.status: linking /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/tests/run_checks.sh to tests/run_checks.sh
+config.status: linking /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/tests/manual_c2c_3d.c to tests/manual_c2c_3d.c
+config.status: executing depfiles commands
+config.status: executing libtool commands
+=== configuring in fftw3 (/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3)
+configure: running /bin/sh /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/configure --disable-option-checking '--prefix=/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install'  '--disable-shared' '--enable-static' '--disable-fortran' '--disable-doc' '--enable-mpi' '--enable-sse2' '--enable-avx' '--enable-openmp' 'CFLAGS=' 'CC=mpicc' 'MPICC=mpicc' 'CPPFLAGS=' --cache-file=/dev/null --srcdir=/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3
+checking for a BSD-compatible install... /usr/bin/install -c
+checking whether build environment is sane... yes
+checking for a thread-safe mkdir -p... /usr/bin/mkdir -p
+checking for gawk... gawk
+checking whether make sets $(MAKE)... yes
+checking whether make supports nested variables... yes
+checking whether to enable maintainer-specific portions of Makefiles... no
+checking build system type... x86_64-unknown-linux-gnu
+checking host system type... x86_64-unknown-linux-gnu
+checking for gcc... mpicc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether we are using the GNU C compiler... yes
+checking whether mpicc accepts -g... yes
+checking for mpicc option to accept ISO C89... none needed
+checking whether mpicc understands -c and -o together... yes
+checking for style of include used by make... GNU
+checking dependency style of mpicc... gcc3
+checking for C compiler vendor... gnu
+checking for mpicc option to accept ISO C99... -std=gnu99
+checking for mpicc -std=gnu99 option to accept ISO Standard C... (cached) -std=gnu99
+checking whether ln -s works... yes
+checking whether make sets $(MAKE)... (cached) yes
+checking how to print strings... printf
+checking for a sed that does not truncate output... /usr/bin/sed
+checking for grep that handles long lines and -e... /usr/bin/grep
+checking for egrep... /usr/bin/grep -E
+checking for fgrep... /usr/bin/grep -F
+checking for ld used by mpicc -std=gnu99... /usr/bin/ld
+checking if the linker (/usr/bin/ld) is GNU ld... yes
+checking for BSD- or MS-compatible name lister (nm)... /usr/bin/nm -B
+checking the name lister (/usr/bin/nm -B) interface... BSD nm
+checking the maximum length of command line arguments... 3458764513820540925
+checking how to convert x86_64-unknown-linux-gnu file names to x86_64-unknown-linux-gnu format... func_convert_file_noop
+checking how to convert x86_64-unknown-linux-gnu file names to toolchain format... func_convert_file_noop
+checking for /usr/bin/ld option to reload object files... -r
+checking for objdump... objdump
+checking how to recognize dependent libraries... pass_all
+checking for dlltool... dlltool
+checking how to associate runtime and link libraries... printf %s\n
+checking for ar... ar
+checking for archiver @FILE support... @
+checking for strip... strip
+checking for ranlib... ranlib
+checking command to parse /usr/bin/nm -B output from mpicc -std=gnu99 object... ok
+checking for sysroot... no
+checking for a working dd... /usr/bin/dd
+checking how to truncate binary pipes... /usr/bin/dd bs=4096 count=1
+checking for mt... no
+checking if : is a manifest tool... no
+checking how to run the C preprocessor... mpicc -std=gnu99 -E
+checking for ANSI C header files... yes
+checking for sys/types.h... yes
+checking for sys/stat.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for memory.h... yes
+checking for strings.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for unistd.h... yes
+checking for dlfcn.h... yes
+checking for objdir... .libs
+checking if mpicc -std=gnu99 supports -fno-rtti -fno-exceptions... no
+checking for mpicc -std=gnu99 option to produce PIC... -fPIC -DPIC
+checking if mpicc -std=gnu99 PIC flag -fPIC -DPIC works... yes
+checking if mpicc -std=gnu99 static flag -static works... yes
+checking if mpicc -std=gnu99 supports -c -o file.o... yes
+checking if mpicc -std=gnu99 supports -c -o file.o... (cached) yes
+checking whether the mpicc -std=gnu99 linker (/usr/bin/ld -m elf_x86_64) supports shared libraries... yes
+checking dynamic linker characteristics... GNU/Linux ld.so
+checking how to hardcode library paths into programs... immediate
+checking whether stripping libraries is possible... yes
+checking if libtool supports shared libraries... yes
+checking whether to build shared libraries... no
+checking whether to build static libraries... yes
+checking for ranlib... (cached) ranlib
+checking for ocamlbuild... no
+checking for mpicc... mpicc
+checking for MPI_Init... yes
+checking for mpi.h... yes
+checking for mpirun... mpirun
+checking size of MPI_Fint... 4
+checking whether C compiler accepts -msse2... yes
+checking whether C compiler accepts -mavx... yes
+checking for ANSI C header files... (cached) yes
+checking fcntl.h usability... yes
+checking fcntl.h presence... yes
+checking for fcntl.h... yes
+checking fenv.h usability... yes
+checking fenv.h presence... yes
+checking for fenv.h... yes
+checking limits.h usability... yes
+checking limits.h presence... yes
+checking for limits.h... yes
+checking malloc.h usability... yes
+checking malloc.h presence... yes
+checking for malloc.h... yes
+checking stddef.h usability... yes
+checking stddef.h presence... yes
+checking for stddef.h... yes
+checking sys/time.h usability... yes
+checking sys/time.h presence... yes
+checking for sys/time.h... yes
+checking altivec.h usability... no
+checking altivec.h presence... no
+checking for altivec.h... no
+checking for an ANSI C-conforming const... yes
+checking for inline... inline
+checking for size_t... yes
+checking for uint32_t... yes
+checking for uint64_t... yes
+checking whether time.h and sys/time.h may both be included... yes
+checking for long double... yes
+checking for hrtime_t... no
+checking size of int... 4
+checking size of unsigned int... 4
+checking size of long... 8
+checking size of unsigned long... 8
+checking size of long long... 8
+checking size of unsigned long long... 8
+checking size of size_t... 8
+checking size of ptrdiff_t... 8
+checking for ptrdiff_t... yes
+checking for uintptr_t... yes
+checking size of float... 4
+checking size of double... 8
+checking size of fftw_r2r_kind... 4
+checking for working alloca.h... yes
+checking for alloca... yes
+checking for working strtod... yes
+checking for vprintf... yes
+checking for _doprnt... no
+checking for sin in -lm... yes
+checking for BSDgettimeofday... no
+checking for gettimeofday... yes
+checking for gethrtime... no
+checking for read_real_time... no
+checking for time_base_to_time... no
+checking for drand48... yes
+checking for sqrt... yes
+checking for memset... yes
+checking for posix_memalign... yes
+checking for memalign... yes
+checking for _mm_malloc... no
+checking for _mm_free... no
+checking for clock_gettime... yes
+checking for mach_absolute_time... no
+checking for sysctl... yes
+checking for abort... yes
+checking for sinl... yes
+checking for cosl... yes
+checking for snprintf... yes
+checking for memmove... yes
+checking for strchr... yes
+checking for getpagesize... yes
+checking whether sinl is declared... yes
+checking whether cosl is declared... yes
+checking whether sinq is declared... no
+checking whether cosq is declared... no
+checking whether memalign is declared... yes
+checking whether drand48 is declared... yes
+checking whether srand48 is declared... yes
+checking whether posix_memalign is declared... yes
+checking for _rtc intrinsic... no
+checking for isnan... yes
+checking whether C compiler accepts -mpreferred-stack-boundary=4... yes
+checking whether the stack is at least 8-byte aligned by gcc... checking whether C compiler accepts -malign-double... yes
+yes
+checking for OpenMP flag of C compiler... -fopenmp
+checking whether a cycle counter is available... yes
+checking that generated files are newer than configure... done
+configure: creating ./config.status
+config.status: creating Makefile
+config.status: creating support/Makefile
+config.status: creating genfft/Makefile
+config.status: creating kernel/Makefile
+config.status: creating simd-support/Makefile
+config.status: creating dft/Makefile
+config.status: creating dft/scalar/Makefile
+config.status: creating dft/scalar/codelets/Makefile
+config.status: creating dft/simd/Makefile
+config.status: creating dft/simd/common/Makefile
+config.status: creating dft/simd/sse2/Makefile
+config.status: creating dft/simd/avx/Makefile
+config.status: creating dft/simd/avx-128-fma/Makefile
+config.status: creating dft/simd/avx2/Makefile
+config.status: creating dft/simd/avx2-128/Makefile
+config.status: creating dft/simd/avx512/Makefile
+config.status: creating dft/simd/kcvi/Makefile
+config.status: creating dft/simd/altivec/Makefile
+config.status: creating dft/simd/vsx/Makefile
+config.status: creating dft/simd/neon/Makefile
+config.status: creating dft/simd/generic-simd128/Makefile
+config.status: creating dft/simd/generic-simd256/Makefile
+config.status: creating rdft/Makefile
+config.status: creating rdft/scalar/Makefile
+config.status: creating rdft/scalar/r2cf/Makefile
+config.status: creating rdft/scalar/r2cb/Makefile
+config.status: creating rdft/scalar/r2r/Makefile
+config.status: creating rdft/simd/Makefile
+config.status: creating rdft/simd/common/Makefile
+config.status: creating rdft/simd/sse2/Makefile
+config.status: creating rdft/simd/avx/Makefile
+config.status: creating rdft/simd/avx-128-fma/Makefile
+config.status: creating rdft/simd/avx2/Makefile
+config.status: creating rdft/simd/avx2-128/Makefile
+config.status: creating rdft/simd/avx512/Makefile
+config.status: creating rdft/simd/kcvi/Makefile
+config.status: creating rdft/simd/altivec/Makefile
+config.status: creating rdft/simd/vsx/Makefile
+config.status: creating rdft/simd/neon/Makefile
+config.status: creating rdft/simd/generic-simd128/Makefile
+config.status: creating rdft/simd/generic-simd256/Makefile
+config.status: creating reodft/Makefile
+config.status: creating threads/Makefile
+config.status: creating api/Makefile
+config.status: creating mpi/Makefile
+config.status: creating libbench2/Makefile
+config.status: creating tests/Makefile
+config.status: creating doc/Makefile
+config.status: creating doc/FAQ/Makefile
+config.status: creating tools/Makefile
+config.status: creating tools/fftw_wisdom.1
+config.status: creating tools/fftw-wisdom-to-conf
+config.status: creating m4/Makefile
+config.status: creating fftw.pc
+config.status: creating config.h
+config.status: config.h is unchanged
+config.status: executing depfiles commands
+config.status: executing libtool commands
+make[3]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+make  all-recursive
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+Making all in fftw3
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+make  all-recursive
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+Making all in support
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/support'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/support'
+Making all in kernel
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/kernel'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/kernel'
+Making all in simd-support
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/simd-support'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/simd-support'
+Making all in dft
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+Making all in scalar
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+Making all in codelets
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+make[9]: Nothing to be done for `all-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+Making all in simd
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+Making all in common
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+Making all in sse2
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+Making all in avx
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+Making all in avx-128-fma
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+Making all in avx2
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+Making all in avx2-128
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+Making all in avx512
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+Making all in kcvi
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+Making all in altivec
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+Making all in vsx
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+Making all in neon
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+Making all in generic-simd128
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+Making all in generic-simd256
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[9]: Nothing to be done for `all-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+make[8]: Nothing to be done for `all-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+Making all in rdft
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+Making all in scalar
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+Making all in r2cf
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+Making all in r2cb
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+Making all in r2r
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+make[9]: Nothing to be done for `all-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+Making all in simd
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+Making all in common
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+Making all in sse2
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+Making all in avx
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+Making all in avx-128-fma
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+Making all in avx2
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+Making all in avx2-128
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+Making all in avx512
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+Making all in kcvi
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+Making all in altivec
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+Making all in vsx
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+Making all in neon
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+Making all in generic-simd128
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+Making all in generic-simd256
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make  all-am
+make[10]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[10]: Nothing to be done for `all-am'.
+make[10]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[9]: Nothing to be done for `all-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+make[8]: Nothing to be done for `all-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+Making all in reodft
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[8]: Nothing to be done for `all-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+Making all in api
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make  all-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make[8]: Nothing to be done for `all-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+Making all in libbench2
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/libbench2'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/libbench2'
+Making all in .
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+cp -f fftw.pc fftw3.pc
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+Making all in threads
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/threads'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/threads'
+Making all in tests
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tests'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tests'
+Making all in mpi
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+make  all-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT transpose-pairwise-transposed.lo -MD -MP -MF .deps/transpose-pairwise-transposed.Tpo -c -o transpose-pairwise-transposed.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/transpose-pairwise-transposed.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-serial.lo -MD -MP -MF .deps/dft-serial.Tpo -c -o dft-serial.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-serial.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-rank-geq2.lo -MD -MP -MF .deps/dft-rank-geq2.Tpo -c -o dft-rank-geq2.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank-geq2.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-rank-geq2-transposed.lo -MD -MP -MF .deps/dft-rank-geq2-transposed.Tpo -c -o dft-rank-geq2-transposed.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank-geq2-transposed.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-serial.lo -MD -MP -MF .deps/dft-serial.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-serial.c -o dft-serial.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT transpose-pairwise-transposed.lo -MD -MP -MF .deps/transpose-pairwise-transposed.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/transpose-pairwise-transposed.c -o transpose-pairwise-transposed.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-rank-geq2.lo -MD -MP -MF .deps/dft-rank-geq2.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank-geq2.c -o dft-rank-geq2.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-rank-geq2-transposed.lo -MD -MP -MF .deps/dft-rank-geq2-transposed.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank-geq2-transposed.c -o dft-rank-geq2-transposed.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/dft-rank-geq2-transposed.Tpo .deps/dft-rank-geq2-transposed.Plo
+mv -f .deps/dft-serial.Tpo .deps/dft-serial.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-rank1.lo -MD -MP -MF .deps/dft-rank1.Tpo -c -o dft-rank1.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank1.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-rank1-bigvec.lo -MD -MP -MF .deps/dft-rank1-bigvec.Tpo -c -o dft-rank1-bigvec.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank1-bigvec.c
+mv -f .deps/dft-rank-geq2.Tpo .deps/dft-rank-geq2.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-problem.lo -MD -MP -MF .deps/dft-problem.Tpo -c -o dft-problem.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-problem.c
+mv -f .deps/transpose-pairwise-transposed.Tpo .deps/transpose-pairwise-transposed.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT dft-solve.lo -MD -MP -MF .deps/dft-solve.Tpo -c -o dft-solve.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-solve.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-rank1.lo -MD -MP -MF .deps/dft-rank1.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank1.c -o dft-rank1.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-rank1-bigvec.lo -MD -MP -MF .deps/dft-rank1-bigvec.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-rank1-bigvec.c -o dft-rank1-bigvec.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-problem.lo -MD -MP -MF .deps/dft-problem.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-problem.c -o dft-problem.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT dft-solve.lo -MD -MP -MF .deps/dft-solve.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/dft-solve.c -o dft-solve.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/dft-rank1-bigvec.Tpo .deps/dft-rank1-bigvec.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft-serial.lo -MD -MP -MF .deps/rdft-serial.Tpo -c -o rdft-serial.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-serial.c
+mv -f .deps/dft-solve.Tpo .deps/dft-solve.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft-rank-geq2.lo -MD -MP -MF .deps/rdft-rank-geq2.Tpo -c -o rdft-rank-geq2.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-rank-geq2.c
+mv -f .deps/dft-rank1.Tpo .deps/dft-rank1.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft-rank-geq2-transposed.lo -MD -MP -MF .deps/rdft-rank-geq2-transposed.Tpo -c -o rdft-rank-geq2-transposed.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-rank-geq2-transposed.c
+mv -f .deps/dft-problem.Tpo .deps/dft-problem.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft-rank1-bigvec.lo -MD -MP -MF .deps/rdft-rank1-bigvec.Tpo -c -o rdft-rank1-bigvec.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-rank1-bigvec.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft-serial.lo -MD -MP -MF .deps/rdft-serial.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-serial.c -o rdft-serial.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft-rank-geq2.lo -MD -MP -MF .deps/rdft-rank-geq2.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-rank-geq2.c -o rdft-rank-geq2.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft-rank-geq2-transposed.lo -MD -MP -MF .deps/rdft-rank-geq2-transposed.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-rank-geq2-transposed.c -o rdft-rank-geq2-transposed.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft-rank1-bigvec.lo -MD -MP -MF .deps/rdft-rank1-bigvec.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-rank1-bigvec.c -o rdft-rank1-bigvec.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/rdft-serial.Tpo .deps/rdft-serial.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft-problem.lo -MD -MP -MF .deps/rdft-problem.Tpo -c -o rdft-problem.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-problem.c
+mv -f .deps/rdft-rank-geq2.Tpo .deps/rdft-rank-geq2.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft-solve.lo -MD -MP -MF .deps/rdft-solve.Tpo -c -o rdft-solve.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-solve.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft-problem.lo -MD -MP -MF .deps/rdft-problem.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-problem.c -o rdft-problem.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/rdft-rank1-bigvec.Tpo .deps/rdft-rank1-bigvec.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft2-serial.lo -MD -MP -MF .deps/rdft2-serial.Tpo -c -o rdft2-serial.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-serial.c
+mv -f .deps/rdft-rank-geq2-transposed.Tpo .deps/rdft-rank-geq2-transposed.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft2-rank-geq2.lo -MD -MP -MF .deps/rdft2-rank-geq2.Tpo -c -o rdft2-rank-geq2.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-rank-geq2.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft-solve.lo -MD -MP -MF .deps/rdft-solve.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft-solve.c -o rdft-solve.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft2-serial.lo -MD -MP -MF .deps/rdft2-serial.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-serial.c -o rdft2-serial.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft2-rank-geq2.lo -MD -MP -MF .deps/rdft2-rank-geq2.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-rank-geq2.c -o rdft2-rank-geq2.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/rdft-problem.Tpo .deps/rdft-problem.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft2-rank-geq2-transposed.lo -MD -MP -MF .deps/rdft2-rank-geq2-transposed.Tpo -c -o rdft2-rank-geq2-transposed.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-rank-geq2-transposed.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft2-rank-geq2-transposed.lo -MD -MP -MF .deps/rdft2-rank-geq2-transposed.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-rank-geq2-transposed.c -o rdft2-rank-geq2-transposed.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/rdft-solve.Tpo .deps/rdft-solve.Plo
+mv -f .deps/rdft2-serial.Tpo .deps/rdft2-serial.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft2-problem.lo -MD -MP -MF .deps/rdft2-problem.Tpo -c -o rdft2-problem.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-problem.c
+mv -f .deps/rdft2-rank-geq2.Tpo .deps/rdft2-rank-geq2.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api    -MT rdft2-solve.lo -MD -MP -MF .deps/rdft2-solve.Tpo -c -o rdft2-solve.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-solve.c
+mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api  -fopenmp  -MT mpi_bench-mpi-bench.o -MD -MP -MF .deps/mpi_bench-mpi-bench.Tpo -c -o mpi_bench-mpi-bench.o `test -f 'mpi-bench.c' || echo '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/'`mpi-bench.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft2-solve.lo -MD -MP -MF .deps/rdft2-solve.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-solve.c -o rdft2-solve.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I.. -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -MT rdft2-problem.lo -MD -MP -MF .deps/rdft2-problem.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/rdft2-problem.c -o rdft2-problem.o
+../libtool: line 1751: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/rdft2-rank-geq2-transposed.Tpo .deps/rdft2-rank-geq2-transposed.Plo
+mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api  -fopenmp  -MT mpi_bench-fftw-bench.o -MD -MP -MF .deps/mpi_bench-fftw-bench.Tpo -c -o mpi_bench-fftw-bench.o `test -f '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tests/fftw-bench.c' || echo '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/'`/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tests/fftw-bench.c
+mv -f .deps/rdft2-solve.Tpo .deps/rdft2-solve.Plo
+mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3 -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api  -fopenmp  -MT mpi_bench-hook.o -MD -MP -MF .deps/mpi_bench-hook.Tpo -c -o mpi_bench-hook.o `test -f '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tests/hook.c' || echo '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/'`/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tests/hook.c
+mv -f .deps/mpi_bench-mpi-bench.Tpo .deps/mpi_bench-mpi-bench.Po
+mv -f .deps/mpi_bench-fftw-bench.Tpo .deps/mpi_bench-fftw-bench.Po
+mv -f .deps/rdft2-problem.Tpo .deps/rdft2-problem.Plo
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc   -version-info 8:7:5  -o libfftw3_mpi.la -rpath /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib any-true.lo api.lo block.lo choose-radix.lo conf.lo dtensor.lo rearrange.lo wisdom-api.lo f03-wrap.lo transpose-alltoall.lo transpose-pairwise.lo transpose-recurse.lo transpose-problem.lo transpose-solve.lo transpose-alltoall-transposed.lo transpose-pairwise-transposed.lo dft-serial.lo dft-rank-geq2.lo dft-rank-geq2-transposed.lo dft-rank1.lo dft-rank1-bigvec.lo dft-problem.lo dft-solve.lo rdft-serial.lo rdft-rank-geq2.lo rdft-rank-geq2-transposed.lo rdft-rank1-bigvec.lo rdft-problem.lo rdft-solve.lo rdft2-serial.lo rdft2-rank-geq2.lo rdft2-rank-geq2-transposed.lo rdft2-problem.lo rdft2-solve.lo ../libfftw3.la   -lm 
+mv -f .deps/mpi_bench-hook.Tpo .deps/mpi_bench-hook.Po
+libtool: link: ar cru .libs/libfftw3_mpi.a  any-true.o api.o block.o choose-radix.o conf.o dtensor.o rearrange.o wisdom-api.o f03-wrap.o transpose-alltoall.o transpose-pairwise.o transpose-recurse.o transpose-problem.o transpose-solve.o transpose-alltoall-transposed.o transpose-pairwise-transposed.o dft-serial.o dft-rank-geq2.o dft-rank-geq2-transposed.o dft-rank1.o dft-rank1-bigvec.o dft-problem.o dft-solve.o rdft-serial.o rdft-rank-geq2.o rdft-rank-geq2-transposed.o rdft-rank1-bigvec.o rdft-problem.o rdft-solve.o rdft2-serial.o rdft2-rank-geq2.o rdft2-rank-geq2-transposed.o rdft2-problem.o rdft2-solve.o
+libtool: link: ranlib .libs/libfftw3_mpi.a
+libtool: link: ( cd ".libs" && rm -f "libfftw3_mpi.la" && ln -s "../libfftw3_mpi.la" "libfftw3_mpi.la" )
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc -fopenmp    -o mpi-bench mpi_bench-mpi-bench.o mpi_bench-fftw-bench.o mpi_bench-hook.o libfftw3_mpi.la ../threads/libfftw3_omp.la ../libfftw3.la ../libbench2/libbench2.a   -lm 
+libtool: link: mpicc -fopenmp -o mpi-bench mpi_bench-mpi-bench.o mpi_bench-fftw-bench.o mpi_bench-hook.o   ./.libs/libfftw3_mpi.a ../threads/.libs/libfftw3_omp.a /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/.libs/libfftw3.a ../.libs/libfftw3.a ../libbench2/libbench2.a -lm -fopenmp
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+Making all in tools
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+rm -f fftw-wisdom.1
+cp fftw_wisdom.1 fftw-wisdom.1
+make  all-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tools -I..  -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3  -fopenmp  -MT fftw_wisdom-fftw-wisdom.o -MD -MP -MF .deps/fftw_wisdom-fftw-wisdom.Tpo -c -o fftw_wisdom-fftw-wisdom.o `test -f 'fftw-wisdom.c' || echo '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tools/'`fftw-wisdom.c
+mv -f .deps/fftw_wisdom-fftw-wisdom.Tpo .deps/fftw_wisdom-fftw-wisdom.Po
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc -fopenmp    -o fftw-wisdom fftw_wisdom-fftw-wisdom.o ../tests/bench-bench.o ../tests/bench-fftw-bench.o ../threads/libfftw3_omp.la ../libfftw3.la ../libbench2/libbench2.a  -lm 
+libtool: link: mpicc -fopenmp -o fftw-wisdom fftw_wisdom-fftw-wisdom.o ../tests/bench-bench.o ../tests/bench-fftw-bench.o   ../threads/.libs/libfftw3_omp.a /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/.libs/libfftw3.a ../.libs/libfftw3.a ../libbench2/libbench2.a -lm -fopenmp
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+Making all in m4
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/m4'
+make[7]: Nothing to be done for `all'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/m4'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+Making all in kernel
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel'
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT block.lo -MD -MP -MF .deps/block.Tpo -c -o block.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/block.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT check.lo -MD -MP -MF .deps/check.Tpo -c -o check.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/check.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT malloc.lo -MD -MP -MF .deps/malloc.Tpo -c -o malloc.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/malloc.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT ousample.lo -MD -MP -MF .deps/ousample.Tpo -c -o ousample.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/ousample.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT malloc.lo -MD -MP -MF .deps/malloc.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/malloc.c -o malloc.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT block.lo -MD -MP -MF .deps/block.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/block.c -o block.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT check.lo -MD -MP -MF .deps/check.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/check.c -o check.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT ousample.lo -MD -MP -MF .deps/ousample.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/ousample.c -o ousample.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/check.Tpo .deps/check.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT outrafo.lo -MD -MP -MF .deps/outrafo.Tpo -c -o outrafo.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/outrafo.c
+mv -f .deps/malloc.Tpo .deps/malloc.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT partrafo-transposed.lo -MD -MP -MF .deps/partrafo-transposed.Tpo -c -o partrafo-transposed.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/partrafo-transposed.c
+mv -f .deps/block.Tpo .deps/block.Plo
+mv -f .deps/ousample.Tpo .deps/ousample.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT partrafo.lo -MD -MP -MF .deps/partrafo.Tpo -c -o partrafo.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/partrafo.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT sertrafo.lo -MD -MP -MF .deps/sertrafo.Tpo -c -o sertrafo.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/sertrafo.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT outrafo.lo -MD -MP -MF .deps/outrafo.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/outrafo.c -o outrafo.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT partrafo-transposed.lo -MD -MP -MF .deps/partrafo-transposed.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/partrafo-transposed.c -o partrafo-transposed.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT partrafo.lo -MD -MP -MF .deps/partrafo.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/partrafo.c -o partrafo.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT sertrafo.lo -MD -MP -MF .deps/sertrafo.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/sertrafo.c -o sertrafo.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/partrafo-transposed.Tpo .deps/partrafo-transposed.Plo
+mv -f .deps/outrafo.Tpo .deps/outrafo.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT procmesh.lo -MD -MP -MF .deps/procmesh.Tpo -c -o procmesh.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/procmesh.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT remap_3dto2d.lo -MD -MP -MF .deps/remap_3dto2d.Tpo -c -o remap_3dto2d.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/remap_3dto2d.c
+mv -f .deps/sertrafo.Tpo .deps/sertrafo.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT timer.lo -MD -MP -MF .deps/timer.Tpo -c -o timer.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/timer.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT remap_3dto2d.lo -MD -MP -MF .deps/remap_3dto2d.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/remap_3dto2d.c -o remap_3dto2d.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT procmesh.lo -MD -MP -MF .deps/procmesh.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/procmesh.c -o procmesh.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/partrafo.Tpo .deps/partrafo.Plo
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT transpose.lo -MD -MP -MF .deps/transpose.Tpo -c -o transpose.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/transpose.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT timer.lo -MD -MP -MF .deps/timer.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/timer.c -o timer.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT transpose.lo -MD -MP -MF .deps/transpose.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel/transpose.c -o transpose.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/remap_3dto2d.Tpo .deps/remap_3dto2d.Plo
+mv -f .deps/procmesh.Tpo .deps/procmesh.Plo
+mv -f .deps/timer.Tpo .deps/timer.Plo
+mv -f .deps/transpose.Tpo .deps/transpose.Plo
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc  -std=gnu99   -o libkernel.la  block.lo check.lo malloc.lo ousample.lo outrafo.lo partrafo-transposed.lo partrafo.lo sertrafo.lo procmesh.lo remap_3dto2d.lo timer.lo transpose.lo  -lm 
+libtool: link: ar cru .libs/libkernel.a  block.o check.o malloc.o ousample.o outrafo.o partrafo-transposed.o partrafo.o sertrafo.o procmesh.o remap_3dto2d.o timer.o transpose.o
+libtool: link: ranlib .libs/libkernel.a
+libtool: link: ( cd ".libs" && rm -f "libkernel.la" && ln -s "../libkernel.la" "libkernel.la" )
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel'
+Making all in gcell
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell'
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT gcells_plan.lo -MD -MP -MF .deps/gcells_plan.Tpo -c -o gcells_plan.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gcells_plan.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT gcells_RMA.lo -MD -MP -MF .deps/gcells_RMA.Tpo -c -o gcells_RMA.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gcells_RMA.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT gcells_sendrecv.lo -MD -MP -MF .deps/gcells_sendrecv.Tpo -c -o gcells_sendrecv.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gcells_sendrecv.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT gctimer.lo -MD -MP -MF .deps/gctimer.Tpo -c -o gctimer.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gctimer.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT gcells_plan.lo -MD -MP -MF .deps/gcells_plan.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gcells_plan.c -o gcells_plan.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT gcells_sendrecv.lo -MD -MP -MF .deps/gcells_sendrecv.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gcells_sendrecv.c -o gcells_sendrecv.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT gcells_RMA.lo -MD -MP -MF .deps/gcells_RMA.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gcells_RMA.c -o gcells_RMA.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT gctimer.lo -MD -MP -MF .deps/gctimer.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/gcell/gctimer.c -o gctimer.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/gctimer.Tpo .deps/gctimer.Plo
+mv -f .deps/gcells_RMA.Tpo .deps/gcells_RMA.Plo
+mv -f .deps/gcells_plan.Tpo .deps/gcells_plan.Plo
+mv -f .deps/gcells_sendrecv.Tpo .deps/gcells_sendrecv.Plo
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc  -std=gnu99   -o libgcell.la  gcells_plan.lo gcells_RMA.lo gcells_sendrecv.lo gctimer.lo  -lm 
+libtool: link: ar cru .libs/libgcell.a  gcells_plan.o gcells_RMA.o gcells_sendrecv.o gctimer.o
+libtool: link: ranlib .libs/libgcell.a
+libtool: link: ( cd ".libs" && rm -f "libgcell.la" && ln -s "../libgcell.la" "libgcell.la" )
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell'
+Making all in util
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util'
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT util.lo -MD -MP -MF .deps/util.Tpo -c -o util.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util/util.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi   -std=gnu99 -MT getargs.lo -MD -MP -MF .deps/getargs.Tpo -c -o getargs.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util/getargs.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT getargs.lo -MD -MP -MF .deps/getargs.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util/getargs.c -o getargs.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -std=gnu99 -MT util.lo -MD -MP -MF .deps/util.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util/util.c -o util.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/getargs.Tpo .deps/getargs.Plo
+mv -f .deps/util.Tpo .deps/util.Plo
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc  -std=gnu99   -o libutil.la  util.lo getargs.lo  -lm 
+libtool: link: ar cru .libs/libutil.a  util.o getargs.o
+libtool: link: ranlib .libs/libutil.a
+libtool: link: ( cd ".libs" && rm -f "libutil.la" && ln -s "../libutil.la" "libutil.la" )
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util'
+Making all in api
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api'
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp  -fopenmp -std=gnu99 -MT api-basic.lo -MD -MP -MF .deps/api-basic.Tpo -c -o api-basic.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/api-basic.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp  -fopenmp -std=gnu99 -MT api-adv.lo -MD -MP -MF .deps/api-adv.Tpo -c -o api-adv.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/api-adv.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp  -fopenmp -std=gnu99 -MT fortran-api.lo -MD -MP -MF .deps/fortran-api.Tpo -c -o fortran-api.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/fortran-api.c
+/bin/sh ../libtool  --tag=CC   --mode=compile mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I..  -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp  -fopenmp -std=gnu99 -MT f03-wrap.lo -MD -MP -MF .deps/f03-wrap.Tpo -c -o f03-wrap.lo /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/f03-wrap.c
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp -fopenmp -std=gnu99 -MT fortran-api.lo -MD -MP -MF .deps/fortran-api.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/fortran-api.c -o fortran-api.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp -fopenmp -std=gnu99 -MT api-basic.lo -MD -MP -MF .deps/api-basic.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/api-basic.c -o api-basic.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp -fopenmp -std=gnu99 -MT f03-wrap.lo -MD -MP -MF .deps/f03-wrap.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/f03-wrap.c -o f03-wrap.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+libtool: compile:  mpicc -DHAVE_CONFIG_H -I. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -I.. -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/kernel -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/util -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api -I/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi -fopenmp -fopenmp -std=gnu99 -MT api-adv.lo -MD -MP -MF .deps/api-adv.Tpo -c /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/api-adv.c -o api-adv.o
+../libtool: line 1765: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+mv -f .deps/fortran-api.Tpo .deps/fortran-api.Plo
+mv -f .deps/api-basic.Tpo .deps/api-basic.Plo
+mv -f .deps/f03-wrap.Tpo .deps/f03-wrap.Plo
+mv -f .deps/api-adv.Tpo .deps/api-adv.Plo
+/bin/sh ../libtool  --tag=CC   --mode=link mpicc -fopenmp -std=gnu99   -o libapi.la  api-basic.lo api-adv.lo fortran-api.lo f03-wrap.lo  -lm 
+libtool: link: ar cru .libs/libapi.a  api-basic.o api-adv.o fortran-api.o f03-wrap.o
+libtool: link: ranlib .libs/libapi.a
+libtool: link: ( cd ".libs" && rm -f "libapi.la" && ln -s "../libapi.la" "libapi.la" )
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api'
+Making all in .
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+/bin/sh ./libtool  --tag=CC   --mode=link mpicc -fopenmp -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/mpi -I /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api -std=gnu99 -no-undefined -version-info 0:0:0  -o libpfft_omp.la -rpath /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib  kernel/libkernel.la util/libutil.la api/libapi.la gcell/libgcell.la -lm 
+libtool: link: (cd .libs/libpfft_omp.lax/libkernel.a && ar x "/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel/.libs/libkernel.a")
+libtool: link: (cd .libs/libpfft_omp.lax/libutil.a && ar x "/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util/.libs/libutil.a")
+libtool: link: (cd .libs/libpfft_omp.lax/libapi.a && ar x "/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api/.libs/libapi.a")
+libtool: link: (cd .libs/libpfft_omp.lax/libgcell.a && ar x "/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell/.libs/libgcell.a")
+libtool: link: ar cru .libs/libpfft_omp.a   .libs/libpfft_omp.lax/libkernel.a/block.o .libs/libpfft_omp.lax/libkernel.a/check.o .libs/libpfft_omp.lax/libkernel.a/malloc.o .libs/libpfft_omp.lax/libkernel.a/ousample.o .libs/libpfft_omp.lax/libkernel.a/outrafo.o .libs/libpfft_omp.lax/libkernel.a/partrafo-transposed.o .libs/libpfft_omp.lax/libkernel.a/partrafo.o .libs/libpfft_omp.lax/libkernel.a/procmesh.o .libs/libpfft_omp.lax/libkernel.a/remap_3dto2d.o .libs/libpfft_omp.lax/libkernel.a/sertrafo.o .libs/libpfft_omp.lax/libkernel.a/timer.o .libs/libpfft_omp.lax/libkernel.a/transpose.o  .libs/libpfft_omp.lax/libutil.a/getargs.o .libs/libpfft_omp.lax/libutil.a/util.o  .libs/libpfft_omp.lax/libapi.a/api-adv.o .libs/libpfft_omp.lax/libapi.a/api-basic.o .libs/libpfft_omp.lax/libapi.a/f03-wrap.o .libs/libpfft_omp.lax/libapi.a/fortran-api.o  .libs/libpfft_omp.lax/libgcell.a/gcells_RMA.o .libs/libpfft_omp.lax/libgcell.a/gcells_plan.o .libs/libpfft_omp.lax/libgcell.a/gcells_sendrecv.o .libs/libpfft_omp.lax/libgcell.a/gctimer.o 
+libtool: link: ranlib .libs/libpfft_omp.a
+libtool: link: rm -fr .libs/libpfft_omp.lax
+libtool: link: ( cd ".libs" && rm -f "libpfft_omp.la" && ln -s "../libpfft_omp.la" "libpfft_omp.la" )
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+Making all in tests
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+Making all in openmp
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests/openmp'
+make[6]: Nothing to be done for `all'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests/openmp'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[6]: Nothing to be done for `all-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+make[3]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+make[3]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+Making install in fftw3
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+Making install in support
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/support'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/support'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/support'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/support'
+Making install in kernel
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/kernel'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/kernel'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/kernel'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/kernel'
+Making install in simd-support
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/simd-support'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/simd-support'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/simd-support'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/simd-support'
+Making install in dft
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+Making install in scalar
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+Making install in codelets
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar/codelets'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+make[8]: Nothing to be done for `install-exec-am'.
+make[8]: Nothing to be done for `install-data-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/scalar'
+Making install in simd
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+Making install in common
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/common'
+Making install in sse2
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/sse2'
+Making install in avx
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx'
+Making install in avx-128-fma
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx-128-fma'
+Making install in avx2
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2'
+Making install in avx2-128
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx2-128'
+Making install in avx512
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/avx512'
+Making install in kcvi
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/kcvi'
+Making install in altivec
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/altivec'
+Making install in vsx
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/vsx'
+Making install in neon
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/neon'
+Making install in generic-simd128
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd128'
+Making install in generic-simd256
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd/generic-simd256'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[8]: Nothing to be done for `install-exec-am'.
+make[8]: Nothing to be done for `install-data-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft/simd'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+make[7]: Nothing to be done for `install-exec-am'.
+make[7]: Nothing to be done for `install-data-am'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/dft'
+Making install in rdft
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+Making install in scalar
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+Making install in r2cf
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cf'
+Making install in r2cb
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2cb'
+Making install in r2r
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar/r2r'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+make[8]: Nothing to be done for `install-exec-am'.
+make[8]: Nothing to be done for `install-data-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/scalar'
+Making install in simd
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+Making install in common
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/common'
+Making install in sse2
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/sse2'
+Making install in avx
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx'
+Making install in avx-128-fma
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx-128-fma'
+Making install in avx2
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2'
+Making install in avx2-128
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx2-128'
+Making install in avx512
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/avx512'
+Making install in kcvi
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/kcvi'
+Making install in altivec
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/altivec'
+Making install in vsx
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/vsx'
+Making install in neon
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/neon'
+Making install in generic-simd128
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd128'
+Making install in generic-simd256
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make  install-am
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[9]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[9]: Nothing to be done for `install-exec-am'.
+make[9]: Nothing to be done for `install-data-am'.
+make[9]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd/generic-simd256'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[8]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[8]: Nothing to be done for `install-exec-am'.
+make[8]: Nothing to be done for `install-data-am'.
+make[8]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft/simd'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+make[7]: Nothing to be done for `install-exec-am'.
+make[7]: Nothing to be done for `install-data-am'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/rdft'
+Making install in reodft
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[7]: Nothing to be done for `install-exec-am'.
+make[7]: Nothing to be done for `install-data-am'.
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/reodft'
+Making install in api
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make  install-am
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make[7]: Nothing to be done for `install-exec-am'.
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/install -c -m 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api/fftw3.h /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api/fftw3.f /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api/fftw3l.f03 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/api/fftw3q.f03 '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/install -c -m 644 fftw3.f03 '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/api'
+Making install in libbench2
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/libbench2'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/libbench2'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/libbench2'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/libbench2'
+Making install in .
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+ /bin/sh ./libtool   --mode=install /usr/bin/install -c   libfftw3.la '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+libtool: install: /usr/bin/install -c .libs/libfftw3.lai /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3.la
+libtool: install: /usr/bin/install -c .libs/libfftw3.a /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3.a
+libtool: install: chmod 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3.a
+libtool: install: ranlib /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3.a
+libtool: finish: PATH="/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/gsl-2.5-qacp7h2neaivrbbbpcc2fhqbp2rnzt3a/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/libfabric/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/anaconda3/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/puppetlabs/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/.local/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/bin:/sbin" ldconfig -n /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/cmake/fftw3'
+ /usr/bin/install -c -m 644 FFTW3Config.cmake FFTW3ConfigVersion.cmake '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/cmake/fftw3'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/pkgconfig'
+ /usr/bin/install -c -m 644 fftw3.pc '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/pkgconfig'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+Making install in threads
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/threads'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/threads'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+ /bin/sh ../libtool   --mode=install /usr/bin/install -c   libfftw3_omp.la '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+libtool: install: /usr/bin/install -c .libs/libfftw3_omp.lai /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_omp.la
+libtool: install: /usr/bin/install -c .libs/libfftw3_omp.a /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_omp.a
+libtool: install: chmod 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_omp.a
+libtool: install: ranlib /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_omp.a
+libtool: finish: PATH="/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/gsl-2.5-qacp7h2neaivrbbbpcc2fhqbp2rnzt3a/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/libfabric/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/anaconda3/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/puppetlabs/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/.local/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/bin:/sbin" ldconfig -n /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/threads'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/threads'
+Making install in tests
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tests'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tests'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tests'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tests'
+Making install in mpi
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+make  install-am
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+ /bin/sh ../libtool   --mode=install /usr/bin/install -c   libfftw3_mpi.la '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+libtool: install: /usr/bin/install -c .libs/libfftw3_mpi.lai /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_mpi.la
+libtool: install: /usr/bin/install -c .libs/libfftw3_mpi.a /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_mpi.a
+libtool: install: chmod 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_mpi.a
+libtool: install: ranlib /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libfftw3_mpi.a
+libtool: finish: PATH="/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/gsl-2.5-qacp7h2neaivrbbbpcc2fhqbp2rnzt3a/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/libfabric/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/anaconda3/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/puppetlabs/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/.local/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/bin:/sbin" ldconfig -n /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/install -c -m 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/mpi/fftw3-mpi.h '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/install -c -m 644 fftw3-mpi.f03 fftw3l-mpi.f03 '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/mpi'
+Making install in tools
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+make  install-am
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+make[7]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/bin'
+  /bin/sh ../libtool   --mode=install /usr/bin/install -c fftw-wisdom '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/bin'
+libtool: install: /usr/bin/install -c fftw-wisdom /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/bin/fftw-wisdom
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/bin'
+ /usr/bin/install -c fftw-wisdom-to-conf '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/bin'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/share/man/man1'
+ /usr/bin/install -c -m 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/fftw3/tools/fftw-wisdom-to-conf.1 fftw-wisdom.1 '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/share/man/man1'
+make[7]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/tools'
+Making install in m4
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/m4'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/m4'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/m4'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3/m4'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/fftw3'
+Making install in kernel
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel'
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel'
+make[5]: Nothing to be done for `install-exec-am'.
+make[5]: Nothing to be done for `install-data-am'.
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/kernel'
+Making install in gcell
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell'
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell'
+make[5]: Nothing to be done for `install-exec-am'.
+make[5]: Nothing to be done for `install-data-am'.
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/gcell'
+Making install in util
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util'
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util'
+make[5]: Nothing to be done for `install-exec-am'.
+make[5]: Nothing to be done for `install-data-am'.
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/util'
+Making install in api
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api'
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api'
+make[5]: Nothing to be done for `install-exec-am'.
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/install -c -m 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/src/pfft-1.0.8-alpha3-fftw3/api/pfft.h '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+ /usr/bin/install -c -m 644 pfft.f pfft.f03 pfftl.f03 '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/include'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/api'
+Making install in .
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+ /bin/sh ./libtool   --mode=install /usr/bin/install -c   libpfft_omp.la '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib'
+libtool: install: /usr/bin/install -c .libs/libpfft_omp.lai /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libpfft_omp.la
+libtool: install: /usr/bin/install -c .libs/libpfft_omp.a /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libpfft_omp.a
+libtool: install: chmod 644 /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libpfft_omp.a
+libtool: install: ranlib /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/libpfft_omp.a
+libtool: finish: PATH="/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/gsl-2.5-qacp7h2neaivrbbbpcc2fhqbp2rnzt3a/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/libfabric/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/compilers_and_libraries_2019.4.243/linux/mpi/intel64/bin:/lustre/opt/cascadelake/linux-centos7-cascadelake/intel-19.0.4/intel-mpi-2019.4.243-djdvj6cinwbzldlv46aea4fjy5ryfgbf/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/anaconda3/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/puppetlabs/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/.local/bin:/lustre/home/acct-phyzpj/phyzpj-minjioh/bin:/sbin" ldconfig -n /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+ /usr/bin/mkdir -p '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/pkgconfig'
+ /usr/bin/install -c -m 644 pfft.pc '/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/install/lib/pkgconfig'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'
+Making install in tests
+make[4]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+Making install in openmp
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests/openmp'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests/openmp'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests/openmp'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests/openmp'
+make[5]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[6]: Entering directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[6]: Nothing to be done for `install-exec-am'.
+make[6]: Nothing to be done for `install-data-am'.
+make[6]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[5]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[4]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double/tests'
+make[3]: Leaving directory `/lustre/home/acct-phyzpj/phyzpj-minjioh/FASTPM/fastpm-cloned/depends/double'

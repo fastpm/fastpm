@@ -1,0 +1,24 @@
+#!/bin/sh
+#SBATCH --job-name=testfastpm
+#SBATCH --nodes=16
+#SBATCH --ntasks-per-node=40
+#SBATCH --time=1:00:00
+#SBATCH --output=%j.log
+
+ulimit -s unlimited
+
+module purge
+echo "MODULE LOADED:"
+module load intel-mpi/2019.4.243-intel-19.0.4 && echo $_
+module load gsl/2.5-intel-19.0.4 && echo $_
+
+export OMP_NUM_THREADS=1
+
+t1=`date +%s`
+
+
+srun --mpi=pmi2 ../src/fastpm restart.lua > log-restart-full-run.txt
+
+t2=`date +%s`
+let t1=$t2-$t1
+echo 'TIME USED:' $t1 > time.txt
