@@ -44,11 +44,9 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
     pm_ghosts_send(pgd, COLUMN_POS);
 
     FastPMFloat * source =  pm_alloc(pm);
-    FastPMFloat * workspace = pm_alloc(pm);       // workspace for the x1 field
-    FastPMFloat * workspace_v1 = pm_alloc(pm);    // workspace for the v1 field. This will be NULL throughout the function if !p->v1
+    FastPMFloat * workspace = pm_alloc(pm);
     memset(source, 0, sizeof(source[0]) * pm->allocsize);
     memset(workspace, 0, sizeof(workspace[0]) * pm->allocsize);
-    if (p->dv1) memset(workspace_v1, 0, sizeof(workspace_v1[0]) * pm->allocsize);
 
     FastPMFloat * field[3];
 
@@ -58,29 +56,33 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
     }
     FastPMFieldDescr DX1[] = { {COLUMN_DX1, 0}, {COLUMN_DX1, 1}, {COLUMN_DX1, 2}};
     FastPMFieldDescr DX2[] = { {COLUMN_DX2, 0}, {COLUMN_DX2, 1}, {COLUMN_DX2, 2}};
-    FastPMFieldDescr DV1[] = { {COLUMN_DV1, 0}, {COLUMN_DV1, 1}, {COLUMN_DV1, 2}};  //This will do nothing throughout the function if !p->v1
+    FastPMFieldDescr DV1[] = { {COLUMN_DV1, 0}, {COLUMN_DV1, 1}, {COLUMN_DV1, 2}};  // this will do nothing throughout the function if !p->v1
     int D1[] = {1, 2, 0};
     int D2[] = {2, 0, 1};
 
     /* 1LPT */
     for(d = 0; d < 3; d++) {
-
+        /* dx1 */
         fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d);
-
-        if (p->dv1) {
-            memcpy(workspace_v1, workspace, sizeof(workspace[0]) * pm->allocsize);
-            fastpm_apply_any_transfer(pm, workspace_v1, workspace_v1, (fastpm_fkfunc) fastpm_funck_eval2, growth_rate_func_k);
-            pm_c2r(pm, workspace_v1);
-
-            fastpm_readout_local(painter, workspace_v1, p, p->np, DV1[d]);
-            fastpm_readout_local(painter, workspace_v1, pgd->p, pgd->p->np, DV1[d]);
-        }
 
         pm_c2r(pm, workspace);
 
         fastpm_readout_local(painter, workspace, p, p->np, DX1[d]);
         fastpm_readout_local(painter, workspace, pgd->p, pgd->p->np, DX1[d]);
+
+        /* dv1 */
+        if (p->dv1) {
+            fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
+            fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+
+            fastpm_apply_any_transfer(pm, workspace, workspace, (fastpm_fkfunc) fastpm_funck_eval2, growth_rate_func_k);
+
+            pm_c2r(pm, workspace);
+
+            fastpm_readout_local(painter, workspace, p, p->np, DV1[d]);
+            fastpm_readout_local(painter, workspace, pgd->p, pgd->p->np, DV1[d]);
+        }
     }
 
     /* 2LPT */
@@ -153,7 +155,6 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
     for(d = 0; d < 3; d ++) {
         pm_free(pm, field[2-d]);
     }
-    pm_free(pm, workspace_v1);
     pm_free(pm, workspace);
     pm_free(pm, source);
 
