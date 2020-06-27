@@ -49,7 +49,7 @@ double Omega_r(FastPMCosmology * c)
     return Omega_g(c) + Omega_ur(c);
 }
 
-double getFtable(int F_id, double y, FastPMCosmology * c)
+static double getFtable(int F_id, double y, FastPMCosmology * c)
 {
     /* Not using size as an arg, it's globally defined
        Gets the interpolated value of Ftable[F_id] at y
@@ -57,7 +57,7 @@ double getFtable(int F_id, double y, FastPMCosmology * c)
     return fastpm_do_fd_interp(c->FDinterp, F_id, y);
 }
 
-double Fconst(int ncdm_id, FastPMCosmology * c)
+static double Fconst(int ncdm_id, FastPMCosmology * c)
 {
     /* This is a cosmology dependent constant 
        which is the argument divided by a of F, DF, DDF */
@@ -266,10 +266,6 @@ void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCos
 
             growth_info->D1 = d1 / d1_a1;
             growth_info->f1 = pow(Om, 5./9.);
-            /* FIXME: D2 needs to be checked.
-               Note, the Om(a=1) on the denominator, and the lack of the -3/7, is a fix to ensure D_2=1 today.
-               Old code said the 3/7 was absorbed into dx2, but was it? Or is it just to ensure normalisation to 1
-               today. Need to check this, becasue it could mean ODE mode is incorrect.*/
             growth_info->D2 = growth_info->D1 * growth_info->D1 * pow(Om/Omega_m(1, c), -1./143.);
             growth_info->f2 = 2 * pow(Om, 6./11.);
         break; }
@@ -290,6 +286,7 @@ void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCos
 double DGrowthFactorDa(FastPMGrowthInfo * growth_info) {
     /* dD/da */
     /* FIXME: Technically the ODE version should agree with LCDM version
+              for Lambda+CDM background,
               but to ensure backwards compatibility both versions are here. */
     double a = growth_info->a;
     FastPMCosmology * c = growth_info->c;
@@ -315,6 +312,7 @@ double DGrowthFactorDa(FastPMGrowthInfo * growth_info) {
 double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
     /* d^2 D1 / da^2 */
     /* FIXME: Technically the ODE version should agree with LCDM version
+              for Lambda+CDM background,
               but to ensure backwards compatibility both versions are here. */
     double a = growth_info->a;
     FastPMCosmology * c = growth_info->c;

@@ -31,9 +31,6 @@ double Gamma_nu(FastPMCosmology * c);
 double Omega_ur(FastPMCosmology * c);
 double Omega_r(FastPMCosmology * c);
 
-double getFtable(int F_id, double y, FastPMCosmology * c);
-double Fconst(int ncdm_id, FastPMCosmology * c);
-
 double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c);
 
 double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c);
