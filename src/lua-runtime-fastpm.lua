@@ -36,11 +36,11 @@ end
 
 schema.declare{name='omega_m',           type='number', required=false, help='Please use Omega_m. This will be removed eventually.'}
 schema.declare{name='Omega_m',           type='number', required=false, help='Total matter (cdm + baryon + ncdm) density parameter at z=0'}
+schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
+schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='N_eff',             type='number', required=false, default=3.046}
 schema.declare{name='N_nu',              type='number', required=false, default=0, help="Total number of neutrinos, massive and massless."}
 schema.declare{name='m_ncdm',            type='array:number', required=false, default={}, help="Mass of ncdm particles in eV. Enter in descending order."}
-schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
-schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
 schema.declare{name='pm_nc_factor',      type='array:number',  required=true, help="A list of {a, PM resolution}, "}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential', type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
@@ -53,36 +53,44 @@ schema.ncdm_sphere_scheme.choices = {
     healpix = 'FASTPM_NCDM_SPHERE_HEALPIX',
     fibonacci = 'FASTPM_NCDM_SPHERE_FIBONACCI',
 }
--- allow backward compatibility wth lowercase o
-function schema.omega_m.action (value)
-     if value ~= nil then
-         schema.Omega_m.default = value
-     end
-end
-
--- check for bad input
-function schema.m_ncdm.action (m_ncdm)
-    if #m_ncdm ~= 0 then
-        function schema.T_cmb.action (T_cmb)
-            if T_cmb == 0 then
-                error("For a run with ncdm particles use T_cmb > 0 to include an ncdm background.")
-            end
-        end
-    end
-    
-    for i=2, #m_ncdm do
-        if m_ncdm[i] > m_ncdm[1] then
-            error("Please input the heaviest ncdm particle first.")
-        end
-    end
-end
-
--- Growth calculation --
-schema.declare{name='growth_mode', type='enum', default='LCDM', help='Evaluate growth factors using the popular LCDM-only approximations or with ODE with MD initial conditions.'}
+schema.declare{name='growth_mode', type='enum', default='LCDM', help='Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. The full ODE is required for accurate results for runs with radiation in the background, and can also be used for Lambda+CDM-only backgrounds. The LCDM approximation is included for backward compatibility.'}
 schema.growth_mode.choices = {
     LCDM = 'FASTPM_GROWTH_MODE_LCDM',
     ODE = 'FASTPM_GROWTH_MODE_ODE',
 }
+
+-- allow backward compatibility wth lowercase o
+function schema.omega_m.action (value)
+    if value ~= nil then
+        schema.Omega_m.default = value
+        print("omega_m will soon be depreciated, please use Omega_m instead.")
+    end
+end
+
+-- check for bad input
+function schema.T_cmb.action (T_cmb)
+    if T_cmb ~= 0 then
+        function schema.growth_mode.action (growth_mode)
+            if growth_mode ~= 'ODE' then
+                error("For a run with radiation (T_cmb > 0) use growth_mode='ODE' for accurate results.")
+            end
+        end
+    end
+    
+    function schema.m_ncdm.action (m_ncdm)
+        if #m_ncdm ~= 0 then
+            if T_cmb == 0 then
+                error("For a run with ncdm particles use T_cmb > 0 to include an ncdm background.")
+            end
+
+            for i=2, #m_ncdm do
+                if m_ncdm[i] > m_ncdm[1] then
+                    error("Please input the heaviest ncdm particle first.")
+                end
+            end
+        end
+    end
+end
 
 -- Force calculation --
 schema.declare{name='painter_type',        type='enum', default='cic', help="Type of painter."}
