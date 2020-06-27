@@ -491,7 +491,7 @@ fastpm_store_decompose(FastPMStore * p,
 
     size_t elsize = plan->elsize;
 
-    size_t Nsend_limit = 1000 * 1024 * 1024 / elsize;
+    size_t Nsend_limit = 1000 * 1024 * 1024 / elsize;     // this large number effectively prevents throttling 
 
     int NTask, ThisTask;
 
