@@ -393,9 +393,9 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
 
     /* prepare the interpolation object for FD tables. */
     if (c->N_ncdm > 0) {
-        FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
-        fastpm_fd_interp_init(FDinterp);
-        c->FDinterp = FDinterp;
+        FastPMFDInterp FDinterp;
+        fastpm_fd_interp_init(&FDinterp);
+        c->FDinterp[0] = FDinterp;
     }
 
     // Compute Omega_cdm assuming all ncdm is matter like
@@ -407,7 +407,6 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
 
 static void
 destroy_cosmology(FastPMCosmology * c) {
-    if (c->N_ncdm > 0) fastpm_fd_interp_free(c->FDinterp);
     free(c);
 }
 

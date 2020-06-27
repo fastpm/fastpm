@@ -11,5 +11,3 @@ typedef struct FastPMFDInterp{
 void fastpm_fd_interp_init(FastPMFDInterp * FDinterp);
 
 double fastpm_do_fd_interp(FastPMFDInterp * FDinterp, int F_id, double y);
-
-void fastpm_fd_interp_free(FastPMFDInterp * FDinterp);

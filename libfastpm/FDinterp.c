@@ -47,11 +47,3 @@ double fastpm_do_fd_interp(FastPMFDInterp * FDinterp, int F_id, double y)
     gsl_interp_accel_reset(FDinterp->acc);   // reset accelerator for next time
     return res;
 }
-
-void fastpm_fd_interp_free(FastPMFDInterp * FDinterp)
-{
-    gsl_interp_free(FDinterp->F);
-    gsl_interp_free(FDinterp->DF);
-    gsl_interp_free(FDinterp->DDF);
-    gsl_interp_accel_free(FDinterp->acc);
-}
