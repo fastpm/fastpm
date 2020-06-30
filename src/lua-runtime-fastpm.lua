@@ -33,8 +33,8 @@ function schema.output_redshifts.action(output_redshifts)
     end
 end
 
-
-schema.declare{name='omega_m',           type='number', required=false, help='Please use Omega_m. This will be removed eventually.'}
+-- Note: the order of variable declaration is important when applying scheme.variable.action later in this file.
+schema.declare{name='omega_m',           type='number', required=false, help='This is depreciated. Please use Omega_m (uppercase O).'}
 schema.declare{name='Omega_m',           type='number', required=false, help='Total matter (cdm + baryon + ncdm) density parameter at z=0'}
 schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
@@ -53,17 +53,19 @@ schema.ncdm_sphere_scheme.choices = {
     healpix = 'FASTPM_NCDM_SPHERE_HEALPIX',
     fibonacci = 'FASTPM_NCDM_SPHERE_FIBONACCI',
 }
-schema.declare{name='growth_mode', type='enum', default='LCDM', help='Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. The full ODE is required for accurate results for runs with radiation in the background, and can also be used for Lambda+CDM-only backgrounds. The LCDM approximation is included for backward compatibility.'}
+schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
+                                                                     "The full ODE is required for accurate results for runs with radiation in the background, " ..
+                                                                     "and can also be used for Lambda+CDM-only backgrounds. " ..
+                                                                     "The LCDM approximation is included for backward compatibility."}
 schema.growth_mode.choices = {
     LCDM = 'FASTPM_GROWTH_MODE_LCDM',
     ODE = 'FASTPM_GROWTH_MODE_ODE',
 }
 
--- allow backward compatibility wth lowercase o
+-- enforece Omega_m
 function schema.omega_m.action (value)
     if value ~= nil then
-        schema.Omega_m.default = value
-        print("omega_m will soon be depreciated, please use Omega_m instead.")
+        error("omega_m is depreciated, please use Omega_m (uppercase O) instead.")
     end
 end
 

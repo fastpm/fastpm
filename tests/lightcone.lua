@@ -17,7 +17,7 @@ compute_potential = true
 compute_tidal = true
 
 -- Cosmology --
-omega_m = 0.307494
+Omega_m = 0.307494
 h       = 0.6774
 
 -- Start with a power spectrum file

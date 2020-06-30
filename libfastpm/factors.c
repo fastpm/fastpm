@@ -256,13 +256,18 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     double Omega_m0 = c->Omega_m;
     double Omega_mc = Omega_m(ac, c);   // assumes all ncdm is matter like
 
+    // kick->q1,2 are used for the COLA force implementation.
+    // growth_mode = ODE and LCDM should match for an LCDM background,
+    // but neither is guaranteed accurate for a background with radiaiton.
+    // We advise using LCDM mode for forcemode = FASTPM_FORCE_COLA, as in the
+    // original implementation of FastPM.
     kick->q1 = D1_c;
     switch (c->growth_mode){
         case FASTPM_GROWTH_MODE_LCDM:
             kick->q2 = D1_c*D1_c * (1.0 + 7.0/3.0 * pow(Omega_mc, 1.0/143.0));
         break;
         case FASTPM_GROWTH_MODE_ODE:
-            kick->q2 = D1_c*D1_c * (1 - D1_c*D1_c/D2_c);  // FIXME: This matches up with old code mathematically, but review this!
+            kick->q2 = D1_c*D1_c * (1 - D1_c*D1_c/D2_c);
         break;
         default:
             fastpm_raise(-1, "Please enter a valid growth mode.\n");

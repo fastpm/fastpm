@@ -122,7 +122,7 @@ end
 output_redshifts= {9.0, 2.0, 1.0, 0.0}  -- redshifts of output
 
 -- Cosmology --
-omega_m = 0.307494
+Omega_m = 0.307494
 h       = 0.6774
 
 if has('lineark') then
