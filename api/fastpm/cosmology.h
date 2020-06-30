@@ -21,7 +21,7 @@ struct FastPMCosmology {
     int N_ncdm;
     
     FastPMGrowthMode growth_mode;
-    FastPMFDInterp FDinterp[1];   // FIXME:? Will just be NULL in the case of no ncdm
+    FastPMFDInterp * FDinterp;   // FIXME:? Will just be NULL in the case of no ncdm
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);

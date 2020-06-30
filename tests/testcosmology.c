@@ -31,7 +31,7 @@ int main(int argc, char * argv[]){
         .m_ncdm = {0.0666667, 0.0666667, 0.0666667}, //{},
         .Omega_Lambda = 0.682445,   // FIXME Note this test cosmology isn't properly closed   0.682407
         .Omega_cdm = 0.312725,
-        .FDinterp[0] = FDi,
+        .FDinterp = &FDi,
     }};
 
     FILE * pFile;
