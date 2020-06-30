@@ -62,7 +62,7 @@ schema.growth_mode.choices = {
     ODE = 'FASTPM_GROWTH_MODE_ODE',
 }
 
--- enforece Omega_m
+-- enforce Omega_m
 function schema.omega_m.action (value)
     if value ~= nil then
         error("omega_m is depreciated, please use Omega_m (uppercase O) instead.")
