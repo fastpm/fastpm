@@ -156,28 +156,26 @@ _big_file_path_is_block(const char * basename)
 void
 _big_file_raise(const char * msg, const char * file, const int line, ...)
 {
-    char * mymsg;
     if(!msg) {
         if(ERRORSTR) {
-            mymsg = _strdup(ERRORSTR);
+            msg = ERRORSTR;
         } else {
-            mymsg = _strdup("UNKNOWN ERROR");
+            msg = "UNKNOWN ERROR";
         }
-    } else {
-        mymsg = _strdup(msg);
     }
 
-    char * errorstr = malloc(strlen(mymsg) + 512);
+    size_t len = strlen(msg) + strlen(file) + 512;
+    char * errorstr = malloc(len);
 
-    char * fmtstr = alloca(strlen(mymsg) + 512);
-    sprintf(fmtstr, "%s @(%s:%d)", mymsg, file, line);
-    free(mymsg);
+    char * fmtstr = alloca(len);
+    sprintf(fmtstr, "%s @(%s:%d)", msg, file, line);
     va_list va;
     va_start(va, line);
-    vsprintf(errorstr, fmtstr, va); 
+    vsprintf(errorstr, fmtstr, va);
     va_end(va);
 
     big_file_set_error_message(errorstr);
+    free(errorstr);
 }
 
 /* BigFile */
