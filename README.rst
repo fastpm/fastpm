@@ -281,6 +281,11 @@ Examples
 Feel free to copy and modify these files to fit your own need, especially if you
 have strong opinions on the choice data containers.
 
+*Massive Neutrino Simulations*
+- massive neutrinos are referred to as ncdm (not-cold dark matter) in the code.
+- refer to tests/ncdm.lua for an example parameter file.
+- <insert link to paper>
+
 Commandline Interface
 ---------------------
 The CLI consists of two main executable files:
