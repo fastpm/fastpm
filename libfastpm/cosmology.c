@@ -40,7 +40,7 @@ fastpm_cosmology_init(FastPMCosmology * c)
 void
 fastpm_cosmology_destroy(FastPMCosmology * c)
 {
-    if (c->N_ncdm > 0) {
+    if (c->FDinterp) {
         fastpm_fd_interp_destroy(c->FDinterp);
         free(c->FDinterp);
     }
