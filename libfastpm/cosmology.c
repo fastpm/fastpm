@@ -40,8 +40,10 @@ fastpm_cosmology_init(FastPMCosmology * c)
 void
 fastpm_cosmology_destroy(FastPMCosmology * c)
 {
-    if (c->N_ncdm > 0)
-        fastpm_fd_interp_free(c->FDinterp);
+    if (c->N_ncdm > 0) {
+        fastpm_fd_interp_destroy(c->FDinterp);
+        free(c->FDinterp);
+    }
 }
 
 double Omega_g(FastPMCosmology * c)
