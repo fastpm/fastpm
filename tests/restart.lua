@@ -15,7 +15,7 @@ time_step = {0.1, 0.5, 0.75, 1.0}
 aout = {0.1, 0.5, 1.0}  -- redshifts of output
 
 -- Cosmology --
-omega_m = 0.307494
+Omega_m = 0.307494
 h       = 0.6774
 
 -- Start with a linear density field
