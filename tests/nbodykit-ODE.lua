@@ -12,7 +12,7 @@ boxsize = 384.0
 -- time_step = linspace(0.01, 1.0, 10)
 time_step = linspace(0.1, 1, 3)
 
-output_redshifts= {0.0, 0.5}  -- redshifts of output
+output_redshifts= {9., 0.5, 0.0}  -- redshifts of output
 
 -- Cosmology --
 Omega_m = 0.307494
@@ -30,7 +30,7 @@ particle_fraction = 1.0
 force_mode = "fastpm"
 kernel_type = "1_4"
 
-growth_mode = "LCDM"
+growth_mode = "ODE"
 
 pm_nc_factor = {{0.0, 1}, {0.01, 2}}
 

@@ -22,7 +22,7 @@ int main(int argc, char * argv[]) {
         .nc = 128,
         .boxsize = 128.,
         .alloc_factor = 2.0,
-        .omega_m = 0.292,
+        .cosmology = NULL,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
             {.a_start = -1, .pm_nc_factor = 0},

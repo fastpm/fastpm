@@ -36,23 +36,24 @@ typedef enum FastPMColumnTags {
     COLUMN_VEL   =  1L << 3,
     COLUMN_DX1   =  1L << 4,
     COLUMN_DX2   =  1L << 5,
-    COLUMN_ACC   =  1L << 6,
-    COLUMN_ID    =  1L << 7,
-    COLUMN_AEMIT     =  1L << 8,
-    COLUMN_DENSITY =  1L << 9,
-    COLUMN_POTENTIAL =  1L << 10,
-    COLUMN_TIDAL     =  1L << 11,
-    COLUMN_PGDC   =  1L << 12,
+    COLUMN_DV1   =  1L << 6,
+    COLUMN_ACC   =  1L << 7,
+    COLUMN_ID    =  1L << 8,
+    COLUMN_AEMIT     =  1L << 9,
+    COLUMN_DENSITY =  1L << 10,
+    COLUMN_POTENTIAL =  1L << 11,
+    COLUMN_TIDAL     =  1L << 12,
+    COLUMN_PGDC   =  1L << 13,
 
     /* for fof */
-    COLUMN_MINID =  1L << 13,
-    COLUMN_TASK =  1L << 14,
-    COLUMN_LENGTH =  1L << 15,
-    COLUMN_RDISP =  1L << 16,
-    COLUMN_VDISP =  1L << 17,
-    COLUMN_RVDISP =  1L << 18,
+    COLUMN_MINID =  1L << 14,
+    COLUMN_TASK =  1L << 15,
+    COLUMN_LENGTH =  1L << 16,
+    COLUMN_RDISP =  1L << 17,
+    COLUMN_VDISP =  1L << 18,
+    COLUMN_RVDISP =  1L << 19,
     
-    COLUMN_MASS = 1L << 19,
+    COLUMN_MASS = 1L << 20,
 
 } FastPMColumnTags;
 
@@ -104,6 +105,7 @@ struct FastPMStore {
             float (* v)[3];  
             float (* dx1)[3];
             float (* dx2)[3];
+            float (* dv1)[3];
             float (* acc)[3];
             uint64_t * id;
             float (* aemit);
@@ -145,7 +147,7 @@ typedef struct {
 
 typedef struct {
     FastPMColumnTags attribute;
-    int memb;
+    int memb;   // for a vector field, this number represents the component
 } FastPMFieldDescr;
 
 const static FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};

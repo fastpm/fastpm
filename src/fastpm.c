@@ -106,6 +106,12 @@ write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI
 
 }
 
+static void
+prepare_cosmology(FastPMCosmology * c, RunData * prr);
+
+static void
+destroy_cosmology(FastPMCosmology * c);
+
 int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
@@ -168,13 +174,15 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr->lua, np_alloc_factor));
 
+    FastPMCosmology * cosmology = malloc(sizeof(cosmology[0]));
+    prepare_cosmology(cosmology, prr);
+
     FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr->lua, nc),
         .alloc_factor = CONF(prr->lua, np_alloc_factor),
         .vpminit = vpminit,
         .boxsize = CONF(prr->lua, boxsize),
-        .omega_m = CONF(prr->lua, omega_m),
-        .hubble_param = CONF(prr->lua, h),
+        .cosmology = cosmology,
         .USE_DX1_ONLY = CONF(prr->lua, za),
         .nLPT = -2.5f,
         .USE_SHIFT = CONF(prr->lua, shift),
@@ -255,7 +263,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     CLOCK(sort);
     CLOCK(indexing);
 
-    const double M0 = CONF(prr->lua, omega_m) * FASTPM_CRITICAL_DENSITY
+    const double M0 = config->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
                     * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
     fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
@@ -355,11 +363,52 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     }
     fastpm_solver_destroy(fastpm);
 
+    destroy_cosmology(config->cosmology);
+
     report_memory(comm);
 
     fastpm_clock_stat(comm);
 
     return 0;
+}
+
+static void
+prepare_cosmology(FastPMCosmology * c, RunData * prr) {
+    c->h = CONF(prr->lua, h);
+    c->Omega_m = CONF(prr->lua, Omega_m);
+    c->T_cmb = CONF(prr->lua, T_cmb);
+    c->N_eff = CONF(prr->lua, N_eff);
+    c->N_nu = CONF(prr->lua, N_nu);
+    c->N_ncdm = CONF(prr->lua, n_m_ncdm);
+    c->growth_mode = CONF(prr->lua, growth_mode);
+
+    int i;
+    double m_ncdm_i;
+    double m_ncdm_sum = 0;
+    for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
+        m_ncdm_i = CONF(prr->lua, m_ncdm)[i];
+        c->m_ncdm[i] = m_ncdm_i;
+        m_ncdm_sum += m_ncdm_i;
+    }
+
+    /* prepare the interpolation object for FD tables. */
+    if (c->N_ncdm > 0) {
+        FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
+        fastpm_fd_interp_init(FDinterp);
+        c->FDinterp = FDinterp;
+    }
+
+    // Compute Omega_cdm assuming all ncdm is matter like
+    c->Omega_cdm = c->Omega_m - Omega_ncdmTimesHubbleEaSq(1, c);
+
+    // Set Omega_Lambda at z=0 to give no curvature
+    c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c);
+}
+
+static void
+destroy_cosmology(FastPMCosmology * c) {
+    if (c->N_ncdm > 0) fastpm_fd_interp_free(c->FDinterp);
+    free(c);
 }
 
 static void
@@ -496,8 +545,11 @@ induce:
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
     {
-        double linear_evolve = fastpm_solver_growth_factor(fastpm, aout) /
-                               fastpm_solver_growth_factor(fastpm, 1 / (linear_density_redshift + 1));
+        FastPMGrowthInfo gi_out;
+        FastPMGrowthInfo gi_in;
+        fastpm_growth_info_init(&gi_out, aout, fastpm->cosmology);
+        fastpm_growth_info_init(&gi_in, 1. / (linear_density_redshift + 1), fastpm->cosmology);
+        double linear_evolve = gi_out.D1 / gi_in.D1;
 
         fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift 0.\n", linear_density_redshift, linear_evolve);
 
@@ -563,7 +615,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         }
 
         read_runpb_ic(fastpm, p, CONF(prr->lua, read_runpbic));
-        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, CONF(prr->lua, time_step)[0]);
+        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, NULL, CONF(prr->lua, time_step)[0]);
         if(temp_dx2) {
             fastpm_memory_free(p->mem, p->dx2);
             p->dx2 = NULL;
@@ -573,7 +625,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
             p->dx1 = NULL;
         }
         return;
-    } 
+    }
 
     FastPMFloat * delta_k = pm_alloc(fastpm->pm);
 
@@ -582,7 +634,15 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
                    CONF(prr->lua, read_lineark), 
                    CONF(prr->lua, read_powerspectrum));
 
-    /* our write out and clean up stuff.*/
+    /* Check if linear growth rate has been input for cdm */
+    FastPMFuncK * growth_rate_func_k = NULL;
+    if (CONF(prr->lua, read_linear_growth_rate)) {
+        growth_rate_func_k = malloc(sizeof(FastPMFuncK));
+        read_funck(growth_rate_func_k, CONF(prr->lua, read_linear_growth_rate), comm);
+        fastpm_info("Reading cdm linear growth rate from file: %s\n", CONF(prr->lua, read_linear_growth_rate));
+    } else {
+        fastpm_info("No cdm linear growth rate file input.\n");
+    }
 
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
@@ -604,9 +664,18 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, CONF(prr->lua, time_step)[0]);
+    /* set the mass */
+    double BoxSize = fastpm->config->boxsize;
+    uint64_t NC = fastpm->config->nc;
+    double Omega_cdm = fastpm->cosmology->Omega_cdm;
+    double M0 = Omega_cdm * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
+    fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->meta.M0 = M0;
 
-    pm_free(fastpm->pm, delta_k);
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, growth_rate_func_k, CONF(prr->lua, time_step)[0]);
+
+    if (growth_rate_func_k)
+        fastpm_funck_destroy(growth_rate_func_k);
+    pm_free(fastpm->basepm, delta_k);
 }
 
 static void 
@@ -614,18 +683,15 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 {
     if(CONF(prr->lua, n_m_ncdm) == 0) return;
 
-    int n_ncdm = CONF(prr->lua, n_m_ncdm);
-    double m_ncdm[3];
-    for (int i = 0; i < n_ncdm; i ++){
-        m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
-    }
-    double h = CONF(prr->lua, h);
+    double boxsize = CONF(prr->lua, boxsize);
+    double BoxSize[3] = {boxsize, boxsize, boxsize};
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
     int every = CONF(prr->lua, every_ncdm);
 
-    size_t nc_ncdm = CONF(prr->lua, nc) / every;
+    size_t nc_cdm = CONF(prr->lua, nc);
+    size_t nc_ncdm = nc_cdm / every;
 
     if (CONF(prr->lua, nc) % every != 0) {
         fastpm_raise(-1, "TODO: check this in parameter file. ");
@@ -633,9 +699,9 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
-            CONF(prr->lua, boxsize),
-            m_ncdm, n_ncdm, h, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk, 
-            CONF(prr->lua, ncdm_sphere_scheme)); 
+            boxsize,
+            fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk,
+            CONF(prr->lua, ncdm_sphere_scheme));
     
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;
     size_t total_np_ncdm = total_np_ncdm_sites * nid->n_split;
@@ -651,7 +717,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
           fastpm->config->alloc_factor,
           comm);
     
-    // create store for ncdm sites (i.e.before splitting) 
+    // create store for ncdm sites (i.e. before splitting)
     // (analogously to how cdm is created in solver_init)
     FastPMStore * ncdm_sites = malloc(sizeof(FastPMStore));
     fastpm_store_init_evenly(ncdm_sites,
@@ -661,10 +727,6 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
           fastpm->config->alloc_factor,
           comm);
 
-    fastpm_solver_add_species(fastpm, 
-                              FASTPM_SPECIES_NCDM, 
-                              ncdm_sites);         //will replace after splitting.
-    
     // call fastpm_store_fill on ncdm to give correct qs
     double shift0;
     if(fastpm->config->USE_SHIFT) {
@@ -673,11 +735,39 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         shift0 = 0;
     }
     double shift[3] = {shift0, shift0, shift0};
-    
+
     // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
     ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
-    fastpm_store_fill(fastpm_solver_get_species(fastpm, FASTPM_SPECIES_NCDM), fastpm->pm, shift, Nc_ncdm);
-    
+    fastpm_store_fill(ncdm_sites, fastpm->pm, shift, Nc_ncdm);
+
+    // stagger the ncdm grid wrt the cdm grid. FIXME: Does this conflict with the shift stuff above?
+    int i, d;
+    for(i = 0; i < ncdm_sites->np; i ++) {
+        for(d = 0; d < 3; d ++) {
+            ncdm_sites->x[i][d] += fastpm->config->boxsize / nc_cdm * 0.5;
+            if (ncdm_sites->q)
+                ncdm_sites->q[i][d] += fastpm->config->boxsize / nc_cdm * 0.5;
+        }
+    }
+
+    // SPLIT
+    fastpm_split_ncdm(nid, ncdm_sites, ncdm, comm);
+
+    // replace ncdm species with the split ncdm
+    fastpm_solver_add_species(fastpm,
+                              FASTPM_SPECIES_NCDM,
+                              ncdm);
+
+    /* after splitting, the ncdm particles have moved so we
+       must wrap and move particles to the correct rank */
+    int NTask;
+    MPI_Comm_size(fastpm->comm, &NTask);
+    fastpm_store_wrap(ncdm, BoxSize);
+    fastpm_store_decompose(ncdm,
+                           (fastpm_store_target_func) FastPMTargetPM,
+                           fastpm->pm,
+                           fastpm->comm);
+
     // compute delta_k for ncdm
     FastPMFloat * delta_k = pm_alloc(fastpm->pm);
     
@@ -695,19 +785,22 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
                         CONF(prr->lua, read_powerspectrum_ncdm));
     }
     
+    /* Check if linear growth rate has been input for ncdm */
+    FastPMFuncK * growth_rate_func_k = NULL;
+    if (CONF(prr->lua, read_linear_growth_rate_ncdm)) {
+        growth_rate_func_k = malloc(sizeof(FastPMFuncK));
+        read_funck(growth_rate_func_k, CONF(prr->lua, read_linear_growth_rate_ncdm), comm);
+        fastpm_info("Reading ncdm linear growth rate from file: %s\n", CONF(prr->lua, read_linear_growth_rate_ncdm));
+    } else {
+        fastpm_info("No ncdm linear growth rate file input. Using internal scale-independent linear growth rate for ICs instead\n");
+    }
     // perform lpt
-    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, CONF(prr->lua, time_step)[0]);
-    
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, growth_rate_func_k, CONF(prr->lua, time_step)[0]);
+
     // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
+    if (growth_rate_func_k)
+        fastpm_funck_destroy(growth_rate_func_k);
     pm_free(fastpm->pm, delta_k);
-    
-    // SPLIT
-    fastpm_split_ncdm(nid, ncdm_sites, ncdm, comm);
-    
-    // replace ncdm species with the split ncdm
-    fastpm_solver_add_species(fastpm, 
-                              FASTPM_SPECIES_NCDM, 
-                              ncdm);
     
     fastpm_store_destroy(ncdm_sites);
     fastpm_ncdm_init_free(nid);
@@ -975,9 +1068,12 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
 
         fastpm_set_snapshot(fastpm, snapshot, event->drift, event->kick, aout[iout]);
 
+        FastPMGrowthInfo gi;
+        fastpm_growth_info_init(&gi, aout[iout], fastpm->cosmology);
+
         fastpm_info("Snapshot a_x = %6.4f, a_v = %6.4f \n", cdm->meta.a_x, cdm->meta.a_v);
-        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_factor(fastpm, aout[iout]), aout[iout]);
-        fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", fastpm_solver_growth_rate(fastpm, aout[iout]), aout[iout]);
+        fastpm_info("Growth factor of snapshot %6.4f (a=%0.4f)\n", gi.D1, aout[iout]);
+        fastpm_info("Growth rate of snapshot %6.4f (a=%0.4f)\n", gi.f1, aout[iout]);
 
         take_a_snapshot(snapshot, prr);
 
@@ -1457,8 +1553,11 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * p
 
     double Sigma8 = fastpm_powerspectrum_sigma(&ps, 8);
 
-    Plin /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
-    Sigma8 /= pow(fastpm_solver_growth_factor(fastpm, event->a_f), 2.0);
+    FastPMGrowthInfo gi;
+    fastpm_growth_info_init(&gi, event->a_f, fastpm->cosmology);
+
+    Plin /= pow(gi.D1, 2.0);
+    Sigma8 /= pow(gi.D1, 2.0);
 
     fastpm_info("D^2(%g, 1.0) P(k<%g) = %g Sigma8 = %g\n", event->a_f, K_LINEAR * 6.28 / pm_boxsize(event->pm)[0], Plin, Sigma8);
 
@@ -1510,7 +1609,7 @@ read_powerspectrum(FastPMPowerSpectrum * ps, const char filename[], const double
     }
     free(content);
 
-    fastpm_info("Found %d pairs of values in input spectrum table\n", ps->size);
+    fastpm_info("Found %d pairs of values in input spectrum table\n", ps->base.size);
 
     double sigma8_input= fastpm_powerspectrum_sigma(ps, 8);
     fastpm_info("Input power spectrum sigma8 %f\n", sigma8_input);

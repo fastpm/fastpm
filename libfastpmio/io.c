@@ -171,13 +171,16 @@ write_snapshot_header(FastPMSolver * fastpm,
 
     fastpm_info("RSD factor %e\n", RSD);
 
+    FastPMGrowthInfo gi;
+    fastpm_growth_info_init(&gi, aout, fastpm->cosmology);
     double ScalingFactor = aout;
-    double D1 = GrowthFactor(aout, fastpm->cosmology);
-    double f1 = DLogGrowthFactor(aout, fastpm->cosmology);
+    double D1 = gi.D1;
+    double f1 = gi.f1;
     double Ea = HubbleEa(aout, fastpm->cosmology);
-    double OmegaM = fastpm->cosmology->OmegaM;
-    double OmegaLambda = fastpm->cosmology->OmegaLambda;
-    double HubbleParam = fastpm->config->hubble_param;
+    double Omega_m = fastpm->cosmology->Omega_m;
+    double Omega_cdm = fastpm->cosmology->Omega_cdm;
+    double OmegaLambda = fastpm->cosmology->Omega_Lambda; //FIXME: Maybe want to include radiation input pars too?
+    double HubbleParam = fastpm->cosmology->h;
     double BoxSize = fastpm->config->boxsize;
     uint64_t NC = fastpm->config->nc;
 
@@ -205,7 +208,8 @@ write_snapshot_header(FastPMSolver * fastpm,
     big_block_set_attr(&bb, "GrowthRate", &f1, "f8", 1);
     big_block_set_attr(&bb, "HubbleE", &Ea, "f8", 1);
     big_block_set_attr(&bb, "RSDFactor", &RSD, "f8", 1);
-    big_block_set_attr(&bb, "OmegaM", &OmegaM, "f8", 1);
+    big_block_set_attr(&bb, "Omega_cdm", &Omega_cdm, "f8", 1);
+    big_block_set_attr(&bb, "OmegaM", &Omega_m, "f8", 1);
     big_block_set_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
     big_block_set_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
     big_block_set_attr(&bb, "LibFastPMVersion", LIBFASTPM_VERSION, "S1", strlen(LIBFASTPM_VERSION));
@@ -216,7 +220,7 @@ write_snapshot_header(FastPMSolver * fastpm,
     double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
     int UsePeculiarVelocity = 1;
 
-    big_block_set_attr(&bb, "Omega0", &OmegaM, "f8", 1);
+    big_block_set_attr(&bb, "Omega0", &Omega_cdm, "f8", 1);
     big_block_set_attr(&bb, "TotNumPart", &TotNumPart, "i8", 6);
     big_block_set_attr(&bb, "MassTable", MassTable, "f8", 6);
     big_block_set_attr(&bb, "Time", &ScalingFactor, "f8", 1);
@@ -936,3 +940,32 @@ write_aemit_hist(const char * filebase, const char * dataset,
     free(offset);
 }
 
+int
+read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm)
+{
+    int myrank;
+    MPI_Comm_rank(comm, &myrank);
+    char * content;
+    if(myrank == 0) {
+        content = fastpm_file_get_content(filename);
+        if(content == NULL) {
+            fastpm_raise(-1, "Failed to read file %s\n", filename);
+        }
+        int size = strlen(content);
+        MPI_Bcast(&size, 1, MPI_INT, 0, comm);
+        MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
+    } else {
+        int size = 0;
+        MPI_Bcast(&size, 1, MPI_INT, 0, comm);
+        content = malloc(size + 1);
+        MPI_Bcast(content, size + 1, MPI_BYTE, 0, comm);
+    }
+    if (0 != fastpm_funck_init_from_string(fk, content)) {
+        fastpm_raise(-1, "Failed to parse file %s\n", filename);
+    }
+    free(content);
+
+    //fastpm_info("Found %d pairs of values \n", ps->size);
+
+    return 0;
+}

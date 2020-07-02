@@ -21,7 +21,7 @@ int main(int argc, char * argv[]) {
         .nc = 32,
         .boxsize = 1600.,
         .alloc_factor = 2.0,
-        .omega_m = 0.292,
+        .cosmology = NULL,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
             {.a_start = -1, .pm_nc_factor = 0},
@@ -36,9 +36,7 @@ int main(int argc, char * argv[]) {
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
     
     //ADD NCDM
-    double m_ncdm[3] = {0.05, 0.02, 0.01};
-    int n_ncdm = 3;
-    FastPMncdmInitData* nid = fastpm_ncdm_init_create(config->boxsize, m_ncdm, n_ncdm, 0.6774, 9., 10, 2, 0, 1);
+    FastPMncdmInitData* nid = fastpm_ncdm_init_create(config->boxsize, solver->cosmology, 9., 10, 2, 0, 1);
     
     FastPMStore * cdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
 
@@ -75,8 +73,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
 
-    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
-    
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
 
     //SPLIT
     fastpm_split_ncdm(nid, cdm, ncdm, comm);

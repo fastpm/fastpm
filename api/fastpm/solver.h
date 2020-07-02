@@ -49,9 +49,9 @@ typedef struct {
 typedef struct {
     size_t nc;
     double boxsize;
-    double omega_m;
-    double hubble_param;
     double alloc_factor;
+
+    FastPMCosmology * cosmology;
 
     VPMInit * vpminit;
     int USE_DX1_ONLY;
@@ -158,9 +158,10 @@ fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, Fas
 
 void 
 fastpm_solver_setup_lpt(FastPMSolver * fastpm, 
-                enum FastPMSpecies species,
-                FastPMFloat * delta_k_ic,
-                double a0);
+                        enum FastPMSpecies species,
+                        FastPMFloat * delta_k_ic,
+                        FastPMFuncK * growth_rate_func_k_ic,
+                        double a0);
 
 PM *
 fastpm_find_pm(FastPMSolver * fastpm, double a);
@@ -172,11 +173,6 @@ void fastpm_drift_init(FastPMDriftFactor * drift, FastPMSolver * fastpm, double 
 void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai, double ac, double af);
 void fastpm_kick_one(FastPMKickFactor * kick, FastPMStore * p,  ptrdiff_t i, float vo[3], double af);
 void fastpm_drift_one(FastPMDriftFactor * drift, FastPMStore * p, ptrdiff_t i, double xo[3], double ae);
-
-double
-fastpm_solver_growth_factor(FastPMSolver * fastpm, double a);
-double
-fastpm_solver_growth_rate(FastPMSolver * fastpm, double a);
 
 void 
 fastpm_kick_store(FastPMKickFactor * kick,

@@ -68,9 +68,15 @@ void pix2vec (int pix, double *vec, int n_side)
         phi = (iphi-0.5) * 0.5*M_PI/iring;
     }
 
-    vec[0] = sin(acos(z))*cos(phi);
-    vec[1] = sin(acos(z))*sin(phi);
-    vec[2] = z;
+    double v[3];
+    v[0] = sin(acos(z))*cos(phi);
+    v[1] = sin(acos(z))*sin(phi);
+    v[2] = z;
+
+    /* rotate the vector to break degeneracy with grid axes */
+    vec[0] = 0.5*v[0] -0.5*v[1] +0.70710678*v[2];
+    vec[1] = 0.85355339*v[0] +0.14644661*v[1] -0.5*v[2];
+    vec[2] = 0.14644661*v[0] +0.85355339*v[1] +0.5*v[2];
 }
 
 /* make params struct for functions we will integrate with gsl */
@@ -271,9 +277,7 @@ static void _fastpm_ncdm_init_fill(FastPMncdmInitData* nid);
 FastPMncdmInitData* 
 fastpm_ncdm_init_create(
     double BoxSize,
-    double m_ncdm[3],
-    int n_ncdm,
-    double h,
+    FastPMCosmology * c,
     double z,
     int n_shells,
     int n_side,
@@ -284,15 +288,14 @@ fastpm_ncdm_init_create(
 
     nid->BoxSize = BoxSize;
     nid->m_ncdm_sum = 0;
-    for(int i = 0; i < n_ncdm; i ++) {
-        nid->m_ncdm[i] = m_ncdm[i];
-        nid->m_ncdm_sum += m_ncdm[i];
+    for(int i = 0; i < c->N_ncdm; i ++) {
+        nid->m_ncdm[i] = c->m_ncdm[i];
+        nid->m_ncdm_sum += c->m_ncdm[i];
     }
-    nid->n_ncdm = n_ncdm;
+    nid->n_ncdm = c->N_ncdm;
 
-    /* compute Omega_ncdm0
-       (ref Massive neutrinos and cosmology, Lesgourgues) */
-    nid->Omega_ncdm = nid->m_ncdm_sum / 93.14 / (h*h);
+    /* Normalize Omega_ncdm assuming all ncdm is matter like. */
+    nid->Omega_ncdm = Omega_ncdmTimesHubbleEaSq(1, c);
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     nid->n_shells = n_shells;
@@ -360,19 +363,21 @@ _fastpm_ncdm_init_fill(FastPMncdmInitData* nid)
     divide_fd(vel_table, masstab, params, n_shells, lvk);
     divide_sphere(nid->ncdm_sphere_scheme, vec_table, n_side);
     
+    /* velocity_conversion_factor converts the dimless exponent
+       in the FD distribution to velocity in FastPM units:
+       conjugate momentum (a^2 xdot, where x is comoving dist).
+       kTc = 50.3 eV/c^2 km/s */
+    double m0 = nid->m_ncdm[0];
+    double velocity_conversion_factor = 50.3 / m0 / HubbleConstant;
+
     int i, j, d;
     int s = 0;                          //row num  (s for split index)
     for(i = 0; i < n_sphere; i ++){
         for(j = 0; j < n_shells; j ++){
-            double m0 = nid->m_ncdm[0];
-            /* define mass st sum over split gives 1*/
+            /* define mass st sum over split gives 1 */
             nid->mass[s] = masstab[j] / n_sphere;
-            /* velocity_conversion_factor converts the dimless exponent 
-               in the FD distribution to velocity in km/s.
-               kTc = 50.3 eV/c^2 km/s */
-            double velocity_conversion_factor = 50.3 * (1. + nid->z) * (1./m0);
             for(d = 0; d < 3; d ++){
-                nid->vel[s][d] = vel_table[j]*vec_table[i*3+d]*velocity_conversion_factor;
+                nid->vel[s][d] = vel_table[j] * vec_table[i*3 + d] * velocity_conversion_factor;
             }
             s++;
         }
@@ -401,7 +406,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     }
 
     size_t np_total = fastpm_store_get_np_total(src, comm);     //np_total is num of UNsplit ncdms
-    
+
     /* avg mass of UNsplit ncdm site */
     double M0 = nid->Omega_ncdm * FASTPM_CRITICAL_DENSITY * pow(nid->BoxSize, 3) / np_total;
     double Mestate = M0 / nid->n_ncdm;
@@ -410,14 +415,25 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     /* copy and amend meta-data */
     memmove(&dest->meta, &src->meta, sizeof(src->meta));
 
-    dest->meta.M0 = 0.; /* will have a mass per particles. this overwrites M0 set in setup_lpt of src */
+    dest->meta.M0 = 0.; /* will have a mass per particle */
+
+    /* Compute the factor used to displace ncdm so that the expanded spheres almost touch.
+       This assumes the largest speed particle is in the final entry of vel table */
+    int n_shells = nid->n_shells;
+    int n_sphere = nid->n_sphere;
+    double vthm_max = 0;
+    for (int d = 0; d < 3; d ++)
+        vthm_max += nid->vel[n_sphere*n_shells-1][d]*nid->vel[n_sphere*n_shells-1][d];
+    vthm_max = sqrt(vthm_max);
+    double disp_factor = 0.5 * nid->BoxSize / nid->n_ncdm / vthm_max * (n_shells - 1) / n_shells;
 
     ptrdiff_t i, s, d;
     ptrdiff_t r = 0;    //row index of dest
+    int c;
+    double vthm;
     for(i = 0; i < src->np; i ++) {    //loop thru each src particle
         for(s = 0; s < nid->n_split; s ++) {  //loop thru split velocities
             /* copy all cols el by el */
-            int c;
             for(c = 0; c < 32; c ++) {
                 if (!dest->columns[c] || !src->columns[c]) continue;
 
@@ -430,9 +446,12 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             /* give id, mass and add thm vel */
             dest->id[r] = s * src->meta._q_size + src->id[i];
             dest->mass[r] = nid->mass[s] * M0;    // ensures sum over split gives M0
+
             for(d = 0; d < 3; d ++){
-                /* conjugate momentum unit [a^2 xdot, where x is comoving dist] */
-                dest->v[r][d] += nid->vel[s][d] / (1. + nid->z) / HubbleConstant;
+                vthm = nid->vel[s][d];
+                dest->v[r][d] = vthm;
+                dest->x[r][d] += vthm * disp_factor;
+                if (dest->q) dest->q[r][d] += vthm * disp_factor;
             }
             r ++;
         }

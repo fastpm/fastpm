@@ -27,10 +27,29 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->config[0] = *config;
 
-    fastpm->cosmology[0] = (FastPMCosmology) {
-        .OmegaM = config->omega_m,
-        .OmegaLambda = 1.0 - config->omega_m,
-    };
+    if(!(config->cosmology)) {
+        /* Use a default fiducial cosmology. */
+        /* FIXME: This is a weird fiducial cosmology. */
+        FastPMFDInterp FDinterp;
+        fastpm_fd_interp_init(&FDinterp);
+
+        FastPMCosmology c[1] = {{
+            .h=0.6772,
+            .Omega_m=0.323839,
+            .Omega_cdm=0.3,
+            .Omega_Lambda=0.67616,
+            .T_cmb=2.725,
+            .N_eff=3.046,
+            .m_ncdm= {1., 0, 0,},
+            .N_nu = 3,
+            .growth_mode = FASTPM_GROWTH_MODE_LCDM,
+            .FDinterp = &FDinterp,
+        }};
+        memcpy(fastpm->cosmology, c, sizeof(c[0]));
+    } else {
+        /* use the provided cosmology */
+        memcpy(fastpm->cosmology, config->cosmology, sizeof(config->cosmology[0]));
+    }
 
     if(config->pgdc)
     {
@@ -71,9 +90,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm_store_init_evenly(fastpm->cdm,
           fastpm_species_get_name(FASTPM_SPECIES_CDM),
           pow(1.0 * config->nc, 3),
-          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | fastpm->config->ExtraAttributes,
-          fastpm->config->alloc_factor,
-          fastpm->comm);
+          COLUMN_POS | COLUMN_VEL | COLUMN_ID | COLUMN_MASK | COLUMN_ACC | config->ExtraAttributes,
+          config->alloc_factor,
+          comm);
 
     fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, fastpm->cdm);   //add CDM [why make np_total a double?]
     
@@ -108,6 +127,7 @@ void
 fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         enum FastPMSpecies species,
         FastPMFloat * delta_k_ic,
+        FastPMFuncK * growth_rate_func_k_ic,
         double a0)
 {
 
@@ -118,15 +138,9 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     PM * pm = fastpm->pm;
     FastPMConfig * config = fastpm->config;
 
-    double BoxSize = fastpm->config->boxsize;
-    uint64_t NC = fastpm->config->nc;
-    double OmegaM = fastpm->cosmology->OmegaM;
-    double M0 = OmegaM * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
-
-    p->meta.M0 = M0;
-
     int temp_dx1 = 0;
     int temp_dx2 = 0;
+    int temp_dv1 = 0;
     if(p->dx1 == NULL) {
         p->dx1 = fastpm_memory_alloc(p->mem, "DX1", sizeof(p->dx1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
         temp_dx1 = 1;
@@ -134,6 +148,10 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     if(p->dx2 == NULL) {
         p->dx2 = fastpm_memory_alloc(p->mem, "DX2", sizeof(p->dx2[0]) * p->np_upper, FASTPM_MEMORY_STACK);
         temp_dx2 = 1;
+    }
+    if(p->dv1 == NULL && growth_rate_func_k_ic) {
+        p->dv1 = fastpm_memory_alloc(p->mem, "DV1", sizeof(p->dv1[0]) * p->np_upper, FASTPM_MEMORY_STACK);
+        temp_dv1 = 1;
     }
 
     FastPMLPTEvent event[1];
@@ -153,7 +171,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
         }
         double shift[3] = {shift0, shift0, shift0};
         /* ignore deconvolve order and grad order, since particles are likely on the grid.*/
-        pm_2lpt_solve(pm, delta_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
+        pm_2lpt_solve(pm, delta_k_ic, growth_rate_func_k_ic, p, shift, fastpm->config->KERNEL_TYPE);
     }
 
     if(config->USE_DX1_ONLY == 1) {
@@ -165,6 +183,10 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_LPT,
                 FASTPM_EVENT_STAGE_AFTER, (FastPMEvent*) event, fastpm);
 
+    if(temp_dv1) {
+        fastpm_memory_free(p->mem, p->dv1);
+        p->dv1 = NULL;
+    }
     if(temp_dx2) {
         fastpm_memory_free(p->mem, p->dx2);
         p->dx2 = NULL;
@@ -360,13 +382,12 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
 
     FastPMForceEvent event[1];
 
-    /* FIXME modify gravity.c to compute delta_k from all species.
-       [ Only CDM is used to calc N below ] */
+    /* N is shotnoise of total CDM
+       No need to include NCDM due to mass weighting */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+    int64_t N = p->np;
 
     fastpm_painter_init(painter, pm, fastpm->config->PAINTER_TYPE, fastpm->config->painter_support);
-
-    int64_t N = p->np;
 
     MPI_Allreduce(MPI_IN_PLACE, &N, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
@@ -618,7 +639,7 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_m / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {
@@ -659,7 +680,7 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->OmegaM / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_m / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {
@@ -694,16 +715,4 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* Stop faking the attributes */
     po->attributes = 0;
 
-}
-
-double
-fastpm_solver_growth_factor(FastPMSolver * fastpm, double a)
-{
-    return GrowthFactor(a, fastpm->cosmology);
-}
-
-double
-fastpm_solver_growth_rate(FastPMSolver * fastpm, double a)
-{
-    return DLogGrowthFactor(a, fastpm->cosmology);
 }

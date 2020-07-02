@@ -15,22 +15,20 @@
 void
 fastpm_powerspectrum_init(FastPMPowerSpectrum * ps, const size_t size)
 {
-    ps->size = size;
+    fastpm_funck_init(&ps->base, size);
     ps->pm = NULL;
-    ps->k = malloc(sizeof(ps->k[0]) * ps->size);
-    ps->edges = malloc(sizeof(ps->k[0]) * (ps->size + 1));
-    ps->p = malloc(sizeof(ps->p[0]) * ps->size);
-    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->size);
+    ps->edges = malloc(sizeof(ps->edges[0]) * (ps->base.size + 1));
+    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->base.size);
 }
 
 void
 fastpm_powerspectrum_init_from(FastPMPowerSpectrum * ps, const FastPMPowerSpectrum * other)
 {
-    fastpm_powerspectrum_init(ps, other->size);
-    memcpy(ps->k, other->k, sizeof(ps->k[0]) * ps->size);
-    memcpy(ps->edges, other->edges, sizeof(ps->edges[0]) * (ps->size + 1));
-    memcpy(ps->p, other->p, sizeof(ps->p[0]) * ps->size);
-    memcpy(ps->Nmodes, other->Nmodes, sizeof(ps->Nmodes[0]) * ps->size);
+    fastpm_powerspectrum_init(ps, other->base.size);
+    memcpy(ps->base.k, other->base.k, sizeof(ps->base.k[0]) * ps->base.size);
+    memcpy(ps->base.f, other->base.f, sizeof(ps->base.f[0]) * ps->base.size);
+    memcpy(ps->edges, other->edges, sizeof(ps->edges[0]) * (ps->base.size + 1));
+    memcpy(ps->Nmodes, other->Nmodes, sizeof(ps->Nmodes[0]) * ps->base.size);
 }
 
 void
@@ -51,13 +49,13 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
     ps->Volume = Volume;
     ps->k0 = k0;
 
-    memset(ps->p, 0, sizeof(ps->p[0]) * ps->size);
-    memset(ps->k, 0, sizeof(ps->k[0]) * ps->size);
-    memset(ps->edges, 0, sizeof(ps->edges[0]) * (ps->size + 1));
-    memset(ps->Nmodes, 0, sizeof(ps->Nmodes[0]) * ps->size);
+    memset(ps->base.f, 0, sizeof(ps->base.f[0]) * ps->base.size);
+    memset(ps->base.k, 0, sizeof(ps->base.k[0]) * ps->base.size);
+    memset(ps->edges, 0, sizeof(ps->edges[0]) * (ps->base.size + 1));
+    memset(ps->Nmodes, 0, sizeof(ps->Nmodes[0]) * ps->base.size);
 
     int i;
-    for(i = 0; i < ps->size + 1; i ++) {
+    for(i = 0; i < ps->base.size + 1; i ++) {
         ps->edges[i] = i * k0;
     }
 
@@ -85,7 +83,7 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
 
             double k = sqrt(kk) * k0;
 
-            if(bin >= 0 && bin < ps->size) {
+            if(bin >= 0 && bin < ps->base.size) {
                 double real1 = delta1_k[ind + 0];
                 double imag1 = delta1_k[ind + 1];
                 double real2 = delta2_k[ind + 0];
@@ -103,25 +101,25 @@ fastpm_powerspectrum_init_from_delta(FastPMPowerSpectrum * ps, PM * pm, const Fa
                     #pragma omp atomic
                     ps->Nmodes[bin] += w;
                     #pragma omp atomic
-                    ps->p[bin] += w * value; /// cic;
+                    ps->base.f[bin] += w * value; /// cic;
                     #pragma omp atomic
-                    ps->k[bin] += w * k;
+                    ps->base.k[bin] += w * k;
                 }
             }
         }
     }
 
 
-    MPI_Allreduce(MPI_IN_PLACE, ps->p, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, ps->Nmodes, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
-    MPI_Allreduce(MPI_IN_PLACE, ps->k, ps->size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, ps->base.f, ps->base.size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, ps->Nmodes, ps->base.size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
+    MPI_Allreduce(MPI_IN_PLACE, ps->base.k, ps->base.size, MPI_DOUBLE, MPI_SUM, ps->pm->Comm2D);
 
     ptrdiff_t ind;
-    for(ind = 0; ind < ps->size; ind++) {
+    for(ind = 0; ind < ps->base.size; ind++) {
         if(ps->Nmodes[ind] == 0) continue;
-        ps->k[ind] /= ps->Nmodes[ind];
-        ps->p[ind] /= ps->Nmodes[ind];
-        ps->p[ind] *= ps->Volume;
+        ps->base.k[ind] /= ps->Nmodes[ind];
+        ps->base.f[ind] /= ps->Nmodes[ind];
+        ps->base.f[ind] *= ps->Volume;
     }
 }
 
@@ -134,8 +132,8 @@ fastpm_transferfunction_init(FastPMPowerSpectrum * ps, PM * pm, FastPMFloat * sr
     fastpm_powerspectrum_init_from_delta(ps2, pm, dest_k, dest_k);
 
     ptrdiff_t i;
-    for(i = 0; i < ps->size; i ++) {
-        ps->p[i] = sqrt(ps2->p[i] / ps->p[i]);
+    for(i = 0; i < ps->base.size; i ++) {
+        ps->base.f[i] = sqrt(ps2->base.f[i] / ps->base.f[i]);
     }
 
     fastpm_powerspectrum_destroy(ps2);
@@ -145,8 +143,7 @@ void
 fastpm_powerspectrum_destroy(FastPMPowerSpectrum * ps) {
     free(ps->edges);
     free(ps->Nmodes);
-    free(ps->p);
-    free(ps->k);
+    fastpm_funck_destroy(&ps->base);
 }
 
 void
@@ -155,8 +152,8 @@ fastpm_powerspectrum_write(FastPMPowerSpectrum * ps, char * filename, double N)
     FILE * fp = fopen(filename, "w");
     int i;
     fprintf(fp, "# k p N \n");
-    for(i = 0; i < ps->size; i ++) {
-        fprintf(fp, "%g %g %g\n", ps->k[i], ps->p[i], ps->Nmodes[i]);
+    for(i = 0; i < ps->base.size; i ++) {
+        fprintf(fp, "%g %g %g\n", ps->base.k[i], ps->base.f[i], ps->Nmodes[i]);
     }
     double * BoxSize = pm_boxsize(ps->pm);
     fprintf(fp, "# metadata 7\n");
@@ -178,8 +175,8 @@ fastpm_powerspectrum_large_scale(FastPMPowerSpectrum * ps, int Nmax)
     double Plin = 0;
     double Nmodes = 0;
     /* ignore zero mode ! */
-    for(i = 0; (i == 0) || (i < ps->size && ps->k[i] <= kmax); i ++) {
-        Plin += ps->p[i] * ps->Nmodes[i];
+    for(i = 0; (i == 0) || (i < ps->base.size && ps->base.k[i] <= kmax); i ++) {
+        Plin += ps->base.f[i] * ps->Nmodes[i];
         Nmodes += ps->Nmodes[i];
     }
     Plin /= Nmodes;
@@ -196,45 +193,7 @@ fastpm_powerspectrum_eval2(double k, FastPMPowerSpectrum * ps)
 double
 fastpm_powerspectrum_eval(FastPMPowerSpectrum * ps, double k)
 {
-
-    /* ignore the 0 mode */
-
-    if(k == 0) return 1;
-
-    int l = 0;
-    int r = ps->size - 1;
-
-    while(r - l > 1) {
-        int m = (r + l) / 2;
-        if(k < ps->k[m])
-            r = m;
-        else
-            l = m;
-    }
-    double k2 = ps->k[r],
-           k1 = ps->k[l];
-    double p2 = ps->p[r],
-           p1 = ps->p[l];
-
-    if(l == r) {
-        return ps->p[l];
-    }
-
-    if(p1 == 0 || p2 == 0 || k1 == 0 || k2 == 0) {
-        /* if any of the p is zero, use linear interpolation */
-        double p = (k - k1) * p2 + (k2 - k) * p1;
-        p /= (k2 - k1);
-        return p;
-    } else {
-        k = log(k);
-        p1 = log(p1);
-        p2 = log(p2);
-        k1 = log(k1);
-        k2 = log(k2);
-        double p = (k - k1) * p2 + (k2 - k) * p1;
-        p /= (k2 - k1);
-        return exp(p);
-    }
+    return fastpm_funck_eval(&ps->base, k);
 }
 
 double
@@ -245,7 +204,7 @@ fastpm_powerspectrum_get(FastPMPowerSpectrum * ps, double k)
     /* ignore the 0 mode */
 
     int l = 0;
-    int r = ps->size;
+    int r = ps->base.size;
 
     while(r - l > 1) {
         int m = (r + l) / 2;
@@ -256,7 +215,7 @@ fastpm_powerspectrum_get(FastPMPowerSpectrum * ps, double k)
             l = m;
     }
 
-    return ps->p[l];
+    return ps->base.f[l];
 }
 
 double
@@ -324,8 +283,8 @@ fastpm_powerspectrum_scale(FastPMPowerSpectrum * ps, double factor)
 {
     ptrdiff_t i;
     /* neglect the zero mode */
-    for(i = 1; i < ps->size; i ++) {
-        ps->p[i] *= factor;
+    for(i = 1; i < ps->base.size; i ++) {
+        ps->base.f[i] *= factor;
     }
 }
 
@@ -341,8 +300,8 @@ fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize)
     ptrdiff_t i;
 
     for(i = 0; i < newsize; i ++) {
-        ptrdiff_t j1 = (i    ) * ps->size / newsize;
-        ptrdiff_t j2 = (i + 1) * ps->size / newsize;
+        ptrdiff_t j1 = (i    ) * ps->base.size / newsize;
+        ptrdiff_t j2 = (i + 1) * ps->base.size / newsize;
         ptrdiff_t j;
         k1[i] = 0;
         p1[i] = 0;
@@ -350,8 +309,8 @@ fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize)
         edges1[i] = ps->edges[j1];
         edges1[i + 1] = ps->edges[j2];
         for(j = j1; j < j2; j ++) {
-            k1[i] += ps->k[j] * ps->Nmodes[j];
-            p1[i] += ps->p[j] * ps->Nmodes[j];
+            k1[i] += ps->base.k[j] * ps->Nmodes[j];
+            p1[i] += ps->base.f[j] * ps->Nmodes[j];
             Nmodes1[i] += ps->Nmodes[j];
         }
         if(Nmodes1[i] > 0) {
@@ -359,19 +318,36 @@ fastpm_powerspectrum_rebin(FastPMPowerSpectrum * ps, size_t newsize)
             p1[i] /= Nmodes1[i];
         }
     }
-    free(ps->k);
-    free(ps->p);
+    free(ps->base.k);
+    free(ps->base.f);
     free(ps->Nmodes);
     free(ps->edges);
-    ps->k = k1;
-    ps->p = p1;
+    ps->base.k = k1;
+    ps->base.f = p1;
     ps->Nmodes = Nmodes1;
     ps->edges = edges1;
-    ps->size = newsize;
+    ps->base.size = newsize;
 }
 
 int
 fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * string)
+{
+    int r = fastpm_funck_init_from_string(&ps->base, string);
+    ps->edges = malloc(sizeof(ps->edges[0]) * (ps->base.size + 1));
+    ps->Nmodes = malloc(sizeof(ps->Nmodes[0]) * ps->base.size);
+    return r;
+}
+
+void
+fastpm_funck_init(FastPMFuncK * fk, const size_t size)
+{
+    fk->size = size;
+    fk->k = malloc(sizeof(fk->k[0]) * fk->size);
+    fk->f = malloc(sizeof(fk->f[0]) * fk->size);
+}
+
+int
+fastpm_funck_init_from_string(FastPMFuncK * fk, const char * string)
 {
     char ** list = fastpm_strsplit(string, "\n");
     char ** line;
@@ -382,36 +358,83 @@ fastpm_powerspectrum_init_from_string(FastPMPowerSpectrum * ps, const char * str
     while(pass < 2) {
         i = 0;
         for (line = list; *line; line++) {
-            double k, p;
-            if(2 == sscanf(*line, "%lg %lg", &k, &p)) {
+            double k, f;
+            if(2 == sscanf(*line, "%lg\t%lg", &k, &f)) {   // note tab. Could make more general?
                 if(pass == 1) {
-                    ps->k[i] = k;
-                    if(i == 0) {
-                        ps->edges[i] = 0;
-                    } else {
-                        ps->edges[i] = (k + ps->k[i - 1]) * 0.5;
-                    }
-                    if(i == ps->size - 1) {
-                        /* fake a right edge */
-                        ps->edges[i + 1] = 0.5 * (k - ps->k[i - 1]) + k;
-                    }
-                    ps->p[i] = p;
-                    ps->Nmodes[i] = 1;
+                    fk->k[i] = k;
+                    fk->f[i] = f;
                 }
                 i ++;
             }
         }
-
         if(pass == 0) {
-            fastpm_powerspectrum_init(ps, i);
+            fastpm_funck_init(fk, i);
         }
         pass ++;
     }
 
     free(list);
-    if(ps->size == 0) {
+    if(fk->size == 0) {
         /* Nothing is savagable in the file.*/
         return 0;
     }
     return 0;
+}
+
+/* inverted calling signature for callbacks */
+double
+fastpm_funck_eval2(double k, FastPMFuncK * fk)
+{
+    return fastpm_funck_eval(fk, k);
+}
+
+double
+fastpm_funck_eval(FastPMFuncK * fk, double k)
+{
+
+    /* ignore the 0 mode */
+    if(k == 0) return 1;
+
+    int l = 0;
+    int r = fk->size - 1;
+
+    /* determine the right and left values around k */
+    while(r - l > 1) {
+        int m = (r + l) / 2;
+        if(k < fk->k[m])
+            r = m;
+        else
+            l = m;
+    }
+    double k2 = fk->k[r],
+           k1 = fk->k[l];
+    double f2 = fk->f[r],
+           f1 = fk->f[l];
+
+    if(l == r) {
+        return fk->f[l];
+    }
+
+    if(f1 <= 0 || f2 <= 0 || k1 == 0 || k2 == 0) {
+        /* if any of the f is zero, or negative, use linear interpolation */
+        double f = (k - k1) * f2 + (k2 - k) * f1;
+        f /= (k2 - k1);
+        return f;
+    } else {
+        k = log(k);
+        f1 = log(f1);
+        f2 = log(f2);
+        k1 = log(k1);
+        k2 = log(k2);
+        double f = (k - k1) * f2 + (k2 - k) * f1;
+        f /= (k2 - k1);
+        return exp(f);
+    }
+}
+
+void
+fastpm_funck_destroy(FastPMFuncK * fk)
+{
+    free(fk->f);
+    free(fk->k);
 }

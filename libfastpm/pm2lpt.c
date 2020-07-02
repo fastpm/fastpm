@@ -3,6 +3,7 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include <fastpm/transfer.h>
 
 #include "pmpfft.h"
@@ -10,7 +11,7 @@
 #include "pm2lpt.h"
 
 void 
-pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], FastPMKernelType type)
+pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, FastPMStore * p, double shift[3], FastPMKernelType type)
 {
     /* read out values at locations with an inverted shift */
     int potorder, gradorder, deconvolveorder;
@@ -34,11 +35,16 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], 
     FastPMPainter painter[1];
     fastpm_painter_init(painter, pm, FASTPM_PAINTER_CIC, 0);
 
-    PMGhostData * pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2, painter->support);
+    PMGhostData * pgd;
+    if (p->dv1) {   //could alternatively use if (growth_rate_func_k)
+        pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2 | COLUMN_DV1, painter->support);
+    } else {
+        pgd = pm_ghosts_create(pm, p, p->attributes | COLUMN_DX1 | COLUMN_DX2, painter->support);
+    }
     pm_ghosts_send(pgd, COLUMN_POS);
 
-    FastPMFloat * workspace = pm_alloc(pm);
     FastPMFloat * source =  pm_alloc(pm);
+    FastPMFloat * workspace = pm_alloc(pm);
     memset(source, 0, sizeof(source[0]) * pm->allocsize);
     memset(workspace, 0, sizeof(workspace[0]) * pm->allocsize);
 
@@ -50,11 +56,13 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], 
     }
     FastPMFieldDescr DX1[] = { {COLUMN_DX1, 0}, {COLUMN_DX1, 1}, {COLUMN_DX1, 2}};
     FastPMFieldDescr DX2[] = { {COLUMN_DX2, 0}, {COLUMN_DX2, 1}, {COLUMN_DX2, 2}};
+    FastPMFieldDescr DV1[] = { {COLUMN_DV1, 0}, {COLUMN_DV1, 1}, {COLUMN_DV1, 2}};  // this will do nothing throughout the function if !p->v1
     int D1[] = {1, 2, 0};
     int D2[] = {2, 0, 1};
 
+    /* 1LPT */
     for(d = 0; d < 3; d++) {
-
+        /* dx1 */
         fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d);
 
@@ -63,8 +71,21 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], 
         fastpm_readout_local(painter, workspace, p, p->np, DX1[d]);
         fastpm_readout_local(painter, workspace, pgd->p, pgd->p->np, DX1[d]);
 
-    } 
+        /* dv1 */
+        if (p->dv1) {
+            fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
+            fastpm_apply_diff_transfer(pm, workspace, workspace, d);
 
+            fastpm_apply_any_transfer(pm, workspace, workspace, (fastpm_fkfunc) fastpm_funck_eval2, growth_rate_func_k);
+
+            pm_c2r(pm, workspace);
+
+            fastpm_readout_local(painter, workspace, p, p->np, DV1[d]);
+            fastpm_readout_local(painter, workspace, pgd->p, pgd->p->np, DV1[d]);
+        }
+    }
+
+    /* 2LPT */
     for(d = 0; d< 3; d++) {
         fastpm_apply_laplace_transfer(pm, delta_k, field[d], potorder);
         fastpm_apply_diff_transfer(pm, field[d], field[d], d);
@@ -118,6 +139,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], 
 
     pm_ghosts_reduce(pgd, COLUMN_DX1, FastPMReduceAddFloat, NULL);
     pm_ghosts_reduce(pgd, COLUMN_DX2, FastPMReduceAddFloat, NULL);
+    if (p->dv1) pm_ghosts_reduce(pgd, COLUMN_DV1, FastPMReduceAddFloat, NULL);
 
 #ifdef PM_2LPT_DUMP
     fwrite(p->dx1, sizeof(p->dx1[0]), p->np, fopen("dx1.f4x3", "w"));
@@ -133,8 +155,8 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMStore * p, double shift[3], 
     for(d = 0; d < 3; d ++) {
         pm_free(pm, field[2-d]);
     }
-    pm_free(pm, source);
     pm_free(pm, workspace);
+    pm_free(pm, source);
 
     pm_ghosts_free(pgd);
 
@@ -146,11 +168,21 @@ pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
 {
     int np = p->np;
 
-    double D1 = GrowthFactor(aout, c);
-    double D2 = GrowthFactor2(aout, c);
+    FastPMGrowthInfo gi;
+    fastpm_growth_info_init(&gi, aout, c);
 
-    double Dv1 = D1 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor(aout, c);
-    double Dv2 = D2 * aout * aout * HubbleEa(aout, c) * DLogGrowthFactor2(aout, c);
+    double D1 = gi.D1;
+    double D2 = gi.D2;
+    double f1 = gi.f1;
+    double f2 = gi.f2;
+    double E = HubbleEa(aout, c);
+
+    double dv1_prefac = D1 * aout * aout * E;
+    double Dv1 = dv1_prefac * f1;
+    double Dv2 = D2 * aout * aout * E * f2;
+
+    fastpm_info("2LPT ICs set at z=%g: E=%g D1=%g, D2=%g, f1=%g, f2=%g\n", 1./aout-1, E, D1, D2, f1, f2);
+
     if(zaonly) {
         D2 = 0;
         Dv2 = 0;
@@ -163,8 +195,14 @@ pm_2lpt_evolve(double aout, FastPMStore * p, FastPMCosmology * c, int zaonly)
         for(d = 0; d < 3; d ++) {
             p->x[i][d] += D1 * p->dx1[i][d] + D2 * p->dx2[i][d];
 
-            if(p->v)
-                p->v[i][d] = (p->dx1[i][d]* Dv1 + p->dx2[i][d]*Dv2);
+            if(p->v) {
+                p->v[i][d] += p->dx2[i][d]*Dv2;
+                if (p->dv1) {
+                    p->v[i][d] += dv1_prefac * p->dv1[i][d];
+                } else {
+                    p->v[i][d] += Dv1 * p->dx1[i][d];
+                }
+            }
         }
     }
     p->meta.a_x = p->meta.a_v = aout;

@@ -24,7 +24,7 @@ int main(int argc, char * argv[]) {
         .nc = 64,
         .boxsize = 64.,
         .alloc_factor = 10.0,
-        .omega_m = 0.292,
+        .cosmology = NULL,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 1},
             {.a_start = 0.0001, .pm_nc_factor = 2},
@@ -52,7 +52,7 @@ int main(int argc, char * argv[]) {
     fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
-    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
 
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 

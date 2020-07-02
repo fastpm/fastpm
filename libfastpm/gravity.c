@@ -110,7 +110,7 @@ void
 fastpm_kernel_type_get_orders(FastPMKernelType type,
     int *potorder,
     int *gradorder,
-    int *deconvolveorder) 
+    int *deconvolveorder)
 {
     switch(type) {
         case FASTPM_KERNEL_EASTWOOD:

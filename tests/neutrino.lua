@@ -10,12 +10,14 @@ boxsize = 384.0
 -- time_step = linspace(0.025, 1.0, 39)
 -- logspace: Uniform time steps in loga
 -- time_step = linspace(0.01, 1.0, 10)
-time_step = linspace(0.1, 1, 3)
+time_step = linspace(0.1, 1, 10)
 
-output_redshifts= {0.0, 0.5}  -- redshifts of output
+output_redshifts= {9., 0.5, 0.0}  -- redshifts of output
+za = true
 
 -- Cosmology --
-Omega_m = 0.307494
+Omega_cdm = 0.307494
+T_cmb = 2.725
 h       = 0.6774
 
 -- Start with a linear density field
@@ -28,11 +30,8 @@ particle_fraction = 1.0
 --
 -------- Approximation Method ---------------
 force_mode = "fastpm"
-kernel_type = "1_4"
 
-growth_mode = "LCDM"
-
-pm_nc_factor = {{0.0, 1}, {0.01, 2}}
+pm_nc_factor = 2
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 

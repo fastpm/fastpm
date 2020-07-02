@@ -27,7 +27,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     FastPMUSMesh usmesh[1];
 
-    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
     fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
@@ -74,7 +74,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     double time_step2[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
 
-    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
 
     fastpm_solver_evolve(solver, time_step2, sizeof(time_step2) / sizeof(time_step2[0]));
 
@@ -106,7 +106,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
         usmesh);
 
     double time_step3[] = {0.1};
-    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, 0.1);
+    fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
 
     fastpm_store_write(fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
@@ -136,7 +136,7 @@ int main(int argc, char * argv[]) {
         .nc = 64,
         .boxsize = 128.,
         .alloc_factor = 10.0,
-        .omega_m = 0.292,
+        .cosmology = NULL,
         .vpminit = (VPMInit[]) {
             {.a_start = 0, .pm_nc_factor = 2},
             {.a_start = -1, .pm_nc_factor = 0},
