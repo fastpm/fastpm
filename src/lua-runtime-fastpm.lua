@@ -45,8 +45,8 @@ schema.declare{name='pm_nc_factor',      type='array:number',  required=true, he
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential', type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
 schema.declare{name='n_shell',           type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
-schema.declare{name='lvk',               type='boolean', required=false, default=false, help="Use the low velocity kernel when splitting FD for ncdm."}
-schema.declare{name='n_side',            type='number', required=false, default=2, help="Number of sides in HEALPix split."}
+schema.declare{name='lvk',               type='boolean', required=false, default=true, help="Use the low velocity kernel when splitting FD for ncdm."}
+schema.declare{name='n_side',            type='number', required=false, default=3, help="This is N_fib for fibonacci sphere splitting, or number of sides in HEALPix splitting."}
 schema.declare{name='every_ncdm',        type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
 schema.declare{name='ncdm_sphere_scheme',type='enum', required=false, default="fibonacci", help="Split sphere with 'fibonacci' or 'healpix'?"}
 schema.ncdm_sphere_scheme.choices = {
@@ -365,6 +365,21 @@ function fastpm.blendspace(a, e, a1, a2)
     return r
 end
 
+function fastpm.loglinspace(a, m, e, Nlog, Nlin)
+-- Take Nlog log steps between a and m,
+-- then Nlin lin steps between m and e.
+-- a, m, ane e are in linear units.
+    local r
+    local s
+    local t = {}
+    local n = 0
+    r = fastpm.logspace(math.log10(a), math.log10(m), Nlog+1)
+    s = fastpm.linspace(m, e, Nlin+1)
+    for i=1,#r do n=n+1; t[n]=r[i] end
+    for i=2,#s do n=n+1; t[n]=s[i] end  -- ignore duplicate entry on boundary
+    return t
+end
+
 function fastpm.test()
     ns = {
         __file__ = "standard.lua",
@@ -435,6 +450,7 @@ function _parse_runmain(filename, ...)
     globals.fastpm = fastpm
     globals.logspace = fastpm.logspace
     globals.linspace = fastpm.linspace
+    globals.loglinspace = fastpm.loglinspace
 
     return config.parse(fastpm.schema, filename, true, globals, {...})
 end
@@ -448,6 +464,7 @@ function _parse(filename, ...)
     globals.fastpm = fastpm
     globals.logspace = fastpm.logspace
     globals.linspace = fastpm.linspace
+    globals.loglinspace = fastpm.loglinspace
 
     return config.parse(fastpm.schema, filename, false, globals, {...})
 end

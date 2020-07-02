@@ -1,77 +1,67 @@
--- parameter file
+-- Example parameter file for a run with ncdm (massive neutrinos)
 ------ Size of the simulation -------- 
--- ncdm.lua n_shell n_side n_p
--- For Testing
-nc = 128
+nc = 512
 boxsize = 1000
 
--------- Time Sequence ----
--- linspace: Uniform time steps in a
--- logspace: Uniform time steps in loga
---time_step = linspace(0.05,1.,41)
-time_step = logspace(math.log10(0.05), 0, 11)
+-------- Time Sequence --------
+-- take n_steps_log steps in log(a) from a_i to a_m,
+-- then n_steps_lin steps in a from a_m to a_f.
+n_steps_log = 5
+n_steps_lin = 20
 
-output_redshifts = {19.,9.,4.,2.,1.,0.}  --{19.0, 14., 9., 2., 1., 0.}  -- redshifts of output
+z_i = 99
+z_m = 19
+a_i = 1. / (1. + z_i)
+a_m = 1. / (1. + z_m)
+a_f = 1
 
--- Cosmology --
-omega_m = 0.307494
-omega_ncdm = 0.001404  --THIS IS HARDCODED ATM. SO THIS PARA DOESNT DO ANYTHING!
-h       = 0.6774
+time_step = loglinspace(a_i, a_m, a_f, n_steps_log, n_steps_lin)
 
---ncdm split
-m_ncdm = {0.05, 0.05, 0.05}--{0.06, 0.02, 0.01}
+-- Redshifts of output snapshots
+output_redshifts = {2, 1, 0}
+
+-------- Cosmology --------
+Omega_m = 0.3175
+h       = 0.6711
+T_cmb   = 2.7255
+-- neutrino (ncdm) parameters
+N_eff   = 3.046
+N_nu    = 3                 -- number of neutrinos species (including massless species)
+m_ncdm  = {0.12, 0.06, 0.02}
 n_shell = 10
-n_side = 1
-every_ncdm = 2
-lvk = true
+ncdm_sphere_scheme = "fibonacci"
+n_side  = 3      -- this is N_fib in the case of a fibaonacci sphere spitting scheme
+every_ncdm = 4   -- this defines the ratio of the cdm grid number to the ncdm grid number
+lvk = true       -- low velocity kernel: used for fermi-dirac sampling. g(q) = q f(q) in paper.
 
-mass_string = ""
-for i,m in pairs(m_ncdm) do
-    mass_string = mass_string .. m .. "-"
-end
-mass_string = mass_string:sub(1, -2)    --not lua uses 1-indexing
+-------- Perturbations --------
+-- Input powerspectrum and growth rate
+-- We advise using REPS: https://github.com/matteozennaro/reps
+-- Power spectrum units: k P(k) in Mpc/h units
+-- Must be compatible with the cosmology parameters above
+read_powerspectrum = "Pcb.txt"
+read_powerspectrum_ncdm = "Pncdm.txt"
+read_linear_growth_rate = "fcb.txt"
+read_linear_growth_rate_ncdm = "fncdm.txt"
 
--- Start with a linear density field
--- Power spectrum of the linear density field: k P(k) in Mpc/h units
--- Must be compatible with the Cosmology parameter
-power_loc = "/global/cscratch1/sd/abayer/nbodykit_cosmology/"
+linear_density_redshift = z_i      -- the redshift of the input cdm files
+linear_density_redshift_ncdm = z_i -- the redshift of the input ncdm files
 
-linear_density_redshift = 0. -- the redshift of the linear density field.
-power_fname_cb = string.format("Pcb%d_mncdm%s.txt", linear_density_redshift, mass_string)
-read_powerspectrum = power_loc .. power_fname_cb
-
-linear_density_redshift_ncdm = 19. -- the redshift of the linear density field.
-power_fname_ncdm = string.format("Pncdm%d_mncdm%s.txt", linear_density_redshift_ncdm, mass_string)
-read_powerspectrum_ncdm = power_loc .. power_fname_ncdm
-
-random_seed= 42
+random_seed = 100
 particle_fraction = 1.0
-
 --sort_snapshot = false
---
--------- Approximation Method ---------------
-force_mode = "fastpm"
 
-pm_nc_factor = 2
+-------- Approximation Method ---------
+force_mode = "fastpm"
+pm_nc_factor = {{0.0, 1}, {0.0001, 2}}   -- mesh size
+remove_cosmic_variance = true
+growth_mode = "ODE"
+za = true
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 
-remove_cosmic_variance = true
-
-force_softening_type = "none"
-
 -------- Output ---------------
-
-filename = string.format("coriE_SH%d_NS%d_every%d_proc%d_nc%d_size%d_lvk%s_rcv%s_fst%s_pnf%d_z%d_m%s", n_shell, n_side, every_ncdm, os.get_nprocs(), nc, boxsize, lvk, remove_cosmic_variance, force_softening_type, pm_nc_factor, linear_density_redshift_ncdm, mass_string)  --add time_step to fname?
---filename = string.format("LU2_SH10_NS2_Ndm1")
---loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/Pncdm_init_test/"
---loc = "/global/cscratch1/sd/abayer/fastpm/ncdm/lowz/highres/"
-loc = "/global/cscratch1/sd/abayer/fastpm/trash/"
-
--- Dark matter particle outputs (all particles)
-write_snapshot = loc .. filename .. "/fastpm" 
--- 1d power spectrum (raw), without shotnoise correction
-write_powerspectrum = loc .. filename .. "/powerspec"
---write_fof = loc .. filename .. "/fastpm"
-
-
+-- destination of particle outputs (all particles)
+write_snapshot= "ncdm/fastpm"
+-- destination of 1d power spectrum (raw)
+write_powerspectrum = "ncdm/powerspec"
