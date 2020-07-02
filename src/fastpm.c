@@ -790,6 +790,7 @@ _usmesh_ready_handler_free(void * userdata) {
     fastpm_store_destroy(data->tail);
     free(data->aedges);
     free(data->hist);
+    free(data->hist_fof);
     free(data);
 }
 

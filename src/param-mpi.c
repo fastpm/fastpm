@@ -43,9 +43,10 @@ parse_config_mpi(char * filename, int argc, char ** argv, char ** error, MPI_Com
     MPI_Bcast(prr, sizeof(prr[0]), MPI_BYTE, 0, comm);
 
     prr->string = MPIU_Bcast_string(comm, prr->string, 0, free);
-
+    if(ThisTask == 0) {
+        lua_config_free(prr->config);
+    }
     prr->config = lua_config_new(prr->string);
-
     return prr;
 }
 
