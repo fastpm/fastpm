@@ -50,6 +50,7 @@ typedef struct {
     size_t nc;
     double boxsize;
     double alloc_factor;
+    int lpt_nc_factor;
 
     FastPMCosmology * cosmology;
 
@@ -105,6 +106,7 @@ typedef struct {
     VPM * vpm_list;
 
     PM * basepm;
+    PM * lptpm;
 } FastPMSolver;
 
 enum FastPMAction {

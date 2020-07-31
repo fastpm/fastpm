@@ -151,7 +151,8 @@ else
 end
 -------- Approximation Method ---------------
 
-pm_nc_factor = {{0, 2}, {0.5, 3}}            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
+pm_nc_factor = 3            -- Particle Mesh grid pm_nc_factor*nc per dimension in the beginning
+lpt_nc_factor = 1
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 

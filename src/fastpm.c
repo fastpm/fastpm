@@ -181,6 +181,7 @@ int main(int argc, char ** argv) {
     FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr->lua, nc),
         .alloc_factor = CONF(prr->lua, np_alloc_factor),
+        .lpt_nc_factor = CONF(prr->lua, lpt_nc_factor),
         .vpminit = vpminit,
         .boxsize = CONF(prr->lua, boxsize),
         .cosmology = cosmology,
