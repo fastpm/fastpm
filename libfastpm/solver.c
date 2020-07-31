@@ -110,7 +110,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
 
     PMInit lptpminit = {
-            .Nmesh = config->nc * config->lpt_nc_factor,
+            .Nmesh = (int)(config->nc * config->lpt_nc_factor),
             .BoxSize = config->boxsize,
             .NprocY = config->NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 0, /* use untransposed to make sure we see all kz on a rank; this speeds up IC */
