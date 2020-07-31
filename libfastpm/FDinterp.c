@@ -48,7 +48,7 @@ double fastpm_do_fd_interp(FastPMFDInterp * FDinterp, int F_id, double y)
     return res;
 }
 
-void fastpm_fd_interp_free(FastPMFDInterp * FDinterp)
+void fastpm_fd_interp_destroy(FastPMFDInterp * FDinterp)
 {
     gsl_interp_free(FDinterp->F);
     gsl_interp_free(FDinterp->DF);

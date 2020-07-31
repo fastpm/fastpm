@@ -174,7 +174,8 @@ int main(int argc, char ** argv) {
 
     fastpm_info("np_alloc_factor = %g\n", CONF(prr->lua, np_alloc_factor));
 
-    FastPMCosmology * cosmology = malloc(sizeof(cosmology[0]));
+    FastPMCosmology cosmology[1] = {{0}};
+
     prepare_cosmology(cosmology, prr);
 
     FastPMConfig * config = & (FastPMConfig) {
@@ -194,12 +195,12 @@ int main(int argc, char ** argv) {
         .NprocY = prr->cli->NprocY,
         .UseFFTW = prr->cli->UseFFTW,
         .ExtraAttributes = 0,
-	.pgdc = CONF(prr->lua, pgdc),
-	.pgdc_alpha0 = CONF(prr->lua, pgdc_alpha0),
-	.pgdc_A = CONF(prr->lua, pgdc_A),
-	.pgdc_B = CONF(prr->lua, pgdc_B),
-	.pgdc_kl = CONF(prr->lua, pgdc_kl),
-	.pgdc_ks = CONF(prr->lua, pgdc_ks),
+        .pgdc = CONF(prr->lua, pgdc),
+        .pgdc_alpha0 = CONF(prr->lua, pgdc_alpha0),
+        .pgdc_A = CONF(prr->lua, pgdc_A),
+        .pgdc_B = CONF(prr->lua, pgdc_B),
+        .pgdc_kl = CONF(prr->lua, pgdc_kl),
+        .pgdc_ks = CONF(prr->lua, pgdc_ks),
     };
 
     if(CONF(prr->lua, compute_potential)) {
@@ -363,8 +364,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     }
     fastpm_solver_destroy(fastpm);
 
-    destroy_cosmology(config->cosmology);
-
     report_memory(comm);
 
     fastpm_clock_stat(comm);
@@ -383,32 +382,9 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
     c->growth_mode = CONF(prr->lua, growth_mode);
 
     int i;
-    double m_ncdm_i;
-    double m_ncdm_sum = 0;
     for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
-        m_ncdm_i = CONF(prr->lua, m_ncdm)[i];
-        c->m_ncdm[i] = m_ncdm_i;
-        m_ncdm_sum += m_ncdm_i;
+        c->m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
     }
-
-    /* prepare the interpolation object for FD tables. */
-    if (c->N_ncdm > 0) {
-        FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
-        fastpm_fd_interp_init(FDinterp);
-        c->FDinterp = FDinterp;
-    }
-
-    // Compute Omega_cdm assuming all ncdm is matter like
-    c->Omega_cdm = c->Omega_m - Omega_ncdmTimesHubbleEaSq(1, c);
-
-    // Set Omega_Lambda at z=0 to give no curvature
-    c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c);
-}
-
-static void
-destroy_cosmology(FastPMCosmology * c) {
-    if (c->N_ncdm > 0) fastpm_fd_interp_free(c->FDinterp);
-    free(c);
 }
 
 static void
@@ -812,6 +788,7 @@ _usmesh_ready_handler_free(void * userdata) {
     fastpm_store_destroy(data->tail);
     free(data->aedges);
     free(data->hist);
+    free(data->hist_fof);
     free(data);
 }
 

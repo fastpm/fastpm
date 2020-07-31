@@ -30,9 +30,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     if(!(config->cosmology)) {
         /* Use a default fiducial cosmology. */
         /* FIXME: This is a weird fiducial cosmology. */
-        FastPMFDInterp FDinterp;
-        fastpm_fd_interp_init(&FDinterp);
-
         FastPMCosmology c[1] = {{
             .h=0.6772,
             .Omega_m=0.323839,
@@ -43,13 +40,15 @@ void fastpm_solver_init(FastPMSolver * fastpm,
             .m_ncdm= {1., 0, 0,},
             .N_nu = 3,
             .growth_mode = FASTPM_GROWTH_MODE_LCDM,
-            .FDinterp = &FDinterp,
+            .FDinterp = NULL,
         }};
         memcpy(fastpm->cosmology, c, sizeof(c[0]));
     } else {
         /* use the provided cosmology */
         memcpy(fastpm->cosmology, config->cosmology, sizeof(config->cosmology[0]));
     }
+
+    fastpm_cosmology_init(fastpm->cosmology);
 
     if(config->pgdc)
     {
@@ -521,13 +520,14 @@ fastpm_do_drift(FastPMSolver * fastpm, FastPMTransition * trans)
 }
 
 void
-fastpm_solver_destroy(FastPMSolver * fastpm) 
+fastpm_solver_destroy(FastPMSolver * fastpm)
 {
     pm_destroy(fastpm->basepm);
     free(fastpm->basepm);
     fastpm_store_destroy(fastpm->cdm);
     vpm_free(fastpm->vpm_list);
 
+    fastpm_cosmology_destroy(fastpm->cosmology);
     fastpm_destroy_event_handlers(&fastpm->event_handlers);
 }
 

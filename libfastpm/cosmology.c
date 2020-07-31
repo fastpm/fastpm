@@ -1,7 +1,7 @@
 #include <math.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_roots.h>
-#include <gsl/gsl_sf_hyperg.h> 
+#include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_odeiv2.h>
@@ -17,6 +17,34 @@
 
 double HubbleDistance = 2997.92458; /* Mpc/h */
 double HubbleConstant = 100.0;      /* km/s / Mpc/h */
+
+
+void
+fastpm_cosmology_init(FastPMCosmology * c)
+{
+    /* prepare the interpolation object for FD tables. */
+    if (c->N_ncdm > 0) {
+        FastPMFDInterp * FDinterp = malloc(sizeof(FDinterp[0]));
+        fastpm_fd_interp_init(FDinterp);
+        c->FDinterp = FDinterp;
+    }
+
+    // Compute Omega_cdm assuming all ncdm is matter like
+    c->Omega_cdm = c->Omega_m - Omega_ncdmTimesHubbleEaSq(1, c);
+
+    // Set Omega_Lambda at z=0 to give no curvature
+    c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c);
+
+}
+
+void
+fastpm_cosmology_destroy(FastPMCosmology * c)
+{
+    if (c->FDinterp) {
+        fastpm_fd_interp_destroy(c->FDinterp);
+        free(c->FDinterp);
+    }
+}
 
 double Omega_g(FastPMCosmology * c)
 {

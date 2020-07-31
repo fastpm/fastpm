@@ -19,9 +19,9 @@ struct FastPMCosmology {
     int N_nu;          // total number of neutrino species (massive and massless)
     double m_ncdm[3];  // masses of massive neutrinos (ncdm) for now assume max of 3 ncdms
     int N_ncdm;
-    
+
     FastPMGrowthMode growth_mode;
-    FastPMFDInterp * FDinterp;   // FIXME:? Will just be NULL in the case of no ncdm
+    FastPMFDInterp * FDinterp;
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);
@@ -61,6 +61,9 @@ typedef struct FastPMGrowthInfo {
     double f1;   /* dlogD1 / dloga */
     double f2;
 } FastPMGrowthInfo;
+
+void fastpm_cosmology_init(FastPMCosmology * c);
+void fastpm_cosmology_destroy(FastPMCosmology * c);
 
 void fastpm_growth_info_init(FastPMGrowthInfo * growth_info, double a, FastPMCosmology * c);
 

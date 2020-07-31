@@ -324,6 +324,7 @@ fastpm_packing_plan_pack(FastPMPackingPlan * plan,
             FastPMStore * p, ptrdiff_t i, void * packed)
 {
     int t;
+    memset(packed, 0, plan->elsize);
     for (t = 0; t < plan->Ncolumns; t ++) {
         int ci = plan->_ci[t];
         ptrdiff_t offset = plan->_offsets[ci];
