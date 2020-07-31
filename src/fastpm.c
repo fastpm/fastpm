@@ -109,9 +109,6 @@ write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI
 static void
 prepare_cosmology(FastPMCosmology * c, RunData * prr);
 
-static void
-destroy_cosmology(FastPMCosmology * c);
-
 int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm);
 
 int main(int argc, char ** argv) {
