@@ -674,7 +674,7 @@ fastpm_set_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->Omega_m / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {
@@ -715,7 +715,7 @@ fastpm_unset_species_snapshot(FastPMSolver * fastpm,
     /* convert units */
 
     /* potfactor converts fastpm Phi to dimensionless */
-    double potfactor = 1.5 * c->Omega_m / (HubbleDistance * HubbleDistance);
+    double potfactor = 1.5 * c->Omega_cdm / (HubbleDistance * HubbleDistance);
 
 #pragma omp parallel for
     for(i=0; i<np; i++) {

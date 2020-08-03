@@ -97,6 +97,7 @@ static double Fconst(int ncdm_id, FastPMCosmology * c)
 double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c)   
 {
     /* Omega_ncdm_i(a) * E(a)^2 */
+    /* Could change to 93.14 explicitly for Abacus, but this is correct anyway */
     
     double A = 15. / pow(M_PI, 4) * pow(Gamma_nu(c), 4) * Omega_g(c);
     double Fc = Fconst(ncdm_id, c);
@@ -172,13 +173,13 @@ double D2Omega_DE_TimesHubbleEaSqDa2(double a, FastPMCosmology * c)
 
 double HubbleEa(double a, FastPMCosmology * c)
 {
-    /* H(a) / H0 
-       ncdm is NOT assumed to be matter like here */
+    /* H(a) / H0
+       ncdm is NOT assumed to be matter like here
+       CHANGED FOR ABACUS: NCDM assumed to be matter-like in background. */
     return sqrt(Omega_r(c) / (a*a*a*a)
-                + c->Omega_cdm / (a*a*a)
+                + c->Omega_m / (a*a*a)
                 + c->Omega_k / (a*a)
-                + Omega_DE_TimesHubbleEaSq(a, c)
-                + Omega_ncdmTimesHubbleEaSq(a, c));
+                + Omega_DE_TimesHubbleEaSq(a, c));
 }
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
@@ -203,10 +204,9 @@ double DHubbleEaDa(double a, FastPMCosmology * c)
     double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a, c);
     
     return 0.5 / E * ( - 4 * Omega_r(c) / pow(a,5)
-                      - 3 * c->Omega_cdm / pow(a,4)
+                      - 3 * c->Omega_m / pow(a,4)
                       - 2 * c->Omega_k / pow(a,3)
-                      + DOdeESqDa
-                      + DOncdmESqDa);
+                      + DOdeESqDa);
 }
 
 double D2HubbleEaDa2(double a, FastPMCosmology * c)
@@ -217,10 +217,9 @@ double D2HubbleEaDa2(double a, FastPMCosmology * c)
     double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a, c);
 
     return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6)
-                      + 12 * c->Omega_cdm / pow(a,5)
+                      + 12 * c->Omega_m / pow(a,5)
                       + 6 * c->Omega_k / pow(a,4)
                       + D2OdeESqDa2
-                      + D2OncdmESqDa2
                       - 2 * pow(dEda,2) );
 }
 
@@ -266,9 +265,9 @@ static int growth_ode(double a, const double y[], double dyda[], void *params)
     
     double dydlna[4];
     dydlna[0] = y[1];
-    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_m(a, c) * y[0];
+    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_cdm_a(a, c) * y[0];
     dydlna[2] = y[3];
-    dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_m(a, c) * (y[2] - y[0]*y[0]);
+    dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_cdm_a(a, c) * (y[2] - y[0]*y[0]);
     
     //divide by  a to get dyda
     for (int i=0; i<4; i++){
@@ -401,7 +400,7 @@ double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
             double f1 = growth_info->f1;
 
             ans -= (3. + a / E * dEda) * f1;
-            ans += 1.5 * Omega_m(a, c);
+            ans += 1.5 * Omega_cdm_a(a, c);
             ans *= D1 / (a*a);
         break; }
         default:
