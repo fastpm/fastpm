@@ -38,6 +38,8 @@ schema.declare{name='omega_m',           type='number', required=false, help='Th
 schema.declare{name='Omega_m',           type='number', required=false, help='Total matter (cdm + baryon + ncdm) density parameter at z=0'}
 schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
+schema.declare{name='w0',                type='number', required=false, default=-1, help="Dark energy equation of state 0th order parameter: w(a) = w0 + (1-a) wa."}
+schema.declare{name='wa',                type='number', required=false, default=0, help="Dark energy equation of state 1st order parameter: w(a) = w0 + (1-a) wa."}
 schema.declare{name='N_eff',             type='number', required=false, default=3.046}
 schema.declare{name='N_nu',              type='number', required=false, default=0, help="Total number of neutrinos, massive and massless."}
 schema.declare{name='m_ncdm',            type='array:number', required=false, default={}, help="Mass of ncdm particles in eV. Enter in descending order."}
@@ -55,7 +57,7 @@ schema.ncdm_sphere_scheme.choices = {
     fibonacci = 'FASTPM_NCDM_SPHERE_FIBONACCI',
 }
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
-                                                                     "The full ODE is required for accurate results for runs with radiation in the background, " ..
+                                                                     "The full ODE is required for accurate results for runs with radiation or varying DE in the background, " ..
                                                                      "and can also be used for Lambda+CDM-only backgrounds. " ..
                                                                      "The LCDM approximation is included for backward compatibility."}
 schema.growth_mode.choices = {
