@@ -32,8 +32,8 @@ kernel_type = "1_4"
 
 growth_mode = "LCDM"
 
-pm_nc_factor = 1.5
-lpt_nc_factor = 1.5
+pm_nc_factor = 2
+lpt_nc_factor = 1
 
 np_alloc_factor= 4.0      -- Amount of memory allocated for particle
 
