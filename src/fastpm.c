@@ -655,7 +655,9 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 static void 
 prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm) 
 {
-    if(CONF(prr->lua, n_m_ncdm) == 0) return;
+    /* don't prepare ncdm when there are no ncdm particles */
+    if(CONF(prr->lua, n_m_ncdm) == 0
+        || CONF(prr->lua, n_shell) == 0) return;
 
     double boxsize = CONF(prr->lua, boxsize);
     double BoxSize[3] = {boxsize, boxsize, boxsize};
