@@ -12,9 +12,7 @@ struct FastPMCosmology {
     double h;
     double Omega_m;
     double Omega_cdm;
-    double Omega_Lambda;  // Omega of dark energy at z=0
-    double w0;
-    double wa;
+    double Omega_Lambda;
     double T_cmb;
     //double T_nu;     // todays neutrino temperature HARD CODED FOR NOW
     double N_eff;
@@ -27,8 +25,6 @@ struct FastPMCosmology {
 };
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);
-
-double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c);
 
 double Omega_g(FastPMCosmology * c);
 double Gamma_nu(FastPMCosmology * c);

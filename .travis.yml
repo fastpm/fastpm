@@ -31,7 +31,6 @@ script:
     - bash runtests.sh
     - bash run-test-nbodykit.sh
     - bash run-test-nbodykit-ODE.sh
-    - bash run-test-nbodykit-wCDM.sh
     - bash run-test-lightcone.sh
     - bash run-test-lightcone-ODE.sh
     - popd

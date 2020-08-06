@@ -46,16 +46,6 @@ fastpm_cosmology_destroy(FastPMCosmology * c)
     }
 }
 
-double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c)
-{
-    /* Dark energy parameter as a function of a, times E^2(a).
-       Using w(z) = w0 + (1-a) wa = w0 + z/(1+z) wa,
-       Omega_DE(z) E^2(z) := Omega_DE(0) * exp( \int_0^z dx (1+w(x)) / (1+x) )
-                           = Omega_Lambda * exp( -wa*z/(1+z) + (1+w0+wa)*ln(1+z) ). */
-    double exponent = (a - 1) * c->wa - (1 + c->w0 + c->wa) * log(a);
-    return c->Omega_Lambda * exp(exponent);
-}
-
 double Omega_g(FastPMCosmology * c)
 {
     /* FIXME: This is really Omega_g0. Might want to redefine all Omegas in the code */
@@ -161,7 +151,7 @@ double HubbleEa(double a, FastPMCosmology * c)
 {
     /* H(a) / H0 
        ncdm is NOT assumed to be matter like here */
-    return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + Omega_DE_TimesHubbleEaSq(a, c));
+    return sqrt(Omega_r(c) / (a*a*a*a) + c->Omega_cdm / (a*a*a) + Omega_ncdmTimesHubbleEaSq(a, c) + c->Omega_Lambda);
 }
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
@@ -425,8 +415,6 @@ int main() {
     for(c->OmegaM = 0.1; c->OmegaM < 0.6; c->OmegaM += 0.1) {
         double f = 6 * pow(1 - c->OmegaM, 1.5);
         c->OmegaLambda = 1 - c->OmegaM;
-        c->w0 = -1;
-        c->wa = 0;
         double a = 0.8;
         printf("%g %g %g %g %g %g %g %g %g\n",
             c->OmegaM, 
