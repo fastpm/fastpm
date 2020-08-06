@@ -53,7 +53,7 @@ double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c)
        Omega_DE(z) E^2(z) := Omega_DE(0) * exp( \int_0^z dx (1+w(x)) / (1+x) )
                            = Omega_Lambda * exp( -wa*z/(1+z) + (1+w0+wa)*ln(1+z) ). */
     double exponent = (a - 1) * c->wa - (1 + c->w0 + c->wa) * log(a);
-    return c->Omega_Lambda * exp(exponent);
+    return c->Omega_Lambda * exp(3 * exponent);
 }
 
 double Omega_g(FastPMCosmology * c)
