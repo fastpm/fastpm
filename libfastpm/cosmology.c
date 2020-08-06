@@ -29,8 +29,14 @@ fastpm_cosmology_init(FastPMCosmology * c)
         c->FDinterp = FDinterp;
     }
 
-    // Compute Omega_cdm assuming all ncdm is matter like
-    c->Omega_cdm = c->Omega_m - Omega_ncdmTimesHubbleEaSq(1, c);
+    double Omega_ncdm_0 = 0;
+    for (int i=0; i<c->N_ncdm; i++) {
+        Omega_ncdm_0 += c->m_ncdm[i];
+    }
+    Omega_ncdm_0 *= 1. / 93.14 / c->h / c->h;
+
+    // Compute Omega_cdm assuming all ncdm is matter like using the above 93.14 eqn
+    c->Omega_cdm = c->Omega_m - Omega_ncdm_0;
 
     // Set Omega_Lambda at z=0 by closing Friedmann's equation
     c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c) - c->Omega_k;
