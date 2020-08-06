@@ -374,6 +374,7 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
     c->h = CONF(prr->lua, h);
     c->Omega_m = CONF(prr->lua, Omega_m);
     c->T_cmb = CONF(prr->lua, T_cmb);
+    c->Omega_k = CONF(prr->lua, Omega_k);
     c->w0 = CONF(prr->lua, w0);
     c->wa = CONF(prr->lua, wa);
     c->N_eff = CONF(prr->lua, N_eff);
