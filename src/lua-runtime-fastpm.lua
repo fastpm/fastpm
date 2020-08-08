@@ -85,10 +85,6 @@ function schema.T_cmb.action (T_cmb)
     
     function schema.m_ncdm.action (m_ncdm)
         if #m_ncdm ~= 0 then
-            if T_cmb == 0 then
-                error("For a run with ncdm particles use T_cmb > 0 to include an ncdm background.")
-            end
-
             for i=2, #m_ncdm do
                 if m_ncdm[i] > m_ncdm[1] then
                     error("Please input the heaviest ncdm particle first.")
