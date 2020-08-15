@@ -39,7 +39,7 @@ vpm_create (VPMInit * vpminit, PMInit * baseinit, MPI_Comm comm)
         vpm[i].a_start = vpminit[i].a_start;
 
         PMInit pminit = *baseinit;
-        pminit.Nmesh = baseinit->Nmesh * vpm[i].pm_nc_factor;
+        pminit.Nmesh = (int)(baseinit->Nmesh * vpm[i].pm_nc_factor);
         pm_init(&vpm[i].pm, &pminit, comm);
     }
     /* the end of the list */
