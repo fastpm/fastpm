@@ -4,7 +4,7 @@
 struct VPM {
     PM pm;
     double a_start;
-    int pm_nc_factor;
+    double pm_nc_factor;
     int end;
 };
 

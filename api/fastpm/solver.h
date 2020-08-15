@@ -50,7 +50,7 @@ typedef struct {
     size_t nc;
     double boxsize;
     double alloc_factor;
-    int lpt_nc_factor;
+    double lpt_nc_factor;
 
     FastPMCosmology * cosmology;
 
