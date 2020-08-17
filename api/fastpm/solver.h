@@ -8,7 +8,7 @@ typedef struct VPM VPM;
 
 typedef struct VPMInit {
     double a_start;
-    int pm_nc_factor;
+    double pm_nc_factor;
 } VPMInit;
 
 typedef struct FastPMDriftFactor FastPMDriftFactor;
