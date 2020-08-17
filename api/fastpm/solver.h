@@ -8,7 +8,7 @@ typedef struct VPM VPM;
 
 typedef struct VPMInit {
     double a_start;
-    int pm_nc_factor;
+    double pm_nc_factor;
 } VPMInit;
 
 typedef struct FastPMDriftFactor FastPMDriftFactor;
@@ -50,7 +50,7 @@ typedef struct {
     size_t nc;
     double boxsize;
     double alloc_factor;
-    int lpt_nc_factor;
+    double lpt_nc_factor;
 
     FastPMCosmology * cosmology;
 
