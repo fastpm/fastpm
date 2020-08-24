@@ -111,8 +111,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->basepm = malloc(sizeof(PM));
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
     if(pm_unbalanced(fastpm->basepm)) {
-        fastpm_raise(-1, "Base PM mesh is not divided by the process mesh. "
-            "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)",
+        fastpm_raise(-1, "Base PM mesh is not divided by the process mesh.\n "
+            "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)\n"
+            "Fix this by changing the number of ranks.",
             pm_nmesh(fastpm->basepm)[0],
             pm_nproc(fastpm->basepm)[0],
             pm_nmesh(fastpm->basepm)[1],
@@ -130,8 +131,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     fastpm->lptpm = malloc(sizeof(PM));
     pm_init(fastpm->lptpm, &lptpminit, fastpm->comm);
     if(pm_unbalanced(fastpm->lptpm)) {
-        fastpm_raise(-1, "LPT PM mesh is not divided by the process mesh. "
-            "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)",
+        fastpm_raise(-1, "LPT PM mesh is not divided by the process mesh.\n"
+            "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)\n",
+            "Fix this by changing the number of ranks.",
             pm_nmesh(fastpm->lptpm)[0],
             pm_nproc(fastpm->lptpm)[0],
             pm_nmesh(fastpm->lptpm)[1],
