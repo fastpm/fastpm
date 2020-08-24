@@ -273,11 +273,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     fastpm_info("BaseProcMesh : %d x %d\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
-    if( CONF(prr->lua, nc) % pm_nproc(fastpm->basepm)[0] != 0
-     || CONF(prr->lua, nc) % pm_nproc(fastpm->basepm)[1] != 0) {
-        fastpm_raise(-1, "BaseProcMesh does not divide nc = %d. "
-                         "Please change nc or the number of ranks to avoid instabilities caused by load imbalance.", CONF(prr->lua, nc));
-    }
+
 #ifdef _OPENMP
     fastpm_info("%d Threads\n", omp_get_max_threads());
 #endif

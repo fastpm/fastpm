@@ -28,6 +28,12 @@ ptrdiff_t * pm_nmesh(PM * pm);
 int * pm_nproc(PM * pm);
 double * pm_boxsize(PM * pm);
 double pm_volume(PM * pm);
+
+/* Check if the PM / MPI size is unbalanced. 
+ * When the PM mesh is not divided by the process mesh, 
+ * some ranks will receive no meshes. */
+int pm_unbalanced(PM * pm);
+
 PMRegion * pm_i_region(PM * pm);
 PMRegion * pm_o_region(PM * pm);
 

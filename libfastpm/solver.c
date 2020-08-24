@@ -110,6 +110,14 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->basepm = malloc(sizeof(PM));
     pm_init(fastpm->basepm, &basepminit, fastpm->comm);
+    if(pm_unbalanced(fastpm->basepm)) {
+        fastpm_raise(-1, "Base PM mesh is not divided by the process mesh. "
+            "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)",
+            pm_nmesh(fastpm->basepm)[0],
+            pm_nproc(fastpm->basepm)[0],
+            pm_nmesh(fastpm->basepm)[1],
+            pm_nproc(fastpm->basepm)[1]);
+    }
 
     PMInit lptpminit = {
             .Nmesh = (int)(config->nc * config->lpt_nc_factor),
@@ -121,7 +129,14 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm->lptpm = malloc(sizeof(PM));
     pm_init(fastpm->lptpm, &lptpminit, fastpm->comm);
-
+    if(pm_unbalanced(fastpm->lptpm)) {
+        fastpm_raise(-1, "LPT PM mesh is not divided by the process mesh. "
+            "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)",
+            pm_nmesh(fastpm->lptpm)[0],
+            pm_nproc(fastpm->lptpm)[0],
+            pm_nmesh(fastpm->lptpm)[1],
+            pm_nproc(fastpm->lptpm)[1]);
+    }
     double shift0;
     if(config->USE_SHIFT) {
         shift0 = config->boxsize / config->nc * 0.5;
