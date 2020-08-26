@@ -273,6 +273,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     fastpm_info("BaseProcMesh : %d x %d\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
+
 #ifdef _OPENMP
     fastpm_info("%d Threads\n", omp_get_max_threads());
 #endif

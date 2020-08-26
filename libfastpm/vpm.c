@@ -2,6 +2,7 @@
 #include <mpi.h>
 
 #include <fastpm/libfastpm.h>
+#include <fastpm/logging.h>
 #include "pmpfft.h"
 #include "vpm.h"
 
@@ -41,6 +42,15 @@ vpm_create (VPMInit * vpminit, PMInit * baseinit, MPI_Comm comm)
         PMInit pminit = *baseinit;
         pminit.Nmesh = (int)(baseinit->Nmesh * vpm[i].pm_nc_factor);
         pm_init(&vpm[i].pm, &pminit, comm);
+        if(pm_unbalanced(&vpm[i].pm)) {
+            fastpm_raise(-1, "PM mesh is not divided by the process mesh.\n"
+                "(Nmesh[0] = %d / Nproc[0] = %d) x(Nmesh[1] = %d / Nproc[1] = %d)\n",
+                "Fix this by changing the number of ranks.",
+                pm_nmesh(&vpm[i].pm)[0],
+                pm_nproc(&vpm[i].pm)[0],
+                pm_nmesh(&vpm[i].pm)[1],
+                pm_nproc(&vpm[i].pm)[1]);
+        }
     }
     /* the end of the list */
     vpm[i].end = 1;

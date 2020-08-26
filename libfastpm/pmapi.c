@@ -66,6 +66,17 @@ double pm_volume(PM * pm) {
     return pm->Volume;
 }
 
+int
+pm_unbalanced(PM * pm)
+{
+    if(pm->Nmesh[0] % pm->Nproc[0] != 0 ||
+       pm->Nmesh[1] % pm->Nproc[1] != 0) {
+        return 1;
+    }
+    return 0;
+}
+
+
 PMRegion * pm_i_region(PM * pm) {
     return &pm->IRegion;
 }
