@@ -12,6 +12,7 @@ struct FastPMCosmology {
     double h;
     double Omega_m;
     double Omega_cdm;
+    double Omega_k;
     double Omega_Lambda;  // Omega of dark energy at z=0
     double w0;
     double wa;

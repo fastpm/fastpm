@@ -38,6 +38,7 @@ schema.declare{name='omega_m',           type='number', required=false, help='Th
 schema.declare{name='Omega_m',           type='number', required=false, help='Total matter (cdm + baryon + ncdm) density parameter at z=0'}
 schema.declare{name='T_cmb',             type='number', required=false, default=0, help="CMB temperature in K, 0 to turn off radiation."}
 schema.declare{name='h',                 type='number', required=true, default=0.7, help="Dimensionless Hubble parameter"}
+schema.declare{name='Omega_k',           type='number', required=false, default=0, help="Curvature density parameter. (Omega_k > 0 is an open universe.)"}
 schema.declare{name='w0',                type='number', required=false, default=-1, help="Dark energy equation of state 0th order parameter: w(a) = w0 + (1-a) wa."}
 schema.declare{name='wa',                type='number', required=false, default=0, help="Dark energy equation of state 1st order parameter: w(a) = w0 + (1-a) wa."}
 schema.declare{name='N_eff',             type='number', required=false, default=3.046}
