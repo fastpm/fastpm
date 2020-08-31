@@ -262,14 +262,14 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     CLOCK(sort);
     CLOCK(indexing);
 
-    const double M0 = config->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
-                    * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
-    fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
-
     MPI_Barrier(comm);
     ENTER(init);
 
     fastpm_solver_init(fastpm, config, comm);
+
+    const double M0 = config->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
+                    * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
+    fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
     fastpm_info("BaseProcMesh : %d x %d\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
