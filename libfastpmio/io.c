@@ -142,6 +142,87 @@ fastpm_sort_snapshot(FastPMStore * p, MPI_Comm comm, FastPMSnapshotSorter sorter
 }
 
 void
+read_snapshot_header(FastPMSolver * fastpm, const char * filebase, double * aout, MPI_Comm comm)
+{
+    BigFile bf[1];
+    if(0 != big_file_mpi_open(bf, filebase, comm)) {
+        fastpm_raise(-1, "Failed to open the file: %s\n", big_file_get_error_message());
+    }
+
+    BigBlock bb;
+    if(0 != big_file_mpi_open_block(bf, &bb, "Header", comm)) {
+        fastpm_raise(-1, "Failed to open the header block: %s\n", big_file_get_error_message());
+    }
+
+    double Omega_m = fastpm->cosmology->Omega_m;
+    double Omega_cdm = fastpm->cosmology->Omega_cdm;
+    double OmegaLambda = fastpm->cosmology->Omega_Lambda; //FIXME: Maybe want to include radiation input pars too?
+    double HubbleParam = fastpm->cosmology->h;
+    double BoxSize = fastpm->config->boxsize;
+    uint64_t NC = fastpm->config->nc;
+    double ScalingFactor = 0;
+
+    big_block_get_attr(&bb, "NC", &NC, "i8", 1);
+    big_block_get_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
+    big_block_get_attr(&bb, "ScalingFactor", &ScalingFactor, "f8", 1);
+    big_block_get_attr(&bb, "Omega_cdm", &Omega_cdm, "f8", 1);
+    big_block_get_attr(&bb, "OmegaM", &Omega_m, "f8", 1);
+    big_block_get_attr(&bb, "OmegaLambda", &OmegaLambda, "f8", 1);
+    big_block_get_attr(&bb, "HubbleParam", &HubbleParam, "f8", 1);
+    if (Omega_m != fastpm->cosmology->Omega_m) {
+        fastpm_raise(-1, "Omega_m mismatched %g != %g", Omega_m, fastpm->cosmology->Omega_m);
+    }
+    if (Omega_cdm != fastpm->cosmology->Omega_cdm) {
+        fastpm_raise(-1, "Omega_cdm mismatched %g != %g", Omega_cdm, fastpm->cosmology->Omega_cdm);
+    }
+    if (OmegaLambda != fastpm->cosmology->Omega_Lambda) {
+        fastpm_raise(-1, "OmegaLambda mismatched %g != %g", OmegaLambda, fastpm->cosmology->Omega_Lambda);
+    }
+    if (HubbleParam != fastpm->cosmology->h) {
+        fastpm_raise(-1, "HubbleParam mismatched %g != %g", HubbleParam, fastpm->cosmology->h);
+    }
+    if (BoxSize != fastpm->config->boxsize) {
+        fastpm_raise(-1, "BoxSize mismatched %g != %g", BoxSize, fastpm->config->boxsize);
+    }
+    if (NC != fastpm->config->nc) {
+        fastpm_raise(-1, "NC mismatched %ld != %ld", NC, fastpm->config->nc);
+    }
+
+    /* Compatibility with MP-Gadget */
+    double UnitVelocity_in_cm_per_s = 1e5; /* 1 km/sec */
+    double UnitLength_in_cm = 3.085678e21 * 1e3; /* 1.0 Mpc /h */
+    double UnitMass_in_g = 1.989e43;       /* 1e10 Msun/h*/
+    int UsePeculiarVelocity = 1;
+
+    big_block_get_attr(&bb, "UsePeculiarVelocity", &UsePeculiarVelocity, "i4", 1);
+    big_block_get_attr(&bb, "UnitLength_in_cm", &UnitLength_in_cm, "f8", 1);
+    big_block_get_attr(&bb, "UnitMass_in_g", &UnitMass_in_g, "f8", 1);
+    big_block_get_attr(&bb, "UnitVelocity_in_cm_per_s", &UnitVelocity_in_cm_per_s, "f8", 1);
+
+    if (Omega_cdm != fastpm->cosmology->Omega_cdm) {
+        fastpm_raise(-1, "Omega_cdm mismatched %g != %g", Omega_cdm, fastpm->cosmology->Omega_cdm);
+    }
+    if (UsePeculiarVelocity != 1) {
+        fastpm_raise(-1, "UsePeculiarVelocity mismatched %g != %g", UsePeculiarVelocity, 1);
+    }
+    if (UnitVelocity_in_cm_per_s != 1e5) {
+        fastpm_raise(-1, "UnitVelocity_in_cm_per_s mismatched %g != %g", UnitVelocity_in_cm_per_s, 1e5);
+    }
+    if (UnitLength_in_cm != 3.085678e21 * 1e3) {
+        fastpm_raise(-1, "UnitLength_in_cm mismatched %g != %g", UnitLength_in_cm, 3.085678e21 * 1e3);
+    }
+    if (UnitMass_in_g != 1.989e43) {
+        fastpm_raise(-1, "UnitMass_in_g mismatched %g != %g", UnitMass_in_g, 1.989e43);
+    }
+
+    big_block_mpi_close(&bb, comm);
+
+    big_file_mpi_close(bf, comm);
+
+    *aout = ScalingFactor;
+}
+
+void
 write_snapshot_header(FastPMSolver * fastpm,
     const char * filebase, MPI_Comm comm)
 {
