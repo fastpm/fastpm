@@ -25,9 +25,20 @@ fastpm_store_write(FastPMStore * p,
         MPI_Comm comm
 );
 
+int
+fastpm_store_read(FastPMStore * p,
+        const char * filebase,
+        int Nwriters,
+        MPI_Comm comm
+);
+
 void
 write_snapshot_header(FastPMSolver * fastpm,
     const char * filebase, MPI_Comm comm);
+
+void
+read_snapshot_header(FastPMSolver * fastpm,
+    const char * filebase, double * aout, MPI_Comm comm);
 
 void
 write_snapshot_attr(const char * filebase,
