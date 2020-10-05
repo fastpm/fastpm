@@ -37,6 +37,10 @@ write_snapshot_header(FastPMSolver * fastpm,
     const char * filebase, MPI_Comm comm);
 
 void
+read_snapshot_header(FastPMSolver * fastpm,
+    const char * filebase, double * aout, MPI_Comm comm);
+
+void
 write_snapshot_attr(const char * filebase,
     const char * dataset,
     const char * attrname,

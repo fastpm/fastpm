@@ -239,10 +239,10 @@ static double *
 prepare_time_step(RunData * prr, double a0, size_t * n_time_step);
 
 static void 
-prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm);
+prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm);
 
 static void 
-prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm);
+prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm);
 
 static void
 report_memory(MPI_Comm);
@@ -324,12 +324,22 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     MPI_Barrier(comm);
 
+    double a_restart = 0.0;
+    if(prr->cli->RestartSnapshotPath) {
+        read_snapshot_header(fastpm, prr->cli->RestartSnapshotPath, &a_restart, comm);
+    } else {
+        a_restart = CONF(prr->lua, time_step)[0];
+    }
+
+    size_t n_time_step;
+    double * time_step = prepare_time_step(prr, a_restart, &n_time_step);
+
     ENTER(cdmic);
-    prepare_cdm(fastpm, prr, comm);
+    prepare_cdm(fastpm, prr, time_step[0], comm);
     LEAVE(cdmic);
 
     ENTER(ncdmic);
-    prepare_ncdm(fastpm, prr, comm);
+    prepare_ncdm(fastpm, prr, time_step[0], comm);
     LEAVE(ncdmic);
 
     /* FIXME: subsample all species -- probably need different fraction for each species */
@@ -341,9 +351,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     if(CONF(prr->lua, lc_write_usmesh)) {
         prepare_lc(fastpm, prr, lc, &usmesh);
     }
-
-    size_t n_time_step;
-    double * time_step = prepare_time_step(prr, p->meta.a_x, &n_time_step);
 
     MPI_Barrier(comm);
     ENTER(evolve);
@@ -605,7 +612,7 @@ prepare_time_step(RunData * prr, double a0, size_t * n_time_step)
 }
 
 static void
-prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
+prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 {
     if(prr->cli->RestartSnapshotPath) {
         if(CONF(prr->lua, particle_fraction) != 1) {
@@ -618,6 +625,9 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         fastpm_store_read(po, prr->cli->RestartSnapshotPath, prr->cli->Nwriters, comm);
         if(po->meta.a_x != po->meta.a_v) {
             fastpm_raise(-1, "Snapshot velocity and position are out of sync. a_x =% g, a_v = %g.\n", p->meta.a_x, p->meta.a_v);
+        }
+        if(po->meta.a_x != a0) {
+            fastpm_raise(-1, "Snapshot velocity and position are out of sync. a_x =% g, first step = %g.\n", p->meta.a_x, a0);
         }
         fastpm_unset_species_snapshot(fastpm, p, NULL, NULL, po, po->meta.a_x);
 
@@ -638,7 +648,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         }
 
         read_runpb_ic(fastpm, p, CONF(prr->lua, read_runpbic));
-        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, NULL, CONF(prr->lua, time_step)[0]);
+        fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, NULL, NULL, a0);
         if(temp_dx2) {
             fastpm_memory_free(p->mem, p->dx2);
             p->dx2 = NULL;
@@ -702,7 +712,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
 }
 
 static void 
-prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm) 
+prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm) 
 {
     /* don't prepare ncdm when there are no ncdm particles */
     if(CONF(prr->lua, n_m_ncdm) == 0
@@ -824,7 +834,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
         fastpm_info("No ncdm linear growth rate file input. Using internal scale-independent linear growth rate for ICs instead\n");
     }
     // perform lpt
-    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, growth_rate_func_k, CONF(prr->lua, time_step)[0]);
+    fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_NCDM, delta_k, growth_rate_func_k, a0);
 
     // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
     if (growth_rate_func_k)
