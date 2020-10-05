@@ -167,7 +167,10 @@ fastpm_store_init_evenly_details(FastPMStore * p, const char * name, size_t np_t
 void
 fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc);
 
-void 
+int
+fastpm_store_has_q(FastPMStore *q);
+
+void
 fastpm_store_get_q_from_id(FastPMStore * p, uint64_t id, double q[3]);
 
 void

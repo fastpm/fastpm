@@ -327,6 +327,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     double a_restart = 0.0;
     if(prr->cli->RestartSnapshotPath) {
         read_snapshot_header(fastpm, prr->cli->RestartSnapshotPath, &a_restart, comm);
+        fastpm_info("Restarting from %s at a = %06.4f", prr->cli->RestartSnapshotPath, a_restart);
     } else {
         a_restart = CONF(prr->lua, time_step)[0];
     }
