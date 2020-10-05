@@ -1,6 +1,7 @@
 # This uses nbodykit
 
 from nbodykit.lab import Gadget1Catalog
+import bigfile
 import numpy
 from argparse import ArgumentParser
 
@@ -22,6 +23,7 @@ def main(ns):
     cat.attrs['TotNumPartInit'] = numpy.int64(attrs['Nall']) + (numpy.int64(attrs['NallHW']) << 32)
     cat.attrs['BoxSize'] = attrs['BoxSize']
     cat.attrs['Time'] = attrs['Time']
+    cat.attrs['ScalingFactor'] = attrs['Time']
 
     if ns.time_ic is None:
         ns.time_ic = attrs['Time']
@@ -45,6 +47,11 @@ def main(ns):
         cat = cat[::ns.subsample]
 
     cat.save(ns.dest, columns=['Position', 'Velocity', 'ID'], dataset='1', header='Header')
+    with bigfile.File(ns.dest) as bf:
+        with bf.create("1") as bb:
+            bb.attrs['a.x'] = attrs['Time']
+            bb.attrs['a.v'] = attrs['Time']
+            bb.attrs['M0'] = attrs['Massarr'][1]
 
 if __name__ == '__main__':
     ns = ap.parse_args()

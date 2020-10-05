@@ -457,7 +457,9 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
 
             if(n > 10000) {
                 double q[3];
-                fastpm_store_get_q_from_id(p, p->id[i], q);
+                if(fastpm_store_has_q(p)) {
+                    fastpm_store_get_q_from_id(p, p->id[i], q);
+                }
                 fastpm_raise(-1, "Particle at %g %g %g (q = %g %g %g) is too far from the bounds. Wrapping failed.\n", 
                         p->x[i][0],
                         p->x[i][1],
@@ -649,6 +651,11 @@ fastpm_store_decompose(FastPMStore * p,
         free(offsets);
         free(count);
     return -1;
+}
+
+int fastpm_store_has_q(FastPMStore * p)
+{
+    return p->meta._q_size != 0;
 }
 
 void
@@ -957,6 +964,10 @@ fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
                                               int every, /* take 1 every 'every' per dimension */
                                               FastPMParticleMaskType * mask)
 {
+    if(!fastpm_store_has_q(p)) {
+        /* This can be relaxed by using a less strict subsample algorithm, e.g. subsample by a hash of ID. */
+        fastpm_raise(-1, "Subsample is not supported if the store does not have meta.q.");
+    }
     /* UNUSED */
     memset(mask, 0, p->np * sizeof(mask[0]));
 

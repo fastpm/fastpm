@@ -790,9 +790,9 @@ _convert_basic_halo_attrs(FastPMFOFFinder * finder, FastPMStore * p, ptrdiff_t i
 
     double q[3];
 
-    if(halos->q)
+    if(halos->q && fastpm_store_has_q(p)) {
         fastpm_store_get_q_from_id(p, p->id[i], q);
-
+    }
     halos->length[hid] = 1;
 
     for(d = 0; d < 3; d++) {
@@ -804,7 +804,7 @@ _convert_basic_halo_attrs(FastPMFOFFinder * finder, FastPMStore * p, ptrdiff_t i
             halos->dx1[hid][d] = p->dx1[i][d];
         if(halos->dx2)
             halos->dx2[hid][d] = p->dx2[i][d];
-        if(halos->q) {
+        if(halos->q && fastpm_store_has_q(p)) {
             halos->q[hid][d] = q[d];
         }
     }
