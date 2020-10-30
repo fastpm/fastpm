@@ -405,8 +405,22 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
 }
 
 static void
-prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * prr, double aout, 
-               double linear_density_redshift,
+rescale_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * prr, double aout, double linear_density_redshift)
+{
+    /* Rescale deltak from the input redshift (linear_density_redshift) to aout */
+    FastPMGrowthInfo gi_out;
+    FastPMGrowthInfo gi_in;
+    fastpm_growth_info_init(&gi_out, aout, fastpm->cosmology);
+    fastpm_growth_info_init(&gi_in, 1. / (linear_density_redshift + 1), fastpm->cosmology);
+    double linear_evolve = gi_out.D1 / gi_in.D1;
+
+    fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift %g.\n", linear_density_redshift, linear_evolve, 1./aout-1);
+
+    fastpm_apply_multiply_transfer(pm, delta_k, delta_k, linear_evolve);
+}
+
+static void
+prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * prr, double aout, double linear_density_redshift,
                const char lineark_filename[],
                const char powerspectrum_filename[])
 {
@@ -425,6 +439,10 @@ prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * 
         if(CONF(prr->lua, inverted_ic)) {
             fastpm_apply_multiply_transfer(pm, delta_k, delta_k, -1);
         }
+         /* The linear density field is not redshift zero, then evolve it with the model cosmology to
+          * redshift zero.
+          * This matches the linear power at the given redshift, not necessarily redshift 0. */
+        rescale_deltak(fastpm, pm, delta_k, prr, aout, linear_density_redshift);
         return;
     }
 
@@ -537,17 +555,7 @@ induce:
     /* The linear density field is not redshift zero, then evolve it with the model cosmology to 
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
-    {
-        FastPMGrowthInfo gi_out;
-        FastPMGrowthInfo gi_in;
-        fastpm_growth_info_init(&gi_out, aout, fastpm->cosmology);
-        fastpm_growth_info_init(&gi_in, 1. / (linear_density_redshift + 1), fastpm->cosmology);
-        double linear_evolve = gi_out.D1 / gi_in.D1;
-
-        fastpm_info("Reference linear density is calibrated at redshift %g; multiply by %g to extract to redshift 0.\n", linear_density_redshift, linear_evolve);
-
-        fastpm_apply_multiply_transfer(pm, delta_k, delta_k, linear_evolve);
-    }
+    rescale_deltak(fastpm, pm, delta_k, prr, aout, linear_density_redshift);
 
     /* set the mean to 1.0 */
     ptrdiff_t mode[4] = { 0, 0, 0, 0, };
