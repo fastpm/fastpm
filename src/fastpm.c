@@ -396,6 +396,8 @@ prepare_cosmology(FastPMCosmology * c, RunData * prr) {
     c->N_eff = CONF(prr->lua, N_eff);
     c->N_nu = CONF(prr->lua, N_nu);
     c->N_ncdm = CONF(prr->lua, n_m_ncdm);
+    c->ncdm_freestreaming = CONF(prr->lua, ncdm_freestreaming);
+    c->ncdm_matterlike = CONF(prr->lua, ncdm_matterlike);
     c->growth_mode = CONF(prr->lua, growth_mode);
 
     int i;

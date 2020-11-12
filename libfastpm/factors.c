@@ -253,8 +253,8 @@ void fastpm_kick_init(FastPMKickFactor * kick, FastPMSolver * fastpm, double ai,
     double D1_c = gi_c.D1;
     double D2_c = gi_c.D2;
 
-    double Omega_m0 = c->Omega_cdm;
-    double Omega_mc = Omega_cdm_a(ac, c);   // For Abacus only use cdm for poisson source term
+    double Omega_m0 = Omega_source(1, c);
+    double Omega_mc = Omega_source(ac, c);
 
     // kick->q1,2 are used for the COLA force implementation.
     // growth_mode = ODE and LCDM should match for an LCDM background,
