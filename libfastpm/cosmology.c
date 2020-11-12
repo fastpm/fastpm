@@ -195,9 +195,9 @@ double HubbleEa(double a, FastPMCosmology * c)
 
     return sqrt(Omega_r(c) / (a*a*a*a)
                 + c->Omega_cdm / (a*a*a)
-                + Omega_ncdm_ESq
                 + c->Omega_k / (a*a)
-                + Omega_DE_TimesHubbleEaSq(a, c));
+                + Omega_DE_TimesHubbleEaSq(a, c)
+                + Omega_ncdm_ESq);
 }
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
@@ -229,18 +229,18 @@ double DHubbleEaDa(double a, FastPMCosmology * c)
     double E = HubbleEa(a, c);
     double DOdeESqDa = DOmega_DE_TimesHubbleEaSqDa(a, c);
 
-    double ncdm_contrib;   // contribution from ncdm
+    double DOncdmESqDa;   // contribution from ncdm
     if (c->ncdm_matterlike) {
-        ncdm_contrib = - 3 * c->Omega_ncdm / pow(a,4);
+        DOncdmESqDa = - 3 * c->Omega_ncdm / pow(a,4);
     } else {
-        ncdm_contrib = DOmega_ncdmTimesHubbleEaSqDa(a, c);
+        DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a, c);
     }
 
     return 0.5 / E * (- 4 * Omega_r(c) / pow(a,5)
-                      + ncdm_contrib
                       - 3 * c->Omega_cdm / pow(a,4)
                       - 2 * c->Omega_k / pow(a,3)
-                      + DOdeESqDa);
+                      + DOdeESqDa
+                      + DOncdmESqDa);
 }
 
 double D2HubbleEaDa2(double a, FastPMCosmology * c)
@@ -249,18 +249,18 @@ double D2HubbleEaDa2(double a, FastPMCosmology * c)
     double dEda = DHubbleEaDa(a, c);
     double D2OdeESqDa2 = D2Omega_DE_TimesHubbleEaSqDa2(a, c);
 
-    double ncdm_contrib;   // contribution from ncdm
+    double D2OncdmESqDa2;   // contribution from ncdm
     if (c->ncdm_matterlike) {
-        ncdm_contrib = 12 * c->Omega_ncdm / pow(a,5);
+        D2OncdmESqDa2 = 12 * c->Omega_ncdm / pow(a,5);
     } else {
-        ncdm_contrib = D2Omega_ncdmTimesHubbleEaSqDa2(a, c);
+        D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a, c);
     }
 
     return 0.5 / E * (  20 * Omega_r(c) / pow(a,6)
                       + 12 * c->Omega_cdm / pow(a,5)
-                      + ncdm_contrib
                       + 6 * c->Omega_k / pow(a,4)
                       + D2OdeESqDa2
+                      + D2OncdmESqDa2
                       - 2 * pow(dEda,2) );
 }
 
