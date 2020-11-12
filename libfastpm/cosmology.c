@@ -160,14 +160,14 @@ double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c)
 
 double DOmega_DE_TimesHubbleEaSqDa(double a, FastPMCosmology * c)
 {
-    return 3 * (c->wa - (1 + c->w0 + c->wa) / a) * Omega_DE_TimesHubbleEaSq(a,c);
+    return 3 * (c->wa - (1 + c->w0 + c->wa) / a) * Omega_DE_TimesHubbleEaSq(a, c);
 }
 
 double D2Omega_DE_TimesHubbleEaSqDa2(double a, FastPMCosmology * c)
 {
     double OdeESq = Omega_DE_TimesHubbleEaSq(a, c);
     double DOdeEsqDa = DOmega_DE_TimesHubbleEaSqDa(a, c);
-    return DOdeEsqDa*DOdeEsqDa / c->Omega_Lambda + 3 * ( 1 + c->w0 + c->wa) / (a*a) * OdeESq;
+    return DOdeEsqDa*DOdeEsqDa / c->Omega_Lambda + 3 * (1 + c->w0 + c->wa) / (a*a) * OdeESq;
 }
 
 double HubbleEa(double a, FastPMCosmology * c)
@@ -199,8 +199,8 @@ double DHubbleEaDa(double a, FastPMCosmology * c)
 {
     /* d E / d a*/
     double E = HubbleEa(a, c);
-    double DOdeESqDa = DOmega_DE_TimesHubbleEaSqDa(a,c);
-    double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a,c);
+    double DOdeESqDa = DOmega_DE_TimesHubbleEaSqDa(a, c);
+    double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a, c);
     
     return 0.5 / E * ( - 4 * Omega_r(c) / pow(a,5)
                       - 3 * c->Omega_cdm / pow(a,4)
@@ -211,10 +211,10 @@ double DHubbleEaDa(double a, FastPMCosmology * c)
 
 double D2HubbleEaDa2(double a, FastPMCosmology * c)
 {
-    double E = HubbleEa(a,c);
-    double dEda = DHubbleEaDa(a,c);
-    double D2OdeESqDa2 = D2Omega_DE_TimesHubbleEaSqDa2(a,c);
-    double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a,c);
+    double E = HubbleEa(a, c);
+    double dEda = DHubbleEaDa(a, c);
+    double D2OdeESqDa2 = D2Omega_DE_TimesHubbleEaSqDa2(a, c);
+    double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a, c);
 
     return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6)
                       + 12 * c->Omega_cdm / pow(a,5)

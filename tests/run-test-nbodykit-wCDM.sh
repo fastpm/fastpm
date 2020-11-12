@@ -8,8 +8,8 @@ log=`mktemp`
 assert_success "mpirun -n 4 $FASTPM nbodykit-wCDM.lua > $log"
 
 echo "---- Validating the log output -------"
-assert_file_contains $log 'Writing 1903 objects.'
-assert_file_contains $log 'Writing 1399 objects.'
+assert_file_contains $log 'Writing 1918 objects.'
+assert_file_contains $log 'Writing 1506 objects.'
 assert_file_contains $log 'RSD factor.*1.162687e-02'
 assert_file_contains $log 'sigma8.*0.815897'
 
