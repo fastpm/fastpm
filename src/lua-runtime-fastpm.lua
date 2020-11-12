@@ -48,7 +48,7 @@ schema.declare{name='pm_nc_factor',      type='array:number',  required=true, he
 schema.declare{name='lpt_nc_factor',     type='number', required=false, default=1, help="PM resolution use in lpt and linear density field."}
 schema.declare{name='np_alloc_factor',   type='number', required=true, help="Over allocation factor for load imbalance" }
 schema.declare{name='compute_potential', type='boolean', required=false, default=false, help="Calculate the gravitional potential."}
-schema.declare{name='n_shell',           type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
+schema.declare{name='n_shell',           type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting. Set n_shell=0 for no ncdm particles."}
 schema.declare{name='lvk',               type='boolean', required=false, default=true, help="Use the low velocity kernel when splitting FD for ncdm."}
 schema.declare{name='n_side',            type='number', required=false, default=3, help="This is N_fib for fibonacci sphere splitting, or number of sides in HEALPix splitting."}
 schema.declare{name='every_ncdm',        type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
@@ -57,6 +57,10 @@ schema.ncdm_sphere_scheme.choices = {
     healpix = 'FASTPM_NCDM_SPHERE_HEALPIX',
     fibonacci = 'FASTPM_NCDM_SPHERE_FIBONACCI',
 }
+schema.declare{name='ncdm_matterlike', type='boolean', required=false, default=true, help="Approximate ncdm as matter-like in the background? If true, Omega_ncdm~1/a^3."}
+schema.declare{name='ncdm_freestreaming', type='boolean', required=false, default=true, help="Treat ncdm as free-streaming? If true, source terms ~Omega_c; if false, ~Omega_m."}
+
+
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
                                                                      "The full ODE is required for accurate results for runs with radiation or varying DE in the background, " ..
                                                                      "and can also be used for Lambda+CDM-only backgrounds. " ..
@@ -88,6 +92,18 @@ function schema.T_cmb.action (T_cmb)
             for i=2, #m_ncdm do
                 if m_ncdm[i] > m_ncdm[1] then
                     error("Please input the heaviest ncdm particle first.")
+                end
+            end
+            function schema.n_shell.action (n_shell)
+                function schema.ncdm_freestreaming.action (ncdm_freestreaming)
+                    if ncdm_freestreaming and n_shell ~= 0 then
+                         error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
+                    end
+                end
+            end
+            function schema.ncdm_matterlike.action (ncdm_matterlike)
+                if not ncdm_matterlike and T_cmb == 0 then
+                     error("For a run with exact Omega_ncdm, T_cmb > 0 is required.")
                 end
             end
         end

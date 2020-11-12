@@ -12,16 +12,19 @@ struct FastPMCosmology {
     double h;
     double Omega_m;
     double Omega_cdm;
+    double Omega_ncdm;
     double Omega_k;
-    double Omega_Lambda;  // Omega of dark energy at z=0
+    double Omega_Lambda;     // Omega of dark energy at z=0
     double w0;
     double wa;
     double T_cmb;
-    //double T_nu;     // todays neutrino temperature HARD CODED FOR NOW
+    //double T_nu;           // todays neutrino temperature HARD CODED FOR NOW
     double N_eff;
-    int N_nu;          // total number of neutrino species (massive and massless)
-    double m_ncdm[3];  // masses of massive neutrinos (ncdm) for now assume max of 3 ncdms
+    int N_nu;                // total number of neutrino species (massive and massless)
+    double m_ncdm[3];        // masses of massive neutrinos (ncdm) for now assume max of 3 ncdms
     int N_ncdm;
+    int ncdm_freestreaming;  // bool: treat ncdm as free-streaming?
+    int ncdm_matterlike;     // bool: treat ncdm as matter-like?
 
     FastPMGrowthMode growth_mode;
     FastPMFDInterp * FDinterp;
@@ -47,6 +50,7 @@ double D2Omega_DE_TimesHubbleEaSqDa2(double a, FastPMCosmology * c);
 double HubbleEa(double a, FastPMCosmology * c);
 double Omega_cdm_a(double a, FastPMCosmology * c);
 double Omega_m(double a, FastPMCosmology * c);
+double Omega_source(double a, FastPMCosmology * c);
 double DHubbleEaDa(double a, FastPMCosmology * c);
 double D2HubbleEaDa2(double a, FastPMCosmology * c);
 
