@@ -29,8 +29,6 @@ struct FastPMCosmology {
 
 double interpolate(const double xa[], const double ya[], size_t size, double xi);
 
-double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c);
-
 double Omega_g(FastPMCosmology * c);
 double Gamma_nu(FastPMCosmology * c);
 double Omega_ur(FastPMCosmology * c);
@@ -41,6 +39,10 @@ double Omega_ncdm_iTimesHubbleEaSq(double a, int ncdm_id, FastPMCosmology * c);
 double Omega_ncdmTimesHubbleEaSq(double a, FastPMCosmology * c);
 double DOmega_ncdmTimesHubbleEaSqDa(double a, FastPMCosmology * c);
 double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c);
+
+double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c);
+double DOmega_DE_TimesHubbleEaSqDa(double a, FastPMCosmology * c);
+double D2Omega_DE_TimesHubbleEaSqDa2(double a, FastPMCosmology * c);
 
 double HubbleEa(double a, FastPMCosmology * c);
 double Omega_cdm_a(double a, FastPMCosmology * c);

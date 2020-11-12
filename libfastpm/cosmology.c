@@ -46,15 +46,6 @@ fastpm_cosmology_destroy(FastPMCosmology * c)
     }
 }
 
-double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c)
-{
-    /* Dark energy parameter as a function of a, times E^2(a).
-       Using Chevalier-Linder-Polarski: w(z) = w0 + z/(1+z) wa.
-       Omega_DE(z) E^2(z) = Omega_DE(0) * exp( 3 \int_0^z dx (1+w(x)) / (1+x) )
-                          = Omega_Lambda * exp[ 3 ( -wa*z/(1+z) + (1+w0+wa)*ln(1+z) )]. */
-    double exponent = (a - 1) * c->wa - (1 + c->w0 + c->wa) * log(a);
-    return c->Omega_Lambda * exp(3 * exponent);
-}
 
 double Omega_g(FastPMCosmology * c)
 {
@@ -157,6 +148,28 @@ double D2Omega_ncdmTimesHubbleEaSqDa2(double a, FastPMCosmology * c)
     return -12. / (a*a) * OncdmESq - 8. / a * DOncdmESqDa + A / (a*a*a*a) * FcFcDDF;
 }
 
+double Omega_DE_TimesHubbleEaSq(double a, FastPMCosmology * c)
+{
+    /* Dark energy parameter as a function of a, times E^2(a).
+       Using Chevalier-Linder-Polarski: w(z) = w0 + z/(1+z) wa.
+       Omega_DE(z) E^2(z) = Omega_DE(0) * exp( 3 \int_0^z dx (1+w(x)) / (1+x) )
+                          = Omega_Lambda * exp[ 3 ( -wa*z/(1+z) + (1+w0+wa)*ln(1+z) )]. */
+    double exponent = (a - 1) * c->wa - (1 + c->w0 + c->wa) * log(a);
+    return c->Omega_Lambda * exp(3 * exponent);
+}
+
+double DOmega_DE_TimesHubbleEaSqDa(double a, FastPMCosmology * c)
+{
+    return 3 * (c->wa - (1 + c->w0 + c->wa) / a) * Omega_DE_TimesHubbleEaSq(a,c);
+}
+
+double D2Omega_DE_TimesHubbleEaSqDa2(double a, FastPMCosmology * c)
+{
+    double OdeESq = Omega_DE_TimesHubbleEaSq(a, c);
+    double DOdeEsqDa = DOmega_DE_TimesHubbleEaSqDa(a, c);
+    return DOdeEsqDa*DOdeEsqDa / c->Omega_Lambda + 3 * ( 1 + c->w0 + c->wa) / (a*a) * OdeESq;
+}
+
 double HubbleEa(double a, FastPMCosmology * c)
 {
     /* H(a) / H0 
@@ -186,18 +199,29 @@ double DHubbleEaDa(double a, FastPMCosmology * c)
 {
     /* d E / d a*/
     double E = HubbleEa(a, c);
+    double DOdeESqDa = DOmega_DE_TimesHubbleEaSqDa(a,c);
     double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a,c);
     
-    return 0.5 / E * ( - 4 * Omega_r(c) / pow(a,5) - 3 * c->Omega_cdm / pow(a,4) + DOncdmESqDa );
+    return 0.5 / E * ( - 4 * Omega_r(c) / pow(a,5)
+                      - 3 * c->Omega_cdm / pow(a,4)
+                      - 2 * c->Omega_k / pow(a,3)
+                      + DOdeESqDa
+                      + DOncdmESqDa);
 }
 
 double D2HubbleEaDa2(double a, FastPMCosmology * c)
 {
     double E = HubbleEa(a,c);
     double dEda = DHubbleEaDa(a,c);
+    double D2OdeESqDa2 = D2Omega_DE_TimesHubbleEaSqDa2(a,c);
     double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a,c);
 
-    return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6) + 12 * c->Omega_cdm / pow(a,5) + D2OncdmESqDa2 - 2 * pow(dEda,2) );
+    return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6)
+                      + 12 * c->Omega_cdm / pow(a,5)
+                      + 6 * c->Omega_k / pow(a,4)
+                      + D2OdeESqDa2
+                      + D2OncdmESqDa2
+                      - 2 * pow(dEda,2) );
 }
 
 static double growth_int(double a, void *param)
