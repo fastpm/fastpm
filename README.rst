@@ -133,7 +133,8 @@ lua directory distributed under any appropriate license of lua.
 .. [LUA] http://lua.org/
 .. [MP-GADGET] http://bluetides-project.org/code
 .. [bigfile] https://github.com/rainwoodman/bigfile
-.. [FastPMPaper] http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1603.00476].
+.. [FastPMPaper] http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1603.00476]
+.. [FastPMNeutrinoPaper] https://ui.adsabs.harvard.edu/abs/arXiv:2007.13394].
 
 
 Source Code Installation
@@ -284,8 +285,8 @@ have strong opinions on the choice data containers.
 *Massive Neutrino Simulations*
 
 - massive neutrinos are referred to as ncdm (not-cold dark matter) in the code.
+- see [FastPMNeutrinoPaper] for details on the implementation.
 - refer to tests/ncdm.lua for an example parameter file.
-- <insert link to paper>
 
 Commandline Interface
 ---------------------
