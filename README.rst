@@ -21,7 +21,8 @@ in another application.
 
 FastPM supports plain PM and Comoving-Lagranian (COLA) solvers. 
 A broadband correction enforces the linear theory model growth
-factor at large scale. See the code paper [FastPMPaper]_
+factor at large scale. See the code paper [FastPMPaper]_. 
+For details on the neutrino implementation see [FastPMNeutrinoPaper]_.
 
 Thanks to the PFFT Fourier Transform library, FastPM scales extremely well,
 to hundred thousand MPI ranks.
@@ -285,7 +286,7 @@ have strong opinions on the choice data containers.
 *Massive Neutrino Simulations*
 
 - massive neutrinos are referred to as ncdm (not-cold dark matter) in the code.
-- see [FastPMNeutrinoPaper] for details on the implementation.
+- see [FastPMNeutrinoPaper]_ for details on the implementation.
 - refer to tests/ncdm.lua for an example parameter file.
 
 Commandline Interface
