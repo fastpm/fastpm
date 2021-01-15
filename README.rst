@@ -3,9 +3,9 @@ FastPM
 
 CI-Status
 
-.. image:: https://travis-ci.com/fastpm/fastpm.svg?branch=master
+.. image:: https://github.com/fastpm/fastpm/workflows/main/badge.svg
     :alt: Build Status
-    :target: https://travis-ci.com/fastpm/fastpm
+    :target: https://github.com/fastpm/fastpm/actions?query=workflow%3Amain
 
 Introduction
 ------------
