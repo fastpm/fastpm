@@ -1,0 +1,63 @@
+# main test workflow; ported from .travis.yaml
+
+name: main
+
+on:
+  push:
+    branches: [ '*', $default-branch ]
+  pull_request:
+    branches: [ $default-branch ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+
+    - name: Checkout source code
+      uses: actions/checkout@v2
+
+    - name: Install dependendencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install \
+          libopenmpi-dev \
+          openmpi-bin \
+          libgsl0-dev \
+          elfutils
+
+    - name: Cache depends/
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-build-${{ hashFiles('depends/Makefile*') }}
+        path: |
+          ~/depends/install
+          ~/depends/download
+          ~/depends/src
+
+    - name: Build
+      run: |
+        cp Makefile.travis Makefile.local
+        make
+
+    - name: Basic tests
+      run: |
+        cd tests
+        bash runtests.sh
+
+    - name: Test nbodykit.lua
+      run: |
+        cd tests
+        bash run-test-nbodykit.sh
+        bash run-test-nbodykit-ODE.sh
+        bash run-test-nbodykit-wCDM.sh
+
+    - name: Test lightcone.lua
+      run: |
+        cd tests
+        bash run-test-lightcone.sh
+        bash run-test-lightcone-ODE.sh
