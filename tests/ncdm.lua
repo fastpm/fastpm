@@ -30,9 +30,11 @@ N_nu    = 3                 -- number of neutrinos species (including massless s
 m_ncdm  = {0.12, 0.06, 0.02}
 n_shell = 10
 ncdm_sphere_scheme = "fibonacci"
-n_side  = 3      -- this is N_fib in the case of a fibaonacci sphere spitting scheme
-every_ncdm = 4   -- this defines the ratio of the cdm grid number to the ncdm grid number
-lvk = true       -- low velocity kernel: used for fermi-dirac sampling. g(q) = q f(q) in paper.
+n_side  = 3                 -- this is N_fib in the case of a fibaonacci sphere spitting scheme
+every_ncdm = 4              -- this defines the ratio of the cdm grid number to the ncdm grid number
+lvk = true                  -- low velocity kernel: used for fermi-dirac sampling. g(q) = q f(q) in paper
+ncdm_freestreaming = false  -- choose whether to treat ncdm as free-streaming for the growth ODE and Poisson source terms
+ncdm_matterlike = false     -- choose whether to approximate ncdm as matter-like in the background
 
 -------- Perturbations --------
 -- Input powerspectrum and growth rate

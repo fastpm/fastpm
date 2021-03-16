@@ -29,12 +29,24 @@ fastpm_cosmology_init(FastPMCosmology * c)
         c->FDinterp = FDinterp;
     }
 
-    // Compute Omega_cdm assuming all ncdm is matter like
-    c->Omega_cdm = c->Omega_m - Omega_ncdmTimesHubbleEaSq(1, c);
+    // Compute Omega_ncdm(z=0)
+    double Omega_ncdm_0;
+    if (c->ncdm_matterlike) {
+        Omega_ncdm_0 = 0;
+        for (int i=0; i<c->N_ncdm; i++) {
+            Omega_ncdm_0 += c->m_ncdm[i];
+        }
+        Omega_ncdm_0 *= 1. / 93.14 / c->h / c->h;
+    } else {
+        Omega_ncdm_0 = Omega_ncdmTimesHubbleEaSq(1, c);
+    }
+    c->Omega_ncdm = Omega_ncdm_0;
+
+    // Compute Omega_cdm assuming all ncdm is matter-like at z=0
+    c->Omega_cdm = c->Omega_m - Omega_ncdm_0;
 
     // Set Omega_Lambda at z=0 by closing Friedmann's equation
     c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c) - c->Omega_k;
-
 }
 
 void
@@ -172,13 +184,20 @@ double D2Omega_DE_TimesHubbleEaSqDa2(double a, FastPMCosmology * c)
 
 double HubbleEa(double a, FastPMCosmology * c)
 {
-    /* H(a) / H0 
-       ncdm is NOT assumed to be matter like here */
+    /* H(a) / H0 */
+
+    double Omega_ncdm_ESq;   // contribution from ncdm
+    if (c->ncdm_matterlike) {
+        Omega_ncdm_ESq = c->Omega_ncdm / (a*a*a);
+    } else {
+        Omega_ncdm_ESq = Omega_ncdmTimesHubbleEaSq(a, c);
+    }
+
     return sqrt(Omega_r(c) / (a*a*a*a)
                 + c->Omega_cdm / (a*a*a)
                 + c->Omega_k / (a*a)
                 + Omega_DE_TimesHubbleEaSq(a, c)
-                + Omega_ncdmTimesHubbleEaSq(a, c));
+                + Omega_ncdm_ESq);
 }
 
 double Omega_cdm_a(double a, FastPMCosmology * c)
@@ -190,9 +209,18 @@ double Omega_cdm_a(double a, FastPMCosmology * c)
 }
 
 double Omega_m(double a, FastPMCosmology * c){
-    /* Total matter component (cdm + ncdm) assming all ncdm is matter like */
+    /* Total matter component (cdm + ncdm) assuming all ncdm is matter-like (for use in source term) */
     double E = HubbleEa(a, c);
     return c->Omega_m / (a*a*a) / (E*E);
+}
+
+double Omega_source(double a, FastPMCosmology * c){
+    /* For use in source term of growth ODE and Poisson eqn */
+    if (c->ncdm_freestreaming){
+        return Omega_cdm_a(a, c);
+    } else {
+        return Omega_m(a, c);
+    }
 }
 
 double DHubbleEaDa(double a, FastPMCosmology * c)
@@ -200,9 +228,15 @@ double DHubbleEaDa(double a, FastPMCosmology * c)
     /* d E / d a*/
     double E = HubbleEa(a, c);
     double DOdeESqDa = DOmega_DE_TimesHubbleEaSqDa(a, c);
-    double DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a, c);
-    
-    return 0.5 / E * ( - 4 * Omega_r(c) / pow(a,5)
+
+    double DOncdmESqDa;   // contribution from ncdm
+    if (c->ncdm_matterlike) {
+        DOncdmESqDa = - 3 * c->Omega_ncdm / pow(a,4);
+    } else {
+        DOncdmESqDa = DOmega_ncdmTimesHubbleEaSqDa(a, c);
+    }
+
+    return 0.5 / E * (- 4 * Omega_r(c) / pow(a,5)
                       - 3 * c->Omega_cdm / pow(a,4)
                       - 2 * c->Omega_k / pow(a,3)
                       + DOdeESqDa
@@ -214,9 +248,15 @@ double D2HubbleEaDa2(double a, FastPMCosmology * c)
     double E = HubbleEa(a, c);
     double dEda = DHubbleEaDa(a, c);
     double D2OdeESqDa2 = D2Omega_DE_TimesHubbleEaSqDa2(a, c);
-    double D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a, c);
 
-    return 0.5 / E * ( 20 * Omega_r(c) / pow(a,6)
+    double D2OncdmESqDa2;   // contribution from ncdm
+    if (c->ncdm_matterlike) {
+        D2OncdmESqDa2 = 12 * c->Omega_ncdm / pow(a,5);
+    } else {
+        D2OncdmESqDa2 = D2Omega_ncdmTimesHubbleEaSqDa2(a, c);
+    }
+
+    return 0.5 / E * (  20 * Omega_r(c) / pow(a,6)
                       + 12 * c->Omega_cdm / pow(a,5)
                       + 6 * c->Omega_k / pow(a,4)
                       + D2OdeESqDa2
@@ -266,9 +306,9 @@ static int growth_ode(double a, const double y[], double dyda[], void *params)
     
     double dydlna[4];
     dydlna[0] = y[1];
-    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_m(a, c) * y[0];
+    dydlna[1] = - (2. + a / E * dEda) * y[1] + 1.5 * Omega_source(a, c) * y[0];
     dydlna[2] = y[3];
-    dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_m(a, c) * (y[2] - y[0]*y[0]);
+    dydlna[3] = - (2. + a / E * dEda) * y[3] + 1.5 * Omega_source(a, c) * (y[2] - y[0]*y[0]);
     
     //divide by  a to get dyda
     for (int i=0; i<4; i++){
@@ -401,7 +441,7 @@ double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info) {
             double f1 = growth_info->f1;
 
             ans -= (3. + a / E * dEda) * f1;
-            ans += 1.5 * Omega_m(a, c);
+            ans += 1.5 * Omega_source(a, c);
             ans *= D1 / (a*a);
         break; }
         default:
