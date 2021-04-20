@@ -151,10 +151,11 @@ int main(int argc, char ** argv) {
     /* convert parameter files pm_nc_factor into VPMInit */
     VPMInit * vpminit = NULL;
     if(CONF(prr->lua, ndim_pm_nc_factor) == 0) {
-        vpminit = (VPMInit[]) {
-            {.a_start = 0, .pm_nc_factor = CONF(prr->lua, pm_nc_factor)[0] },
-            {.a_start = 1, .pm_nc_factor = 0},
-            };
+        vpminit = alloca(sizeof(VPMInit) * 2);
+        vpminit[0].a_start = 0;
+        vpminit[0].pm_nc_factor = CONF(prr->lua, pm_nc_factor)[0];
+        vpminit[1].a_start = 1;
+        vpminit[1].pm_nc_factor = 0;
     } else
     if(CONF(prr->lua, ndim_pm_nc_factor) == 2) {
         vpminit = alloca(sizeof(VPMInit) * (CONF(prr->lua, shape_pm_nc_factor)[0] + 1));
