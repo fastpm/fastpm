@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OMP_NUM_THREADS: 1
+      OMPI_MCA_rmaps_base_no_oversubscribe: 0
+      OMPI_MCA_rmaps_base_oversubscribe: 1
+      OMPI_MCA_mpi_yield_when_idle: 1
+      OMPI_MCA_mpi_show_mca_params: 1
+
     defaults:
       run:
         shell: bash -l {0}
