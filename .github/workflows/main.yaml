@@ -66,3 +66,9 @@ jobs:
         cd tests
         bash run-test-lightcone.sh
         bash run-test-lightcone-ODE.sh
+
+    - name: Test restart.lua
+      run: |
+        cd tests
+        bash run-test-restart.sh
+        bash run-test-offline-fof.sh
