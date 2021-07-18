@@ -132,7 +132,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
 
         FastPMParticleMaskType * save_mask = fastpm_memory_alloc(finder->p->mem,
                         "SaveMask",
-                        sizeof(save_mask[0]) * halos->np,
+                        sizeof(save_mask[0]) * candidates->np,
                         FASTPM_MEMORY_STACK);
 
         ptrdiff_t j;
