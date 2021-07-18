@@ -1142,7 +1142,7 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunD
 }
 
 static void
-_halos_ready (FastPMFOFFinder * finder,
+_halos_ready (
     FastPMStore * halos,
     FastPMStore * p,
     ptrdiff_t * ihalo,
@@ -1152,6 +1152,7 @@ _halos_ready (FastPMFOFFinder * finder,
     double halosize = *((double*) userdata[1]);
     FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
     FastPMParticleMaskType * keep_for_tail = (FastPMParticleMaskType *) userdata[3];
+    int nmin = *((int*) userdata[4]);
 
     ptrdiff_t i;
 
@@ -1161,7 +1162,7 @@ _halos_ready (FastPMFOFFinder * finder,
         double r = fastpm_lc_distance(lc, halos->x[i]);
 
         /* this shall not happen */
-        if (halos->length[i] < finder->nmin) abort();
+        if (halos->length[i] < nmin) abort();
 
         /* only keep reliable halos */
         if(r > rmin + halosize * 0.5) {
@@ -1226,35 +1227,34 @@ run_usmesh_fof(FastPMSolver * fastpm,
     FastPMParticleMaskType * keep_for_tail = fastpm_memory_alloc(p->mem, "keep",
                                     sizeof(keep_for_tail[0]) * lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
 
-    ENTER(fof);
+    /* FIXME: clean this up! halos_ready is converted from an event handler. */
+    double rmin = lc->speedfactor * HorizonDistance(lcevent->af, lc->horizon);
+    int nmin = CONF(prr->lua, fof_nmin);
+    void * userdata[5];
+    userdata[0] = & rmin;
+    userdata[1] = & maxhalosize;
+    userdata[2] = lc;
+    userdata[3] = keep_for_tail;
+    userdata[4] = &nmin;
+    ptrdiff_t * ihalo;
 
+    ENTER(fof);
     FastPMFOFFinder fof = {
         .periodic = 0,
-        .nmin = CONF(prr->lua, fof_nmin),
+        .nmin = nmin,
         .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
 
     /* convert from fraction of mean separation to simulation distance units. */
     double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
     fastpm_fof_init(&fof, linkinglength, p, fastpm->pm);
-
-    double rmin = lc->speedfactor * HorizonDistance(lcevent->af, lc->horizon);
-    /* FIXME: clean this up! halos_ready is converted from an event handler. */
-    void * userdata[5];
-    userdata[0] = & rmin;
-    userdata[1] = & maxhalosize;
-    userdata[2] = lc;
-    userdata[3] = keep_for_tail;
-
-    ptrdiff_t * ihalo;
-    ENTER(fof);
     fastpm_fof_execute(&fof, linkinglength, halos, &ihalo, NULL);
+    fastpm_fof_destroy(&fof);
     LEAVE(fof);
 
-    _halos_ready(&fof, halos, p, ihalo, userdata);
+    _halos_ready(halos, p, ihalo, userdata);
 
     fastpm_store_subsample(halos, halos->mask, halos);
-    fastpm_fof_destroy(&fof);
 
     uint64_t ntail = 0;
     for(i = 0; i < p->np; i ++) {
