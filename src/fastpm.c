@@ -23,6 +23,7 @@
 #endif
 #include "lua-config.h"
 #include "param.h"
+#include "prepare.h"
 
 /* c99 has no pi. */
 #ifndef M_PI
@@ -106,8 +107,6 @@ write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI
 
 }
 
-static void
-prepare_cosmology(FastPMCosmology * c, RunData * prr);
 
 int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm);
 
@@ -174,7 +173,7 @@ int main(int argc, char ** argv) {
 
     FastPMCosmology cosmology[1] = {{0}};
 
-    prepare_cosmology(cosmology, prr);
+    prepare_cosmology(cosmology, prr->lua);
 
     FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr->lua, nc),
@@ -380,27 +379,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     fastpm_clock_stat(comm);
 
     return 0;
-}
-
-static void
-prepare_cosmology(FastPMCosmology * c, RunData * prr) {
-    c->h = CONF(prr->lua, h);
-    c->Omega_m = CONF(prr->lua, Omega_m);
-    c->T_cmb = CONF(prr->lua, T_cmb);
-    c->Omega_k = CONF(prr->lua, Omega_k);
-    c->w0 = CONF(prr->lua, w0);
-    c->wa = CONF(prr->lua, wa);
-    c->N_eff = CONF(prr->lua, N_eff);
-    c->N_nu = CONF(prr->lua, N_nu);
-    c->N_ncdm = CONF(prr->lua, n_m_ncdm);
-    c->ncdm_matterlike = CONF(prr->lua, ncdm_matterlike);
-    c->ncdm_freestreaming = CONF(prr->lua, ncdm_freestreaming);
-    c->growth_mode = CONF(prr->lua, growth_mode);
-
-    int i;
-    for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
-        c->m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
-    }
 }
 
 static void
