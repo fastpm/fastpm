@@ -10,10 +10,10 @@ typedef struct {
     double linkinglength; /* absolute */
     double l1; /* absolute */
     double l6; /* absolute */
-    double A1;
-    double A2;
-    double B1;
-    double B2;
+    double A1; /* absolute */
+    double A2; /* absolute */
+    double B1; /* absolute */
+    double B2; /* absolute */
 
     int periodic;
     int kdtree_thresh;
