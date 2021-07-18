@@ -21,7 +21,6 @@ struct FastPMRFOFFinderPrivate {
     MPI_Comm comm;
     int Np[7];
     FastPMCosmology cosmology[1];
-    ptrdiff_t * ihalo;
 };
 
 void
@@ -88,21 +87,19 @@ _std_vdisp(double M, double Ez) {
     return pow(Ez * M / M0, 1 / 3.) * V0;
 }
 
-void
+ptrdiff_t *
 fastpm_rfof_execute(FastPMRFOFFinder * finder,
-    FastPMStore * halos,
-    ptrdiff_t ** ihalo, double z)
+    FastPMStore * halos, double z)
 {
     int i;
     double Ez = HubbleEa(1 / (z + 1), finder->priv->cosmology);
 
-    ptrdiff_t * icandidate;
     FastPMStore candidates[1];
 
     fastpm_fof_allocate_halos(halos, finder->p->np / 10, finder->p, finder->priv->boxsize != NULL, finder->priv->comm);
     halos->np = 0;
 
-    finder->priv->ihalo = fastpm_memory_alloc(finder->p->mem,
+    ptrdiff_t * ihalo = fastpm_memory_alloc(finder->p->mem,
                 "ihalo", sizeof(ptrdiff_t) * finder->p->np,
                 FASTPM_MEMORY_STACK);
 
@@ -128,7 +125,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
         fastpm_info("RFOF: FOF with linking length %g (Mpc/h), bin = %d, z= %0.3f, Np=%d", ll, i, z, finder->priv->Np[i]);
 
         fastpm_store_set_name(candidates, "candidates");
-        fastpm_fof_execute(&fof, ll, candidates, &icandidate, active);
+        ptrdiff_t * icandidate = fastpm_fof_execute(&fof, ll, candidates, active);
 
         FastPMParticleMaskType * save_mask = fastpm_memory_alloc(finder->p->mem,
                         "SaveMask",
@@ -168,7 +165,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
             if (icandidate[j] >= 0) {
                 /* already saved as a halo, remove particle from next iteration. */
                 active[j] = 0;
-                finder->priv->ihalo[j] = icandidate[j] + halos->np;
+                ihalo[j] = icandidate[j] + halos->np;
                 continue;
             }
             nactive ++;
@@ -178,22 +175,18 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
         fastpm_info("RFOF: remaining active particles = %td.", nactive);
 
         fastpm_memory_free(finder->p->mem, save_mask);
+        fastpm_memory_free(halos->mem, icandidate);
         fastpm_store_destroy(candidates);
     }
     fastpm_memory_free(finder->p->mem, active);
     fastpm_fof_destroy(&fof);
 
-    if(ihalo) {
-        *ihalo = finder->priv->ihalo;
-    } else {
-        fastpm_store_subsample(halos, halos->mask, halos);
-    }
+    return ihalo;
 }
 
 void
 fastpm_rfof_destroy(FastPMRFOFFinder * finder)
 {
-    fastpm_memory_free(finder->p->mem, finder->priv->ihalo);
     free(finder->priv);
 }
 

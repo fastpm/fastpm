@@ -70,9 +70,15 @@ int main(int argc, char * argv[]) {
     FastPMStore halos[1];
     FastPMStore halos_sub[1];
     fastpm_store_set_name(halos, "FOFHalos");
-    fastpm_fof_execute(&fof, linkinglength, halos, NULL, NULL);
+    ptrdiff_t * ihalo;
+    ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_store_subsample(halos, halos->mask, halos);
+
     fastpm_store_fill_subsample_mask(p, 0.1, p->mask, solver->comm);
-    fastpm_fof_execute(&fof, linkinglength, halos_sub, NULL, p->mask);
+    ihalo = fastpm_fof_execute(&fof, linkinglength, halos_sub, p->mask);
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_store_subsample(halos_sub, halos_sub->mask, halos_sub);
 
     char * snapshot = fastpm_strdup_printf("fof-%d", solver->NTask);
     fastpm_sort_snapshot(halos, solver->comm, FastPMSnapshotSortByLength, 0);

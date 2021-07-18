@@ -142,8 +142,9 @@ main(int argc, char * argv[])
     ENTER(fof);
 
     fastpm_store_set_name(halos, dataset);
-    fastpm_rfof_execute(&rfof, halos, NULL, z);
-
+    ptrdiff_t * ihalo = fastpm_rfof_execute(&rfof, halos, z);
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_store_subsample(halos, halos->mask, halos);
     LEAVE(fof);
 
     ENTER(sort);

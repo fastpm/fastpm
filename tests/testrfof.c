@@ -75,9 +75,11 @@ int main(int argc, char * argv[]) {
     fastpm_rfof_init(&rfof, solver->cosmology, p, solver->basepm);
 
     FastPMStore halos[1];
+    ptrdiff_t * ihalo;
     fastpm_store_set_name(halos, "RFOFHalos");
-    fastpm_rfof_execute(&rfof, halos, NULL, 0.0);
-
+    ihalo = fastpm_rfof_execute(&rfof, halos, 0.0);
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_store_subsample(halos, halos->mask, halos);
     char * snapshot = fastpm_strdup_printf("rfof-%d", solver->NTask);
     fastpm_sort_snapshot(halos, solver->comm, FastPMSnapshotSortByLength, 0);
     fastpm_store_write(halos, snapshot, "w", 1, solver->comm);
