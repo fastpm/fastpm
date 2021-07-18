@@ -75,7 +75,7 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr);
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr, void ** userdata, int periodic);
 
 static void
 run_usmesh_fof(FastPMSolver * fastpm,
@@ -1116,31 +1116,6 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
 }
 
 static void
-run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr)
-{
-    CLOCK(fof);
-
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_store_set_name(halos, dataset);
-    free(dataset);
-
-    ENTER(fof);
-    FastPMFOFFinder fof = {
-        .periodic = 1,
-        .nmin = CONF(prr->lua, fof_nmin),
-        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
-    };
-    /* convert from fraction of mean separation to simulation distance units. */
-    double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
-    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
-    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
-    fastpm_store_subsample(halos, halos->mask, halos);
-    fastpm_memory_free(halos->mem, ihalo);
-    fastpm_fof_destroy(&fof);
-    LEAVE(fof);
-}
-
-static void
 _halos_ready (
     FastPMStore * halos,
     FastPMStore * p,
@@ -1193,6 +1168,36 @@ _halos_ready (
 }
 
 
+
+static void
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr, void ** userdata, int periodic)
+{
+    CLOCK(fof);
+
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
+    ENTER(fof);
+    FastPMFOFFinder fof = {
+        .periodic = periodic,
+        .nmin = CONF(prr->lua, fof_nmin),
+        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
+    };
+    /* convert from fraction of mean separation to simulation distance units. */
+    double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
+    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
+    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+
+    if (userdata) {
+        _halos_ready(halos, snapshot, ihalo, userdata);
+    }
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_fof_destroy(&fof);
+    fastpm_store_subsample(halos, halos->mask, halos);
+    LEAVE(fof);
+}
+
 static void
 run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
@@ -1232,27 +1237,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
     userdata[3] = keep_for_tail;
     userdata[4] = &nmin;
 
-    ENTER(fof);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_store_set_name(halos, dataset);
-    free(dataset);
-
-    FastPMFOFFinder fof = {
-        .periodic = 0,
-        .nmin = nmin,
-        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
-    };
-
-    /* convert from fraction of mean separation to simulation distance units. */
-    double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
-    fastpm_fof_init(&fof, linkinglength, p, fastpm->pm);
-    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
-    _halos_ready(halos, p, ihalo, userdata);
-    fastpm_memory_free(halos->mem, ihalo);
-    fastpm_fof_destroy(&fof);
-    LEAVE(fof);
-
-    fastpm_store_subsample(halos, halos->mask, halos);
+    run_fof(fastpm, p, halos, prr, userdata, 0);
 
     uint64_t ntail = 0;
     for(i = 0; i < p->np; i ++) {
@@ -1283,7 +1268,7 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
     FastPMStore halos[1];
 
     if(CONF(prr->lua, write_fof)) {
-        run_fof(fastpm, cdm, halos, prr);
+        run_fof(fastpm, cdm, halos, prr, NULL, 1);
     }
 
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
