@@ -112,7 +112,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
 
     FastPMParticleMaskType * active = fastpm_memory_alloc(finder->p->mem,
                     "active",
-                    sizeof(active[0]) * finder->p->np,
+                    sizeof(active[0]) * finder->p->np_upper,
                     FASTPM_MEMORY_STACK);
 
     ptrdiff_t j;
