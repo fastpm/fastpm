@@ -35,11 +35,12 @@ fastpm_rfof_init(FastPMRFOFFinder * finder,
     FastPMStore * store,
     PM * pm);
 
-/* create a halo catalog from the heap. halos->name shall be set before this */
-void
+/* create a halo catalog from the heap. halos->name shall be set before this.
+ * follows conventions of fof_execute */
+ptrdiff_t *
 fastpm_rfof_execute(FastPMRFOFFinder * finder,
     FastPMStore * halos,
-    ptrdiff_t ** ihalo, double z);
+    double z);
 
 void
 fastpm_rfof_destroy(FastPMRFOFFinder * finder);

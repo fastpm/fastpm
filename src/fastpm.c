@@ -1120,25 +1120,24 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunD
 {
     CLOCK(fof);
 
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
+    ENTER(fof);
     FastPMFOFFinder fof = {
         .periodic = 1,
         .nmin = CONF(prr->lua, fof_nmin),
         .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
     };
-
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_store_set_name(halos, dataset);
-    free(dataset);
-
     /* convert from fraction of mean separation to simulation distance units. */
     double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
     fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
-
-    ENTER(fof);
-    fastpm_fof_execute(&fof, linkinglength, halos, NULL, NULL);
-    LEAVE(fof);
-
+    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    fastpm_store_subsample(halos, halos->mask, halos);
+    fastpm_memory_free(halos->mem, ihalo);
     fastpm_fof_destroy(&fof);
+    LEAVE(fof);
 }
 
 static void
@@ -1205,10 +1204,6 @@ run_usmesh_fof(FastPMSolver * fastpm,
     CLOCK(fof);
     CLOCK(sort);
 
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_store_set_name(halos, dataset);
-    free(dataset);
-
     double maxhalosize = CONF(prr->lua, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
     ptrdiff_t i;
@@ -1236,9 +1231,12 @@ run_usmesh_fof(FastPMSolver * fastpm,
     userdata[2] = lc;
     userdata[3] = keep_for_tail;
     userdata[4] = &nmin;
-    ptrdiff_t * ihalo;
 
     ENTER(fof);
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
     FastPMFOFFinder fof = {
         .periodic = 0,
         .nmin = nmin,
@@ -1248,11 +1246,11 @@ run_usmesh_fof(FastPMSolver * fastpm,
     /* convert from fraction of mean separation to simulation distance units. */
     double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
     fastpm_fof_init(&fof, linkinglength, p, fastpm->pm);
-    fastpm_fof_execute(&fof, linkinglength, halos, &ihalo, NULL);
+    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    _halos_ready(halos, p, ihalo, userdata);
+    fastpm_memory_free(halos->mem, ihalo);
     fastpm_fof_destroy(&fof);
     LEAVE(fof);
-
-    _halos_ready(halos, p, ihalo, userdata);
 
     fastpm_store_subsample(halos, halos->mask, halos);
 

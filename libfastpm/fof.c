@@ -20,7 +20,6 @@ struct FastPMFOFFinderPrivate {
     double * boxsize;
     MPI_Comm comm;
     PMGhostData * pgd;
-    ptrdiff_t * head;
     KDTree tree;
     KDNode * root;
 };
@@ -244,10 +243,6 @@ fastpm_fof_init(FastPMFOFFinder * finder, double max_linkinglength,
     pm_ghosts_send(pgd, COLUMN_ID);
 
     finder->priv->pgd = pgd;
-
-    size_t np_and_ghosts = p->np + pgd->p->np;
-    finder->priv->head = fastpm_memory_alloc(p->mem, "FOFHead",
-                    sizeof(finder->priv->head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
 
     #ifdef FASTPM_FOF_DEBUG
     fastpm_ilog(INFO, "Rank %d has %td particles including ghost\n", finder->priv->ThisTask, np_and_ghosts);
@@ -1037,17 +1032,19 @@ fastpm_fof_allocate_halos(FastPMStore * halos,
     }
 }
 
-void
+ptrdiff_t *
 fastpm_fof_execute(FastPMFOFFinder * finder,
     double linkinglength,
     FastPMStore * halos,
-    ptrdiff_t ** ihalo,
     FastPMParticleMaskType * active)
 {
     /* initial decompose -- reduce number of ghosts */
     FastPMStore * p = finder->p;
     PMGhostData * pgd = finder->priv->pgd;
-    ptrdiff_t * head = finder->priv->head;
+    size_t np_and_ghosts = p->np + pgd->p->np;
+    ptrdiff_t * head = fastpm_memory_alloc(p->mem, "FOFHead",
+                    sizeof(head[0]) * np_and_ghosts, FASTPM_MEMORY_STACK);
+
 
     FastPMParticleMaskType * old_mask = finder->p->mask;
     int use_mask;
@@ -1065,8 +1062,6 @@ fastpm_fof_execute(FastPMFOFFinder * finder,
     finder->priv->root = _create_kdtree(&finder->priv->tree,
                                         finder->kdtree_thresh,
                                         stores, 2, finder->priv->boxsize, use_mask);
-
-    size_t np_and_ghosts = p->np + pgd->p->np;
 
     FastPMStore savebuff[1];
     fastpm_store_init(savebuff, p->name, np_and_ghosts, COLUMN_MINID, FASTPM_MEMORY_STACK);
@@ -1111,30 +1106,24 @@ fastpm_fof_execute(FastPMFOFFinder * finder,
     /* reduce the primary halo attrs */
     fastpm_fof_compute_halo_attrs(finder, halos, head, _convert_extended_halo_attrs, _add_extended_halo_attrs, _reduce_extended_halo_attrs);
 
+    _free_kdtree(&finder->priv->tree, finder->priv->root);
+
+    /* restore mask */
+    finder->p->mask = old_mask;
+
     /* halos stores halos that spans to this rank, with duplication.
      * only those where mask==1 are primary
      * the others are ghosts with the correct properties but shall not show up in the
      * catalog.
      *
-     * halos[ihalo[i]] is the hosting halo of particle i, if ihalo[i] >= 0.
+     * halos[head[i]] is the hosting halo of particle i, if head[i] >= 0.
      * */
-    if (ihalo) {
-        /* return the full halo catalog. */
-        *ihalo = head;
-    } else {
-        fastpm_store_subsample(halos, halos->mask, halos);
-    }
-
-    _free_kdtree(&finder->priv->tree, finder->priv->root);
-
-    /* restore mask */
-    finder->p->mask = old_mask;
+    return head;
 }
 
 void
 fastpm_fof_destroy(FastPMFOFFinder * finder)
 {
-    fastpm_memory_free(finder->p->mem, finder->priv->head);
     pm_ghosts_free(finder->priv->pgd);
     free(finder->priv);
 }

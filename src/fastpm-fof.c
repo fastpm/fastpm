@@ -128,7 +128,9 @@ main(int argc, char * argv[])
     ENTER(fof);
 
     fastpm_store_set_name(halos, dataset);
-    fastpm_fof_execute(&fof, linkinglength, halos, NULL, NULL);
+    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_store_subsample(halos, halos->mask, halos);
 
     LEAVE(fof);
 
