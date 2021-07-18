@@ -271,10 +271,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     fastpm_solver_init(fastpm, config, comm);
 
-    const double M0 = fastpm->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
-                    * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
-    fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
-
     fastpm_info("BaseProcMesh : %d x %d\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
 
@@ -709,13 +705,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    /* set the mass */
-    double BoxSize = fastpm->config->boxsize;
-    uint64_t NC = fastpm->config->nc;
-    double Omega_cdm = fastpm->cosmology->Omega_cdm;
-    double M0 = Omega_cdm * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
-    fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->meta.M0 = M0;
-
+    /* setup_lpt also sets the mass and initial location. */
     fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, growth_rate_func_k, CONF(prr->lua, time_step)[0]);
 
     if (growth_rate_func_k)
