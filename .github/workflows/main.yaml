@@ -44,10 +44,11 @@ jobs:
       with:
         name: binaries
         path: |
-          ./*/src/fastpm
-          ./*/src/fastpm-lua
-          ./*/src/fastpm-fof
-          ./*/src/fastpm-rfof
+          ./src/fastpm
+          ./src/fastpm-lua
+          ./src/fastpm-fof
+          ./src/fastpm-rfof
+          ./Makefile.local
         retention-days: 5
 
   unit-tests:
