@@ -46,7 +46,7 @@ _kdtree_buffered_malloc(void * userdata, size_t size)
     if(buffer->base == NULL || buffer->ptr + size >= buffer->end) {
         struct KDTreeNodeBuffer * newbuffer = malloc(sizeof(newbuffer[0]));
         newbuffer->mem = buffer->mem;
-        size_t newsize = 1024 * 1024 * 4; /* 4 MB for each block */
+        size_t newsize = 1024 * 1024 * 32; /* 32 MB for each block */
         if(newsize < size) {
             newsize = size;
         }
