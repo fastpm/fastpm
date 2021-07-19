@@ -904,19 +904,20 @@ _fastpm_store_copy(FastPMStore * p, ptrdiff_t start, FastPMStore * po, ptrdiff_t
 
     }
     po->np = offset + ncopy;
-    po->meta = p->meta;
 }
 
 void
 fastpm_store_copy(FastPMStore * p, FastPMStore * po)
 {
     _fastpm_store_copy(p, 0, po, 0, p->np);
+    po->meta = p->meta;
 }
 
 void
 fastpm_store_take(FastPMStore * p, ptrdiff_t i, FastPMStore * po, ptrdiff_t j)
 {
     _fastpm_store_copy(p, i, po, j, 1);
+    po->meta = p->meta;
 }
 
 /* extends p by extra. */
