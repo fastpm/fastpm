@@ -20,16 +20,7 @@ jobs:
 
     steps:
     - name: Checkout source code
-      uses: actions/checkout@v2
-
-    - name: Install dependendencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install \
-          libopenmpi-dev \
-          openmpi-bin \
-          libgsl0-dev \
-          elfutils
+      uses: ./.github/actions/get-source-and-deps-ubuntu
 
     - name: Cache depends/
       uses: actions/cache@v2
@@ -45,11 +36,6 @@ jobs:
         cp Makefile.travis Makefile.local
         make
 
-    - name: Basic tests
-      run: |
-        cd tests
-        bash runtests.sh
-
     - name: Upload binaries
       uses: actions/upload-artifact@v2
       with:
@@ -60,6 +46,31 @@ jobs:
           src/fastpm-fof
           src/fastpm-rfof
         retention-days: 5
+
+  unit-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      OMPI_MCA_rmaps_base_no_oversubscribe: 0
+      OMPI_MCA_rmaps_base_oversubscribe: 1
+      OMPI_MCA_mpi_yield_when_idle: 1
+      OMPI_MCA_mpi_show_mca_params: 1
+
+    steps:
+    - name: Checkout source code
+      uses: ./.github/actions/get-source-and-deps-ubuntu
+
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: binaries
+
+    - name: Basic tests
+      run: |
+        cd tests
+        bash runtests.sh
+
 
   test-static:
     needs: build
@@ -72,6 +83,9 @@ jobs:
       OMPI_MCA_mpi_show_mca_params: 1
 
     steps:
+    - name: Checkout source code
+      uses: ./.github/actions/get-source-and-deps-ubuntu
+
     - name: Download binaries
       uses: actions/download-artifact@v2
       with:
@@ -100,6 +114,9 @@ jobs:
       OMPI_MCA_mpi_show_mca_params: 1
 
     steps:
+    - name: Checkout source code
+      uses: ./.github/actions/get-source-and-deps-ubuntu
+
     - name: Download binaries
       uses: actions/download-artifact@v2
       with:
@@ -123,6 +140,10 @@ jobs:
       OMPI_MCA_mpi_show_mca_params: 1
 
     steps:
+
+    - name: Checkout source code
+      uses: ./.github/actions/get-source-and-deps-ubuntu
+
     - name: Download binaries
       uses: actions/download-artifact@v2
       with:
