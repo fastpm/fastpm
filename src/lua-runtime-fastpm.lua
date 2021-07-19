@@ -215,7 +215,7 @@ schema.declare{name='fof_linkinglength',      type='number', default=0.2, help='
 schema.declare{name='fof_nmin',      type='number', default=20, help='threshold for making into the FOF catalog.'}
 schema.declare{name='fof_kdtree_thresh',      type='number', default=8, help='threshold for spliting a kdtree node. KDTree is used in fof. smaller uses more memory but fof runs faster.'}
 
-schema.declare{name='rfof',      type='boolean', default=false, help='run relaxed FOF instead of a regular fof; defualts are fitted for Illustris sep=0.3 Mpc/h, 40 steps.'}
+schema.declare{name='write_rfof',      type='string', help='path to save the RFOF dataset; parameter defualts are fitted for Illustris sep=0.3 Mpc/h, 40 steps.'}
 schema.declare{name='rfof_kdtree_thresh',      type='number', default=1, help='threshold for splitting a kdtree node. (Currently must be 1 due to a kdtree bug.)'}
 schema.declare{name='rfof_linkinglength',      type='number', default=0.2, help='base linking length (0.2 in eq 2.4)'}
 schema.declare{name='rfof_nmin',      type='number', default=8, help='threshold for making into the R-FOF catalog.'}
