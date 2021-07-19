@@ -488,6 +488,9 @@ fastpm_usmesh_emit(FastPMUSMesh * mesh, int whence)
     lcevent->ai = mesh->ai;
     lcevent->af = mesh->af;
     lcevent->whence = whence;
+    /* average redshift used by rfof */
+    lcevent->p->meta.a_x = (mesh->ai + mesh->af) * 0.5;
+    lcevent->p->meta.a_v = (mesh->ai + mesh->af) * 0.5;
 
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
