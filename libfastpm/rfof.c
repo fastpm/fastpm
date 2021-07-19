@@ -100,7 +100,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
     halos->np = 0;
 
     ptrdiff_t * ihalo = fastpm_memory_alloc(finder->p->mem,
-                "ihalo", sizeof(ptrdiff_t) * finder->p->np,
+                "ihalo", sizeof(ptrdiff_t) * finder->p->np_upper,
                 FASTPM_MEMORY_STACK);
 
     FastPMFOFFinder fof = {
@@ -118,6 +118,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
     ptrdiff_t j;
     for(j = 0; j < finder->p->np; j++) {
         active[j] = 1;
+        ihalo[j] = -1;
     }
 
     for(i = 1; i <= 6; i ++) {
