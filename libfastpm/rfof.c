@@ -93,7 +93,7 @@ fastpm_rfof_execute(FastPMRFOFFinder * finder,
 {
     int i;
     double Ez = HubbleEa(1 / (z + 1), finder->priv->cosmology);
-
+    fastpm_info("z=%g Ez = %g", z, Ez);
     FastPMStore candidates[1];
 
     fastpm_fof_allocate_halos(halos, finder->p->np / 10, finder->p, finder->priv->boxsize != NULL, finder->priv->comm);

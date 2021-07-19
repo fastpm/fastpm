@@ -134,7 +134,7 @@ main(int argc, char * argv[])
     FastPMCosmology cosmology[1] = {{0}};
 
     prepare_cosmology(cosmology, lua);
-
+    fastpm_cosmology_init(cosmology);
     fastpm_rfof_init(&rfof, cosmology, source, basepm);
 
     FastPMStore halos[1];
