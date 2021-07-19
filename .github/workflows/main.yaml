@@ -48,6 +48,7 @@ jobs:
           ./src/fastpm-lua
           ./src/fastpm-fof
           ./src/fastpm-rfof
+          ./tests/*
           ./Makefile.local
         retention-days: 5
 
@@ -76,7 +77,9 @@ jobs:
 
     - name: Basic tests
       run: |
+        ls -l
         cd tests
+        ls -l ../src/
         bash runtests.sh
 
 
