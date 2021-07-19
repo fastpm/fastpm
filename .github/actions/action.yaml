@@ -1,11 +1,8 @@
-name: get-source-and-deps-ubuntu
+name: install-deps-ubuntu
 description: 'get source code and install deps'
 runs:
   using: "composite"
   steps:
-    - name: Checkout source code
-      uses: actions/checkout@v2
-
     - name: Install dependendencies
       run: |
         sudo apt-get update
