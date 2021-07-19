@@ -18,11 +18,7 @@ jobs:
       OMPI_MCA_mpi_yield_when_idle: 1
       OMPI_MCA_mpi_show_mca_params: 1
 
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
-
     - name: Checkout source code
       uses: actions/checkout@v2
 
@@ -54,6 +50,33 @@ jobs:
         cd tests
         bash runtests.sh
 
+    - name: Upload binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: binaries
+        path: |
+          src/fastpm
+          src/fastpm-lua
+          src/fastpm-fof
+          src/fastpm-rfof
+        retention-days: 5
+
+  test-static:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      OMPI_MCA_rmaps_base_no_oversubscribe: 0
+      OMPI_MCA_rmaps_base_oversubscribe: 1
+      OMPI_MCA_mpi_yield_when_idle: 1
+      OMPI_MCA_mpi_show_mca_params: 1
+
+    steps:
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: binaries
+
     - name: Test nbodykit.lua
       run: |
         cd tests
@@ -61,14 +84,61 @@ jobs:
         bash run-test-nbodykit-ODE.sh
         bash run-test-nbodykit-wCDM.sh
 
+    - name: Test rfof.lua
+      run: |
+        cd tests
+        bash run-test-rfof.sh
+
+  test-lightcone:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      OMPI_MCA_rmaps_base_no_oversubscribe: 0
+      OMPI_MCA_rmaps_base_oversubscribe: 1
+      OMPI_MCA_mpi_yield_when_idle: 1
+      OMPI_MCA_mpi_show_mca_params: 1
+
+    steps:
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: binaries
+
     - name: Test lightcone.lua
       run: |
         cd tests
         bash run-test-lightcone.sh
         bash run-test-lightcone-ODE.sh
+        bash run-test-lightcone-rfof.sh
+
+  test-restarts:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      OMPI_MCA_rmaps_base_no_oversubscribe: 0
+      OMPI_MCA_rmaps_base_oversubscribe: 1
+      OMPI_MCA_mpi_yield_when_idle: 1
+      OMPI_MCA_mpi_show_mca_params: 1
+
+    steps:
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: binaries
 
     - name: Test restart.lua
       run: |
         cd tests
         bash run-test-restart.sh
+
+    - name: Test fastpm-fof
+      run: |
+        cd tests
         bash run-test-offline-fof.sh
+
+    - name: Test fastpm-rfof
+      run: |
+        cd tests
+        bash run-test-offline-rfof.sh
