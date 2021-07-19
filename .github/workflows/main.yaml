@@ -75,11 +75,13 @@ jobs:
       with:
         name: binaries
 
+    - name: Fix Permissions
+      run: |
+        chmod +x src/* tests/*
+
     - name: Basic tests
       run: |
-        ls -l
         cd tests
-        ls -l ../src/
         bash runtests.sh
 
 
@@ -104,6 +106,10 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: binaries
+
+    - name: Fix Permissions
+      run: |
+        chmod +x src/* tests/*
 
     - name: Test nbodykit.lua
       run: |
@@ -139,6 +145,10 @@ jobs:
       with:
         name: binaries
 
+    - name: Fix Permissions
+      run: |
+        chmod +x src/* tests/*
+
     - name: Test lightcone.lua
       run: |
         cd tests
@@ -168,6 +178,10 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: binaries
+
+    - name: Fix Permissions
+      run: |
+        chmod +x src/* tests/*
 
     - name: Test restart.lua
       run: |
