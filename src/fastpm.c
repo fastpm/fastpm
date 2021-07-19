@@ -17,12 +17,14 @@
 #include <fastpm/constrainedgaussian.h>
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
+#include <fastpm/rfof.h>
 #include <bigfile-mpi.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 #include "lua-config.h"
 #include "param.h"
+#include "prepare.h"
 
 /* c99 has no pi. */
 #ifndef M_PI
@@ -74,7 +76,10 @@ int
 read_powerspectrum(FastPMPowerSpectrum *ps, const char filename[], const double sigma8, MPI_Comm comm);
 
 static void
-run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr);
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr, void ** userdata, int periodic);
+
+static void
+run_rfof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr, void ** userdata, int periodic);
 
 static void
 run_usmesh_fof(FastPMSolver * fastpm,
@@ -82,7 +87,8 @@ run_usmesh_fof(FastPMSolver * fastpm,
         FastPMStore * halos,
         RunData * prr,
         FastPMStore * tail,
-        FastPMLightCone * lc);
+        FastPMLightCone * lc,
+        void * which);
 
 static void
 write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI_Comm comm)
@@ -106,8 +112,6 @@ write_parameters(const char * filebase, const char * dataset, RunData * prr, MPI
 
 }
 
-static void
-prepare_cosmology(FastPMCosmology * c, RunData * prr);
 
 int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm);
 
@@ -174,7 +178,7 @@ int main(int argc, char ** argv) {
 
     FastPMCosmology cosmology[1] = {{0}};
 
-    prepare_cosmology(cosmology, prr);
+    prepare_cosmology(cosmology, prr->lua);
 
     FastPMConfig * config = & (FastPMConfig) {
         .nc = CONF(prr->lua, nc),
@@ -270,10 +274,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     ENTER(init);
 
     fastpm_solver_init(fastpm, config, comm);
-
-    const double M0 = fastpm->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
-                    * pow(CONF(prr->lua, boxsize) / CONF(prr->lua, nc), 3.0);
-    fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
 
     fastpm_info("BaseProcMesh : %d x %d\n",
             pm_nproc(fastpm->basepm)[0], pm_nproc(fastpm->basepm)[1]);
@@ -384,27 +384,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     fastpm_clock_stat(comm);
 
     return 0;
-}
-
-static void
-prepare_cosmology(FastPMCosmology * c, RunData * prr) {
-    c->h = CONF(prr->lua, h);
-    c->Omega_m = CONF(prr->lua, Omega_m);
-    c->T_cmb = CONF(prr->lua, T_cmb);
-    c->Omega_k = CONF(prr->lua, Omega_k);
-    c->w0 = CONF(prr->lua, w0);
-    c->wa = CONF(prr->lua, wa);
-    c->N_eff = CONF(prr->lua, N_eff);
-    c->N_nu = CONF(prr->lua, N_nu);
-    c->N_ncdm = CONF(prr->lua, n_m_ncdm);
-    c->ncdm_matterlike = CONF(prr->lua, ncdm_matterlike);
-    c->ncdm_freestreaming = CONF(prr->lua, ncdm_freestreaming);
-    c->growth_mode = CONF(prr->lua, growth_mode);
-
-    int i;
-    for(i = 0; i < CONF(prr->lua, n_m_ncdm); i ++) {
-        c->m_ncdm[i] = CONF(prr->lua, m_ncdm)[i];
-    }
 }
 
 static void
@@ -709,13 +688,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
         fastpm_powerspectrum_destroy(&ps);
     }
 
-    /* set the mass */
-    double BoxSize = fastpm->config->boxsize;
-    uint64_t NC = fastpm->config->nc;
-    double Omega_cdm = fastpm->cosmology->Omega_cdm;
-    double M0 = Omega_cdm * FASTPM_CRITICAL_DENSITY * (BoxSize / NC) * (BoxSize / NC) * (BoxSize / NC);
-    fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->meta.M0 = M0;
-
+    /* setup_lpt also sets the mass and initial location. */
     fastpm_solver_setup_lpt(fastpm, FASTPM_SPECIES_CDM, delta_k, growth_rate_func_k, CONF(prr->lua, time_step)[0]);
 
     if (growth_rate_func_k)
@@ -1006,6 +979,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     FastPMStore * tail = data->tail;
 
     FastPMStore halos[1];
+    FastPMStore rhalos[1];
 
     int64_t np = lcevent->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np, 1, MPI_LONG, MPI_SUM, fastpm->comm);
@@ -1020,7 +994,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
 
     if(CONF(prr->lua, write_fof)) {
-        run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc);
+        run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc, run_fof);
+    }
+    if(CONF(prr->lua, write_rfof)) {
+        run_usmesh_fof(fastpm, lcevent, rhalos, prr, tail, mesh->lc, run_rfof);
     }
 
     /* subsample, this will remove the tail particles that were appended. */
@@ -1037,6 +1014,9 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
     if(CONF(prr->lua, write_fof)) {
         fastpm_store_histogram_aemit_sorted(halos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
+    }
+    if(CONF(prr->lua, write_rfof)) {
+        fastpm_store_histogram_aemit_sorted(rhalos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
     }
     LEAVE(indexing);
 
@@ -1069,7 +1049,19 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         free(dataset_attrs);
         fastpm_store_destroy(halos);
     }
+    if(CONF(prr->lua, write_rfof)) {
+        if(lcevent->whence == TIMESTEP_START) {
+            /* usmesh fof is always written after the subsample snapshot; no need to create a header */
+            fastpm_store_write(rhalos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
+        } else {
+            fastpm_store_write(rhalos, filebase, "a", prr->cli->Nwriters, fastpm->comm);
+        }
 
+        char * dataset_attrs = fastpm_strdup_printf("%s/.", rhalos->name);
+        write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
+        free(dataset_attrs);
+        fastpm_store_destroy(rhalos);
+    }
     LEAVE(io);
     free(filebase);
 }
@@ -1148,41 +1140,17 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
 }
 
 static void
-run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr)
-{
-    CLOCK(fof);
-
-    FastPMFOFFinder fof = {
-        /* convert from fraction of mean separation to simulation distance units. */
-        .linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc),
-        .periodic = 1,
-        .nmin = CONF(prr->lua, fof_nmin),
-        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
-    };
-
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_store_set_name(halos, dataset);
-    free(dataset);
-
-    fastpm_fof_init(&fof, snapshot, fastpm->pm);
-
-    ENTER(fof);
-    fastpm_fof_execute(&fof, halos);
-    LEAVE(fof);
-
-    fastpm_fof_destroy(&fof);
-}
-
-static void
-_halos_ready (FastPMFOFFinder * finder,
-    FastPMHaloEvent * event, void ** userdata)
+_halos_ready (
+    FastPMStore * halos,
+    FastPMStore * p,
+    ptrdiff_t * ihalo,
+    void ** userdata)
 {
     double rmin = *((double*) userdata[0]);
     double halosize = *((double*) userdata[1]);
     FastPMLightCone * lc = (FastPMLightCone*) userdata[2];
     FastPMParticleMaskType * keep_for_tail = (FastPMParticleMaskType *) userdata[3];
-    FastPMStore * halos = event->halos;
-    FastPMStore * p = event->p;
+    int nmin = *((int*) userdata[4]);
 
     ptrdiff_t i;
 
@@ -1192,7 +1160,7 @@ _halos_ready (FastPMFOFFinder * finder,
         double r = fastpm_lc_distance(lc, halos->x[i]);
 
         /* this shall not happen */
-        if (halos->length[i] < finder->nmin) abort();
+        if (halos->length[i] < nmin) abort();
 
         /* only keep reliable halos */
         if(r > rmin + halosize * 0.5) {
@@ -1204,7 +1172,7 @@ _halos_ready (FastPMFOFFinder * finder,
     }
 
     for(i = 0; i < p->np; i ++) {
-        ptrdiff_t hid = event->ihalo[i];
+        ptrdiff_t hid = ihalo[i];
         double r_p = fastpm_lc_distance(lc, p->x[i]);
         if (r_p > rmin + halosize) {
             /* not near the tail of the lightcone, do not keep for tail */
@@ -1224,20 +1192,87 @@ _halos_ready (FastPMFOFFinder * finder,
 }
 
 
+
+static void
+run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr, void ** userdata, int periodic)
+{
+    CLOCK(fof);
+
+    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
+    ENTER(fof);
+    FastPMFOFFinder fof = {
+        .periodic = periodic,
+        .nmin = CONF(prr->lua, fof_nmin),
+        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
+    };
+    /* convert from fraction of mean separation to simulation distance units. */
+    double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
+    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
+    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+
+    if (userdata) {
+        _halos_ready(halos, snapshot, ihalo, userdata);
+    }
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_fof_destroy(&fof);
+    fastpm_store_subsample(halos, halos->mask, halos);
+    LEAVE(fof);
+}
+
+static void
+run_rfof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunData * prr, void ** userdata, int periodic)
+{
+    CLOCK(fof);
+
+    char * dataset = fastpm_strdup_printf("RFOF");
+    fastpm_store_set_name(halos, dataset);
+    free(dataset);
+
+    ENTER(fof);
+
+    /* convert from fraction of mean separation to simulation distance units. */
+    double sep =  CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
+    FastPMRFOFFinder rfof = {
+        .periodic = periodic,
+        .nmin = CONF(prr->lua, rfof_nmin),
+        .kdtree_thresh = CONF(prr->lua, rfof_kdtree_thresh),
+        .linkinglength = CONF(prr->lua, rfof_linkinglength) * sep,
+        .l1 = CONF(prr->lua, rfof_l1) * sep,
+        .l6 = CONF(prr->lua, rfof_l6) * sep,
+        .A1 = CONF(prr->lua, rfof_a1) * sep,
+        .A2 = CONF(prr->lua, rfof_a2) * sep,
+        .B1 = CONF(prr->lua, rfof_b1) * sep,
+        .B2 = CONF(prr->lua, rfof_b2) * sep,
+    };
+    fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->pm);
+    /* Use the average redshift -- this is bad if the slices are large! */
+    double z = 1. / snapshot->meta.a_x - 1;
+    fastpm_info("z = %g\n", z);
+    ptrdiff_t * ihalo = fastpm_rfof_execute(&rfof, halos, z);
+
+    if (userdata) {
+        _halos_ready(halos, snapshot, ihalo, userdata);
+    }
+    fastpm_memory_free(halos->mem, ihalo);
+    fastpm_rfof_destroy(&rfof);
+    fastpm_store_subsample(halos, halos->mask, halos);
+    LEAVE(fof);
+}
+
 static void
 run_usmesh_fof(FastPMSolver * fastpm,
         FastPMLCEvent * lcevent,
         FastPMStore * halos,
         RunData * prr,
         FastPMStore * tail,
-        FastPMLightCone * lc)
+        FastPMLightCone * lc,
+        void * which)
 {
     CLOCK(fof);
     CLOCK(sort);
-
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", CONF(prr->lua, fof_linkinglength));
-    fastpm_store_set_name(halos, dataset);
-    free(dataset);
 
     double maxhalosize = CONF(prr->lua, lc_usmesh_fof_padding); /* MPC/h, used to cut along z direction. */
     FastPMStore * p = lcevent->p;
@@ -1250,45 +1285,33 @@ run_usmesh_fof(FastPMSolver * fastpm,
     for(i = 0; i < tail->np; i ++) {
         tail->mask[i] = 0;
     }
+    fastpm_info("1 Running usmesh fof/rfof near a = %5.3f", lcevent->p->meta.a_x);
     fastpm_store_extend(lcevent->p, tail);
     fastpm_store_destroy(tail);
+    fastpm_info("2 Running usmesh fof/rfof near a = %5.3f", lcevent->p->meta.a_x);
 
     /* FIXME: register event to mask out particles*/
     FastPMParticleMaskType * keep_for_tail = fastpm_memory_alloc(p->mem, "keep",
                                     sizeof(keep_for_tail[0]) * lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
 
-    ENTER(fof);
-
-    FastPMFOFFinder fof = {
-        /* convert from fraction of mean separation to simulation distance units. */
-        .linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc),
-        .periodic = 0,
-        .nmin = CONF(prr->lua, fof_nmin),
-        .kdtree_thresh = CONF(prr->lua, fof_kdtree_thresh),
-    };
-
-    fastpm_fof_init(&fof, p, fastpm->pm);
-
+    /* FIXME: clean this up! halos_ready is converted from an event handler. */
     double rmin = lc->speedfactor * HorizonDistance(lcevent->af, lc->horizon);
+    int nmin;
 
     void * userdata[5];
     userdata[0] = & rmin;
     userdata[1] = & maxhalosize;
     userdata[2] = lc;
     userdata[3] = keep_for_tail;
+    userdata[4] = &nmin;
 
-    fastpm_add_event_handler(&fof.event_handlers,
-        FASTPM_EVENT_HALO,
-        FASTPM_EVENT_STAGE_AFTER,
-        (FastPMEventHandlerFunction) _halos_ready,
-        userdata);
-
-    ENTER(fof);
-    fastpm_fof_execute(&fof, halos);
-    LEAVE(fof);
-
-    fastpm_fof_destroy(&fof);
-
+    if (CONF(prr->lua, write_rfof)) {
+        nmin = CONF(prr->lua, rfof_nmin);
+        run_rfof(fastpm, p, halos, prr, userdata, 0);
+    } else {
+        nmin = CONF(prr->lua, fof_nmin);
+        run_fof(fastpm, p, halos, prr, userdata, 0);
+    }
     uint64_t ntail = 0;
     for(i = 0; i < p->np; i ++) {
         if(keep_for_tail[i]) ntail ++;
@@ -1316,11 +1339,14 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
     CLOCK(sort);
 
     FastPMStore halos[1];
+    FastPMStore rhalos[1];
 
     if(CONF(prr->lua, write_fof)) {
-        run_fof(fastpm, cdm, halos, prr);
+        run_fof(fastpm, cdm, halos, prr, NULL, 1);
     }
-
+    if(CONF(prr->lua, write_rfof)) {
+        run_rfof(fastpm, cdm, rhalos, prr, NULL, 1);
+    }
     /* do this before write_snapshot, because white_snapshot messes up with the domain decomposition. */
     if(CONF(prr->lua, write_nonlineark)) {
         char * filename = fastpm_strdup_printf("%s_%0.04f", CONF(prr->lua, write_nonlineark), aout);
@@ -1405,6 +1431,27 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
         fastpm_info("fof %s [%s] written at z = %6.4f a = %6.4f \n", filebase, halos->name, z_out, aout);
 
         fastpm_store_destroy(halos);
+    }
+    if(CONF(prr->lua, write_rfof)) {
+        char filebase[1024];
+        sprintf(filebase, "%s_%0.04f", CONF(prr->lua, write_rfof), aout);
+
+        ENTER(sort);
+        fastpm_sort_snapshot(rhalos, fastpm->comm, FastPMSnapshotSortByLength, 0);
+        LEAVE(sort);
+
+        ENTER(io);
+        /* over write the header of write_fof and write_snapshot are the same */
+        write_snapshot_header(fastpm, filebase, fastpm->comm);
+        write_parameters(filebase, "Header", prr, fastpm->comm);
+
+        fastpm_store_write(rhalos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
+
+        LEAVE(io);
+
+        fastpm_info("fof %s [%s] written at z = %6.4f a = %6.4f \n", filebase, rhalos->name, z_out, aout);
+
+        fastpm_store_destroy(rhalos);
     }
 
     if(CONF(prr->lua, write_runpb_snapshot)) {

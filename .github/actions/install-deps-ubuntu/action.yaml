@@ -1,0 +1,14 @@
+name: install-deps-ubuntu
+description: 'get source code and install deps'
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependendencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install \
+          libopenmpi-dev \
+          openmpi-bin \
+          libgsl0-dev \
+          elfutils

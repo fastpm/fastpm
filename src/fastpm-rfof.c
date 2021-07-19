@@ -16,11 +16,13 @@
 #include <fastpm/string.h>
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
+#include <fastpm/rfof.h>
 #include <bigfile.h>
 #include <bigfile-mpi.h>
 
 #include "lua-config.h"
 #include "param.h"
+#include "prepare.h"
 
 extern void
 init_stacktrace();
@@ -76,13 +78,13 @@ main(int argc, char * argv[])
 
     CLIParameters * cli = parse_cli_args_mpi(argc, argv, comm);
     if(cli->argc < 2) {
-        fastpm_raise(-1, "Must supply a snapshot file name and a linking length\n");
+        fastpm_raise(-1, "Must supply a snapshot file name and a linking length scaling factor.\n");
     }
     char * filebase = cli->argv[0];
-    double b = atof(cli->argv[1]);
-    char * dataset = fastpm_strdup_printf("LL-%05.3f", b);
+    double scale = atof(cli->argv[1]);
+    char * dataset = fastpm_strdup_printf("RFOF-%05.3f", scale);
 
-    fastpm_info("Running FOF on %s; writing to %s\n", filebase, dataset);
+    fastpm_info("Running RFOF on %s; writing to %s\n", filebase, dataset);
     LUAParameters * lua = read_lua_parameters_mpi(filebase, &error, comm);
 
     if(lua) {
@@ -109,29 +111,40 @@ main(int argc, char * argv[])
     fastpm_store_write(source, filebase, "r", cli->Nwriters, comm);
 
     /* convert from fraction of mean separation to simulation distance units. */
-    double linkinglength = b * CONF(lua, boxsize) / CONF(lua, nc);
+    double sep = CONF(lua, boxsize) / CONF(lua, nc);
+    double z = 1. / source->meta.a_x - 1.;
 
     CLOCK(fof);
     CLOCK(io);
     CLOCK(sort);
     ENTER(fof);
-    FastPMFOFFinder fof = {
+    FastPMRFOFFinder rfof = {
         .periodic = 1,
-        .nmin = CONF(lua, fof_nmin),
-        .kdtree_thresh = CONF(lua, fof_kdtree_thresh),
+        .nmin = CONF(lua, rfof_nmin),
+        .kdtree_thresh = CONF(lua, rfof_kdtree_thresh),
+        .linkinglength = CONF(lua, rfof_linkinglength) * sep * scale,
+        .l1 = CONF(lua, rfof_l1) * sep * scale,
+        .l6 = CONF(lua, rfof_l6) * sep * scale,
+        .A1 = CONF(lua, rfof_a1) * sep * scale,
+        .A2 = CONF(lua, rfof_a2) * sep * scale,
+        .B1 = CONF(lua, rfof_b1) * sep * scale,
+        .B2 = CONF(lua, rfof_b2) * sep * scale,
     };
 
-    fastpm_fof_init(&fof, linkinglength, source, basepm);
+    FastPMCosmology cosmology[1] = {{0}};
+
+    prepare_cosmology(cosmology, lua);
+    fastpm_cosmology_init(cosmology);
+    fastpm_rfof_init(&rfof, cosmology, source, basepm);
 
     FastPMStore halos[1];
 
     ENTER(fof);
 
     fastpm_store_set_name(halos, dataset);
-    ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
+    ptrdiff_t * ihalo = fastpm_rfof_execute(&rfof, halos, z);
     fastpm_memory_free(halos->mem, ihalo);
     fastpm_store_subsample(halos, halos->mask, halos);
-
     LEAVE(fof);
 
     ENTER(sort);
@@ -144,7 +157,7 @@ main(int argc, char * argv[])
     LEAVE(io);
 
     fastpm_store_destroy(halos);
-    fastpm_fof_destroy(&fof);
+    fastpm_rfof_destroy(&rfof);
     free_lua_parameters(lua);
     free_cli_parameters(cli);
 

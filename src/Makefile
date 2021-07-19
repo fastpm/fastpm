@@ -9,10 +9,11 @@ LDFLAGS += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 CPPFLAGS += -I../api/ -I../lua/ -I../depends/install/include
 LUA ?= ../lua/lua
 
-FASTPM_SOURCES = fastpm.c param-mpi.c param.c lua-main.c lua-runtime.c runpb.c readgrafic.c lua-config.c stacktrace.c
+FASTPM_SOURCES = fastpm.c param-mpi.c param.c prepare.c lua-main.c lua-runtime.c runpb.c readgrafic.c lua-config.c stacktrace.c
 FASTPM_LUA_SOURCES = fastpm-lua.c param.c lua-main.c lua-runtime.c lua-config.c
 
 FASTPM_FOF_SOURCES = fastpm-fof.c param-mpi.c param.c lua-main.c lua-runtime.c lua-config.c stacktrace.c
+FASTPM_RFOF_SOURCES = fastpm-rfof.c param-mpi.c param.c prepare.c lua-main.c lua-runtime.c lua-config.c stacktrace.c
 
 SOURCES = $(FASTPM_SOURCES) $(TEST_SOURCES)
 .PHONY: all
@@ -26,6 +27,7 @@ LIBFASTPM_LIBS = ../libfastpmio/libfastpm-io.a ../libfastpm/libfastpm.a ../depen
 
 all: fastpm-lua \
      fastpm-fof \
+     fastpm-rfof \
      fastpm
 
 fastpm-lua: $(FASTPM_LUA_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS)
@@ -35,6 +37,9 @@ fastpm: $(FASTPM_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ $(LDFLAGS) $(GSL_LIBS) -lm
 
 fastpm-fof: $(FASTPM_FOF_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS)
+	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ $(LDFLAGS) $(GSL_LIBS) -lm
+
+fastpm-rfof: $(FASTPM_RFOF_SOURCES:%.c=.objs/%.o) ../lua/liblua.a $(LIBFASTPM_LIBS)
 	$(CC) $(OPTIMIZE) $(OPENMP) -o $@ $^ $(LDFLAGS) $(GSL_LIBS) -lm
 
 -include $(SOURCES:%.c=.deps/%.d)

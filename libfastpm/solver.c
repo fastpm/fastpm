@@ -121,7 +121,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
     }
 
     PMInit lptpminit = {
-            .Nmesh = (int)(config->nc * config->lpt_nc_factor),
+            .Nmesh = (int)(config->nc * (config->lpt_nc_factor?config->lpt_nc_factor:1)),
             .BoxSize = config->boxsize,
             .NprocY = config->NprocY, /* 0 for auto, 1 for slabs */
             .transposed = 0, /* use untransposed to make sure we see all kz on a rank; this speeds up IC */
@@ -166,6 +166,13 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
 
     PM * pm = fastpm->pm;
     FastPMConfig * config = fastpm->config;
+
+    if(species == FASTPM_SPECIES_CDM) {
+        const double M0 = fastpm->cosmology->Omega_cdm * FASTPM_CRITICAL_DENSITY
+                        * pow(config->boxsize / config->nc, 3.0);
+        fastpm_info("mass of a CDM particle is %g 1e10 Msun/h\n", M0);
+        p->meta.M0 = M0;
+    }
 
     int temp_dx1 = 0;
     int temp_dx2 = 0;
