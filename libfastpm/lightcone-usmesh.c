@@ -539,7 +539,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
 
         int steps = (int) ((volume / mesh->target_volume) + 0.5);
         if(steps == 0) steps = 1;
-        double da = (a1 - a2) / steps;
+        double da = (a2 - a1) / steps;
 
         for(int i = 0; i < steps; i ++) {
             double ai = a1 + da * i;
