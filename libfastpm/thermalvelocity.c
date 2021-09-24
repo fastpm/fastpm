@@ -7,6 +7,83 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
+///////////////////////////////////////////////
+
+/*
+Here I will write functions for the pseudorandom velcoity generaiton.
+This will just loop through particles and change velocities (actually I'll also not update them above).
+It will not change positions etc, so you'll probably want ot use n_shell=1, n_side=1, and probably every=1.
+*/
+
+double
+rand01()
+{
+    /* Uniform random number between 0 and 1 */
+    // FIXME: maybe should use functions already in utils, or at least move these there?
+    return (double)rand() / (double)RAND_MAX;
+}
+
+void
+rand01arr(double* arr, size_t N, double scale, double shift)
+{
+     /* Array of uniform random numbers (scaled and shifted) */
+    for (int i=0; i<N; i++){
+        arr[i] = (double)rand() / (double)RAND_MAX * scale + shift;
+    }
+}
+
+double
+FD(double q)
+{
+    return q*q / (exp(q) + 1);
+}
+
+/* Could make general sampling function, but requires moroe structure, so will speicifclaly do FD */
+
+void
+sample_velmag(double* velmag_table, size_t Naccept)
+{
+    double max = 2.21772;   // max of (unnormalised) FD
+    double C = max * 1.1;
+    double ymax = 50;
+
+    //int seed = 100;
+    // FIXME: Use seed?
+
+    double y, p;
+    size_t Naccepted = 0;
+    while (Naccepted < Naccept) {
+        y = rand01() * ymax;
+        p = rand01() * C;
+        if (FD(y) >= p) {
+            velmag_table[Naccepted] = y;
+            Naccepted += 1;
+            //fprintf (pFile, "%g\n", y);
+        }
+    }
+}
+
+void
+sample_vel(double* vel_table, size_t N3)
+{
+    size_t N = N3 / 3;
+    double velmag_table[N];
+    sample_velmag(velmag_table, N);
+
+    double phi[N], costheta[N], sintheta;
+    rand01arr(phi, N, 2*M_PI, 0);
+    rand01arr(costheta, N, 2, -1);
+    for (int i=0; i<N; i++){
+        sintheta = sqrt(1 - costheta[i]*costheta[i]);
+        vel_table[i*3] = velmag_table[i] * sintheta * cos(phi[i]);
+        vel_table[i*3+1] = velmag_table[i] * sintheta * sin(phi[i]);
+        vel_table[i*3+2] = velmag_table[i] * costheta[i];
+    }
+}
+
+////////////////////////////////////////////////////////////////
+
+
 #define LENGTH_FERMI_DIRAC_TABLE 4000 //sets the length of the table on which CDF
                                       //will be evaluated
 #define MAX_FERMI_DIRAC          20.0 //Upper limit of F-D distribution in units of
@@ -433,7 +510,7 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
     double vthm;
     for(i = 0; i < src->np; i ++) {    //loop thru each src particle
         for(s = 0; s < nid->n_split; s ++) {  //loop thru split velocities
-            /* copy all cols el by el */
+            // copy all cols el by el
             for(c = 0; c < 32; c ++) {
                 if (!dest->columns[c] || !src->columns[c]) continue;
 
@@ -443,17 +520,30 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
                        elsize);
             }
 
-            /* give id, mass and add thm vel */
+            // give id, mass and add thm vel
             dest->id[r] = s * src->meta._q_size + src->id[i];
             dest->mass[r] = nid->mass[s] * M0;    // ensures sum over split gives M0
-
+            /*
             for(d = 0; d < 3; d ++){
                 vthm = nid->vel[s][d];
                 dest->v[r][d] = vthm;
                 dest->x[r][d] += vthm * disp_factor;
                 if (dest->q) dest->q[r][d] += vthm * disp_factor;
-            }
+            }*/
             r ++;
+        }
+    }
+
+
+    // need to copy this from earlier func. can def clean up later
+    double m0 = nid->m_ncdm[0];
+    double velocity_conversion_factor = 50.3 / m0 / HubbleConstant;
+
+    double vel_table[dest->np*3];
+    sample_vel(vel_table, dest->np*3);
+    for(i = 0; i < src->np; i ++) {
+        for(d = 0; d < 3; d ++){
+            dest->v[i][d] += vel_table[3*i+d] * velocity_conversion_factor;
         }
     }
 }
