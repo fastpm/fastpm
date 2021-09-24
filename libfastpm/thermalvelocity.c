@@ -370,7 +370,9 @@ fastpm_ncdm_init_create(
         nid->m_ncdm_sum += c->m_ncdm[i];
     }
     nid->n_ncdm = c->N_ncdm;
-    nid->Omega_ncdm = c->Omega_ncdm;
+
+    /* Normalize Omega_ncdm assuming all ncdm is matter like. */
+    nid->Omega_ncdm = Omega_ncdmTimesHubbleEaSq(1, c);
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
     
