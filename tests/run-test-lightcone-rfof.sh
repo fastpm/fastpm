@@ -26,11 +26,10 @@ assert_file_contains $log 'Total number of particles wrote into lightcone: 17085
 assert_file_contains $log 'Writing 5540104 objects.'
 assert_file_contains $log 'Writing 4960000 objects.'
 assert_file_contains $log 'Writing 4978336 objects.'
-assert_file_contains $log 'Writing 191 objects.'
 assert_file_contains $log 'Writing 2097152 objects.'
 assert_file_contains $log 'Writing 11280 objects.'
 assert_file_contains $log 'Writing 1607204 objects.'
-assert_file_contains $log 'Writing 2339 objects.'
+assert_file_contains $log 'Writing 2392 objects.'
 
 assert_file_contains $log 'sigma8.*0.815897'
 
