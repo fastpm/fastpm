@@ -1244,8 +1244,8 @@ run_rfof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Run
         .l6 = CONF(prr->lua, rfof_l6) * sep,
         .A1 = CONF(prr->lua, rfof_a1) * sep,
         .A2 = CONF(prr->lua, rfof_a2) * sep,
-        .B1 = CONF(prr->lua, rfof_b1) * sep,
-        .B2 = CONF(prr->lua, rfof_b2) * sep,
+        .B1 = CONF(prr->lua, rfof_b1),
+        .B2 = CONF(prr->lua, rfof_b2),
     };
     fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->pm);
     /* Use the average redshift -- this is bad if the slices are large! */
