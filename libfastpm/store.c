@@ -961,8 +961,7 @@ fastpm_store_extend(FastPMStore * p, FastPMStore * extra)
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-	FastPMParticleMaskType * mask,
-        MPI_Comm comm)
+        FastPMParticleMaskType * mask)
 {
 
     memset(mask, 0, p->np * sizeof(mask[0]));

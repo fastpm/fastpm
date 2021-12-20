@@ -82,8 +82,8 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->p = malloc(sizeof(FastPMStore));
     /* for saving the density with particles */
     fastpm_store_init(mesh->p, source->name, np_upper,
-                  COLUMN_ID | COLUMN_POS | COLUMN_VEL | COLUMN_MASK
-                | COLUMN_AEMIT,
+                  COLUMN_ID | COLUMN_POS | COLUMN_VEL | COLUMN_MASK |
+                  COLUMN_RAND | COLUMN_AEMIT,
                 FASTPM_MEMORY_HEAP
     );
 
@@ -455,6 +455,8 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
                 pout->id[next] = p->id[i];
             if(pout->aemit)
                 pout->aemit[next] = a_emit;
+            if(pout->rand)
+                pout->rand[next] = p->rand[i];
             if(pout->mask)
                 pout->mask[next] = p->mask[i];
 

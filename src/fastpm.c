@@ -344,11 +344,6 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     prepare_ncdm(fastpm, prr, time_step[0], comm);
     LEAVE(ncdmic);
 
-    /* FIXME: subsample all species -- probably need different fraction for each species */
-    FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
-
-    fastpm_store_fill_subsample_mask(p, CONF(prr->lua, particle_fraction), p->mask, comm);
-
     FastPMUSMesh * usmesh = NULL;
 
     if(CONF(prr->lua, lc_write_usmesh)) {
@@ -1001,8 +996,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         run_usmesh_fof(fastpm, lcevent, rhalos, prr, tail, mesh->lc, run_rfof);
     }
 
-    /* subsample, this will remove the tail particles that were appended. */
-    fastpm_store_subsample(lcevent->p, lcevent->p->mask, lcevent->p);
+    /* subsample */
+    FastPMParticleMaskType * mask = fastpm_memory_alloc(lcevent->p->mem,
+        "SubsampleMask", lcevent->p->np * sizeof(mask[0]), FASTPM_MEMORY_FLOATING);
+    fastpm_store_fill_subsample_mask(lcevent->p, CONF(prr->lua, particle_fraction), mask);
+    fastpm_store_subsample(lcevent->p, mask, lcevent->p);
+    fastpm_memory_free(lcevent->p->mem, mask);
 
     ENTER(sort);
     fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
@@ -1283,6 +1282,9 @@ run_usmesh_fof(FastPMSolver * fastpm,
 
     /* avoid including the tail particles in the subsample;
      * by clearing their mask */
+    for(i = 0; i < p->np; i ++) {
+        p->mask[i] = 1;
+    }
     for(i = 0; i < tail->np; i ++) {
         tail->mask[i] = 0;
     }
@@ -1320,6 +1322,9 @@ run_usmesh_fof(FastPMSolver * fastpm,
 
     fastpm_store_init(tail, p->name, ntail, p->attributes, FASTPM_MEMORY_FLOATING);
     fastpm_store_subsample(p, keep_for_tail, tail);
+    /* remove the tail particles from p */
+    /* perhaps can do this via changing p->np */
+    fastpm_store_subsample(p, p->mask, p);
 
     MPI_Allreduce(MPI_IN_PLACE, &ntail, 1, MPI_LONG, MPI_SUM, fastpm->comm);
 
@@ -1376,14 +1381,18 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
         if (!p) continue;
 
         if(CONF(prr->lua, particle_fraction) < 1) {
-
+            FastPMParticleMaskType * mask = fastpm_memory_alloc(p->mem,
+                   "SubsampleMask", sizeof(mask[0]) * p->np_upper,
+                   FASTPM_MEMORY_FLOATING);
+            fastpm_store_fill_subsample_mask(p,
+                CONF(prr->lua, particle_fraction), mask);
             fastpm_store_init(&subsample[si],
                         p->name,
-                        fastpm_store_subsample(p, p->mask, NULL),
+                        fastpm_store_subsample(p, mask, NULL),
                         p->attributes & (~COLUMN_ACC) & (~COLUMN_MASK),
                         FASTPM_MEMORY_FLOATING);
-
-            fastpm_store_subsample(p, p->mask, &subsample[si]);
+            fastpm_store_subsample(p, mask, &subsample[si]);
+            fastpm_memory_free(p->mem, mask);
         } else {
             memcpy(&subsample[si], p, sizeof(FastPMStore));
         }
