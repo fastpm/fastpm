@@ -774,6 +774,8 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 
             if(p->id) p->id[ptr] = id;
             if(p->mask) p->mask[ptr] = 0;
+            /* FIXME: fill rand with a hash of the id instead of using
+             * _fastpm_store_fill_rand. */
             if(p->rand) p->rand[ptr] = 0.;
 
             fastpm_store_get_q_from_id(p, id, &p->x[ptr][0]);
