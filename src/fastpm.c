@@ -346,6 +346,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     /* FIXME: subsample all species -- probably need different fraction for each species */
     FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+
     fastpm_store_fill_subsample_mask(p, CONF(prr->lua, particle_fraction), p->mask, comm);
 
     FastPMUSMesh * usmesh = NULL;

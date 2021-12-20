@@ -54,6 +54,7 @@ typedef enum FastPMColumnTags {
     COLUMN_RVDISP =  1L << 19,
     
     COLUMN_MASS = 1L << 20,
+    COLUMN_RAND = 1L << 21,
 
 } FastPMColumnTags;
 
@@ -124,6 +125,9 @@ struct FastPMStore {
 
             /* multiple species support */
             float (* mass);   /* extra mass in addition to meta.M0; see fastpm_store_get_mass */
+
+	    /* other fields */
+            float (* rand);   /* a random number between 0 and 1 */
         };
     };
 };
