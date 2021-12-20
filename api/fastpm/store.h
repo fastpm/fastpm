@@ -241,8 +241,7 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        FastPMParticleMaskType * mask,
-        MPI_Comm comm);
+        FastPMParticleMaskType * mask);
 
 void
 fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
