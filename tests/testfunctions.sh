@@ -1,3 +1,10 @@
+export OMP_NUM_THREADS=1
+export OMPI_MCA_rmaps_base_no_oversubscribe=0
+export OMPI_MCA_rmaps_base_oversubscribe=1
+export OMPI_MCA_mpi_yield_when_idle=1
+export OMPI_MCA_mpi_show_mca_params=1
+
+
 die () {
     exit 1
 }

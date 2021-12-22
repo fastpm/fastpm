@@ -75,7 +75,7 @@ int main(int argc, char * argv[]) {
     fastpm_memory_free(halos->mem, ihalo);
     fastpm_store_subsample(halos, halos->mask, halos);
 
-    fastpm_store_fill_subsample_mask(p, 0.1, p->mask, solver->comm);
+    fastpm_store_fill_subsample_mask(p, 0.1, p->mask);
     ihalo = fastpm_fof_execute(&fof, linkinglength, halos_sub, p->mask);
     fastpm_memory_free(halos->mem, ihalo);
     fastpm_store_subsample(halos_sub, halos_sub->mask, halos_sub);

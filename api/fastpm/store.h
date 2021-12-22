@@ -54,6 +54,7 @@ typedef enum FastPMColumnTags {
     COLUMN_RVDISP =  1L << 19,
     
     COLUMN_MASS = 1L << 20,
+    COLUMN_RAND = 1L << 21,
 
 } FastPMColumnTags;
 
@@ -124,6 +125,9 @@ struct FastPMStore {
 
             /* multiple species support */
             float (* mass);   /* extra mass in addition to meta.M0; see fastpm_store_get_mass */
+
+	    /* other fields */
+            float (* rand);   /* a random number between 0 and 1 */
         };
     };
 };
@@ -237,13 +241,7 @@ fastpm_store_get_mask_sum(FastPMStore * p, MPI_Comm comm);
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        FastPMParticleMaskType * mask,
-        MPI_Comm comm);
-
-void
-fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
-                                              int every,
-                                              FastPMParticleMaskType * mask);
+        FastPMParticleMaskType * mask);
 
 size_t
 fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);

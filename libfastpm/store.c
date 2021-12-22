@@ -206,6 +206,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(vdisp, COLUMN_VDISP, "f4", 6);
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
     DEFINE_COLUMN(mass, COLUMN_MASS, "f4", 1);
+    DEFINE_COLUMN(rand, COLUMN_RAND, "f4", 1);
 
     COLUMN_INFO(x).to_double = to_double_f8;
     COLUMN_INFO(v).to_double = to_double_f4;
@@ -688,6 +689,34 @@ fastpm_store_get_iq_from_id(FastPMStore * p, uint64_t id, ptrdiff_t pabs[3])
     }
 }
 
+static void
+_fastpm_store_fill_rand(FastPMStore * p, MPI_Comm comm)
+{
+    gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
+
+    /* set uncorrelated seeds */
+    double seed=1231584; //FIXME: set this properly.
+    gsl_rng_set(random_generator, seed);
+    int d;
+
+    for(d = 0; d < ThisTask * 8; d++) {
+        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
+    }
+
+    gsl_rng_set(random_generator, seed);
+
+    ptrdiff_t i;
+    for(i=0; i < p->np_upper; i++) {
+        double rand_i = gsl_rng_uniform(random_generator);
+	p->rand[i] = rand_i;
+    }
+
+    gsl_rng_free(random_generator);
+
+}
+
 void
 fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 {
@@ -745,6 +774,9 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
 
             if(p->id) p->id[ptr] = id;
             if(p->mask) p->mask[ptr] = 0;
+            /* FIXME: fill rand with a hash of the id instead of using
+             * _fastpm_store_fill_rand. */
+            if(p->rand) p->rand[ptr] = 0.;
 
             fastpm_store_get_q_from_id(p, id, &p->x[ptr][0]);
 
@@ -766,6 +798,7 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
             );
     }
     p->meta.a_x = p->meta.a_v = 0.;
+    _fastpm_store_fill_rand(p, pm_comm(pm));
 }
 
 void
@@ -930,58 +963,15 @@ fastpm_store_extend(FastPMStore * p, FastPMStore * extra)
 void
 fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
-        FastPMParticleMaskType * mask,
-        MPI_Comm comm)
+        FastPMParticleMaskType * mask)
 {
-    gsl_rng * random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
-    int ThisTask;
-    MPI_Comm_rank(comm, &ThisTask);
-
-    /* set uncorrelated seeds */
-    double seed=1231584; //FIXME: set this properly.
-    gsl_rng_set(random_generator, seed);
-    int d;
-
-    for(d = 0; d < ThisTask * 8; d++) {
-        seed = 0x7fffffff * gsl_rng_uniform(random_generator);
-    }
-
-    gsl_rng_set(random_generator, seed);
 
     memset(mask, 0, p->np * sizeof(mask[0]));
 
     ptrdiff_t i;
     for(i=0; i < p->np; i++) {
-        double rand_i = gsl_rng_uniform(random_generator);
-        int flag = fraction > 1 || rand_i <= fraction;
-        mask[i] = flag;
-    }
-
-    gsl_rng_free(random_generator);
-}
-
-void
-fastpm_store_fill_subsample_mask_every_dim(FastPMStore * p,
-                                              int every, /* take 1 every 'every' per dimension */
-                                              FastPMParticleMaskType * mask)
-{
-    if(!fastpm_store_has_q(p)) {
-        /* This can be relaxed by using a less strict subsample algorithm, e.g. subsample by a hash of ID. */
-        fastpm_raise(-1, "Subsample is not supported if the store does not have meta.q.");
-    }
-    /* UNUSED */
-    memset(mask, 0, p->np * sizeof(mask[0]));
-
-    ptrdiff_t i, d;
-    for(i = 0; i < p->np; i++) {
-        ptrdiff_t pabs[3];   //pabs is the iq index. move out of loop?
-        uint64_t id = p->id[i];
-        fastpm_store_get_iq_from_id(p, id, pabs);
-
-        int flag = 1;
-        for(d = 0; d < 3; d++) {
-            flag *= !(pabs[d] % every);
-        }
+        double rand_i = p->rand[i];
+        int flag = fraction >= 1 || rand_i <= fraction;
         mask[i] = flag;
     }
 }
