@@ -9,13 +9,6 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
-#define vlight 3.e5
-
-static double FlatLambdaCDM_comoving_volume(double l)
-{
-    return 4 * M_PI * pow(l, 3) / 3;
-}
-
 double FlatLambdaCDM_kpc_per_arcmin(double l);
 double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c);
 
@@ -50,24 +43,25 @@ int main(int argc, char * argv[]){
         printf("Error opening file!\n");
         exit(1);
     }
-    
+
     //print box size, total particle number, resolution of the system
     double hubble = c->h;
-    int box_size_Mpch = 5000;
-    double box_size = box_size_Mpch / hubble;
+    double box_size_Mpch = 5000;
     int Npart = pow(2,13);
-    double res_box = pow(Npart / box_size, 3);
+    double res_box = pow(Npart / box_size_Mpch * hubble, 3);
     double scale_f = 1 / (1 + 4.0);
-    double comoving_l = ComovingDistance(scale_f,c)*vlight/(hubble*100);
+    double comoving_l = ComovingDistance(scale_f, c) * HubbleDistance / hubble;
+
     //printf("%f: comoving distance\n",comoving_l);
-    double Npart_tot = FlatLambdaCDM_comoving_volume(comoving_l) * res_box;
+    double Npart_tot = 4 * M_PI / 3 * pow(comoving_l, 3) * res_box;
     printf("%f: total particle number\n",Npart_tot);
+
     double output1 = Npart_tot / pow(10,12);
     double output2 = Npart_tot / pow(Npart, 3);
     printf("%f: particle/Mpc^3 resolution\n",res_box);
-    printf("box size: %f (Mpc); %d (Mpc/h)\n",box_size,box_size_Mpch);
+    printf("box size: %g (Mpc/h)\n",box_size_Mpch);
     printf("%f x 10^12 particles, %f x box size\n",output1,output2);
-    
+
     //read ell_lim from command line
     double ell_lim;
     if (argc == 2){
@@ -87,4 +81,3 @@ int main(int argc, char * argv[]){
     return 0;
 
 }
-#undef vlight
