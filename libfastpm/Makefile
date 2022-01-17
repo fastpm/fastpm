@@ -45,8 +45,7 @@ LIBSOURCES = libfastpm.c \
     rfof.c \
     version.c \
     chealpix.c \
-    thermalvelocity.c \
-    subsample.c
+    thermalvelocity.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a
 PFFTLIBS0 += libfftw3_omp.a libfftw3_mpi.a libfftw3.a
