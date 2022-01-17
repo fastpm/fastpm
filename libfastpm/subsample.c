@@ -15,8 +15,6 @@
 
 #include <fastpm/libfastpm.h>
 
-#define vlight 3.e5
-
 double FlatLambdaCDM_kpc_per_arcmin(double l)
 {
     return l / 3.4377468;
@@ -35,7 +33,7 @@ double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * 
     double theta_lim_arcmin = degrees(theta_lim_rad) * 60;
     //printf("%f, arcmin(basic)\n",theta_lim_arcmin);
     double scale_fac = 1 / (1 + z);
-    double com_dis = ComovingDistance(scale_fac,c)*vlight/(c->h*100);
+    double com_dis = ComovingDistance(scale_fac,c) * HubbleDistance / c->h;
     double kpc_per_arcmin = FlatLambdaCDM_kpc_per_arcmin(com_dis);
     double Mpc_res_lim = kpc_per_arcmin * theta_lim_arcmin / 1000.;
     double res_lim = pow(1 / Mpc_res_lim, 3);
@@ -49,4 +47,3 @@ double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * 
     return rate_sub;
 }
 
-#undef vlight
