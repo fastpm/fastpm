@@ -17,7 +17,8 @@ TEST_SOURCES = testpm.c \
                testconstrained.c \
                testlightcone.c \
                testangulargrid.c \
-               testboxsphere.c
+               testboxsphere.c \
+               testsubsample.c
 
 #			   testlightconeP.c
 
@@ -70,6 +71,9 @@ testrecorder: .objs/testrecorder.o $(LIBFASTPM_LIBS)
 	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
 	    $(LDFLAGS) $(GSL_LIBS) -lm
 
+testsubsample: .objs/testsubsample.o $(LIBFASTPM_LIBS)
+	$(CC) $(CPPFLAGS) $(OPTIMIZE) $(OPENMP) -o $@ $^ \
+	    $(LDFLAGS) $(GSL_LIBS) -lm
 
 -include $(SOURCES:%.c=.deps/%.d)
 
