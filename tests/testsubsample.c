@@ -9,8 +9,6 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
-double VolumeDensityFromEll(double ell_lim, double z, FastPMCosmology * c);
-
 // function to calculate subsampling rate
 double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c)
 {
