@@ -480,6 +480,19 @@ double ComovingDistance(double a, FastPMCosmology * c) {
     return result;
 }
 
+/* Computes particle volume number density [1 / (Mpc/h)^3] 
+ * to reach the ell_lim resolution at given redshift */
+double VolumeDensityFromEll(double ell_lim, double z, FastPMCosmology * c)
+{
+    double theta_lim = M_PI / ell_lim;
+    double scale_fac = 1 / (1 + z);
+    double r = ComovingDistance(scale_fac,c) * HubbleDistance;
+    double s_lim = r * theta_lim;
+    double res_lim = pow(1 / s_lim, 3);
+    return res_lim;
+}
+
+
 #ifdef TEST_COSMOLOGY
 int main() {
     /* the old COLA growthDtemp is 6 * pow(1 - c.OmegaM, 1.5) times growth */

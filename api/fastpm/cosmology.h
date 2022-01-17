@@ -84,4 +84,6 @@ double D2GrowthFactorDa2(FastPMGrowthInfo * growth_info);
 double ComovingDistance(double a, FastPMCosmology * c);
 double OmegaA(double a, FastPMCosmology * c);
 
+double VolumeDensityFromEll(double ell_lim, double z, FastPMCosmology * c);
+
 FASTPM_END_DECLS
