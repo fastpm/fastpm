@@ -999,7 +999,17 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     /* subsample */
     FastPMParticleMaskType * mask = fastpm_memory_alloc(lcevent->p->mem,
         "SubsampleMask", lcevent->p->np * sizeof(mask[0]), FASTPM_MEMORY_FLOATING);
-    fastpm_store_fill_subsample_mask(lcevent->p, CONF(prr->lua, particle_fraction), mask);
+    double particle_fraction = CONF(prr->lua, particle_fraction);
+    double a_mean = 0.5 * (lcevent->af + lcevent->ai);
+    if(CONF(prr->lua, lc_usmesh_ell_limit) > 0) {
+        double ell = CONF(prr->lua, lc_usmesh_ell_limit);
+        double density_lim = VolumeDensityFromEll(ell, 1 / a_mean - 1, fastpm->cosmology);
+        double density = pow(fastpm->config->nc / fastpm->config->boxsize, 3);
+        particle_fraction = density_lim / density;
+        particle_fraction = fmin(1.0, particle_fraction);
+    }
+    fastpm_info("Subsampling at rate %g, a_mean=%06.4f\n", particle_fraction, a_mean);
+    fastpm_store_fill_subsample_mask(lcevent->p, particle_fraction, mask);
     fastpm_store_subsample(lcevent->p, mask, lcevent->p);
     fastpm_memory_free(lcevent->p->mem, mask);
 
