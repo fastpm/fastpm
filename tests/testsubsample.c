@@ -5,14 +5,19 @@
 #include <mpi.h>
 #include <math.h>
 
+#include <gsl/gsl_math.h>
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
 #define vlight 3.e5
 
-double FlatLambdaCDM_comoving_volume(double l);
+static double FlatLambdaCDM_comoving_volume(double l)
+{
+    return 4 * M_PI * pow(l, 3) / 3;
+}
+
 double FlatLambdaCDM_kpc_per_arcmin(double l);
-double calc_subrate(double ell_lim, double z, int box_size_Mpch, double res_box, FastPMCosmology * c);
+double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c);
 
 int main(int argc, char * argv[]){
     MPI_Init(&argc, &argv);
@@ -73,7 +78,7 @@ int main(int argc, char * argv[]){
     
     //calculate subsampling based on subsampling.c
     for (double z=0.1 ; z<=4 ; z+=0.01){
-        double subsamplingrate = calc_subrate(ell_lim,z,box_size_Mpch,res_box,c);
+        double subsamplingrate = calc_subrate(ell_lim,z,res_box,c);
         fprintf(f, "%7.6lf, %10.7lf\n",z, subsamplingrate);
     }
     

@@ -17,16 +17,6 @@
 
 #define vlight 3.e5
 
-static double cubic (double x)
-{
-    return x*x*x;
-}
-
-double FlatLambdaCDM_comoving_volume(double l)
-{
-    return 4 * M_PI * cubic(l) / 3;
-}
-
 double FlatLambdaCDM_kpc_per_arcmin(double l)
 {
     return l / 3.4377468;
@@ -39,10 +29,8 @@ double degrees(double x)
 }
 
 //function to calculate subsampling rate
-double calc_subrate(double ell_lim, double z, int box_size_Mpch, double res_box, FastPMCosmology * c)
+double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c)
 {
-//write redshift, res_lim, res_plus and rate_sub into file.txt
-//return subsampling percentage for each ell_lim
     double theta_lim_rad = M_PI / ell_lim;
     double theta_lim_arcmin = degrees(theta_lim_rad) * 60;
     //printf("%f, arcmin(basic)\n",theta_lim_arcmin);
@@ -50,8 +38,10 @@ double calc_subrate(double ell_lim, double z, int box_size_Mpch, double res_box,
     double com_dis = ComovingDistance(scale_fac,c)*vlight/(c->h*100);
     double kpc_per_arcmin = FlatLambdaCDM_kpc_per_arcmin(com_dis);
     double Mpc_res_lim = kpc_per_arcmin * theta_lim_arcmin / 1000.;
-    double res_lim = cubic(1 / Mpc_res_lim);
+    double res_lim = pow(1 / Mpc_res_lim, 3);
     double rate_sub = res_lim / res_box;
+    /* FIXME: in principle we can replicate particles to achieve a rate > 1.
+     * probably want to move this clipping to the caller side.*/
     if (rate_sub > 1) {
         rate_sub = 1; //for low redshift, no subsample
     }
