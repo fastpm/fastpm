@@ -9,8 +9,21 @@
 #include <fastpm/libfastpm.h>
 #include <fastpm/logging.h>
 
-double FlatLambdaCDM_kpc_per_arcmin(double l);
-double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c);
+double VolumeDensityFromEll(double ell_lim, double z, FastPMCosmology * c);
+
+// function to calculate subsampling rate
+double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c)
+{
+    double res_lim = VolumeDensityFromEll(ell_lim, z, c);
+
+    double rate_sub = res_lim / res_box;
+    /* FIXME: in principle we can replicate particles to achieve a rate > 1.
+     * probably want to move this clipping to the caller side.*/
+    if (rate_sub > 1) {
+        rate_sub = 1; // for low redshift, no subsample
+    }
+    return rate_sub;
+}
 
 int main(int argc, char * argv[]){
     MPI_Init(&argc, &argv);
@@ -45,7 +58,6 @@ int main(int argc, char * argv[]){
     }
 
     //print box size, total particle number, resolution of the system
-    double hubble = c->h;
     double box_size_Mpch = 5000;
     int Npart = pow(2,13);
     double res_box = pow(Npart / box_size_Mpch, 3);
