@@ -15,20 +15,15 @@
 
 #include <fastpm/libfastpm.h>
 
-//function to calculate subsampling rate
-double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c)
+/* Computes particle volume number density [1 / (Mpc/h)^3] 
+ * to reach the ell_lim resolution at given redshift */
+double VolumeDensityFromEll(double ell_lim, double z, FastPMCosmology * c)
 {
     double theta_lim = M_PI / ell_lim;
     double scale_fac = 1 / (1 + z);
     double r = ComovingDistance(scale_fac,c) * HubbleDistance;
     double s_lim = r * theta_lim;
     double res_lim = pow(1 / s_lim, 3);
-    double rate_sub = res_lim / res_box;
-    /* FIXME: in principle we can replicate particles to achieve a rate > 1.
-     * probably want to move this clipping to the caller side.*/
-    if (rate_sub > 1) {
-        rate_sub = 1; // for low redshift, no subsample
-    }
-    return rate_sub;
+    return res_lim;
 }
 
