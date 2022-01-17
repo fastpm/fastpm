@@ -48,17 +48,17 @@ int main(int argc, char * argv[]){
     double hubble = c->h;
     double box_size_Mpch = 5000;
     int Npart = pow(2,13);
-    double res_box = pow(Npart / box_size_Mpch * hubble, 3);
+    double res_box = pow(Npart / box_size_Mpch, 3);
     double scale_f = 1 / (1 + 4.0);
-    double comoving_l = ComovingDistance(scale_f, c) * HubbleDistance / hubble;
+    double comoving_l = ComovingDistance(scale_f, c) * HubbleDistance;
 
     //printf("%f: comoving distance\n",comoving_l);
     double Npart_tot = 4 * M_PI / 3 * pow(comoving_l, 3) * res_box;
-    printf("%f: total particle number\n",Npart_tot);
+    printf("%f: total particle number\n", Npart_tot);
 
     double output1 = Npart_tot / pow(10,12);
     double output2 = Npart_tot / pow(Npart, 3);
-    printf("%f: particle/Mpc^3 resolution\n",res_box);
+    printf("%f: particle/(Mpc/h)^3 resolution\n",res_box);
     printf("box size: %g (Mpc/h)\n",box_size_Mpch);
     printf("%f x 10^12 particles, %f x box size\n",output1,output2);
 
