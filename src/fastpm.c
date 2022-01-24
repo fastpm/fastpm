@@ -963,6 +963,14 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
 
 }
 
+static double
+fraction_from_ell(double ell, double a, double density, FastPMCosmology * cosmology) {
+    double density_lim = VolumeDensityFromEll(ell, 1 / a - 1, cosmology);
+    double particle_fraction = density_lim / density;
+    particle_fraction = fmin(1.0, particle_fraction);
+    return particle_fraction;
+}
+
 static void
 usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh_ready_handler_data * data)
 {
@@ -999,17 +1007,25 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     /* subsample */
     FastPMParticleMaskType * mask = fastpm_memory_alloc(lcevent->p->mem,
         "SubsampleMask", lcevent->p->np * sizeof(mask[0]), FASTPM_MEMORY_FLOATING);
-    double particle_fraction = CONF(prr->lua, particle_fraction);
-    double a_mean = 0.5 * (lcevent->af + lcevent->ai);
+
     if(CONF(prr->lua, lc_usmesh_ell_limit) > 0) {
+        double * fraction = fastpm_memory_alloc(lcevent->p->mem,
+                "fraction", lcevent->p->np * sizeof(fraction[0]), FASTPM_MEMORY_FLOATING);
         double ell = CONF(prr->lua, lc_usmesh_ell_limit);
-        double density_lim = VolumeDensityFromEll(ell, 1 / a_mean - 1, fastpm->cosmology);
         double density = pow(fastpm->config->nc / fastpm->config->boxsize, 3);
-        particle_fraction = density_lim / density;
-        particle_fraction = fmin(1.0, particle_fraction);
+        fastpm_info("Subsampling to density %g (a = %06.4f) ~ %g (a = %06.4f), \n",
+            fraction_from_ell(ell, lcevent->ai, density, fastpm->cosmology), lcevent->ai,
+            fraction_from_ell(ell, lcevent->af, density, fastpm->cosmology), lcevent->af);
+
+        for (ptrdiff_t i = 0; i < lcevent->p->np; i ++) {
+            fraction[i] = fraction_from_ell(ell, lcevent->p->aemit[i], density, fastpm->cosmology);
+        }
+        fastpm_store_fill_subsample_mask_from_array(lcevent->p, fraction, mask);
+        fastpm_memory_free(lcevent->p->mem, fraction);
+    } else {
+         double particle_fraction = CONF(prr->lua, particle_fraction);
+        fastpm_store_fill_subsample_mask(lcevent->p, particle_fraction, mask);
     }
-    fastpm_info("Subsampling at rate %g, a_mean=%06.4f\n", particle_fraction, a_mean);
-    fastpm_store_fill_subsample_mask(lcevent->p, particle_fraction, mask);
     fastpm_store_subsample(lcevent->p, mask, lcevent->p);
     fastpm_memory_free(lcevent->p->mem, mask);
 

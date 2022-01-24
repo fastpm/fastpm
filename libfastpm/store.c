@@ -976,6 +976,23 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
     }
 }
 
+void
+fastpm_store_fill_subsample_mask_from_array(FastPMStore * p,
+        double * fraction,
+        FastPMParticleMaskType * mask)
+{
+
+    memset(mask, 0, p->np * sizeof(mask[0]));
+
+    ptrdiff_t i;
+    for(i=0; i < p->np; i++) {
+        double rand_i = p->rand[i];
+        int flag = fraction[i] >= 1 || rand_i <= fraction[i];
+        mask[i] = flag;
+    }
+
+}
+
 /*
  * Create a subsample, keeping only those with mask == True;
  *
