@@ -18,6 +18,14 @@
 double HubbleDistance = 2997.92458; /* Mpc/h */
 double HubbleConstant = 100.0;      /* km/s / Mpc/h */
 
+typedef struct {
+    double y0;
+    double y1;
+    double y2;
+    double y3;
+} ode_soln;
+
+static double ComovingDistanceInternal(double a, FastPMCosmology * c);
 
 void
 fastpm_cosmology_init(FastPMCosmology * c)
@@ -47,6 +55,17 @@ fastpm_cosmology_init(FastPMCosmology * c)
 
     // Set Omega_Lambda at z=0 by closing Friedmann's equation
     c->Omega_Lambda = 1 - c->Omega_m - Omega_r(c) - c->Omega_k;
+
+    struct FastPMComovingDistanceInterp * CDInterp = c->CDInterp;
+    CDInterp->interp = gsl_interp_alloc(gsl_interp_cspline, 1025);
+    CDInterp->accel = gsl_interp_accel_alloc();
+
+    for(int i = 0; i < 1025; i ++ ) {
+        double a = i / 1024.;
+        CDInterp->x[i] = a;
+        CDInterp->y[i] = ComovingDistanceInternal(a, c);
+    }
+    gsl_interp_init(CDInterp->interp, CDInterp->x, CDInterp->y, 1025);
 }
 
 void
@@ -55,6 +74,10 @@ fastpm_cosmology_destroy(FastPMCosmology * c)
     if (c->FDinterp) {
         fastpm_fd_interp_destroy(c->FDinterp);
         free(c->FDinterp);
+    }
+    if (c->CDInterp) {
+        gsl_interp_accel_free(c->CDInterp->accel);
+        gsl_interp_free(c->CDInterp->interp);
     }
 }
 
@@ -457,7 +480,7 @@ comoving_distance_int(double a, void * params)
     return 1. / (a * a * HubbleEa(a, c));
 }
 
-double ComovingDistance(double a, FastPMCosmology * c) {
+static double ComovingDistanceInternal(double a, FastPMCosmology * c) {
 
     /* We tested using ln_a doesn't seem to improve accuracy */
     int WORKSIZE = 100000;
@@ -478,6 +501,21 @@ double ComovingDistance(double a, FastPMCosmology * c) {
     gsl_integration_workspace_free(workspace);
 
     return result;
+}
+
+double ComovingDistance(double a, FastPMCosmology * c) {
+    struct FastPMComovingDistanceInterp * CDInterp = c->CDInterp;
+    double y;
+    int status;
+    status = gsl_interp_eval_e(CDInterp->interp, CDInterp->x, CDInterp->y, a, CDInterp->accel, &y);
+    if (status == 0) {
+        return y;
+    } else
+    if (status == GSL_EDOM) {
+        return ComovingDistanceInternal(a, c);
+    }
+    fastpm_raise(-1, "interpolation of comoving distance failed: %s", gsl_strerror(status));
+    return 0.0;
 }
 
 /* Computes particle volume number density [1 / (Mpc/h)^3] 
