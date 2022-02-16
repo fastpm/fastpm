@@ -47,6 +47,7 @@ int main(int argc, char * argv[]){
         .w0 = -1,
     }};
 
+    fastpm_cosmology_init(c);
     FILE *f;
     f = fopen("subs_rate.txt","w");
     if (f == NULL)
@@ -86,6 +87,7 @@ int main(int argc, char * argv[]){
         fprintf(f, "%7.6lf, %10.7lf\n",z, subsamplingrate);
     }
     
+    fastpm_cosmology_destroy(c);
     libfastpm_cleanup();
     MPI_Finalize();
     return 0;
