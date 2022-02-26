@@ -12,3 +12,4 @@ runs:
           openmpi-bin \
           libgsl0-dev \
           elfutils
+        sudo pip install filecheck
