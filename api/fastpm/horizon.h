@@ -9,11 +9,12 @@ struct FastPMHorizon {
     void * gsl;
 };
 
-void fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology);
+void fastpm_horizon_init(FastPMHorizon * horizon, double dh_factor, FastPMCosmology * cosmology);
 void fastpm_horizon_destroy(FastPMHorizon * horizon);
 
 double HorizonDistance(double a, FastPMHorizon * horizon);
 double HorizonGrowthFactor(double a, FastPMHorizon * horizon);
+double VolumeDensityFromEll(double ell_lim, double z, FastPMHorizon * horizon);
 
 void *
 fastpm_horizon_solve_start();

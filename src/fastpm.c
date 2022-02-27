@@ -316,7 +316,7 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
 
     /* initialize the lightcone */
     FastPMLightCone lc[1] = {{
-        .speedfactor = CONF(prr->lua, dh_factor),
+        .dh_factor = CONF(prr->lua, dh_factor),
         .cosmology = fastpm->cosmology,
         .fov = CONF(prr->lua, lc_fov),
         .octants = {0, 0, 0, 0, 0, 0, 0, 0},
@@ -964,8 +964,8 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
 }
 
 static double
-fraction_from_ell(double ell, double a, double density, FastPMCosmology * cosmology) {
-    double density_lim = VolumeDensityFromEll(ell, 1 / a - 1, cosmology);
+fraction_from_ell(double ell, double a, double density, FastPMHorizon * horizon) {
+    double density_lim = VolumeDensityFromEll(ell, 1 / a - 1, horizon);
     double particle_fraction = density_lim / density;
     particle_fraction = fmin(1.0, particle_fraction);
     return particle_fraction;
@@ -1014,11 +1014,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         double ell = CONF(prr->lua, lc_usmesh_ell_limit);
         double density = pow(fastpm->config->nc / fastpm->config->boxsize, 3);
         fastpm_info("Subsampling to density %g (a = %06.4f) ~ %g (a = %06.4f), \n",
-            fraction_from_ell(ell, lcevent->ai, density, fastpm->cosmology), lcevent->ai,
-            fraction_from_ell(ell, lcevent->af, density, fastpm->cosmology), lcevent->af);
+            fraction_from_ell(ell, lcevent->ai, density, mesh->lc->horizon), lcevent->ai,
+            fraction_from_ell(ell, lcevent->af, density, mesh->lc->horizon), lcevent->af);
 
         for (ptrdiff_t i = 0; i < lcevent->p->np; i ++) {
-            fraction[i] = fraction_from_ell(ell, lcevent->p->aemit[i], density, fastpm->cosmology);
+            fraction[i] = fraction_from_ell(ell, lcevent->p->aemit[i], density, mesh->lc->horizon);
         }
         fastpm_store_fill_subsample_mask_from_array(lcevent->p, fraction, mask);
         fastpm_memory_free(lcevent->p->mem, fraction);
@@ -1324,7 +1324,7 @@ run_usmesh_fof(FastPMSolver * fastpm,
                                     sizeof(keep_for_tail[0]) * lcevent->p->np_upper, FASTPM_MEMORY_FLOATING);
 
     /* FIXME: clean this up! halos_ready is converted from an event handler. */
-    double rmin = lc->speedfactor * HorizonDistance(lcevent->af, lc->horizon);
+    double rmin = HorizonDistance(lcevent->af, lc->horizon);
     int nmin;
 
     void * userdata[5];

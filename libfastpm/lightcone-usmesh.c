@@ -44,7 +44,7 @@ fastpm_lc_init(FastPMLightCone * lc)
 
     /* Allocation */
     lc->horizon = malloc(sizeof(FastPMHorizon));
-    fastpm_horizon_init(lc->horizon, lc->cosmology);
+    fastpm_horizon_init(lc->horizon, lc->dh_factor, lc->cosmology);
     _matrix_invert(lc->glmatrix,lc->glmatrix_inv,4);
 
 }
@@ -139,7 +139,7 @@ funct(double a, void *params)
     double distance = fastpm_lc_distance(lc, xo);
 
     /* XXX: may need to worry about periodic boundary */
-    return distance - lc->speedfactor * HorizonDistance(a, lc->horizon);
+    return distance - HorizonDistance(a, lc->horizon);
 }
 
 double
@@ -534,8 +534,8 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         ENTER(intersect);
         fastpm_info("usmesh intersection from %0.4f to %0.4f with %d tiles.\n", a1, a2, mesh->ntiles);
 
-        double r1 = mesh->lc->speedfactor * HorizonDistance(a1, mesh->lc->horizon);
-        double r2 = mesh->lc->speedfactor * HorizonDistance(a2, mesh->lc->horizon);
+        double r1 = HorizonDistance(a1, mesh->lc->horizon);
+        double r2 = HorizonDistance(a2, mesh->lc->horizon);
 
         double volume = 4 * M_PI / 3 * (pow(r1, 3) - pow(r2, 3));
 
