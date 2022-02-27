@@ -32,7 +32,7 @@ CHECK: Total number of particles wrote into lightcone: 1031341
 
 CHECK: Appending usmesh catalog to lightcone/usmesh
 CHECK: Appending a catalog to lightcone/usmesh [1]
-CHECK: Writing 1523312 objects.
+CHECK: Writing 1523313 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 453 objects.
 
