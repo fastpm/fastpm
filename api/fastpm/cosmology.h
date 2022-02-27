@@ -28,13 +28,9 @@ struct FastPMCosmology {
 
     FastPMGrowthMode growth_mode;
     FastPMFDInterp * FDinterp;
-    struct FastPMComovingDistanceInterp {
-        gsl_interp * interp;
-        gsl_interp_accel * accel;
-        double x[1025];
-        double y[1025];
-    } CDInterp[1];
 };
+
+double interpolate(const double xa[], const double ya[], size_t size, double xi);
 
 double Omega_g(FastPMCosmology * c);
 double Gamma_nu(FastPMCosmology * c);
@@ -57,6 +53,13 @@ double Omega_m(double a, FastPMCosmology * c);
 double Omega_source(double a, FastPMCosmology * c);
 double DHubbleEaDa(double a, FastPMCosmology * c);
 double D2HubbleEaDa2(double a, FastPMCosmology * c);
+
+typedef struct {
+    double y0;
+    double y1;
+    double y2;
+    double y3;
+} ode_soln;
 
 typedef struct FastPMGrowthInfo {
     /* Object to store solutions to growth ode at
