@@ -10,7 +10,7 @@ typedef struct {
     /* Storage of the particles on the light cone */
     FastPMCosmology * cosmology;
     FastPMHorizon * horizon;
-    double speedfactor;
+    double dh_factor;
     double glmatrix[4][4];
     double glmatrix_inv[4][4];
     double fov; /* field of view angle. <=0 for flatsky.

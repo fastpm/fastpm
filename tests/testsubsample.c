@@ -10,9 +10,9 @@
 #include <fastpm/logging.h>
 
 // function to calculate subsampling rate
-double calc_subrate(double ell_lim, double z, double res_box, FastPMCosmology * c)
+double calc_subrate(double ell_lim, double z, double res_box, FastPMHorizon * horizon)
 {
-    double res_lim = VolumeDensityFromEll(ell_lim, z, c);
+    double res_lim = VolumeDensityFromEll(ell_lim, z, horizon);
 
     double rate_sub = res_lim / res_box;
     /* FIXME: in principle we can replicate particles to achieve a rate > 1.
@@ -46,8 +46,11 @@ int main(int argc, char * argv[]){
         .wa = 0,
         .w0 = -1,
     }};
-
     fastpm_cosmology_init(c);
+    FastPMHorizon horizon[1];
+
+    fastpm_horizon_init(horizon, /*dh_factor */ 1.0, c);
+
     FILE *f;
     f = fopen("subs_rate.txt","w");
     if (f == NULL)
@@ -61,7 +64,7 @@ int main(int argc, char * argv[]){
     int Npart = pow(2,13);
     double res_box = pow(Npart / box_size_Mpch, 3);
     double scale_f = 1 / (1 + 4.0);
-    double comoving_l = ComovingDistance(scale_f, c) * HubbleDistance;
+    double comoving_l = HorizonDistance(scale_f, horizon);
 
     //printf("%f: comoving distance\n",comoving_l);
     double Npart_tot = 4 * M_PI / 3 * pow(comoving_l, 3) * res_box;
@@ -83,7 +86,7 @@ int main(int argc, char * argv[]){
     
     //calculate subsampling based on subsampling.c
     for (double z=0.1 ; z<=4 ; z+=0.01){
-        double subsamplingrate = calc_subrate(ell_lim,z,res_box,c);
+        double subsamplingrate = calc_subrate(ell_lim,z,res_box, horizon);
         fprintf(f, "%7.6lf, %10.7lf\n",z, subsamplingrate);
     }
     
