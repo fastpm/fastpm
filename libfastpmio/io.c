@@ -15,6 +15,9 @@
 
 #include <fastpm/io.h>
 
+/* FIXME: find a way to link to chealpix.c, e.g. moving it to deps dir. */
+
+extern void vec2pix_nest(long nside, const double *vec, long *ipix);
 #ifndef M_PI
 #define M_PI (3.14159265358979323846264338327950288)
 #endif
@@ -1058,4 +1061,120 @@ read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm)
     //fastpm_info("Found %d pairs of values \n", ps->size);
 
     return 0;
+}
+
+typedef double (*fastpm_store_hp_paintfunc)(
+        FastPMStore * store,
+        ptrdiff_t i,
+        void * userdata);
+
+static void combine_pixels(FastPMStore * map) {
+    /* reduce duplicated pixels, after sorting */
+
+    ptrdiff_t j = 0;
+    ptrdiff_t i = j + 1;
+    while(i < map->np) {
+        if (map->id[i] != map->id[j]) {
+            j ++;
+            if(j != i) {
+                map->id[j] = map->id[i];
+                map->mass[j] = map->mass[i];
+            }
+        } else {
+            map->mass[j] += map->mass[i];
+        }
+        i++;
+    }
+    map->np = j + 1;
+}
+
+void
+fastpm_snapshot_paint_hpmap(FastPMStore * p,
+        MPI_Comm comm,
+        size_t nside,
+        fastpm_store_hp_paintfunc paintfunc,
+        void * userdata,
+        FastPMStore * map
+) {
+    ptrdiff_t i;
+
+    fastpm_store_init(map, "Map", p->np, COLUMN_ID | COLUMN_MASS, FASTPM_MEMORY_FLOATING);
+
+    /* nothing is written */
+    if(!MPIU_Any(comm, map->np > 0)) {
+        return;
+    }
+
+    for (i = 0; i < p->np; i ++) {
+        double x[3];
+        long ipix;
+        fastpm_store_get_position(p, i, x);
+        vec2pix_nest(nside, x, &ipix);
+        map->id[i] = ipix;
+        map->mass[i] = paintfunc?paintfunc(p, i, userdata): fastpm_store_get_mass(p, i);
+    }
+
+    fastpm_store_sort(map, FastPMLocalSortByID);
+    combine_pixels(map);
+
+    fastpm_sort_snapshot(map, comm, FastPMSnapshotSortByID, /* redistribute = */0);
+    combine_pixels(map);
+
+    /* at this point, all ID (ipix) of pixels are unique on a rank, the following
+     * algorithm requires this uniqueness. */
+
+    /* split the comm to 'with-data', and 'no-data', and form a ring on the 'with-data' ranksj*/
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    MPI_Comm newcomm;
+    MPI_Comm_split(comm, map->np == 0, rank, &newcomm);
+    MPI_Comm_rank(newcomm, &rank);
+    int size;
+    MPI_Comm_size(newcomm, &size);
+
+    if (map->np == 0) {
+        /* no data, bail. */
+        MPI_Comm_free(&newcomm);
+        return;
+    }
+
+    /* form a ring on the newcomm, and exchange */
+    struct {
+        uint64_t ipix;
+        double mass;
+    } last, first, prev, next;
+
+    MPI_Datatype dt;
+    MPI_Type_contiguous(sizeof(last), MPI_BYTE, &dt);
+    last.ipix = map->id[map->np - 1];
+    last.mass = map->mass[map->np - 1];
+    first.ipix = map->id[0];
+    first.mass = map->mass[0];
+
+    MPI_Sendrecv(
+        &last, 1, dt, (rank + 1) % size, 99,
+        &prev, 1, dt, (rank - 1) % size, 99,
+        newcomm, MPI_STATUS_IGNORE);
+
+    MPI_Sendrecv(
+        &first, 1, dt, (rank - 1) % size, 99,
+        &next, 1, dt, (rank + 1) % size, 99,
+        newcomm, MPI_STATUS_IGNORE);
+
+    MPI_Type_free(&dt);
+
+    /* merge the last pix to the next rank on the ring, if they are the same */
+    if(rank > 0) {
+        /* Take prev if it is the same ipix as my first */
+        if(prev.ipix == first.ipix) {
+            map->mass[0] += prev.mass;
+        }
+    }
+    if(rank < size) {
+        /* Give up last if it is the same ipix as my next */
+        if(last.ipix == next.ipix) {
+            map->np --;
+        }
+    }
 }
