@@ -68,3 +68,4 @@ lc_write_usmesh = "lightcone/usmesh"
 lc_usmesh_tiles = fastpm.outerproduct({-2, -1, 0, 1}, {-2, -1, 0, 1}, {-2, -1, 0, 1})
 lc_usmesh_fof_padding = 20.0
 lc_usmesh_alloc_factor = 2.0
+lc_usmesh_ell_limit = 200

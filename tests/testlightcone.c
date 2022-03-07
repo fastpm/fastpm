@@ -179,7 +179,7 @@ int main(int argc, char * argv[]) {
     // }
 
     FastPMLightCone lc[1] = {{
-        .speedfactor = 0.01,
+        .dh_factor = 0.01,
         .glmatrix = {
                 {0, 1, 0, 0,},
                 {1, 0, 0, 0,},

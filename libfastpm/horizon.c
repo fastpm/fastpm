@@ -8,7 +8,7 @@
 #include <fastpm/libfastpm.h>
 
 void
-fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology)
+fastpm_horizon_init(FastPMHorizon * horizon, double dh_factor, FastPMCosmology * cosmology)
 {
     gsl_set_error_handler_off(); // Turn off GSL error handler
 
@@ -18,7 +18,7 @@ fastpm_horizon_init(FastPMHorizon * horizon, FastPMCosmology * cosmology)
     int i;
     for (i = 0; i < horizon->size; i ++) {
         double a = 1.0 * i / (horizon->size - 1);
-        horizon->xi_a[i] = HubbleDistance * ComovingDistance(a, horizon->cosmology);
+        horizon->xi_a[i] = dh_factor * HubbleDistance * ComovingDistance(a, horizon->cosmology);
         FastPMGrowthInfo gi;
         fastpm_growth_info_init(&gi, a, horizon->cosmology);
         horizon->growthfactor_a[i] = gi.D1;
@@ -144,3 +144,17 @@ fastpm_horizon_solve(FastPMHorizon * horizon,
     return 0;
 
 }
+
+/* Computes particle volume number density [1 / (Mpc/h)^3] 
+ * to reach the ell_lim resolution at given redshift */
+double VolumeDensityFromEll(double ell_lim, double z, FastPMHorizon * horizon)
+{
+    double theta_lim = M_PI / ell_lim;
+    double scale_fac = 1 / (1 + z);
+    double r = HorizonDistance(scale_fac, horizon);
+    double s_lim = r * theta_lim;
+    double res_lim = pow(1 / s_lim, 3);
+    return res_lim;
+}
+
+

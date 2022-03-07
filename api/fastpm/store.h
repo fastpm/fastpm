@@ -243,6 +243,11 @@ fastpm_store_fill_subsample_mask(FastPMStore * p,
         double fraction,
         FastPMParticleMaskType * mask);
 
+void
+fastpm_store_fill_subsample_mask_from_array(FastPMStore * p,
+        double * fraction,
+        FastPMParticleMaskType * mask);
+
 size_t
 fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);
 
