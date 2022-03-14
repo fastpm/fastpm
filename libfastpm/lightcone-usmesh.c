@@ -391,6 +391,7 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
         #pragma omp for
         for(i = 0; i < p->np; i ++) {
             double a_emit = 0;
+
             if(0 == _fastpm_usmesh_intersect_one(mesh, &params, i, &a_emit)) continue;
 
             /* the event is outside the region we care, skip */
@@ -546,9 +547,12 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         for(int i = 0; i < steps; i ++) {
             double ai = a1 + da * i;
             double af = (i + 1 == steps)?a2 : a1 + da * (i + 1);
+            double ri = HorizonDistance(ai, mesh->lc->horizon);
+            double rf = HorizonDistance(af, mesh->lc->horizon);
             fastpm_info("usmesh: intersection step %d / %d a = %g %g .\n", i, steps, ai, af);
 
             int ntiles = 0;
+            size_t old_np = mesh->p->np;
             for(t = 0; t < mesh->ntiles; t ++) {
                 /* for spherical geometry, skip if the tile does not intersects the lightcone. */
                 if(mesh->lc->fov > 0 && !fastpm_shell_intersects_bbox(
@@ -564,11 +568,15 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
             }
             double ntiles_max, ntiles_min, ntiles_mean;
             MPIU_stats(comm, ntiles, "<->", &ntiles_min, &ntiles_mean, &ntiles_max);
+            double np_max, np_min, np_sum;
+            MPIU_stats(comm, mesh->p->np - old_np, "<+>", &np_min, &np_sum, &np_max);
             fastpm_info("usmesh: number of bounding box intersects shell r = (%g %g), min = %g max = %g, mean=%g",
-                  r2, r1, ntiles_min, ntiles_max, ntiles_mean);
+                  rf, ri, ntiles_min, ntiles_max, ntiles_mean);
+            double step_volume = 4 * M_PI / 3 * (pow(ri, 3) - pow(rf, 3));
+            fastpm_info("number density for the shell is %g", np_sum / step_volume);
             LEAVE(intersect);
             mesh->af = af;
-            if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
+            if(MPIU_Any(comm, mesh->p->np > 0.1 * mesh->p->np_upper)) {
                 fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
                 fastpm_usmesh_emit(mesh, whence);
                 mesh->np_before += mesh->p->np;
