@@ -15,7 +15,7 @@
 #include "vpm.h"
 
 static void
-fastpm_decompose(FastPMSolver * fastpm);
+fastpm_decompose(FastPMSolver * fastpm, PM * pm);
 
 
 #define MAX(a, b) (a)>(b)?(a):(b)
@@ -149,7 +149,6 @@ void fastpm_solver_init(FastPMSolver * fastpm,
 
     fastpm_store_fill(fastpm->cdm, fastpm->basepm, shift, NULL);
 
-    fastpm->pm = fastpm->lptpm;
 }
 
 void
@@ -164,7 +163,7 @@ fastpm_solver_setup_lpt(FastPMSolver * fastpm,
     if(!p) fastpm_raise(-1, "Species requested (%d) does not exist", species);
 
 
-    PM * pm = fastpm->pm;
+    PM * pm = fastpm->lptpm;
     FastPMConfig * config = fastpm->config;
 
     if(species == FASTPM_SPECIES_CDM) {
@@ -409,10 +408,9 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     CLOCK(pgdc);
     CLOCK(event);
 
-    fastpm->pm = fastpm_find_pm(fastpm, trans->a.f);
+    PM * pm = fastpm_find_pm(fastpm, trans->a.f);
 
     FastPMPainter painter[1];
-    PM * pm = fastpm->pm;
 
     FastPMFloat * delta_k = pm_alloc(pm);
 
@@ -448,13 +446,13 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     }
 
     ENTER(decompose);
-    fastpm_decompose(fastpm);
+    fastpm_decompose(fastpm, pm);
     LEAVE(decompose);
 
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
 
     ENTER(force);
-    fastpm_solver_compute_force(fastpm, painter, fastpm->config->SOFTENING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
+    fastpm_solver_compute_force(fastpm, pm, painter, fastpm->config->SOFTENING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
     LEAVE(force);
 
     if(p->pgdc) {
@@ -571,8 +569,7 @@ fastpm_solver_destroy(FastPMSolver * fastpm)
 }
 
 static void
-fastpm_decompose(FastPMSolver * fastpm) {
-    PM * pm = fastpm->pm;
+fastpm_decompose(FastPMSolver * fastpm, PM * pm) {
 
     int NTask;
     MPI_Comm_size(fastpm->comm, &NTask);
