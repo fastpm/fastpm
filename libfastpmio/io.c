@@ -1083,6 +1083,7 @@ static void combine_pixels(FastPMStore * map) {
     map->np = j + 1;
 }
 
+/* Allocates map and caller destroys it. */
 void
 fastpm_snapshot_paint_hpmap(FastPMStore * p,
         MPI_Comm comm,
@@ -1094,6 +1095,8 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     ptrdiff_t i;
 
     fastpm_store_init(map, "Map", p->np, COLUMN_ID | COLUMN_MASS, FASTPM_MEMORY_FLOATING);
+
+    map->np = p->np;
 
     /* nothing is written */
     if(!MPIU_Any(comm, map->np > 0)) {
@@ -1112,18 +1115,30 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     fastpm_store_sort(map, FastPMLocalSortByID);
     combine_pixels(map);
 
+    fastpm_info("Locally combined, np = %d", map->np);
     fastpm_sort_snapshot(map, comm, FastPMSnapshotSortByID, /* redistribute = */0);
     combine_pixels(map);
+    fastpm_info("Globally combined, np = %d", map->np);
 
     /* at this point, all ID (ipix) of pixels are unique on a rank, the following
      * algorithm requires this uniqueness. */
 
+    struct {
+        uint64_t ipix;
+        double mass;
+    } last, first, prev, next;
+
+    MPI_Datatype dt;
+    MPI_Type_contiguous(sizeof(last), MPI_BYTE, &dt);
+    MPI_Type_commit(&dt);
+
     /* split the comm to 'with-data', and 'no-data', and form a ring on the 'with-data' ranksj*/
-    int rank;
-    MPI_Comm_rank(comm, &rank);
+    int ThisTask;
+    MPI_Comm_rank(comm, &ThisTask);
 
     MPI_Comm newcomm;
-    MPI_Comm_split(comm, map->np == 0, rank, &newcomm);
+    MPI_Comm_split(comm, map->np == 0, ThisTask, &newcomm);
+    int rank;
     MPI_Comm_rank(newcomm, &rank);
     int size;
     MPI_Comm_size(newcomm, &size);
@@ -1135,27 +1150,25 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     }
 
     /* form a ring on the newcomm, and exchange */
-    struct {
-        uint64_t ipix;
-        double mass;
-    } last, first, prev, next;
-
-    MPI_Datatype dt;
-    MPI_Type_contiguous(sizeof(last), MPI_BYTE, &dt);
     last.ipix = map->id[map->np - 1];
     last.mass = map->mass[map->np - 1];
     first.ipix = map->id[0];
     first.mass = map->mass[0];
 
+    fastpm_ilog(INFO, "ThisTask = %d rank = %d next = %d, prev = %d.", ThisTask, rank,
+        (rank + 1) % size, (rank - 1 + size) % size );
+    /* 99 and 100 are just random non-conflicting tag numbers. */
     MPI_Sendrecv(
         &last, 1, dt, (rank + 1) % size, 99,
-        &prev, 1, dt, (rank - 1) % size, 99,
+        &prev, 1, dt, (rank - 1 + size) % size, 99,
         newcomm, MPI_STATUS_IGNORE);
 
+    fastpm_ilog(INFO, "last / prev done rank = %d.", ThisTask, rank);
     MPI_Sendrecv(
-        &first, 1, dt, (rank - 1) % size, 99,
-        &next, 1, dt, (rank + 1) % size, 99,
+        &first, 1, dt, (rank - 1 + size) % size, 100,
+        &next, 1, dt, (rank + 1) % size, 100,
         newcomm, MPI_STATUS_IGNORE);
+    fastpm_ilog(INFO, "first / next done rank = %d.", ThisTask, rank);
 
     MPI_Type_free(&dt);
 
