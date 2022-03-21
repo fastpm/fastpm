@@ -647,9 +647,9 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
         return;
     }
 
-    FastPMFloat * delta_k = pm_alloc(fastpm->pm);
+    FastPMFloat * delta_k = pm_alloc(fastpm->lptpm);
 
-    prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0,
+    prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0,
                    CONF(prr->lua, linear_density_redshift), 
                    CONF(prr->lua, read_lineark), 
                    CONF(prr->lua, read_powerspectrum));
@@ -666,13 +666,13 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
-        write_complex(fastpm->pm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
+        write_complex(fastpm->lptpm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
     }
 
     if(CONF(prr->lua, write_powerspectrum)) {
         FastPMPowerSpectrum ps;
         /* calculate the power spectrum */
-        fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
+        fastpm_powerspectrum_init_from_delta(&ps, fastpm->lptpm, delta_k, delta_k);
 
         char buf[1024];
         sprintf(buf, "%s_linear.txt", CONF(prr->lua, write_powerspectrum));
@@ -689,7 +689,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     if (growth_rate_func_k)
         fastpm_funck_destroy(growth_rate_func_k);
-    pm_free(fastpm->basepm, delta_k);
+    pm_free(fastpm->lptpm, delta_k);
 }
 
 static void 
@@ -758,7 +758,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
     ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
-    fastpm_store_fill(ncdm_sites, fastpm->pm, shift, Nc_ncdm);
+    fastpm_store_fill(ncdm_sites, fastpm->lptpm, shift, Nc_ncdm);
 
     // stagger the ncdm grid wrt the cdm grid. FIXME: Does this conflict with the shift stuff above?
     int i, d;
@@ -785,21 +785,21 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     fastpm_store_wrap(ncdm, BoxSize);
     fastpm_store_decompose(ncdm,
                            (fastpm_store_target_func) FastPMTargetPM,
-                           fastpm->pm,
+                           fastpm->lptpm,
                            fastpm->comm);
 
     // compute delta_k for ncdm
-    FastPMFloat * delta_k = pm_alloc(fastpm->pm);
+    FastPMFloat * delta_k = pm_alloc(fastpm->lptpm);
     
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
         fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead."); 
         /*FIXME: would make more sense (better approximation) to use a flat power spectrum instead*/
-        prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0, 
+        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift), 
                         CONF(prr->lua, read_lineark), 
                         CONF(prr->lua, read_powerspectrum));
     } else {
-        prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0, 
+        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift_ncdm), 
                         CONF(prr->lua, read_lineark_ncdm), 
                         CONF(prr->lua, read_powerspectrum_ncdm));
@@ -820,7 +820,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
     if (growth_rate_func_k)
         fastpm_funck_destroy(growth_rate_func_k);
-    pm_free(fastpm->pm, delta_k);
+    pm_free(fastpm->lptpm, delta_k);
     
     fastpm_store_destroy(ncdm_sites);
     fastpm_ncdm_init_free(nid);
@@ -909,14 +909,14 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
 
         for (i = 0; i < ntiles; i ++) {
             for (j = 0; j < 3; j ++) {
-                tiles[i][j] = (*c) * pm_boxsize(fastpm->pm)[j];
+                tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
                 c ++;
             }
             fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
                 tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
-                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->pm),
+                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->basepm),
                 p,
                 CONF(prr->lua, lc_usmesh_alloc_factor) *
                 p->np_upper,
@@ -1236,7 +1236,7 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunD
     };
     /* convert from fraction of mean separation to simulation distance units. */
     double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
-    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
+    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->basepm);
     ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
 
     if (userdata) {
@@ -1273,7 +1273,7 @@ run_rfof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Run
         .B1 = CONF(prr->lua, rfof_b1),
         .B2 = CONF(prr->lua, rfof_b2),
     };
-    fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->pm);
+    fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->basepm);
     /* Use the average redshift -- this is bad if the slices are large! */
     double z = 1. / snapshot->meta.a_x - 1;
     fastpm_info("z = %g\n", z);
