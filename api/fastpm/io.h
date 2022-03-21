@@ -77,5 +77,19 @@ write_aemit_hist(const char * fn, const char * ds,
 int
 read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm);
 
+typedef double (*fastpm_store_hp_paintfunc)(
+        FastPMStore * store,
+        ptrdiff_t i,
+        void * userdata);
+
+void
+fastpm_snapshot_paint_hpmap(FastPMStore * p,
+        MPI_Comm comm,
+        size_t nside,
+        fastpm_store_hp_paintfunc paintfunc,
+        void * userdata,
+        FastPMStore * map
+);
+
 FASTPM_END_DECLS
 #endif
