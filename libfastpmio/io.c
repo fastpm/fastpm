@@ -1063,11 +1063,6 @@ read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm)
     return 0;
 }
 
-typedef double (*fastpm_store_hp_paintfunc)(
-        FastPMStore * store,
-        ptrdiff_t i,
-        void * userdata);
-
 static void combine_pixels(FastPMStore * map) {
     /* reduce duplicated pixels, after sorting */
 
