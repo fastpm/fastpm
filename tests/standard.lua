@@ -139,7 +139,6 @@ else
 end
 
 if has('fnl') then
-    -- FIXME: what?
     f_nl_type = "local"
     scalar_amp = 2.130624e-9
     scalar_pivot = 0.05
