@@ -1090,6 +1090,9 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     }
     LEAVE(io);
     free(filebase);
+
+    /* Purge the lightcone as it has already been written. */
+    lcevent->p->np = 0;
 }
 
 static int cmp_double(const void * p1, const void * p2)
@@ -1526,7 +1529,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, a1, a2, event->whence, fastpm->comm);
 
-    int64_t np_lc = usmesh->np_before + usmesh->p->np;
+    int64_t np_lc = usmesh->np_before;
     MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
     fastpm_info("Total number of particles wrote into lightcone: %ld\n", np_lc);
     return 0;
