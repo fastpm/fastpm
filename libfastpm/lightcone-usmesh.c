@@ -495,10 +495,14 @@ fastpm_usmesh_emit(FastPMUSMesh * mesh, int whence)
     lcevent->p->meta.a_x = (mesh->ai + mesh->af) * 0.5;
     lcevent->p->meta.a_v = (mesh->ai + mesh->af) * 0.5;
 
+    mesh->np_before += mesh->p->np;
+    fastpm_info("usmesh emit event: mesh->p->np = %d", mesh->p->np);
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
             (FastPMEvent*) lcevent, mesh);
 
+    /* the store could be pruged during the event, but we don't care here any more */
+    mesh->ai = mesh->af;
 }
 
 int
@@ -579,10 +583,6 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
             if(MPIU_Any(comm, mesh->p->np > 0.1 * mesh->p->np_upper)) {
                 fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
                 fastpm_usmesh_emit(mesh, whence);
-                mesh->np_before += mesh->p->np;
-                /* now purge the store. */
-                mesh->p->np = 0;
-                mesh->ai = mesh->af;
             }
         }
     } else
@@ -590,10 +590,6 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
         mesh->af = a2;
         fastpm_info("usmesh end event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
         fastpm_usmesh_emit(mesh, whence);
-        mesh->np_before += mesh->p->np;
-        /* now purge the store. */
-        mesh->p->np = 0;
-        mesh->ai = mesh->af;
     }
     return 0;
 }
