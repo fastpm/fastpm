@@ -28,7 +28,6 @@ random_seed= 100
 remove_cosmic_variance=true
 -------- Approximation Method ---------------
 force_mode = "fastpm"
--- force_mode = "cola"
 growth_mode = "LCDM"
 pm_nc_factor = 1
 lpt_nc_factor = 1
@@ -70,4 +69,4 @@ lc_write_usmesh = "lightcone/usmesh"
 lc_usmesh_tiles = fastpm.outerproduct({-2, -1, 0, 1}, {-2, -1, 0, 1}, {-2, -1, 0, 1})
 lc_usmesh_fof_padding = 20.0
 lc_usmesh_alloc_factor = 2.0
-lc_usmesh_ell_limit = 200
+lc_usmesh_ell_limit = 200  -- downsamples the lightcone particles.
