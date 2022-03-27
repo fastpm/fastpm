@@ -1085,7 +1085,7 @@ static void combine_pixels(FastPMStore * map) {
 /* Creates a healpix map particle store in map.
  *
  * ID: [0, nslices * npix), for aemit = 0 ~ 1. if aemit < 0, out of bound errors.
- *    if aemit > 1, create additional slices.
+ *    if aemit > 1, create additional slices. Pixels are in NEST scheme
  * aemit: quantized aemit of pixels.
  * paintfunc: use its return value instead of the mass;
  * map: Allocates map and caller destroys it.
