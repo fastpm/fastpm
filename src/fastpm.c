@@ -1566,7 +1566,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 
     int64_t np_lc = usmesh->np_before;
     MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
-    fastpm_info("Total number of particles wrote into lightcone: %ld\n", np_lc);
+    fastpm_info("Total number of particles in the lightcone: %ld\n", np_lc);
     return 0;
 }
 

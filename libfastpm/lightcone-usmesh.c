@@ -496,7 +496,7 @@ fastpm_usmesh_emit(FastPMUSMesh * mesh, int whence)
     lcevent->p->meta.a_v = (mesh->ai + mesh->af) * 0.5;
 
     mesh->np_before += mesh->p->np;
-    fastpm_info("usmesh emit event: mesh->p->np = %d", mesh->p->np);
+    fastpm_info("usmesh emit event: local mesh->p->np = %d", mesh->p->np);
     fastpm_emit_event(mesh->event_handlers,
             FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
             (FastPMEvent*) lcevent, mesh);
