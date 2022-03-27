@@ -32,6 +32,8 @@
 #ifndef CHEALPIX_H
 #define CHEALPIX_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -81,7 +83,7 @@ void nest2ring64(hpint64 nside, hpint64 ipnest, hpint64 *ipring);
 void ring2nest64(hpint64 nside, hpint64 ipring, hpint64 *ipnest);
 
 hpint64 nside2npix64(hpint64 nside);
-long npix2nside64(hpint64 npix);
+hpint64 npix2nside64(hpint64 npix);
 
 void vec2pix_nest64(hpint64 nside, const double *vec, hpint64 *ipix);
 void vec2pix_ring64(hpint64 nside, const double *vec, hpint64 *ipix);
