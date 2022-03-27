@@ -580,7 +580,7 @@ fastpm_usmesh_intersect(FastPMUSMesh * mesh, FastPMDriftFactor * drift, FastPMKi
             fastpm_info("number density for the shell is %g", np_sum / step_volume);
             LEAVE(intersect);
             mesh->af = af;
-            if(MPIU_Any(comm, mesh->p->np > 0.1 * mesh->p->np_upper)) {
+            if(MPIU_Any(comm, mesh->p->np > 0.5 * mesh->p->np_upper)) {
                 fastpm_info("usmesh cur event from %0.4f to %0.4f.\n", mesh->ai, mesh->af);
                 fastpm_usmesh_emit(mesh, whence);
             }
