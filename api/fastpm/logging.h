@@ -64,7 +64,7 @@ fastpm_void_msg_handler(
 void fastpm_info_(const char * file, int line, const char * fmt, ...);
 void fastpm_raise_(const char * file, int line, const int code, const char * fmt, ...);
 
-#define fastpm_ilog(...) fastpm_log_(__FILE__, __LINE__, ## __VA_ARGS__)
+#define fastpm_ilog(...) fastpm_ilog_(__FILE__, __LINE__, ## __VA_ARGS__)
 #define fastpm_log(...) fastpm_log_(__FILE__, __LINE__, ## __VA_ARGS__)
 void 
 fastpm_ilog_(const char * file,
