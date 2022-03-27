@@ -5,6 +5,7 @@
 BIGFILE_LIBS = libbigfile.a libbigfile-mpi.a
 MPSORT_LIBS = libradixsort.a libmpsort-mpi.a
 KDCOUNT_LIBS = libkdcount.a
+CHEALPIX_LIBS = libchealpix.a
 
 ifdef OPENMP
 PFFT_LIBS = libfftw3.a \
@@ -33,10 +34,11 @@ all : libfastpm-dep.a
 libfastpm-dep.a: $(BIGFILE_LIBS:%.a=install/lib/%.a) \
 	  $(MPSORT_LIBS:%.a=install/lib/%.a) \
 	  $(PFFT_LIBS:%.a=install/lib/%.a) \
-	  $(KDCOUNT_LIBS:%.a=install/lib/%.a)
+	  $(KDCOUNT_LIBS:%.a=install/lib/%.a) \
+	  $(CHEALPIX_LIBS:%.a=install/lib/%.a)
 	../ar-join $@ $^
 
-.INTERMEDIATE: .pfft .bigfile .mpsort .kdcount
+.INTERMEDIATE: .pfft .bigfile .mpsort .kdcount .chealpix
 
 $(BIGFILE_LIBS:%.a=install/lib/%.a): .bigfile
 
@@ -53,6 +55,12 @@ $(KDCOUNT_LIBS:%.a=install/lib/%.a): .kdcount
 .kdcount:
 	(cd kdcount; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "CFLAGS=$(OPTIMIZE) $(CFLAGS)")
 
+$(CHEALPIX_LIBS:%.a=install/lib/%.a): .chealpix
+
+.chealpix:
+	(cd chealpix; $(MAKE) install "PREFIX=$(PWD)/install" "CC=$(CC)" "CFLAGS=$(OPTIMIZE) $(CFLAGS)")
+
+$(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 $(PFFT_LIBS:%.a=install/lib/%.a): .pfft
 
 .pfft:
@@ -64,6 +72,8 @@ clean:
 	rm -f install/lib/libradix*.a
 	rm -f install/lib/libmpsort*.a
 	rm -f install/lib/libkdcount*.a
+	rm -f install/lib/libchealpix*.a
 	(cd kdcount; $(MAKE) clean)
+	(cd chealpix; $(MAKE) clean)
 	(cd bigfile; $(MAKE) clean)
 	(cd mpsort; $(MAKE) clean)
