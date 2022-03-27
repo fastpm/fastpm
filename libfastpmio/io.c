@@ -7,6 +7,7 @@
 #include <bigfile.h>
 #include <bigfile-mpi.h>
 #include <mpsort.h>
+#include <chealpix/chealpix.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
@@ -15,9 +16,6 @@
 
 #include <fastpm/io.h>
 
-/* FIXME: find a way to link to chealpix.c, e.g. moving it to deps dir. */
-
-extern void vec2pix_nest(long nside, const double *vec, long *ipix);
 #ifndef M_PI
 #define M_PI (3.14159265358979323846264338327950288)
 #endif

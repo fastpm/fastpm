@@ -7,8 +7,8 @@
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
 #include <fastpm/transfer.h>
-#include "chealpix.h"
 #include <mpsort.h>
+#include <chealpix/chealpix.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
