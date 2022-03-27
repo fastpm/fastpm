@@ -155,6 +155,7 @@ jobs:
         bash run-test-lightcone.sh
         bash run-test-lightcone-ODE.sh
         bash run-test-lightcone-rfof.sh
+        bash run-test-lightcone-healpix.sh
 
   test-restarts:
     needs: build
