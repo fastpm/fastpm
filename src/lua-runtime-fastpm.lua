@@ -241,6 +241,9 @@ schema.declare{name='lc_usmesh_fof_padding',     type='number', default=10.0,
 schema.declare{name='lc_usmesh_ell_limit',    type='number', default=0,
                help='Subsample particle fraction depending on redshift, to match the ell. 0 to use particle_fraction for all redshifts'}
 
+schema.declare{name='lc_usmesh_healpix_nside',     type='number', default=0, help='nside for healpix map. particle ID is slice_id * npix + ipix.'}
+schema.declare{name='lc_usmesh_healpix_nslice',   type='number', default=0, help='nslice for healpix map. particle ID is slice_id * npix + ipix.'}
+
 schema.declare{name='lc_usmesh_tiles',     type='array:number',
         default={
             {0, 0, 0},

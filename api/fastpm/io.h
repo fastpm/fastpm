@@ -84,11 +84,12 @@ typedef double (*fastpm_store_hp_paintfunc)(
 
 void
 fastpm_snapshot_paint_hpmap(FastPMStore * p,
-        MPI_Comm comm,
-        size_t nside,
+        int64_t nside,
+        int64_t nslice,
         fastpm_store_hp_paintfunc paintfunc,
         void * userdata,
-        FastPMStore * map
+        FastPMStore * map,
+        MPI_Comm comm
 );
 
 FASTPM_END_DECLS
