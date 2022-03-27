@@ -457,7 +457,7 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
             p->x[i][d] = x1;
 
             if(n > 10000) {
-                double q[3];
+                double q[3] = {0, 0, 0};
                 if(fastpm_store_has_q(p)) {
                     fastpm_store_get_q_from_id(p, p->id[i], q);
                 }
