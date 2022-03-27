@@ -1081,18 +1081,26 @@ static void combine_pixels(FastPMStore * map) {
     map->np = j + 1;
 }
 
-/* Allocates map and caller destroys it. */
+/* Creates a healpix map particle store in map.
+ *
+ * ID: [0, nslices * npix), for aemit = 0 ~ 1. if aemit < 0, out of bound errors.
+ *    if aemit > 1, create additional slices.
+ * aemit: quantized aemit of pixels.
+ * paintfunc: use its return value instead of the mass;
+ * map: Allocates map and caller destroys it.
+ * */
 void
 fastpm_snapshot_paint_hpmap(FastPMStore * p,
-        MPI_Comm comm,
-        size_t nside,
+        int64_t nside,
+        int64_t nslice,
         fastpm_store_hp_paintfunc paintfunc,
         void * userdata,
-        FastPMStore * map
+        FastPMStore * map,
+        MPI_Comm comm
 ) {
     ptrdiff_t i;
 
-    fastpm_store_init(map, "Map", p->np, COLUMN_ID | COLUMN_MASS, FASTPM_MEMORY_FLOATING);
+    fastpm_store_init(map, "Map", p->np, COLUMN_ID | COLUMN_AEMIT | COLUMN_MASS, FASTPM_MEMORY_FLOATING);
 
     map->np = p->np;
 
@@ -1100,14 +1108,19 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     if(!MPIU_Any(comm, map->np > 0)) {
         return;
     }
-
+    int64_t npix = nside2npix(nside);
     for (i = 0; i < p->np; i ++) {
         double x[3];
         long ipix;
+        /* round pixel aemit to the nearest 1/ nslice for slice_id */
+        int slice_id = (p->aemit[i] * nslice + 0.5);
         fastpm_store_get_position(p, i, x);
         vec2pix_nest(nside, x, &ipix);
-        map->id[i] = ipix;
+        /* id is 0 to nslice * npix */
+        map->id[i] = slice_id * npix + ipix;
         map->mass[i] = paintfunc?paintfunc(p, i, userdata): fastpm_store_get_mass(p, i);
+        /* quantize aemit for easier consistency checks */
+        map->aemit[i] = slice_id / (double)(nslice);
     }
 
     fastpm_store_sort(map, FastPMLocalSortByID);

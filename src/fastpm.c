@@ -18,6 +18,9 @@
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
 #include <fastpm/rfof.h>
+
+#include <chealpix/chealpix.h>
+
 #include <bigfile-mpi.h>
 #ifdef _OPENMP
 #include <omp.h>
@@ -51,8 +54,9 @@ struct usmesh_ready_handler_data {
     FastPMSolver * fastpm;
     RunData * prr;
     FastPMStore tail[1];
-    int64_t * hist;
+    int64_t * hist_cdm;
     int64_t * hist_fof;
+    int64_t * hist_map;
     double * aedges;
     int Nedges;
 };
@@ -831,8 +835,9 @@ _usmesh_ready_handler_free(void * userdata) {
     struct usmesh_ready_handler_data * data = userdata;
     fastpm_store_destroy(data->tail);
     free(data->aedges);
-    free(data->hist);
+    free(data->hist_cdm);
     free(data->hist_fof);
+    free(data->hist_map);
     free(data);
 }
 
@@ -949,8 +954,9 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
         data->aedges = edges;
         data->Nedges = nedges;
 
-        data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
+        data->hist_cdm = calloc(data->Nedges + 1, sizeof(int64_t));
         data->hist_fof = calloc(data->Nedges + 1, sizeof(int64_t));
+        data->hist_map= calloc(data->Nedges + 1, sizeof(int64_t));
 
         fastpm_store_init(data->tail, p->name, 0, 0, FASTPM_MEMORY_FLOATING);
         data->tail->meta = p->meta;
@@ -982,6 +988,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     RunData * prr = data->prr;
     FastPMStore * tail = data->tail;
 
+    FastPMStore map[1];
     FastPMStore halos[1];
     FastPMStore rhalos[1];
 
@@ -996,6 +1003,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
              lcevent->ai, lcevent->af, np, max_np, max_rank);
 
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
+
+    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
+        int nside = CONF(prr->lua, lc_usmesh_healpix_nside);
+        int nslice = CONF(prr->lua, lc_usmesh_healpix_nslice);
+        fastpm_snapshot_paint_hpmap(lcevent->p, nside, nslice, NULL, NULL, map, fastpm->comm);
+    }
 
     if(CONF(prr->lua, write_fof)) {
         run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc, run_fof);
@@ -1023,7 +1036,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_store_fill_subsample_mask_from_array(lcevent->p, fraction, mask);
         fastpm_memory_free(lcevent->p->mem, fraction);
     } else {
-         double particle_fraction = CONF(prr->lua, particle_fraction);
+        double particle_fraction = CONF(prr->lua, particle_fraction);
         fastpm_store_fill_subsample_mask(lcevent->p, particle_fraction, mask);
     }
     fastpm_store_subsample(lcevent->p, mask, lcevent->p);
@@ -1034,15 +1047,24 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     if(CONF(prr->lua, write_fof)) {
         fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
+    if(CONF(prr->lua, write_rfof)) {
+        fastpm_sort_snapshot(rhalos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
+    }
+    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
+        fastpm_sort_snapshot(map, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
+    }
     LEAVE(sort);
 
     ENTER(indexing);
-    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist_cdm, data->aedges, data->Nedges, fastpm->comm);
     if(CONF(prr->lua, write_fof)) {
         fastpm_store_histogram_aemit_sorted(halos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
     }
     if(CONF(prr->lua, write_rfof)) {
         fastpm_store_histogram_aemit_sorted(rhalos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
+    }
+    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
+        fastpm_store_histogram_aemit_sorted(map, data->hist_map, data->aedges, data->Nedges, fastpm->comm);
     }
     LEAVE(indexing);
 
@@ -1056,12 +1078,9 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_info("Appending usmesh catalog to %s\n", filebase);
         fastpm_store_write(lcevent->p, filebase, "a", prr->cli->Nwriters, fastpm->comm);
     }
-    write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
-    LEAVE(io);
+    write_aemit_hist(filebase, "1/.", data->hist_cdm, data->aedges, data->Nedges, fastpm->comm);
 
     /* halos */
-    ENTER(io);
-
     if(CONF(prr->lua, write_fof)) {
         if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
@@ -1069,7 +1088,6 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         } else {
             fastpm_store_write(halos, filebase, "a", prr->cli->Nwriters, fastpm->comm);
         }
-
         char * dataset_attrs = fastpm_strdup_printf("%s/.", halos->name);
         write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
         free(dataset_attrs);
@@ -1087,6 +1105,23 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
         free(dataset_attrs);
         fastpm_store_destroy(rhalos);
+    }
+    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
+        if(lcevent->whence == TIMESTEP_START) {
+            fastpm_store_write(map, filebase, "w", prr->cli->Nwriters, fastpm->comm);
+            int64_t nside = CONF(prr->lua, lc_usmesh_healpix_nside);
+            int64_t nslice = CONF(prr->lua, lc_usmesh_healpix_nslice);
+            int64_t npix = nside2npix(nside);
+            write_snapshot_attr(filebase, map->name, "healpix.nside", &nside, "i8", 1, fastpm->comm);
+            write_snapshot_attr(filebase, map->name, "healpix.npix", &npix, "i8", 1, fastpm->comm);
+            write_snapshot_attr(filebase, map->name, "healpix.nslice", &nslice, "i8", 1, fastpm->comm);
+        } else {
+            fastpm_store_write(map, filebase, "a", prr->cli->Nwriters, fastpm->comm);
+        }
+        char * dataset_attrs = fastpm_strdup_printf("%s/.", map->name);
+        write_aemit_hist(filebase, dataset_attrs, data->hist_map, data->aedges, data->Nedges, fastpm->comm);
+        free(dataset_attrs);
+        fastpm_store_destroy(map);
     }
     LEAVE(io);
     free(filebase);

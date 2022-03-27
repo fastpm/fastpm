@@ -110,7 +110,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
             "nonlightconeresultZ=9", "w", 1, solver->comm);
 
     FastPMStore map[1];
-    fastpm_snapshot_paint_hpmap(usmesh->p, solver->comm, 32, NULL, NULL, map);
+    fastpm_snapshot_paint_hpmap(usmesh->p, /* nside */32, /*nslice*/32, NULL, NULL, map, solver->comm);
     fastpm_info("usmesh->p->np = %d", usmesh->p->np);
     fastpm_store_write(usmesh->p, "lightcone-usmesh", "w", 1, solver->comm);
     fastpm_store_write(map, "lightcone-map", "w", 1, solver->comm);
