@@ -160,14 +160,14 @@ static char * process(
     }
     int hs = strlen(header);
     int ts = strlen(tail);
-    char * ret = malloc(strlen(buffer) + (hs + ts) * Nlines + need_newline + 1);
+    char * ret = malloc(strlen(buffer) + hs * Nlines + ts + need_newline + 1);
     char * q = ret;
 
     strcpy(q, header);
     q += strlen(header);
 
     for(p = buffer; *p; p ++) {
-        if (*p == '\n') {
+        if (*p == '\n' && *(p+1) == 0) {
             strcpy(q, tail);
             q += ts;
         }
