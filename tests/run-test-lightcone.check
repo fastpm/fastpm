@@ -1,35 +1,108 @@
+CHECK: Found 1769 pairs of values in input spectrum table
 CHECK: Input power spectrum sigma8 0.815897
-
+CHECK: Variance of input white noise is 0.99999619, expectation is 0.99999619
+CHECK: dx1  : 5.36177 5.36177 5.36177 5.36177
+CHECK: dx2  : 0.455678 0.44748 0.453293 0.45215
+CHECK: No structured mesh requested, generating an AemitIndex with 1024 layers for usmesh. 
+CHECK: ==== -> 001 [000 000 000]
+CHECK: D^2(0.1, 1.0) P(k<0.0490625) = 17305.5 Sigma8 = 6.20821
+CHECK: Subsampling to density 0.506099 (a = 0.1000) ~ 0.506099 (a = 0.1000), 
+CHECK: Creating usmesh catalog in lightcone/usmesh
+CHECK: Writing a snapshot header to lightcone/usmesh
 CHECK: Writing a catalog to lightcone/usmesh [1]
 CHECK: Writing 0 objects.
 CHECK: Writing a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-
+CHECK: Total number of particles in the lightcone: 0
+CHECK: ==== -> 002 [000 001 000]
+CHECK: ==== -> 003 [001 001 000]
+CHECK: Subsampling to density 0.506099 (a = 0.1000) ~ 0.74915 (a = 0.1512), 
 CHECK: Appending usmesh catalog to lightcone/usmesh
 CHECK: Appending a catalog to lightcone/usmesh [1]
-CHECK: Writing 423640 objects.
+CHECK: Writing 422564 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-
+CHECK: Total number of particles in the lightcone: 692556
+CHECK: ==== -> 004 [002 001 000]
+CHECK: ==== -> 005 [002 001 002]
+CHECK: D^2(0.228571, 1.0) P(k<0.0490625) = 17200.9 Sigma8 = 2.54189
+CHECK: ==== -> 006 [002 002 002]
+CHECK: Subsampling to density 0.74915 (a = 0.1512) ~ 1 (a = 0.2286),
 CHECK: Appending usmesh catalog to lightcone/usmesh
 CHECK: Appending a catalog to lightcone/usmesh [1]
-CHECK: Writing 607701 objects.
+CHECK: Writing 569931 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-
+CHECK: Total number of particles in the lightcone: 1312311
+CHECK: ==== -> 007 [002 003 002]
+CHECK: ==== -> 008 [003 003 002]
+CHECK: Total number of particles in the lightcone: 1312311
+CHECK: ==== -> 009 [004 003 002]
+CHECK: ==== -> 010 [004 003 004]
+CHECK: D^2(0.357143, 1.0) P(k<0.0490625) = 17110 Sigma8 = 1.55758
+CHECK: ==== -> 011 [004 004 004]
+CHECK: Total number of particles in the lightcone: 1312311
+CHECK: ==== -> 012 [004 005 004]
+CHECK: ==== -> 013 [005 005 004]
+CHECK: Subsampling to density 1 (a = 0.2286) ~ 1 (a = 0.4165), 
 CHECK: Appending usmesh catalog to lightcone/usmesh
 CHECK: Appending a catalog to lightcone/usmesh [1]
-CHECK: Writing 1523313 objects.
+CHECK: Writing 622458 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
-CHECK: Writing 453 objects.
-
+CHECK: Writing 0 objects.
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 014 [006 005 004]
+CHECK: ==== -> 015 [006 005 006]
+CHECK: D^2(0.485714, 1.0) P(k<0.0490625) = 17064.7 Sigma8 = 1.14191
+CHECK: ==== -> 016 [006 006 006]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 017 [006 007 006]
+CHECK: ==== -> 018 [007 007 006]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 019 [008 007 006]
+CHECK: ==== -> 020 [008 007 008]
+CHECK: D^2(0.614286, 1.0) P(k<0.0490625) = 17043.4 Sigma8 = 0.928101
+CHECK: ==== -> 021 [008 008 008]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 022 [008 009 008]
+CHECK: ==== -> 023 [009 009 008]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 024 [010 009 008]
+CHECK: ==== -> 025 [010 009 010]
+CHECK: D^2(0.742857, 1.0) P(k<0.0490625) = 17028.1 Sigma8 = 0.805797
+CHECK: ==== -> 026 [010 010 010]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 027 [010 011 010]
+CHECK: ==== -> 028 [011 011 010]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 029 [012 011 010]
+CHECK: ==== -> 030 [012 011 012]
+CHECK: D^2(0.871429, 1.0) P(k<0.0490625) = 17014.2 Sigma8 = 0.731205
+CHECK: ==== -> 031 [012 012 012]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 032 [012 013 012]
+CHECK: ==== -> 033 [013 013 012]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: ==== -> 034 [014 013 012]
+CHECK: ==== -> 035 [014 013 014]
+CHECK: D^2(1, 1.0) P(k<0.0490625) = 17002.2 Sigma8 = 0.682708
+CHECK: ==== -> 036 [014 014 014]
+CHECK: Total number of particles in the lightcone: 1934769
+CHECK: Snapshot a_x = 1.0000, a_v = 1.0000 
+CHECK: Growth factor of snapshot 1.0000 (a=1.0000)
+CHECK: Growth rate of snapshot 0.5194 (a=1.0000)
+CHECK: Writing a snapshot header to lightcone/fastpm_1.0000
 CHECK: Writing a catalog to lightcone/fastpm_1.0000 [1]
-CHECK: Writing 2097152 objects.
+CHECK: Writing 262144 objects.
+CHECK: snapshot lightcone/fastpm_1.0000 [1] written at z = 0.0000 a = 1.0000 
+CHECK: Writing a snapshot header to lightcone/fof_1.0000
 CHECK: Writing a catalog to lightcone/fof_1.0000 [LL-0.200]
-CHECK: Writing 22062 objects.
-
+CHECK: Writing 52 objects.
+CHECK: fof lightcone/fof_1.0000 [LL-0.200] written at z = 0.0000 a = 1.0000 
+CHECK: Subsampling to density 1 (a = 0.4165) ~ 1 (a = 1.0000), 
 CHECK: Appending usmesh catalog to lightcone/usmesh
 CHECK: Appending a catalog to lightcone/usmesh [1]
-CHECK: Writing 1507785 objects.
+CHECK: Writing 200849 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
-CHECK: Writing 4983 objects.
+CHECK: Writing 1 objects.
+CHECK: Total number of particles in the lightcone: 2135618
