@@ -1112,9 +1112,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
             int64_t nside = CONF(prr->lua, lc_usmesh_healpix_nside);
             int64_t nslice = CONF(prr->lua, lc_usmesh_healpix_nslice);
             int64_t npix = nside2npix(nside);
+            char * scheme = "RING";
             write_snapshot_attr(filebase, map->name, "healpix.nside", &nside, "i8", 1, fastpm->comm);
             write_snapshot_attr(filebase, map->name, "healpix.npix", &npix, "i8", 1, fastpm->comm);
             write_snapshot_attr(filebase, map->name, "healpix.nslice", &nslice, "i8", 1, fastpm->comm);
+            write_snapshot_attr(filebase, map->name, "healpix.scheme", scheme, "S1", strlen(scheme) + 1, fastpm->comm);
         } else {
             fastpm_store_write(map, filebase, "a", prr->cli->Nwriters, fastpm->comm);
         }
