@@ -1071,6 +1071,7 @@ static void combine_pixels(FastPMStore * map) {
             j ++;
             if(j != i) {
                 map->id[j] = map->id[i];
+                map->aemit[j] = map->aemit[i];
                 map->mass[j] = map->mass[i];
             }
         } else {
@@ -1113,14 +1114,14 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
         double x[3];
         long ipix;
         /* round pixel aemit to the nearest 1/ nslice for slice_id */
-        int slice_id = (p->aemit[i] * nslice + 0.5);
+        int slice_id = p->aemit[i] * nslice;
         fastpm_store_get_position(p, i, x);
         vec2pix_nest(nside, x, &ipix);
         /* id is 0 to nslice * npix */
         map->id[i] = slice_id * npix + ipix;
         map->mass[i] = paintfunc?paintfunc(p, i, userdata): fastpm_store_get_mass(p, i);
         /* quantize aemit for easier consistency checks */
-        map->aemit[i] = slice_id / (double)(nslice);
+        map->aemit[i] = (slice_id + 0.5) / nslice;
     }
 
     fastpm_store_sort(map, FastPMLocalSortByID);
