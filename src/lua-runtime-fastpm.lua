@@ -232,6 +232,7 @@ schema.declare{name='lc_amax',
             type='number', help='max scale factor for truncation of lightcone.'}
 
 schema.declare{name='lc_write_usmesh',         type='string', help='file name base for writing the particle lightcone'}
+schema.declare{name='lc_usmesh_nslices',   type='number', default=256, help='Number of slices in AemitIndex attribute of lightcone data sets. also controls number of slices in healpix maps.'}
 
 schema.declare{name='lc_usmesh_alloc_factor',     type='number', default=1.0,
                     help='allocation factor for the unstructured mesh, relative to alloc_factor. Use smaller number to ease OOM errors in lightcone.'}
@@ -243,7 +244,6 @@ schema.declare{name='lc_usmesh_ell_limit',    type='number', default=0,
                help='Subsample particle fraction depending on redshift, to match the ell. 0 to use particle_fraction for all redshifts'}
 
 schema.declare{name='lc_usmesh_healpix_nside',     type='number', default=0, help='nside for healpix map. particle ID is slice_id * npix + ipix.'}
-schema.declare{name='lc_usmesh_healpix_nslice',   type='number', default=0, help='nslice for healpix map. particle ID is slice_id * npix + ipix.'}
 
 schema.declare{name='lc_usmesh_tiles',     type='array:number',
         default={

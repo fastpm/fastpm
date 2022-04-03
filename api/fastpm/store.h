@@ -252,13 +252,6 @@ size_t
 fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);
 
 void
-fastpm_store_histogram_aemit_sorted(FastPMStore * store,
-        int64_t * hist,
-        double * edges,
-        size_t nbins,
-        MPI_Comm comm);
-
-void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);
 
 void
