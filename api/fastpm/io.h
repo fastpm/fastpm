@@ -1,6 +1,8 @@
 #ifndef __FASTPM_IO_H__
 #define __FASTPM_IO_H__
 #include <bigfile.h>
+#include <fastpm/histogram.h>
+
 FASTPM_BEGIN_DECLS
 
 typedef void (*FastPMSnapshotSorter)(const void * ptr, void * radix, void * arg);
@@ -69,9 +71,7 @@ read_angular_grid(FastPMStore * store,
 
 void
 write_aemit_hist(const char * fn, const char * ds,
-            int64_t * hist,
-            double * aedges,
-            size_t nedges,
+            FastPMHistogram * hist,
             MPI_Comm comm);
 
 int
@@ -91,6 +91,11 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
         FastPMStore * map,
         MPI_Comm comm
 );
+
+void
+fastpm_store_histogram_aemit_sorted(FastPMStore * store,
+        FastPMHistogram * hist,
+        MPI_Comm comm);
 
 FASTPM_END_DECLS
 #endif

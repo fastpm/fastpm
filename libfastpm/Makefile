@@ -19,6 +19,7 @@ LIBSOURCES = libfastpm.c \
     transfer.c \
     memory.c \
     utils.c \
+    histogram.c \
     initialcondition.c \
     pngaussian.c \
     pgdcorrection.c \

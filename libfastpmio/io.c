@@ -13,6 +13,7 @@
 #include <fastpm/prof.h>
 #include <fastpm/string.h>
 #include <fastpm/logging.h>
+#include <fastpm/histogram.h>
 
 #include <fastpm/io.h>
 
@@ -988,9 +989,7 @@ write_snapshot_attr(const char * filebase,
 
 void
 write_aemit_hist(const char * filebase, const char * dataset,
-            int64_t * hist,
-            double * aedges,
-            size_t nedges,
+            FastPMHistogram * hist,
             MPI_Comm comm)
 {
     /* write an index to the dataset (usually Header block) */
@@ -1008,22 +1007,22 @@ write_aemit_hist(const char * filebase, const char * dataset,
 
     /* starting edges of the bins */
     big_block_remove_attr(&bb, "aemitIndex.edges");
-    big_block_set_attr(&bb, "aemitIndex.edges", aedges, "f8", nedges);
+    big_block_set_attr(&bb, "aemitIndex.edges", hist->edges, "f8", hist->Nedges);
 
     /* number in each layer bin 0 is the first layer, since it is the only layer outside of the edges */
     big_block_remove_attr(&bb, "aemitIndex.size");
-    big_block_set_attr(&bb, "aemitIndex.size", hist, "i8", nedges + 1);
+    big_block_set_attr(&bb, "aemitIndex.size", hist->counts, "i8", hist->Nedges + 1);
 
-    int64_t * offset = malloc(sizeof(int64_t) * (nedges + 2));
+    int64_t * offset = malloc(sizeof(int64_t) * (hist->Nedges + 2));
 
     /* the starting particles offset for each layer */
     offset[0] = 0;
     int i;
-    for(i = 1; i < nedges + 2; i ++) {
-        offset[i] = offset[i - 1] + hist[i - 1];
+    for(i = 1; i < hist->Nedges + 2; i ++) {
+        offset[i] = offset[i - 1] + hist->counts[i - 1];
     }
     big_block_remove_attr(&bb, "aemitIndex.offset");
-    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", nedges + 2);
+    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", hist->Nedges + 2);
 
     big_block_mpi_close(&bb, comm);
     big_file_mpi_close(&bf, comm);
@@ -1197,4 +1196,86 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
             map->np --;
         }
     }
+}
+
+#if 0
+static ptrdiff_t
+binary_search(double foo, double a[], size_t n) {
+    ptrdiff_t left = 0, right = n;
+    ptrdiff_t mid;
+    /* find the right side, because hist would count the number < edge, not <= edge */
+    if(a[left] > foo) {
+        return 0;
+    }
+    if(a[right - 1] <= foo) {
+        return n;
+    }
+    while(right - left > 1) {
+        mid = left + ((right - left - 1) >> 1);
+        double pivot = a[mid];
+        if(pivot > foo) {
+            right = mid + 1;
+            /* a[right - 1] > foo; */
+        } else {
+            left = mid + 1;
+            /* a[left] <= foo; */
+        }
+    }
+    return left;
+}
+#endif
+/* this is cumulative */
+void
+fastpm_store_histogram_aemit_sorted(FastPMStore * store,
+        FastPMHistogram * hist,
+        MPI_Comm comm)
+{
+    ptrdiff_t i;
+
+    int nedges = hist->Nedges;
+    double * aedges = hist->edges;
+
+    int64_t * count1 = malloc(sizeof(count1[0]) * (nedges + 1));
+
+    memset(count1, 0, sizeof(count1[0]) * (nedges + 1));
+
+#pragma omp parallel
+    {
+        /* FIXME: use standard reduction with OpenMP 4.7 */
+
+        int64_t * count2 = malloc(sizeof(count2[0]) * (nedges + 1));
+        memset(count2, 0, sizeof(count2[0]) * (nedges + 1));
+
+        int iedge = 0;
+
+        /* this works because openmp will send each thread at most 1
+         * chunk with the static scheduling; thus a thread never sees
+         * out of order aemit */
+        #pragma omp for schedule(static)
+        for(i = 0; i < store->np; i ++) {
+            while(iedge < nedges && store->aemit[i] >= aedges[iedge]) iedge ++;
+
+//           int ibin = binary_search(store->aemit[i], aedges, nedges);
+//           if(ibin != iedge) abort();
+
+            count2[iedge] ++;
+        }
+
+        #pragma omp critical
+        {
+            for(i = 0; i < nedges + 1; i ++) {
+                count1[i] += count2[i];
+            }
+        }
+
+        free(count2);
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, count1, nedges + 1, MPI_LONG, MPI_SUM, comm);
+
+    for(i = 0; i < nedges + 1; i ++) {
+        hist->counts[i] += count1[i];
+    }
+
+    free(count1);
 }
