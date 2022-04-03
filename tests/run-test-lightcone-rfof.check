@@ -3,7 +3,7 @@ CHECK: Input power spectrum sigma8 0.815897
 CHECK: Variance of input white noise is 0.99999619, expectation is 0.99999619
 CHECK: dx1  : 5.36177 5.36177 5.36177 5.36177
 CHECK: dx2  : 0.455678 0.44748 0.453293 0.45215
-CHECK: No structured mesh requested, generating an AemitIndex with 1024 layers for usmesh. 
+CHECK: Generating an AemitIndex with 256 layers for usmesh. 
 CHECK: ==== -> 001 [000 000 000]
 CHECK: D^2(0.1, 1.0) P(k<0.0490625) = 17305.5 Sigma8 = 6.20821
 CHECK: Subsampling to density 0.506099 (a = 0.1000) ~ 0.506099 (a = 0.1000), 
