@@ -913,8 +913,6 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
                 tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
                 c ++;
             }
-            fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
-                tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
                 CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->basepm),
@@ -1302,7 +1300,7 @@ run_rfof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Run
     fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->basepm);
     /* Use the average redshift -- this is bad if the slices are large! */
     double z = 1. / snapshot->meta.a_x - 1;
-    fastpm_info("z = %g\n", z);
+    fastpm_info("RFOF: assuming z = %g\n", z);
     ptrdiff_t * ihalo = fastpm_rfof_execute(&rfof, halos, z);
 
     if (userdata) {
@@ -1340,10 +1338,8 @@ run_usmesh_fof(FastPMSolver * fastpm,
     for(i = 0; i < tail->np; i ++) {
         tail->mask[i] = 0;
     }
-    fastpm_info("1 Running usmesh fof/rfof near a = %5.3f", lcevent->p->meta.a_x);
     fastpm_store_extend(lcevent->p, tail);
     fastpm_store_destroy(tail);
-    fastpm_info("2 Running usmesh fof/rfof near a = %5.3f", lcevent->p->meta.a_x);
 
     /* FIXME: register event to mask out particles*/
     FastPMParticleMaskType * keep_for_tail = fastpm_memory_alloc(p->mem, "keep",
