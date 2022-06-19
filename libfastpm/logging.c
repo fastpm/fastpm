@@ -74,7 +74,7 @@ void fastpm_default_msg_handler(
             const enum FastPMLogLevel level,
             const enum FastPMLogType type,
             const int errcode,
-             const char * message, 
+            const char * message,
             MPI_Comm comm,
             void * userdata) {
     int ThisTask;
@@ -134,12 +134,18 @@ static double now()
     return now.tv_sec + now.tv_usec * 1e-6;
 }
 
-static char * process(const char * buffer) {
+static char * process(
+        const char * file,
+        int line,
+        const char * buffer) {
+
     char header[128];
+    char tail[128];
 
     static double t0 = -1.0;
     if(t0 < 0) t0 = now();
     sprintf(header, "[ %012.04f ]: ", now() - t0);
+    sprintf(tail, " [ %.20s:%d ]", file, line);
 
     int Nlines = 0;
     const char * p;
@@ -152,21 +158,29 @@ static char * process(const char * buffer) {
         need_newline = 1;
         Nlines ++;
     }
-    char * ret = malloc(strlen(buffer) + strlen(header) * Nlines + need_newline + 1);
+    int hs = strlen(header);
+    int ts = strlen(tail);
+    char * ret = malloc(strlen(buffer) + hs * Nlines + ts + need_newline + 1);
     char * q = ret;
 
     strcpy(q, header);
     q += strlen(header);
 
     for(p = buffer; *p; p ++) {
+        if (*p == '\n' && *(p+1) == 0) {
+            strcpy(q, tail);
+            q += ts;
+        }
         *q = *p;
         q ++;
         if (*p == '\n' && *(p+1) != 0) {
             strcpy(q, header);
-            q += strlen(header);
+            q += hs;
         }
     }
     if(need_newline) {
+        strcpy(q, tail);
+        q += ts;
         *q = '\n';
         q ++;
     }
@@ -175,47 +189,63 @@ static char * process(const char * buffer) {
 }
 
 
-void fastpm_log2(const enum FastPMLogLevel level, 
-            const enum FastPMLogType type,
-            const int code, 
-            const char * fmt, va_list argp) {
+static void fastpm_log2(
+        const char * file,
+        int line,
+        const enum FastPMLogLevel level,
+        const enum FastPMLogType type,
+        const int code,
+        const char * fmt, va_list argp) {
 
     if (handler_data.handler == NULL) {
         fastpm_set_msg_handler(fastpm_default_msg_handler, MPI_COMM_WORLD, NULL);
     }
 
     char * buffer = fastpm_strdup_vprintf(fmt, argp);
-    char * processed = process(buffer);
+    char * processed = process(file, line, buffer);
     handler_data.handler(level, type, code, processed, handler_data.comm, handler_data.userdata);
     free(processed);
     free(buffer);
 }
 
-void fastpm_ilog(const enum FastPMLogLevel level, 
-            const char * fmt, ...) {
+void fastpm_ilog_(
+        const char * file,
+        int line,
+        const enum FastPMLogLevel level,
+        const char * fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    fastpm_log2(level, INDIVIDUAL, 0, fmt, argp); 
+    fastpm_log2(file, line, level, INDIVIDUAL, 0, fmt, argp); 
     va_end(argp);
 }
 
-void fastpm_log(const enum FastPMLogLevel level, 
-            const char * fmt, ...) {
+void fastpm_log_(
+        const char * file,
+        int line,
+        const enum FastPMLogLevel level,
+        const char * fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    fastpm_log2(level, COLLECTIVE, 0, fmt, argp); 
+    fastpm_log2(file, line, level, COLLECTIVE, 0, fmt, argp); 
     va_end(argp);
 }
 
-void fastpm_info(const char * fmt, ...) {
+void fastpm_info_(
+        const char * file,
+        int line,
+        const char * fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    fastpm_log2(INFO, COLLECTIVE, 0, fmt, argp); 
+    fastpm_log2(file, line, INFO, COLLECTIVE, 0, fmt, argp); 
     va_end(argp);
 }
-void fastpm_raise(const int code, const char * fmt, ...) {
+void fastpm_raise_(
+        const char * file,
+        int line,
+        const int code,
+        const char * fmt, ...) {
     va_list argp;
     va_start(argp, fmt);
-    fastpm_log2(ERROR, INDIVIDUAL, code, fmt, argp); 
+    fastpm_log2(file, line, ERROR, INDIVIDUAL, code, fmt, argp); 
     va_end(argp);
 }

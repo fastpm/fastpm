@@ -81,7 +81,6 @@ typedef struct {
 #define FASTPM_SOLVER_NSPECIES 6
 
 typedef struct {
-    PM * pm;
     /* FIXME: Use a linked list and change the num of species to a string. */
     FastPMStore *species[FASTPM_SOLVER_NSPECIES];
     char has_species[FASTPM_SOLVER_NSPECIES];

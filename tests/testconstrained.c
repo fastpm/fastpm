@@ -34,7 +34,7 @@ int main(int argc, char * argv[]) {
     FastPMSolver solver[1];
     fastpm_solver_init(solver, config, comm);
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->lptpm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -43,8 +43,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->lptpm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->lptpm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     FastPM2PCF xi;
 
@@ -58,9 +58,9 @@ int main(int argc, char * argv[]) {
             },
     };
 
-    fastpm_cg_apply_constraints(&cg, solver->pm, &xi, rho_init_ktruth);
+    fastpm_cg_apply_constraints(&cg, solver->lptpm, &xi, rho_init_ktruth);
 
-    pm_free(solver->pm, rho_init_ktruth);
+    pm_free(solver->lptpm, rho_init_ktruth);
     fastpm_solver_destroy(solver);
     libfastpm_cleanup();
     MPI_Finalize();

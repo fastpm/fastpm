@@ -213,7 +213,7 @@ fastpm_store_summary(FastPMStore * p,
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
 
-typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
+typedef int (*fastpm_store_target_func)(FastPMStore * p, ptrdiff_t index, void * data);
 
 int
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
@@ -250,13 +250,6 @@ fastpm_store_fill_subsample_mask_from_array(FastPMStore * p,
 
 size_t
 fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);
-
-void
-fastpm_store_histogram_aemit_sorted(FastPMStore * store,
-        int64_t * hist,
-        double * edges,
-        size_t nbins,
-        MPI_Comm comm);
 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);

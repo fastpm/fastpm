@@ -30,7 +30,7 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->basepm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_info("stage 1\n");
 
@@ -49,9 +49,6 @@ stage1(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
 
     fastpm_store_write(usmesh->p, "lightconeresult-p", "w", 1, solver->comm);
 
-    FastPMPainter painter[1];
-
-    fastpm_painter_init(painter, solver->pm, solver->config->PAINTER_TYPE, solver->config->painter_support);
     fastpm_usmesh_destroy(usmesh);
 
 }
@@ -63,7 +60,7 @@ stage2(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->basepm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
@@ -97,7 +94,7 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
     FastPMUSMesh usmesh[1];
 
     FastPMStore * p = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
-    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->pm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.8);
+    fastpm_usmesh_init(usmesh, lc, pm_volume(solver->basepm), p, p->np_upper, tiles, sizeof(tiles) / sizeof(tiles[0]), 0.4, 0.9);
 
     fastpm_add_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
@@ -105,12 +102,19 @@ stage3(FastPMSolver * solver, FastPMLightCone * lc, FastPMFloat * rho_init_ktrut
         (FastPMEventHandlerFunction) interp_handler,
         usmesh);
 
-    double time_step3[] = {0.1};
+    double time_step3[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
     fastpm_solver_evolve(solver, time_step3, sizeof(time_step3) / sizeof(time_step3[0]));
 
     fastpm_store_write(fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM),
             "nonlightconeresultZ=9", "w", 1, solver->comm);
+
+    FastPMStore map[1];
+    fastpm_snapshot_paint_hpmap(usmesh->p, /* nside */32, /*nslice*/32, NULL, NULL, map, solver->comm);
+    fastpm_info("usmesh->p->np = %d", usmesh->p->np);
+    fastpm_store_write(usmesh->p, "lightcone-usmesh", "w", 1, solver->comm);
+    fastpm_store_write(map, "lightcone-map", "w", 1, solver->comm);
+    fastpm_store_destroy(map);
 
     fastpm_remove_event_handler(&solver->event_handlers,
         FASTPM_EVENT_INTERPOLATION,
@@ -133,12 +137,12 @@ int main(int argc, char * argv[]) {
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
 
     FastPMConfig * config = & (FastPMConfig) {
-        .nc = 64,
-        .boxsize = 128.,
+        .nc = 32,
+        .boxsize = 4096.,
         .alloc_factor = 10.0,
         .cosmology = NULL,
         .vpminit = (VPMInit[]) {
-            {.a_start = 0, .pm_nc_factor = 2},
+            {.a_start = 0, .pm_nc_factor = 1},
             {.a_start = -1, .pm_nc_factor = 0},
         },
         .FORCE_TYPE = FASTPM_FORCE_FASTPM,
@@ -149,7 +153,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_solver_init(solver, config, comm);
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->basepm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -158,8 +162,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->basepm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->basepm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     {
         int p = 0;
@@ -179,16 +183,18 @@ int main(int argc, char * argv[]) {
     // }
 
     FastPMLightCone lc[1] = {{
-        .dh_factor = 0.01,
+        .dh_factor = 1.0,
         .glmatrix = {
-                {0, 1, 0, 0,},
                 {1, 0, 0, 0,},
+                {0, 1, 0, 0,},
                 {0, 0, 1, 0,},
                 {0, 0, 0, 1,},
             },
 
         .fov = 360., /* full sky */
         .cosmology = solver->cosmology,
+        .octants = {1, 1, 1, 1, 1, 1, 1, 1, },
+        .tol = 2. / pow(32 , 0.33333),
     }};
 
     {
@@ -216,7 +222,7 @@ int main(int argc, char * argv[]) {
 
     fastpm_lc_destroy(lc);
 
-    pm_free(solver->pm, rho_init_ktruth);
+    pm_free(solver->basepm, rho_init_ktruth);
     fastpm_solver_destroy(solver);
 
     libfastpm_cleanup();

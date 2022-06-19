@@ -856,11 +856,11 @@ static void pix2ang_nest_z_phi64 (hpint64 nside_, hpint64 pix, double *z,
   *phi = (jp-(kshift+1)*0.5)*(halfpi/nr);
   }
 
-long npix2nside64(hpint64 npix)
+hpint64 npix2nside64(hpint64 npix)
   {
   hpint64 res = isqrt64(npix/12.);
 /*  UTIL_ASSERT(res*res*12==npix,"problem in npix2nside");*/
-  return (long)res;
+  return res;
   }
 
 hpint64 nside2npix64(hpint64 nside)

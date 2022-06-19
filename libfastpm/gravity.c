@@ -255,9 +255,8 @@ apply_softening_transfer(FastPMSofteningType type, PM * pm, FastPMFloat * from, 
 }
 
 void
-_fastpm_solver_create_ghosts(FastPMSolver * fastpm, int support, PMGhostData * pgd[6])
+_fastpm_solver_create_ghosts(FastPMSolver * fastpm, PM * pm, int support, PMGhostData * pgd[6])
 {
-    PM * pm = fastpm->pm;
 
     CLOCK(ghosts);
 
@@ -288,10 +287,8 @@ _fastpm_solver_destroy_ghosts(FastPMSolver * fastpm, PMGhostData * pgd[6])
 
 
 void
-_fastpm_solver_compute_delta_k(FastPMSolver * fastpm, FastPMPainter * painter, PMGhostData * pgd[6], FastPMFloat * canvas, FastPMFloat * delta_k)
+_fastpm_solver_compute_delta_k(FastPMSolver * fastpm, PM * pm, FastPMPainter * painter, PMGhostData * pgd[6], FastPMFloat * canvas, FastPMFloat * delta_k)
 {
-    PM * pm = fastpm->pm;
-
     double total_mass = 0;
 
     FastPMFieldDescr FASTPM_FIELD_DESCR_NONE = {0, 0};
@@ -345,6 +342,7 @@ _fastpm_solver_compute_delta_k(FastPMSolver * fastpm, FastPMPainter * painter, P
 
 void
 _fastpm_solver_compute_force(FastPMSolver * fastpm,
+    PM * pm,
     FastPMPainter * reader,
     FastPMKernelType kernel,
     PMGhostData * pgd[6],
@@ -352,7 +350,6 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
     FastPMFloat * delta_k, FastPMFieldDescr * ACC, int nacc)
 {
     int d;
-    PM * pm = fastpm->pm;
 
     CLOCK(transfer);
     CLOCK(c2r);
@@ -418,19 +415,19 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
 
 void
 fastpm_solver_compute_force(FastPMSolver * fastpm,
+    PM * pm,
     FastPMPainter * painter,
     FastPMSofteningType dealias,
     FastPMKernelType kernel,
     FastPMFloat * delta_k)
 {
-    PM * pm = fastpm->pm;
     PMGhostData * pgd[FASTPM_SOLVER_NSPECIES];
 
     FastPMFloat * canvas = pm_alloc(pm);
 
-    _fastpm_solver_create_ghosts(fastpm, painter->support, pgd);
+    _fastpm_solver_create_ghosts(fastpm, pm, painter->support, pgd);
 
-    _fastpm_solver_compute_delta_k(fastpm, painter, pgd, canvas, delta_k);
+    _fastpm_solver_compute_delta_k(fastpm, pm, painter, pgd, canvas, delta_k);
 
     CLOCK(dealias);
     /* calculate the forces save them to p->acc */
@@ -452,7 +449,7 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         nacc = 3;
     }
 
-    _fastpm_solver_compute_force(fastpm, painter, kernel, pgd, canvas, delta_k, ACC, nacc);
+    _fastpm_solver_compute_force(fastpm, pm, painter, kernel, pgd, canvas, delta_k, ACC, nacc);
 
     _fastpm_solver_destroy_ghosts(fastpm, pgd);
 
