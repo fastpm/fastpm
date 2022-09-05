@@ -52,9 +52,10 @@ typedef enum FastPMColumnTags {
     COLUMN_RDISP =  1L << 17,
     COLUMN_VDISP =  1L << 18,
     COLUMN_RVDISP =  1L << 19,
-    
+
     COLUMN_MASS = 1L << 20,
     COLUMN_RAND = 1L << 21,
+    COLUMN_RMOM = 1L << 22,  /* Radial momentum m * rhat dot (a dx/dt), used in lightcone map*/
 
 } FastPMColumnTags;
 
@@ -126,8 +127,9 @@ struct FastPMStore {
             /* multiple species support */
             float (* mass);   /* extra mass in addition to meta.M0; see fastpm_store_get_mass */
 
-	    /* other fields */
+            /* other fields */
             float (* rand);   /* a random number between 0 and 1 */
+            float (* rmom);   /* radial momentum, m rhat dot (a dx/dt) */
         };
     };
 };

@@ -418,6 +418,7 @@ fastpm_store_write(FastPMStore * p,
         DEFINE_COLUMN_IO("Vdisp",           "f4", vdisp),
         DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
         DEFINE_COLUMN_IO("Mass",            "f4", mass),
+        DEFINE_COLUMN_IO("Rmom",            "f4", rmom),
         {NULL, },
     };
     int64_t size = fastpm_store_get_np_total(p, comm);
@@ -1072,9 +1073,11 @@ static void combine_pixels(FastPMStore * map) {
                 map->id[j] = map->id[i];
                 map->aemit[j] = map->aemit[i];
                 map->mass[j] = map->mass[i];
+                map->rmom[j] = map->rmom[i];
             }
         } else {
             map->mass[j] += map->mass[i];
+            map->rmom[j] += map->rmom[i];
         }
         i++;
     }
@@ -1086,7 +1089,7 @@ static void combine_pixels(FastPMStore * map) {
  * ID: [0, nslices * npix), for aemit = 0 ~ 1. if aemit < 0, out of bound errors.
  *    if aemit > 1, create additional slices. Pixels are in NEST scheme
  * aemit: quantized aemit of pixels.
- * paintfunc: use its return value instead of the mass;
+ * paintfunc: paint with the function instead of mass and radial momentum;
  * map: Allocates map and caller destroys it.
  * */
 void
@@ -1100,7 +1103,7 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
 ) {
     ptrdiff_t i;
 
-    fastpm_store_init(map, "HEALPIX", p->np, COLUMN_ID | COLUMN_AEMIT | COLUMN_MASS, FASTPM_MEMORY_FLOATING);
+    fastpm_store_init(map, "HEALPIX", p->np, COLUMN_ID | COLUMN_AEMIT | COLUMN_MASS | COLUMN_RMOM, FASTPM_MEMORY_FLOATING);
 
     map->np = p->np;
 
@@ -1118,7 +1121,16 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
         vec2pix_nest(nside, x, &ipix);
         /* id is 0 to nslice * npix */
         map->id[i] = slice_id * npix + ipix;
-        map->mass[i] = paintfunc?paintfunc(p, i, userdata): fastpm_store_get_mass(p, i);
+        if (paintfunc) {
+            paintfunc(p, i, map, userdata);
+        } else {
+            double r = sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+            double mass = fastpm_store_get_mass(p, i);
+            map->mass[i] = mass;
+            map->rmom[i] = mass * (p->v[i][0] * x[0]
+                                 + p->v[i][1] * x[0]
+                                 + p->v[i][2] * x[0]) / r;
+        }
         /* quantize aemit for easier consistency checks */
         map->aemit[i] = (slice_id + 0.5) / nslice;
     }
@@ -1137,6 +1149,7 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     struct {
         uint64_t ipix;
         double mass;
+        double rmom;
     } last, first, prev, next;
 
     MPI_Datatype dt;
@@ -1163,8 +1176,10 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     /* form a ring on the newcomm, and exchange */
     last.ipix = map->id[map->np - 1];
     last.mass = map->mass[map->np - 1];
+    last.rmom = map->rmom[map->np - 1];
     first.ipix = map->id[0];
     first.mass = map->mass[0];
+    first.rmom = map->rmom[0];
 
     fastpm_ilog(INFO, "ThisTask = %d rank = %d next = %d, prev = %d.", ThisTask, rank,
         (rank + 1) % size, (rank - 1 + size) % size );
@@ -1188,6 +1203,7 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
         /* Take prev if it is the same ipix as my first */
         if(prev.ipix == first.ipix) {
             map->mass[0] += prev.mass;
+            map->rmom[0] += prev.rmom;
         }
     }
     if(rank < size) {
