@@ -77,9 +77,11 @@ write_aemit_hist(const char * fn, const char * ds,
 int
 read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm);
 
-typedef double (*fastpm_store_hp_paintfunc)(
+/* paints i-th partile in store to i-th particle in map.*/
+typedef void (*fastpm_store_hp_paintfunc)(
         FastPMStore * store,
         ptrdiff_t i,
+        FastPMStore * map,
         void * userdata);
 
 void

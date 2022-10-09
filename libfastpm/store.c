@@ -207,6 +207,7 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
     DEFINE_COLUMN(mass, COLUMN_MASS, "f4", 1);
     DEFINE_COLUMN(rand, COLUMN_RAND, "f4", 1);
+    DEFINE_COLUMN(rmom, COLUMN_RMOM, "f4", 1);
 
     COLUMN_INFO(x).to_double = to_double_f8;
     COLUMN_INFO(v).to_double = to_double_f4;
@@ -216,6 +217,7 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(dv1).to_double = to_double_f4;
     COLUMN_INFO(acc).to_double = to_double_f4;
     COLUMN_INFO(mass).to_double = to_double_f4;
+    COLUMN_INFO(rmom).to_double = to_double_f4;
 
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(acc).from_double = from_double_f4;
@@ -710,7 +712,7 @@ _fastpm_store_fill_rand(FastPMStore * p, MPI_Comm comm)
     ptrdiff_t i;
     for(i=0; i < p->np_upper; i++) {
         double rand_i = gsl_rng_uniform(random_generator);
-	p->rand[i] = rand_i;
+        p->rand[i] = rand_i;
     }
 
     gsl_rng_free(random_generator);
@@ -777,6 +779,7 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
             /* FIXME: fill rand with a hash of the id instead of using
              * _fastpm_store_fill_rand. */
             if(p->rand) p->rand[ptr] = 0.;
+            if(p->rmom) p->rmom[ptr] = 0.;
 
             fastpm_store_get_q_from_id(p, id, &p->x[ptr][0]);
 
