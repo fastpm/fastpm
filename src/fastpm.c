@@ -670,6 +670,12 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
         write_complex(fastpm->lptpm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
     }
+    if(CONF(prr->lua, write_linearr)) {
+        fastpm_info("Writing real space linear field to %s\n", CONF(prr->lua, write_linearr));
+        pm_c2r(pm, delta_k);
+        write_complex(fastpm->lptpm, delta_k, CONF(prr->lua, write_linearr), "LinearDensityR", prr->cli->Nwriters);
+        pm_r2c(pm, delta_k);
+    }
 
     if(CONF(prr->lua, write_powerspectrum)) {
         FastPMPowerSpectrum ps;
