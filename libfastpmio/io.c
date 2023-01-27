@@ -1181,20 +1181,20 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     first.mass = map->mass[0];
     first.rmom = map->rmom[0];
 
-    fastpm_ilog(INFO, "ThisTask = %d rank = %d next = %d, prev = %d.", ThisTask, rank,
-        (rank + 1) % size, (rank - 1 + size) % size );
+    //fastpm_ilog(INFO, "ThisTask = %d rank = %d next = %d, prev = %d.", ThisTask, rank,
+    //    (rank + 1) % size, (rank - 1 + size) % size );
     /* 99 and 100 are just random non-conflicting tag numbers. */
     MPI_Sendrecv(
         &last, 1, dt, (rank + 1) % size, 99,
         &prev, 1, dt, (rank - 1 + size) % size, 99,
         newcomm, MPI_STATUS_IGNORE);
 
-    fastpm_ilog(INFO, "last / prev done rank = %d.", ThisTask, rank);
+    //fastpm_ilog(INFO, "last / prev done rank = %d.", ThisTask, rank);
     MPI_Sendrecv(
         &first, 1, dt, (rank - 1 + size) % size, 100,
         &next, 1, dt, (rank + 1) % size, 100,
         newcomm, MPI_STATUS_IGNORE);
-    fastpm_ilog(INFO, "first / next done rank = %d.", ThisTask, rank);
+    //fastpm_ilog(INFO, "first / next done rank = %d.", ThisTask, rank);
 
     MPI_Type_free(&dt);
 
