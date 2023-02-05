@@ -1111,14 +1111,14 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
     if(!MPIU_Any(comm, map->np > 0)) {
         return;
     }
-    int64_t npix = nside2npix(nside);
+    int64_t npix = nside2npix64(nside);
     for (i = 0; i < p->np; i ++) {
         double x[3];
-        long ipix;
+        int64_t ipix;
         /* round pixel aemit to the nearest 1/ nslice for slice_id */
         int slice_id = p->aemit[i] * nslice;
         fastpm_store_get_position(p, i, x);
-        vec2pix_nest(nside, x, &ipix);
+        vec2pix_nest64(nside, x, &ipix);
         /* id is 0 to nslice * npix */
         map->id[i] = slice_id * npix + ipix;
         if (paintfunc) {
