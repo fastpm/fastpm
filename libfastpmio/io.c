@@ -1128,8 +1128,8 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
             double mass = fastpm_store_get_mass(p, i);
             map->mass[i] = mass;
             map->rmom[i] = mass * (p->v[i][0] * x[0]
-                                 + p->v[i][1] * x[0]
-                                 + p->v[i][2] * x[0]) / r;
+                                 + p->v[i][1] * x[1]
+                                 + p->v[i][2] * x[2]) / r;
         }
         /* quantize aemit for easier consistency checks */
         map->aemit[i] = (slice_id + 0.5) / nslice;
