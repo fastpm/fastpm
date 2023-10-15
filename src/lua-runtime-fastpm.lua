@@ -59,7 +59,7 @@ schema.ncdm_sphere_scheme.choices = {
 }
 schema.declare{name='ncdm_matterlike', type='boolean', required=false, default=true, help="Approximate ncdm as matter-like in the background? If true, Omega_ncdm~1/a^3."}
 schema.declare{name='ncdm_freestreaming', type='boolean', required=false, default=true, help="Treat ncdm as free-streaming? If true, source terms ~Omega_c; if false, ~Omega_m."}
-
+schema.declare{name='ncdm_linearresponse', type='boolean', required=false, default=false, help="Enable the linear response module for the neutrino contribution. Adds neutrinos to the code without needing extra particles."}
 
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
                                                                      "The full ODE is required for accurate results for runs with radiation or varying DE in the background, " ..
@@ -86,7 +86,7 @@ function schema.T_cmb.action (T_cmb)
             end
         end
     end
-    
+
     function schema.m_ncdm.action (m_ncdm)
         if #m_ncdm ~= 0 then
             for i=2, #m_ncdm do
@@ -159,7 +159,7 @@ schema.declare{name='read_linear_growth_rate', type ='file', help='file to read 
 schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
 
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
-schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
+schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'}
 schema.declare{name='read_linear_growth_rate_ncdm', type ='file', help='file to read the linear growth rate (f_1) of ncdm. If left empty, will use internal f_1.'}
 schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field.'}
 
