@@ -8,6 +8,7 @@
 
 #include "pmpfft.h"
 #include "pmghosts.h"
+#include "neutrinos_lra.h"
 
 static void
 apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
@@ -413,6 +414,32 @@ _fastpm_solver_compute_force(FastPMSolver * fastpm,
 
 }
 
+static double
+lra_neutrinos(double k, nu_lra_power * nulra)
+{
+    /*Add neutrino power if desired*/
+    if(k <= 0)
+        return 1;
+    /* Change the units of k to match those of logkk*/
+    double logk = log(k);
+    /* Floating point roundoff and the binning means there may be a mode just beyond the box size.*/
+    if(logk < nulra->logknu[0] && logk > nulra->logknu[0]-log(2) )
+        logk = nulra->logknu[0];
+    else if( logk > nulra->logknu[nulra->size-1])
+        logk = nulra->logknu[nulra->size-1];
+    /* Note get_neutrino_powerspec returns Omega_nu / (Omega0 -OmegaNu) * delta_nu / P_cdm^1/2, which is dimensionless.
+        * So below is: M_cdm * delta_cdm (1 + Omega_nu/(Omega0-OmegaNu) (delta_nu / delta_cdm))
+        *            = M_cdm * (delta_cdm (Omega0 - OmegaNu)/Omega0 + Omega_nu/Omega0 delta_nu) * Omega0 / (Omega0-OmegaNu)
+        *            = M_cdm * Omega0 / (Omega0-OmegaNu) * (delta_cdm (1 - f_nu)  + f_nu delta_nu) )
+        *            = M_cdm * Omega0 / (Omega0-OmegaNu) * delta_t
+        *            = (M_cdm + M_nu) * delta_t
+        * This is correct for the forces, and gives the right power spectrum,
+        * once we multiply PowerSpectrum.Norm by (Omega0 / (Omega0 - OmegaNu))**2 */
+    double delta_nu = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
+    const double nufac = 1 + nulra->nu_prefac * delta_nu;
+    return nufac;
+}
+
 void
 fastpm_solver_compute_force(FastPMSolver * fastpm,
     PM * pm,
@@ -447,6 +474,39 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
 
     if(NULL == fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM)->potential) {
         nacc = 3;
+    }
+
+    FastPMCosmology * cosmo = fastpm->config->cosmology;
+    /* Transfer delta_k to delta_m with adding delta_nu*/
+    /*Computes delta_nu from a CDM power spectrum.*/
+    if(cosmo->ncdm_linearresponse) {
+        FastPMPowerSpectrum dmps[1] ={0};
+        /* calculate the neutrino power spectrum */
+        fastpm_powerspectrum_init_from_delta(dmps, fastpm->lptpm, delta_k, delta_k);
+        /* Need to allocate memory for this!*/
+        nu_lra_power nulra[1] = {0};
+        nulra->size = dmps->base.size;
+        nulra->logknu = malloc(sizeof(nulra->logknu[0]) * nulra->size);
+        nulra->delta_nu_ratio = malloc(sizeof(nulra->delta_nu_ratio[0]) * nulra->size);
+
+        /* Get delta_cdm_curr , which is P(k)^1/2.
+         * The actual power spectrum data is stored in base.[k,f]*/
+        int i;
+        for(i=0; i<dmps->base.size; i++)
+            dmps->base.f[i] = sqrt(dmps->base.f[i]);
+        delta_nu_from_power(nulra, &dmps->base, cosmo, Time, TimeIC);
+        fastpm_powerspectrum_destroy(dmps);
+        /*Initialize the interpolation for the neutrinos*/
+        nulra->nu_spline = gsl_interp_alloc(gsl_interp_linear, nulra->size);
+        // nulra->nu_acc = gsl_interp_accel_alloc();
+        gsl_interp_init(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, nulra->size);
+        /* Now apply the neutrino transfer function to the field stored in delta_k.*/
+        fastpm_apply_any_transfer(pm, delta_k, canvas, (fastpm_fkfunc) lra_neutrinos, &nulra);
+        /* Need to change the power spectrum normalisation here*/
+        const double MtotbyMcdm = cosmo->Omega_m/(cosmo->Omega_m - pow(Time,3)*get_omega_nu(&(cosmo->ONu), Time));
+        ps->Norm *= MtotbyMcdm*MtotbyMcdm;
+        free(nulra->delta_nu_ratio);
+        free(nulra->logknu);
     }
 
     _fastpm_solver_compute_force(fastpm, pm, painter, kernel, pgd, canvas, delta_k, ACC, nacc);

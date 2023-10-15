@@ -43,11 +43,14 @@ struct _delta_tot_table {
 };
 typedef struct _delta_tot_table _delta_tot_table;
 
+/* Structure for the computed neutrino data.*/
 typedef struct nu_lra_power
 {
     double * logknu;
     double * delta_nu_ratio;
+    int size;
     double nu_prefac;
+    gsl_interp *nu_spline;
 } nu_lra_power;
 
 /** Allocates memory for delta_tot_table.
