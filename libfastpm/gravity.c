@@ -31,7 +31,7 @@ apply_grad_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir, int 
             fastpm_info("fourier space kernel[%d] = %g\n", i, k_finite);
         }
     }
-#pragma omp parallel 
+#pragma omp parallel
     {
         PMKIter kiter;
         ptrdiff_t * Nmesh = pm_nmesh(pm);
@@ -69,7 +69,7 @@ apply_gaussian_softening(PM * pm, FastPMFloat * from, FastPMFloat * to, double N
     /* N is rms in mesh size */
     double r0 = N * pm->BoxSize[0] / pm->Nmesh[0];
 
-#pragma omp parallel 
+#pragma omp parallel
     {
         PMKIter kiter;
         int d;
@@ -297,7 +297,7 @@ _fastpm_solver_compute_delta_k(FastPMSolver * fastpm, PM * pm, FastPMPainter * p
     pm_clear(pm, canvas);
     /* Watch out: paint paints the mass per cell;
      * divide by mean mass per cell to convert to matter overdensity, which
-     * goes into Poisson's equation. 
+     * goes into Poisson's equation.
      *
      * In this perspective, we are still operating with the dimension-less
      * Poisson's equation where the critical density factors canceled
