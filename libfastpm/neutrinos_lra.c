@@ -8,26 +8,51 @@
 
 #include <math.h>
 #include <string.h>
-#include <bigfile-mpi.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_sf_bessel.h>
+#include <mpi.h>
+
+#include <fastpm/logging.h>
 
 #include "neutrinos_lra.h"
 
-#include "utils/endrun.h"
-#include "utils/mymalloc.h"
-#include "utils/string.h"
-#include "petaio.h"
-#include "cosmology.h"
-#include "powerspectrum.h"
-#include "physconst.h"
+// #include "powerspectrum.h"
+// #include "physconst.h"
 
 /** Floating point accuracy*/
 #define FLOAT_ACC   1e-6
 /** Number of bins in integrations*/
 #define GSL_VAL 400
+/** Speed of light in cm/s: used to be called 'C'*/
+#define  LIGHTCGS           2.99792458e10
+#define  HUBBLE          3.2407789e-18	/* in h/sec */
+/** Ratio between the massless neutrino temperature and the CMB temperature.
+ * Note there is a slight correction from 4/11
+ * due to the neutrinos being slightly coupled at e+- annihilation.
+ * See Mangano et al 2005 (hep-ph/0506164)
+ * We use the CLASS default value, chosen so that omega_nu = m_nu / 93.14 h^2
+ * At time of writing this is T_nu / T_gamma = 0.71611.
+ * See https://github.com/lesgourg/class_public/blob/master/explanatory.ini
+ */
+#define TNUCMB     (pow(4/11.,1/3.)*1.00328)
+/** The Boltzmann constant in units of eV/K*/
+#define BOLEVK 8.61734e-5
+
+/* Get total neutrino mass, wrapper*/
+double get_omega_nu(double Time, FastPMCosmology * cosmo)
+{
+    double hubble = HubbleEa(Time, cosmo);
+    return Omega_ncdmTimesHubbleEaSq(Time, cosmo)/pow(hubble,2);
+}
+
+/* Get neutrino mass for single species, wrapper*/
+double omega_nu_single(double Time, int i, FastPMCosmology * cosmo)
+{
+    double hubble = HubbleEa(Time, cosmo);
+    return Omega_ncdm_iTimesHubbleEaSq(Time, i, cosmo)/pow(hubble, 2);
+}
 
 /** Update the last value of delta_tot in the table with a new value computed
  from the given delta_cdm_curr and delta_nu_curr.
@@ -40,14 +65,14 @@ void update_delta_tot(_delta_tot_table * const d_tot, const double a, const doub
  * @param a Current scale factor.
  * @param delta_nu_curr Pointer to array to store square root of neutrino power spectrum. Main output.
  * @param mnu Neutrino mass in eV.*/
-void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[], const double mnu);
+void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[], const double mnu);
 
 /** Function which wraps three get_delta_nu calls to get delta_nu three times,
  * so that the final value is for all neutrino species*/
-void get_delta_nu_combined(Cosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[]);
+void get_delta_nu_combined(FastPMCosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[]);
 
 /** Fit to the special function J(x) that is accurate to better than 3% relative and 0.07% absolute*/
-double specialJ(const double x, const double vcmnubylight, const double nufrac_low);
+static double specialJ(const double x);
 
 /** Free-streaming length (times Mnu/k_BT_nu, which is dimensionless) for a non-relativistic
 particle of momentum q = T0, from scale factor ai to af.
@@ -58,16 +83,16 @@ Arguments:
 @param light speed of light in internal length units.
 @returns free-streaming length in Unit_Length/Unit_Time (same units as light parameter).
 */
-double fslength(Cosmology * CP, const double logai, const double logaf, const double light);
+double fslength(FastPMCosmology * CP, const double logai, const double logaf, const double light);
 
 /** Combine the CDM and neutrino power spectra together to get the total power.
  * OmegaNua3 = OmegaNu(a) * a^3
  * Omeganonu = Omega0 - OmegaNu(1)
  * Omeganu1 = OmegaNu(1) */
-static inline double get_delta_tot(const double delta_nu_curr, const double delta_cdm_curr, const double OmegaNua3, const double Omeganonu, const double Omeganu1, const double particle_nu_fraction)
+static inline double get_delta_tot(const double delta_nu_curr, const double delta_cdm_curr, const double OmegaNua3, const double Omeganonu)
 {
-    const double fcdm = 1 - OmegaNua3/(Omeganonu + Omeganu1);
-    return fcdm * (delta_cdm_curr + delta_nu_curr * OmegaNua3/(Omeganonu + Omeganu1*particle_nu_fraction));
+    const double fcdm = 1 - OmegaNua3/Omeganonu;
+    return fcdm * (delta_cdm_curr + delta_nu_curr * OmegaNua3/Omeganonu);
 }
 
 
@@ -98,8 +123,7 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
 {
     int ik;
     d_tot->nk=nk_in;
-    const double OmegaNua3=get_omega_nu_nopart(d_tot->omnu, d_tot->TimeTransfer)*pow(d_tot->TimeTransfer,3);
-    const double OmegaNu1 = get_omega_nu(d_tot->omnu, 1);
+    const double OmegaNua3=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo)*pow(d_tot->TimeTransfer,3);
     gsl_interp_accel *acc = gsl_interp_accel_alloc();
     gsl_interp * spline;
     if(t_init->NPowerTable > 2)
@@ -109,16 +133,15 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     gsl_interp_init(spline,t_init->logk,t_init->T_nu,t_init->NPowerTable);
     /*Check we have a long enough power table: power tables are in log_10*/
     if(log10(wavenum[d_tot->nk-1]) > t_init->logk[t_init->NPowerTable-1])
-        endrun(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->logk[t_init->NPowerTable-1]));
+        fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->logk[t_init->NPowerTable-1]));
     for(ik=0;ik<d_tot->nk;ik++) {
             /* T_nu contains T_nu / T_cdm.*/
             double T_nubyT_nonu = gsl_interp_eval(spline,t_init->logk,t_init->T_nu,log10(wavenum[ik]),acc);
             /*Initialise delta_nu_init to use the first timestep's delta_cdm_curr
              * so that it includes potential Rayleigh scattering. */
             d_tot->delta_nu_init[ik] = delta_cdm_curr[ik]*T_nubyT_nonu;
-            const double partnu = particle_nu_fraction(&d_tot->omnu->hybnu, TimeIC, 0);
             /*Initialise the first delta_tot*/
-            d_tot->delta_tot[ik][0] = get_delta_tot(d_tot->delta_nu_init[ik], delta_cdm_curr[ik], OmegaNua3, d_tot->Omeganonu, OmegaNu1, partnu);
+            d_tot->delta_tot[ik][0] = get_delta_tot(d_tot->delta_nu_init[ik], delta_cdm_curr[ik], OmegaNua3, d_tot->Omeganonu);
             /*Set up the wavenumber array*/
             d_tot->wavenum[ik] = wavenum[ik];
     }
@@ -151,8 +174,8 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
     double * Power_in = ps->f;
     /* Rebin the input power if necessary*/
     if(delta_tot_table.nk != ps->size) {
-        Power_in = (double *) mymalloc("pkint", delta_tot_table.nk * sizeof(double));
-        double * logPower = (double *) mymalloc("logpk", ps->size * sizeof(double));
+        Power_in = (double *) malloc(delta_tot_table.nk * sizeof(double));
+        double * logPower = (double *) malloc(ps->size * sizeof(double));
         for(i = 0; i < ps->size; i++)
             logPower[i] = log(ps->f[i]);
         gsl_interp * pkint = gsl_interp_alloc(gsl_interp_linear, ps->size);
@@ -165,15 +188,14 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
             else
                 Power_in[i] = exp(gsl_interp_eval(pkint, nupow->logknu, logPower, logk, pkacc));
         }
-        myfree(logPower);
+        free(logPower);
         gsl_interp_accel_free(pkacc);
         gsl_interp_free(pkint);
     }
 
-    const double partnu = particle_nu_fraction(&CP->ONu.hybnu, Time, 0);
     /* If we get called twice with the same scale factor, do nothing: delta_nu
      * already stores the neutrino power from the current timestep.*/
-    if(1 - partnu > 1e-3 && log(Time)-delta_tot_table.scalefact[delta_tot_table.ia-1] > FLOAT_ACC) {
+    if(log(Time)-delta_tot_table.scalefact[delta_tot_table.ia-1] > FLOAT_ACC) {
         /*We need some estimate for delta_tot(current time) to obtain delta_nu(current time).
             Even though delta_tot(current time) is not directly used (the integrand vanishes at a = a(current)),
             it is indeed needed for interpolation */
@@ -193,21 +215,18 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
         else
             delta_tot_table.ia--;
 
-        message(0,"Done getting neutrino power: nk = %d, k = %g, delta_nu = %g, delta_cdm = %g,\n", delta_tot_table.nk, delta_tot_table.wavenum[1], delta_tot_table.delta_nu_last[1], Power_in[1]);
+        fastpm_info("Done getting neutrino power: nk = %d, k = %g, delta_nu = %g, delta_cdm = %g,\n", delta_tot_table.nk, delta_tot_table.wavenum[1], delta_tot_table.delta_nu_last[1], Power_in[1]);
         /*kspace_prefac = M_nu (analytic) / M_particles */
-        const double OmegaNu_nop = get_omega_nu_nopart(&CP->ONu, Time);
-        const double omega_hybrid = get_omega_nu(&CP->ONu, 1) * partnu / pow(Time, 3);
-        /* Omega0 - Omega in neutrinos + Omega in particle neutrinos = Omega in particles*/
-        nupow->nu_prefac = OmegaNu_nop/(delta_tot_table.Omeganonu/pow(Time,3) + omega_hybrid);
+        const double OmegaNu = get_omega_nu(Time, delta_tot_table.cosmo);
+        /* Omega0 - Omega in neutrinos = Omega in particles*/
+        nupow->nu_prefac = OmegaNu/(delta_tot_table.Omeganonu/pow(Time,3));
     }
-    double * delta_nu_ratio = (double *) mymalloc2("dnu_rat", delta_tot_table.nk * sizeof(double));
-    double * logwavenum = (double *) mymalloc2("logwavenum", delta_tot_table.nk * sizeof(double));
+    double * delta_nu_ratio = (double *) malloc(delta_tot_table.nk * sizeof(double));
+    double * logwavenum = (double *) malloc(delta_tot_table.nk * sizeof(double));
     gsl_interp * pkint = gsl_interp_alloc(gsl_interp_linear, delta_tot_table.nk);
     gsl_interp_accel * pkacc = gsl_interp_accel_alloc();
     /*We want to interpolate in log space*/
     for(i=0; i < delta_tot_table.nk; i++) {
-        if(isnan(delta_tot_table.delta_nu_last[i]))
-            endrun(2004,"delta_nu_curr=%g i=%d delta_cdm_curr=%g kk=%g\n",delta_tot_table.delta_nu_last[i],i,Power_in[i],delta_tot_table.wavenum[i]);
         /*Enforce positivity for sanity reasons*/
         if(delta_tot_table.delta_nu_last[i] < 0)
             delta_tot_table.delta_nu_last[i] = 0;
@@ -215,7 +234,7 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
         logwavenum[i] = log(delta_tot_table.wavenum[i]);
     }
     if(delta_tot_table.nk != ps->size)
-        myfree(Power_in);
+        free(Power_in);
     gsl_interp_init(pkint, logwavenum, delta_nu_ratio, delta_tot_table.nk);
 
     /*We want to interpolate in log space*/
@@ -232,10 +251,11 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
 
     gsl_interp_accel_free(pkacc);
     gsl_interp_free(pkint);
-    myfree(logwavenum);
-    myfree(delta_nu_ratio);
+    free(logwavenum);
+    free(delta_nu_ratio);
 }
 
+#if 0
 /*Save the neutrino power spectrum to a file*/
 void powerspectrum_nu_save(struct _powerspectrum * PowerSpectrum, const char * OutputDir, const char * filename, const double Time)
 {
@@ -256,7 +276,7 @@ void powerspectrum_nu_save(struct _powerspectrum * PowerSpectrum, const char * O
         fprintf(fp, "%g %g %ld\n", PowerSpectrum->kk[i], pow(delta_tot_table.delta_nu_last[i],2), PowerSpectrum->Nmodes[i]);
     }
     fclose(fp);
-    myfree(fname);
+    free(fname);
     /*Clean up the neutrino memory now we saved the power spectrum.*/
     gsl_interp_free(PowerSpectrum->nu_spline);
     gsl_interp_accel_free(PowerSpectrum->nu_acc);
@@ -269,7 +289,7 @@ void petaio_save_neutrinos(BigFile * bf, int ThisTask)
     double * scalefact = delta_tot_table.scalefact;
     size_t nk = delta_tot_table.nk, ia = delta_tot_table.ia;
     size_t ik, i;
-    double * delta_tot = (double *) mymalloc("tmp_delta",nk * ia * sizeof(double));
+    double * delta_tot = (double *) malloc("tmp_delta",nk * ia * sizeof(double));
     /*Save a flat memory block*/
     for(ik=0;ik< nk;ik++)
         for(i=0;i< ia;i++)
@@ -300,7 +320,7 @@ void petaio_save_neutrinos(BigFile * bf, int ThisTask)
     ptrdiff_t strides[2] = {(ptrdiff_t) (sizeof(double) * ia), (ptrdiff_t) sizeof(double)};
     big_array_init(&deltas, delta_tot, "=f8", 2, dims, strides);
     petaio_save_block(bf, "Neutrino/Deltas", &deltas, 1);
-    myfree(delta_tot);
+    free(delta_tot);
     /*Now write the initial neutrino power*/
     BigArray delta_nu = {0};
     dims[1] = 1;
@@ -329,7 +349,7 @@ void petaio_read_icnutransfer(BigFile * bf, int ThisTask)
             endrun(0, "Failed to close block %s\n",big_file_get_error_message());
     }
     message(0,"Found transfer function, using %d rows.\n", t_init->NPowerTable);
-    t_init->logk = (double *) mymalloc2("Transfer_functions", sizeof(double) * 2*t_init->NPowerTable);
+    t_init->logk = (double *) malloc2("Transfer_functions", sizeof(double) * 2*t_init->NPowerTable);
     t_init->T_nu=t_init->logk+t_init->NPowerTable;
 
     /*Defaults: a very small value*/
@@ -357,7 +377,7 @@ void petaio_read_icnutransfer(BigFile * bf, int ThisTask)
     petaio_read_block(bf, "ICTransfers/DELTA_NU", &Tnu, 0);
     petaio_read_block(bf, "ICTransfers/logk", &logk, 0);
     /*Also want d_{cdm+bar} / d_tot so we can get d_nu/(d_cdm+d_b)*/
-    double * T_cb = (double *) mymalloc("tmp1", t_init->NPowerTable* sizeof(double));
+    double * T_cb = (double *) malloc("tmp1", t_init->NPowerTable* sizeof(double));
     T_cb[0] = 1;
     T_cb[t_init->NPowerTable-1] = 1;
     BigArray Tcb = {0};
@@ -366,7 +386,7 @@ void petaio_read_icnutransfer(BigFile * bf, int ThisTask)
     int i;
     for(i = 0; i < t_init->NPowerTable; i++)
         t_init->T_nu[i] /= T_cb[i];
-    myfree(T_cb);
+    free(T_cb);
     /*Broadcast the arrays.*/
     MPI_Bcast(t_init->logk,2*t_init->NPowerTable,MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
@@ -389,7 +409,7 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
         endrun(0, "Failed to read attr: %s\n",
                     big_file_get_error_message());
     }
-    double *delta_tot = (double *) mymalloc("tmp_nusave",ia*nk*sizeof(double));
+    double *delta_tot = (double *) malloc("tmp_nusave",ia*nk*sizeof(double));
     /*Allocate list of scale factors, and space for delta_tot, in one operation.*/
     if(0 != big_block_get_attr(&bn, "scalefact", delta_tot_table.scalefact, "f8", ia))
         endrun(0, "Failed to read attr: %s\n", big_file_get_error_message());
@@ -415,7 +435,7 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
             delta_tot_table.delta_tot[ik][i] = delta_tot[ik*ia+i];
     delta_tot_table.nk = nk;
     delta_tot_table.ia = ia;
-    myfree(delta_tot);
+    free(delta_tot);
     /* Read the initial delta_nu. This is basically zero anyway,
      * so for backwards compatibility do not require it*/
     BigArray delta_nu = {0};
@@ -444,10 +464,11 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
     }
 }
 
+#endif
 
 /*Allocate memory for delta_tot_table. This is separate from delta_tot_init because we need to allocate memory
  * before we have the information needed to initialise it*/
-void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, const double Omega0, const _omega_nu * const omnu, const double UnitTime_in_s, const double UnitLength_in_cm)
+void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * cosmo, const double UnitTime_in_s, const double UnitLength_in_cm)
 {
    _delta_tot_table *d_tot = &delta_tot_table;
    int count;
@@ -461,11 +482,11 @@ void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double
    /*Allocate pointers to each k-vector*/
    d_tot->namax=ceil((TimeMax-TimeTransfer)/0.008)+4;
    d_tot->ia=0;
-   d_tot->delta_tot =(double **) mymalloc("kspace_delta_tot",nk_in*sizeof(double *));
+   d_tot->delta_tot =(double **) malloc(nk_in*sizeof(double *));
    /*Allocate list of scale factors, and space for delta_tot, in one operation.*/
-   d_tot->scalefact = (double *) mymalloc("kspace_scalefact",d_tot->namax*(nk_in+1)*sizeof(double));
+   d_tot->scalefact = (double *) malloc(d_tot->namax*(nk_in+1)*sizeof(double));
    /*Allocate space for delta_nu and wavenumbers*/
-   d_tot->delta_nu_last = (double *) mymalloc("kspace_delta_nu", sizeof(double) * 3 * nk_in);
+   d_tot->delta_nu_last = (double *) malloc(sizeof(double) * 3 * nk_in);
    d_tot->delta_nu_init = d_tot->delta_nu_last + nk_in;
    d_tot->wavenum = d_tot->delta_nu_init + nk_in;
    /*Allocate actual data. Note that this means data can be accessed either as:
@@ -475,13 +496,12 @@ void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double
    for(count=1; count< nk_in; count++)
         d_tot->delta_tot[count] = d_tot->delta_tot[0] + count*d_tot->namax;
    /*Allocate space for the initial neutrino power spectrum*/
-   /*Setup pointer to the matter density*/
-   d_tot->omnu = omnu;
    /*Set the prefactor for delta_nu, and the units system*/
    d_tot->light = LIGHTCGS * UnitTime_in_s/UnitLength_in_cm;
-   d_tot->delta_nu_prefac = 1.5 *Omega0 * HUBBLE * HUBBLE * pow(UnitTime_in_s,2)/d_tot->light;
+   d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE * pow(UnitTime_in_s,2)/d_tot->light;
    /*Matter fraction excluding neutrinos*/
-   d_tot->Omeganonu = Omega0 - get_omega_nu(omnu, 1);
+   d_tot->cosmo = cosmo;
+   d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
 }
 
 /*Begin functions that do the actual computation of the neutrino power spectra.
@@ -491,24 +511,22 @@ void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double
 
 /*Function which wraps three get_delta_nu calls to get delta_nu three times,
  * so that the final value is for all neutrino species*/
-void get_delta_nu_combined(Cosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[])
+void get_delta_nu_combined(FastPMCosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[])
 {
-    const double Omega_nu_tot=get_omega_nu_nopart(d_tot->omnu, a);
+    const double Omega_nu_tot=get_omega_nu(a, d_tot->cosmo);
     int mi;
     /*Initialise delta_nu_curr*/
     memset(delta_nu_curr, 0, d_tot->nk*sizeof(double));
     /*Get each neutrinos species and density separately and add them to the total.
      * Neglect perturbations in massless neutrinos.*/
-    for(mi=0; mi<NUSPECIES; mi++) {
-            if(d_tot->omnu->nu_degeneracies[mi] > 0) {
-                 int ik;
-                 double * delta_nu_single = (double *) mymalloc("delta_nu_single", sizeof(double) * d_tot->nk);
-                 const double omeganu = d_tot->omnu->nu_degeneracies[mi] * omega_nu_single(d_tot->omnu, a, mi);
-                 get_delta_nu(CP, d_tot, a, delta_nu_single,d_tot->omnu->RhoNuTab[mi].mnu);
-                 for(ik=0; ik<d_tot->nk; ik++)
-                    delta_nu_curr[ik]+=delta_nu_single[ik]*omeganu/Omega_nu_tot;
-                 myfree(delta_nu_single);
-            }
+    for(mi=0; mi<d_tot->cosmo->N_ncdm; mi++) {
+        int ik;
+        double * delta_nu_single = (double *) malloc(sizeof(double) * d_tot->nk);
+        const double omeganu = omega_nu_single(a, mi, d_tot->cosmo);
+        get_delta_nu(CP, d_tot, a, delta_nu_single,d_tot->cosmo->m_ncdm[mi]);
+        for(ik=0; ik<d_tot->nk; ik++)
+            delta_nu_curr[ik]+=delta_nu_single[ik]*omeganu/Omega_nu_tot;
+        free(delta_nu_single);
     }
     return;
 }
@@ -518,9 +536,7 @@ void get_delta_nu_combined(Cosmology * CP, const _delta_tot_table * const d_tot,
  If overwrite is true, overwrite the existing final entry.*/
 void update_delta_tot(_delta_tot_table * const d_tot, const double a, const double delta_cdm_curr[], const double delta_nu_curr[], const int overwrite)
 {
-  const double OmegaNua3 = get_omega_nu_nopart(d_tot->omnu, a)*pow(a,3);
-  const double OmegaNu1 = get_omega_nu(d_tot->omnu, 1);
-  const double partnu = particle_nu_fraction(&d_tot->omnu->hybnu, a, 0);
+  const double OmegaNua3 = get_omega_nu(a, d_tot->cosmo)*pow(a,3);
   int ik;
   if(!overwrite)
     d_tot->ia++;
@@ -528,17 +544,17 @@ void update_delta_tot(_delta_tot_table * const d_tot, const double a, const doub
   d_tot->scalefact[d_tot->ia-1] = log(a);
   /* Update delta_tot(a)*/
   for (ik = 0; ik < d_tot->nk; ik++){
-    d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_nu_curr[ik], delta_cdm_curr[ik], OmegaNua3, d_tot->Omeganonu, OmegaNu1,partnu);
+    d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_nu_curr[ik], delta_cdm_curr[ik], OmegaNua3, d_tot->Omeganonu);
   }
 }
 
 /*Kernel function for the fslength integration*/
 double fslength_int(const double loga, void *params)
 {
-    Cosmology * CP = (Cosmology *) params;
+    FastPMCosmology * CP = (FastPMCosmology *) params;
     /*This should be M_nu / k_B T_nu (which is dimensionless)*/
     const double a = exp(loga);
-    return 1./a/(a*hubble_function(CP, a));
+    return 1./a/(a*HubbleEa(a, CP));
 }
 
 /******************************************************************************************************
@@ -550,7 +566,7 @@ logaf - log of final scale factor
 light - speed of light in internal units.
 Result is in Unit_Length/Unit_Time.
 ******************************************************************************************************/
-double fslength(Cosmology * CP, const double logai, const double logaf, const double light)
+double fslength(FastPMCosmology * CP, const double logai, const double logaf, const double light)
 {
   double abserr;
   double fslength_val;
@@ -573,7 +589,7 @@ Fit to the special function J(x) that is accurate to better than 3% relative and
    (PolyGamma[1, 1/2 - i x/2] - PolyGamma[1, 1 - i x/2] -    PolyGamma[1, 1/2 + i x/2] +
    PolyGamma[1, 1 + i x/2])/(12 x Zeta[3]), which we could evaluate exactly if we wanted to.
 ***************************************************************************************************/
-static inline double specialJ_fit(const double x)
+static inline double specialJ(const double x)
 {
 
   double x2, x4, x8;
@@ -586,41 +602,6 @@ static inline double specialJ_fit(const double x)
   return (1.+ 0.0168 * x2 + 0.0407* x4)/(1. + 2.1734 * x2 + 1.6787 * exp(4.1811*log(x)) +  0.1467 * x8);
 }
 
-/*Asymptotic series expansion from YAH. Not good when qc * x is small, but fine otherwise.*/
-static inline double II(const double x, const double qc, const int n)
-{
-    return (n*n+n*n*n*qc+n*qc*x*x - x*x)* qc*gsl_sf_bessel_j0(qc*x) + (2*n+n*n*qc+qc*x*x)*cos(qc*x);
-}
-
-/* Fourier transform of truncated Fermi Dirac distribution, with support on q > qc only.
- * qc is a dimensionless momentum (normalized to TNU),
- * mnu is in eV. x has units of inverse dimensionless momentum
- * This is an approximation to integral f_0(q) q^2 j_0(qX) dq between qc and infinity.
- * It gives the fraction of the integral that is due to neutrinos above a certain threshold.
- * Arguments: vcmnu is vcrit*mnu/LIGHT */
-static inline double Jfrac_high(const double x, const double qc, const double nufrac_low)
-{
-    double integ=0;
-    int n;
-    for(n=1; n<20; n++)
-    {
-        integ+= -1*pow((-1),n)*exp(-n*qc)/(n*n+x*x)/(n*n+x*x)*II(x,qc,n);
-    }
-    /* Normalise with integral_qc^infty(f_0(q)q^2 dq), same as I(X).
-     * So that as qc-> infinity, this -> specialJ_fit(x)*/
-    integ /= 1.5 * 1.202056903159594 * (1 - nufrac_low);
-    return integ;
-}
-
-/*Function that picks whether to use the truncated integrator or not*/
-double specialJ(const double x, const double qc, const double nufrac_low)
-{
-  if( qc > 0 ) {
-   return Jfrac_high(x, qc, nufrac_low);
-  }
-  return specialJ_fit(x);
-}
-
 /**A structure for the parameters for the below integration kernel*/
 struct _delta_nu_int_params
 {
@@ -630,7 +611,7 @@ struct _delta_nu_int_params
     double mnubykT;
     gsl_interp_accel *acc;
     gsl_interp *spline;
-    Cosmology * CP;
+    FastPMCosmology * CP;
     /**Precomputed free-streaming lengths*/
     gsl_interp_accel *fs_acc;
     gsl_interp *fs_spline;
@@ -639,12 +620,6 @@ struct _delta_nu_int_params
     /**Make sure this is at the same k as above*/
     double * delta_tot;
     double * scale;
-    /** qc is a dimensionless momentum (normalized to TNU): v_c * mnu / (k_B * T_nu).
-     * This is the critical momentum for hybrid neutrinos: it is unused if
-     * hybrid neutrinos are not defined, but left here to save ifdefs.*/
-    double qc;
-    /*Fraction of neutrinos in particles for normalisation with hybrid neutrinos*/
-    double nufrac_low;
 };
 typedef struct _delta_nu_int_params delta_nu_int_params;
 
@@ -654,9 +629,9 @@ double get_delta_nu_int(double logai, void * params)
     delta_nu_int_params * p = (delta_nu_int_params *) params;
     double fsl_aia = gsl_interp_eval(p->fs_spline,p->fsscales,p->fslengths,logai,p->fs_acc);
     double delta_tot_at_a = gsl_interp_eval(p->spline,p->scale,p->delta_tot,logai,p->acc);
-    double specJ = specialJ(p->k*fsl_aia/p->mnubykT, p->qc, p->nufrac_low);
+    double specJ = specialJ(p->k*fsl_aia/p->mnubykT);
     double ai = exp(logai);
-    return fsl_aia/(ai*hubble_function(p->CP, ai)) * specJ * delta_tot_at_a;
+    return fsl_aia/(ai*HubbleEa(ai, p->CP)) * specJ * delta_tot_at_a;
 }
 
 /*
@@ -664,24 +639,22 @@ Main function: given tables of wavenumbers, total delta at Na earlier times (<= 
 and initial conditions for neutrinos, computes the current delta_nu.
 Na is the number of currently stored time steps.
 */
-void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[],const double mnu)
+void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[],const double mnu)
 {
-  double fsl_A0a,deriv_prefac;
-  int ik;
-  /* Variable is unused unless we have hybrid neutrinos,
-   * but we define it anyway to save ifdeffing later.*/
-  double qc = 0;
-  /*Number of stored power spectra. This includes the initial guess for the next step*/
-  const int Na = d_tot->ia;
-  const double mnubykT = mnu /d_tot->omnu->kBtnu;
-  /*Tolerated integration error*/
-  double relerr = 1e-6;
-//       message(0,"Start get_delta_nu: a=%g Na =%d wavenum[0]=%g delta_tot[0]=%g m_nu=%g\n",a,Na,wavenum[0],d_tot->delta_tot[0][Na-1],mnu);
+    double fsl_A0a,deriv_prefac;
+    int ik;
+    /*Number of stored power spectra. This includes the initial guess for the next step*/
+    const int Na = d_tot->ia;
+    double kBtnu = BOLEVK * TNUCMB * d_tot->cosmo->T_cmb;
+    const double mnubykT = mnu / kBtnu;
+    /*Tolerated integration error*/
+    double relerr = 1e-6;
+    //       message(0,"Start get_delta_nu: a=%g Na =%d wavenum[0]=%g delta_tot[0]=%g m_nu=%g\n",a,Na,wavenum[0],d_tot->delta_tot[0][Na-1],mnu);
 
-  fsl_A0a = fslength(CP, log(d_tot->TimeTransfer), log(a),d_tot->light);
-  /*Precompute factor used to get delta_nu_init. This assumes that delta ~ a, so delta-dot is roughly 1.*/
-  deriv_prefac = d_tot->TimeTransfer*(hubble_function(CP, d_tot->TimeTransfer)/d_tot->light)* d_tot->TimeTransfer;
-  for (ik = 0; ik < d_tot->nk; ik++) {
+    fsl_A0a = fslength(CP, log(d_tot->TimeTransfer), log(a),d_tot->light);
+    /*Precompute factor used to get delta_nu_init. This assumes that delta ~ a, so delta-dot is roughly 1.*/
+    deriv_prefac = d_tot->TimeTransfer*(HubbleEa(d_tot->TimeTransfer, CP)/d_tot->light)* d_tot->TimeTransfer;
+    for (ik = 0; ik < d_tot->nk; ik++) {
       /* Initial condition piece, assuming linear evolution of delta with a up to startup redshift */
       /* This assumes that delta ~ a, so delta-dot is roughly 1. */
       /* Also ignores any difference in the transfer functions between species.
@@ -689,25 +662,12 @@ void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const do
        * if two species are massless.
        * Also, since at early times the clustering is tiny, it is very unlikely to matter.*/
       /*For zero mass neutrinos just use the initial conditions piece, modulating to zero inside the horizon*/
-      const double specJ = specialJ(d_tot->wavenum[ik]*fsl_A0a/(mnubykT > 0 ? mnubykT : 1),qc, d_tot->omnu->hybnu.nufrac_low[0]);
+      const double specJ = specialJ(d_tot->wavenum[ik]*fsl_A0a/(mnubykT > 0 ? mnubykT : 1));
       delta_nu_curr[ik] = specJ*d_tot->delta_nu_init[ik] *(1.+ deriv_prefac*fsl_A0a);
-  }
-  /* Check whether the particle neutrinos are active at this point.
-   * If they are we want to truncate our integration.
-   * Only do this is hybrid neutrinos are activated in the param file.*/
-  const double partnu = particle_nu_fraction(&d_tot->omnu->hybnu, a, 0);
-  if(partnu > 0) {
-/*       message(0,"Particle neutrinos gravitating: a=%g partnu: %g qc is: %g\n",a, partnu,qc); */
-      /*If the particles are everything, be done now*/
-      if(1 - partnu < 1e-3)
-          return;
-      qc = d_tot->omnu->hybnu.vcrit * mnubykT;
-      /*More generous integration error for particle neutrinos*/
-      relerr /= (1.+1e-5-particle_nu_fraction(&d_tot->omnu->hybnu,a,0))*0.1;
-  }
-  /*If only one time given, we are still at the initial time*/
-  /*If neutrino mass is zero, we are not accurate, just use the initial conditions piece*/
-  if(Na > 1 && mnubykT > 0){
+    }
+    /*If only one time given, we are still at the initial time*/
+    /*If neutrino mass is zero, we are not accurate, just use the initial conditions piece*/
+    if(Na > 1 && mnubykT > 0){
         delta_nu_int_params params;
         params.acc = gsl_interp_accel_alloc();
         gsl_integration_workspace * w = gsl_integration_workspace_alloc (GSL_VAL);
@@ -724,8 +684,6 @@ void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const do
         }
         params.scale=d_tot->scalefact;
         params.mnubykT=mnubykT;
-        params.qc = qc;
-        params.nufrac_low = d_tot->omnu->hybnu.nufrac_low[0];
         /* Massively over-sample the free-streaming lengths.
          * Interpolation is least accurate where the free-streaming length -> 0,
          * which is exactly where it doesn't matter, but
@@ -735,8 +693,8 @@ void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const do
         params.fs_spline=gsl_interp_alloc(gsl_interp_cspline,Nfs);
         params.CP = CP;
         /*Pre-compute the free-streaming lengths, which are scale-independent*/
-        double * fslengths = (double *) mymalloc("fslengths", Nfs* sizeof(double));
-        double * fsscales = (double *) mymalloc("fsscales", Nfs* sizeof(double));
+        double * fslengths = (double *) malloc(Nfs* sizeof(double));
+        double * fsscales = (double *) malloc(Nfs* sizeof(double));
         for(ik=0; ik < Nfs; ik++) {
             fsscales[ik] = log(d_tot->TimeTransfer) + ik*(log(a) - log(d_tot->TimeTransfer))/(Nfs-1.);
             fslengths[ik] = fslength(CP, fsscales[ik], log(a),d_tot->light);
@@ -745,7 +703,7 @@ void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const do
         params.fsscales = fsscales;
 
         if(!params.spline || !params.acc || !w || !params.fs_spline || !params.fs_acc || !fslengths || !fsscales)
-              endrun(2016,"Error initialising and allocating memory for gsl interpolator and integrator.\n");
+              fastpm_raise(2016,"Error initialising and allocating memory for gsl interpolator and integrator.\n");
 
         gsl_interp_init(params.fs_spline,params.fsscales,params.fslengths,Nfs);
         for (ik = 0; ik < d_tot->nk; ik++) {
@@ -759,10 +717,10 @@ void get_delta_nu(Cosmology * CP, const _delta_tot_table * const d_tot, const do
          gsl_integration_workspace_free (w);
          gsl_interp_free(params.spline);
          gsl_interp_accel_free(params.acc);
-         myfree(fsscales);
-         myfree(fslengths);
-   }
+         free(fsscales);
+         free(fslengths);
+    }
 //     for(ik=0; ik< 3; ik++)
 //         message(0,"k %g d_nu %g\n",wavenum[d_tot->nk/8*ik], delta_nu_curr[d_tot->nk/8*ik]);
-   return;
+    return;
 }

@@ -1,13 +1,12 @@
 #ifndef NEUTRINOS_LRA_H
 #define NEUTRINOS_LRA_H
 
-#include <bigfile-mpi.h>
 #include <fastpm/libfastpm.h>
 
 /** Now we want to define a static object to store all previous delta_tot.
  * This object needs a constructor, a few private data members, and a way to be read and written from disk.
  * nk is fixed, delta_tot, scalefact and ia are updated in get_delta_nu_update*/
-struct _delta_tot_table {
+typedef struct _delta_tot_table {
     /** Number of actually non-zero k values stored in each power spectrum*/
     int nk;
     /** Size of arrays allocated to store power spectra*/
@@ -32,16 +31,15 @@ struct _delta_tot_table {
     double * delta_nu_last;
     /**Pointer to array storing the effective wavenumbers for the above power spectra*/
     double * wavenum;
-    /** Pointer to a structure for computing omega_nu*/
-    const _omega_nu * omnu;
     /** Matter density excluding neutrinos*/
     double Omeganonu;
     /** Light speed in internal units. LIGHTCGS is lightspeed in cm/s*/
     double light;
     /** The time at which the simulation starts*/
     double TimeTransfer;
-};
-typedef struct _delta_tot_table _delta_tot_table;
+    /* Cosmology factors*/
+    FastPMCosmology * cosmo;
+} _delta_tot_table;
 
 /* Structure for the computed neutrino data.*/
 typedef struct nu_lra_power
@@ -57,11 +55,10 @@ typedef struct nu_lra_power
  * @param nk_in Number of bins stored in each power spectrum.
  * @param TimeTransfer Scale factor of the transfer functions.
  * @param TimeMax Final scale factor up to which we will need memory.
- * @param Omega0 Matter density at z=0.
- * @param omnu Pointer to structure containing pre-computed tables for evaluating neutrino matter densities.
+ * @param CP Cosmology parameters.
  * @param UnitTime_in_s Time unit of the simulation in s.
  * @param UnitLength_in_cm Length unit of the simulation in cm*/
-void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, const double Omega0, const _omega_nu * const omnu, const double UnitTime_in_s, const double UnitLength_in_cm);
+void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * CP, const double UnitTime_in_s, const double UnitLength_in_cm);
 
 /*Computes delta_nu from a CDM power spectrum.*/
 void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK * ps, FastPMCosmology * CP, const double Time, const double TimeIC);

@@ -29,6 +29,7 @@ LIBSOURCES = libfastpm.c \
     Ftable.c \
     FDinterp.c \
     cosmology.c \
+    neutrinos_lra.c \
     horizon.c \
     powerspectrum.c \
     logging.c \
