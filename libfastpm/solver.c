@@ -85,9 +85,9 @@ void fastpm_solver_init(FastPMSolver * fastpm,
         config->ExtraAttributes |= COLUMN_DX1;
         config->ExtraAttributes |= COLUMN_DX2;
     }
-    
+
     memset(fastpm->has_species, 0, FASTPM_SOLVER_NSPECIES);
-    
+
     fastpm_store_init_evenly(fastpm->cdm,
           fastpm_species_get_name(FASTPM_SPECIES_CDM),
           pow(1.0 * config->nc, 3),
@@ -96,7 +96,7 @@ void fastpm_solver_init(FastPMSolver * fastpm,
           comm);
 
     fastpm_solver_add_species(fastpm, FASTPM_SPECIES_CDM, fastpm->cdm);   //add CDM [why make np_total a double?]
-    
+
     fastpm->vpm_list = vpm_create(config->vpminit,
                            &baseinit, comm);
 
@@ -271,7 +271,7 @@ fastpm_solver_get_species(FastPMSolver * fastpm, enum FastPMSpecies species)
 
 void
 fastpm_solver_add_species(FastPMSolver * fastpm, enum FastPMSpecies species, FastPMStore * store)
-{   
+{
     /*Adds a particle [store] of species type species to the solver. */
 
     fastpm->species[species] = store;
@@ -452,7 +452,7 @@ fastpm_do_force(FastPMSolver * fastpm, FastPMTransition * trans)
     fastpm_emit_event(fastpm->event_handlers, FASTPM_EVENT_FORCE, FASTPM_EVENT_STAGE_BEFORE, (FastPMEvent*) event, fastpm);
 
     ENTER(force);
-    fastpm_solver_compute_force(fastpm, pm, painter, fastpm->config->SOFTENING_TYPE, fastpm->config->KERNEL_TYPE, delta_k);
+    fastpm_solver_compute_force(fastpm, pm, painter, fastpm->config->SOFTENING_TYPE, fastpm->config->KERNEL_TYPE, delta_k, trans->a.f);
     LEAVE(force);
 
     if(p->pgdc) {
@@ -593,7 +593,7 @@ fastpm_decompose(FastPMSolver * fastpm, PM * pm) {
 
 /* Interpolate position and velocity for snapshot at a=aout,
  * this alters fastpm->species[], thus need to call unset to revert it.
- * 
+ *
  *
  * fastpm_set_snapshot(fastpm, .......)
  *
