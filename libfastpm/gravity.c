@@ -446,7 +446,8 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
     FastPMPainter * painter,
     FastPMSofteningType dealias,
     FastPMKernelType kernel,
-    FastPMFloat * delta_k)
+    FastPMFloat * delta_k,
+    double Time)
 {
     PMGhostData * pgd[FASTPM_SOLVER_NSPECIES];
 
@@ -494,6 +495,8 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         int i;
         for(i=0; i<dmps->base.size; i++)
             dmps->base.f[i] = sqrt(dmps->base.f[i]);
+        /* FIXME: Needs to be changed*/
+        double TimeIC = 0.01;
         delta_nu_from_power(nulra, &dmps->base, cosmo, Time, TimeIC);
         fastpm_powerspectrum_destroy(dmps);
         /*Initialize the interpolation for the neutrinos*/
@@ -502,9 +505,10 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         gsl_interp_init(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, nulra->size);
         /* Now apply the neutrino transfer function to the field stored in delta_k.*/
         fastpm_apply_any_transfer(pm, delta_k, canvas, (fastpm_fkfunc) lra_neutrinos, &nulra);
-        /* Need to change the power spectrum normalisation here*/
-        const double MtotbyMcdm = cosmo->Omega_m/(cosmo->Omega_m - pow(Time,3)*get_omega_nu(&(cosmo->ONu), Time));
-        ps->Norm *= MtotbyMcdm*MtotbyMcdm;
+        /* Need to change the power spectrum normalisation here for saving the output power spectrum.*/
+        const double MtotbyMcdm = cosmo->Omega_m/(cosmo->Omega_m - pow(Time,3)*Omega_ncdmTimesHubbleEaSq(Time, cosmo))/pow(HubbleEa(Time, cosmo),2);
+        /* FIXME: Needs enabling*/
+        // ps->Norm *= MtotbyMcdm*MtotbyMcdm;
         free(nulra->delta_nu_ratio);
         free(nulra->logknu);
     }

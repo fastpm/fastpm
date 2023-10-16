@@ -14,7 +14,8 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
     FastPMPainter * painter,
     FastPMSofteningType dealias,
     FastPMKernelType kernel,
-    FastPMFloat * delta_k);
+    FastPMFloat * delta_k,
+    double Time);
 
 void
 gravity_apply_kernel_transfer(FastPMKernelType kernel, PM * pm, FastPMFloat * delta_k, FastPMFloat * canvas, FastPMFieldDescr field);
