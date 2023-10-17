@@ -119,7 +119,7 @@ static _transfer_init_table * t_init = &t_init_data;
  * Initialises delta_tot (including from a file) and delta_nu_init from the transfer functions.
  * read_all_nu_state must be called before this if you want reloading from a snapshot to work
  * Note delta_cdm_curr includes baryons, and is only used if not resuming.*/
-static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in, const double wavenum[], const double delta_cdm_curr[], const double TimeIC)
+static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in, const double wavenum[], const double delta_cdm_curr[], const double Time)
 {
     int ik;
     d_tot->nk=nk_in;
@@ -149,19 +149,19 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     gsl_interp_free(spline);
 
     /*If we are not restarting, make sure we set the scale factor*/
-    d_tot->scalefact[0]=log(TimeIC);
+    d_tot->scalefact[0]=log(Time);
     d_tot->ia=1;
     return;
 }
 
-void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology * CP, const double Time, const double TimeIC)
+void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology * CP, const double Time)
 {
     int i;
     /*This is done on the first timestep: we need nk_nonzero for it to work.*/
     if(!delta_tot_table.delta_tot_init_done) {
         if(delta_tot_table.ia == 0) {
             /* Compute delta_nu from the transfer functions if first entry.*/
-            delta_tot_first_init(&delta_tot_table, ps->size, ps->k, ps->f, TimeIC);
+            delta_tot_first_init(&delta_tot_table, ps->size, ps->k, ps->f, Time);
         }
 
         /*Initialise the first delta_nu*/
