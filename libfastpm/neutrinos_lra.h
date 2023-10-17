@@ -61,7 +61,7 @@ typedef struct nu_lra_power
 void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * CP, const double UnitTime_in_s, const double UnitLength_in_cm);
 
 /*Computes delta_nu from a CDM power spectrum.*/
-void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK * ps, FastPMCosmology * CP, const double Time, const double TimeIC);
+void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK * ps, FastPMCosmology * CP, const double Time);
 
 /*These functions save and load neutrino related data from the snapshots*/
 // void petaio_save_neutrinos(BigFile * bf, int ThisTask);
