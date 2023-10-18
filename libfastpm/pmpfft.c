@@ -156,8 +156,10 @@ void pm_init(PM * pm, PMInit * init, MPI_Comm comm) {
 
     }
 
+    //pfft_create_procmesh(2, comm, pm->Nproc, &pm->Comm2D);
 
-    pfft_create_procmesh(2, comm, pm->Nproc, &pm->Comm2D);
+    int periods[2] = {1,1};
+    MPI_Cart_create(comm, 2, pm->Nproc, periods, 0, &pm->Comm2D);
 
     if(init->use_fftw) {
         pm->allocsize = 2 * fftw_local_size_dft_r2c(
