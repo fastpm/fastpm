@@ -199,7 +199,8 @@ function schema.read_whitenoisek.action (read_whitenoisek)
     end
 end
 
-schema.declare{name='write_lineark',         type='string'}
+schema.declare{name='write_linearr',         type='string', help='Write linear field ICs in real space'}
+schema.declare{name='write_lineark',         type='string', help='Write linear field ICs in Fourier space'}
 schema.declare{name='write_whitenoisek',         type='string'}
 schema.declare{name='write_runpbic',       type='string'}
 schema.declare{name='write_powerspectrum', type='string'}
