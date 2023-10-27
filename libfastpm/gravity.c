@@ -482,8 +482,8 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
     /*Computes delta_nu from a CDM power spectrum.*/
     if(cosmo->ncdm_linearresponse) {
         FastPMPowerSpectrum dmps[1] ={0};
-        /* calculate the neutrino power spectrum */
-        fastpm_powerspectrum_init_from_delta(dmps, fastpm->lptpm, delta_k, delta_k);
+        /* calculate the neutrino power spectrum. pm_alloc for delta_k uses pm. */
+        fastpm_powerspectrum_init_from_delta(dmps, pm, delta_k, delta_k);
         /* Need to allocate memory for this!*/
         nu_lra_power nulra[1] = {0};
         nulra->size = dmps->base.size;
