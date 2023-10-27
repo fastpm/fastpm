@@ -40,6 +40,13 @@
 /** The Boltzmann constant in units of eV/K*/
 #define BOLEVK 8.617333262145e-5
 
+/** Allocates memory for delta_tot_table.
+ * @param nk_in Number of bins stored in each power spectrum.
+ * @param TimeTransfer Scale factor of the transfer functions.
+ * @param TimeMax Final scale factor up to which we will need memory.
+ * @param CP Cosmology parameters.*/
+void init_neutrinos_lra(_delta_tot_table * d_tot, const int nk_in, const double TimeMax);
+
 /* Get total neutrino mass, wrapper*/
 double get_omega_nu(double Time, FastPMCosmology * cosmo)
 {
@@ -109,6 +116,7 @@ struct _transfer_init_table {
     double *logk;
     /*This is T_nu / (T_not-nu), where T_not-nu is a weighted average of T_cdm and T_baryon*/
     double *T_nu;
+    double TimeTransfer;
 };
 typedef struct _transfer_init_table _transfer_init_table;
 
@@ -119,10 +127,19 @@ static _transfer_init_table * t_init = &t_init_data;
  * Initialises delta_tot (including from a file) and delta_nu_init from the transfer functions.
  * read_all_nu_state must be called before this if you want reloading from a snapshot to work
  * Note delta_cdm_curr includes baryons, and is only used if not resuming.*/
-static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in, const double wavenum[], const double delta_cdm_curr[], const double Time)
+static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in, const double wavenum[], const double delta_cdm_curr[], const double Time, FastPMCosmology * cosmo)
 {
     int ik;
     d_tot->nk=nk_in;
+    d_tot->TimeTransfer = t_init->TimeTransfer;
+    /* Allocate memory: hard-coded upper limit of z=0*/
+    init_neutrinos_lra(d_tot, nk_in, 1.0);
+    /*Set the prefactor for delta_nu, and the units system, which is Mpc/s.*/
+    d_tot->light = LIGHT;
+    d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE /d_tot->light;
+    /*Matter fraction excluding neutrinos*/
+    d_tot->cosmo = cosmo;
+    d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
     const double OmegaNua3=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo)*pow(d_tot->TimeTransfer,3);
     gsl_interp_accel *acc = gsl_interp_accel_alloc();
     gsl_interp * spline;
@@ -161,7 +178,7 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
     if(!delta_tot_table.delta_tot_init_done) {
         if(delta_tot_table.ia == 0) {
             /* Compute delta_nu from the transfer functions if first entry.*/
-            delta_tot_first_init(&delta_tot_table, ps->size, ps->k, ps->f, Time);
+            delta_tot_first_init(&delta_tot_table, ps->size, ps->k, ps->f, Time, CP);
         }
 
         /*Initialise the first delta_nu*/
@@ -468,19 +485,16 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
 
 /*Allocate memory for delta_tot_table. This is separate from delta_tot_init because we need to allocate memory
  * before we have the information needed to initialise it*/
-void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * cosmo)
+void init_neutrinos_lra(_delta_tot_table *d_tot, const int nk_in, const double TimeMax)
 {
-   _delta_tot_table *d_tot = &delta_tot_table;
    int count;
    /*Memory allocations need to be done on all processors*/
    d_tot->nk_allocated=nk_in;
    d_tot->nk=nk_in;
-   /*Store starting time*/
-   d_tot->TimeTransfer = TimeTransfer;
    /* Allocate memory for delta_tot here, so that we can have further memory allocated and freed
     * before delta_tot_init is called. The number nk here should be larger than the actual value needed.*/
    /*Allocate pointers to each k-vector*/
-   d_tot->namax=ceil((TimeMax-TimeTransfer)/0.008)+4;
+   d_tot->namax=ceil((TimeMax-d_tot->TimeTransfer)/0.008)+4;
    d_tot->ia=0;
    d_tot->delta_tot =(double **) malloc(nk_in*sizeof(double *));
    /*Allocate list of scale factors, and space for delta_tot, in one operation.*/
@@ -496,12 +510,6 @@ void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double
    for(count=1; count< nk_in; count++)
         d_tot->delta_tot[count] = d_tot->delta_tot[0] + count*d_tot->namax;
    /*Allocate space for the initial neutrino power spectrum*/
-   /*Set the prefactor for delta_nu, and the units system, which is Mpc/s.*/
-   d_tot->light = LIGHT;
-   d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE /d_tot->light;
-   /*Matter fraction excluding neutrinos*/
-   d_tot->cosmo = cosmo;
-   d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
 }
 
 /*Begin functions that do the actual computation of the neutrino power spectra.
