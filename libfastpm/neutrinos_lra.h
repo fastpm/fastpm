@@ -51,15 +51,6 @@ typedef struct nu_lra_power
     gsl_interp *nu_spline;
 } nu_lra_power;
 
-/** Allocates memory for delta_tot_table.
- * @param nk_in Number of bins stored in each power spectrum.
- * @param TimeTransfer Scale factor of the transfer functions.
- * @param TimeMax Final scale factor up to which we will need memory.
- * @param CP Cosmology parameters.
- * @param UnitTime_in_s Time unit of the simulation in s.
- * @param UnitLength_in_cm Length unit of the simulation in cm*/
-void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * CP);
-
 /*Computes delta_nu from a CDM power spectrum.*/
 void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK * ps, FastPMCosmology * CP, const double Time);
 
