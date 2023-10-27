@@ -17,7 +17,7 @@ typedef struct _delta_tot_table {
     * Current time corresponds to index ia (but is only recorded if sufficiently far from previous time).
     * Caution: ia here is different from Na in get_delta_nu (Na = ia+1).*/
     int ia;
-    /** Prefactor for use in get_delta_nu. Should be 3/2 Omega_m H^2 /c */
+    /** Prefactor for use in get_delta_nu. Should be 3/2 Omega_m H^2 /c. Units are h^2 / sec / Mpc  */
     double delta_nu_prefac;
     /** Set to unity once the init routine has run.*/
     int delta_tot_init_done;
@@ -33,7 +33,7 @@ typedef struct _delta_tot_table {
     double * wavenum;
     /** Matter density excluding neutrinos*/
     double Omeganonu;
-    /** Light speed in internal units. LIGHTCGS is lightspeed in cm/s*/
+    /** Light speed in internal units, Mpc/s.*/
     double light;
     /** The time at which the simulation starts*/
     double TimeTransfer;
@@ -58,7 +58,7 @@ typedef struct nu_lra_power
  * @param CP Cosmology parameters.
  * @param UnitTime_in_s Time unit of the simulation in s.
  * @param UnitLength_in_cm Length unit of the simulation in cm*/
-void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * CP, const double UnitTime_in_s, const double UnitLength_in_cm);
+void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * CP);
 
 /*Computes delta_nu from a CDM power spectrum.*/
 void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK * ps, FastPMCosmology * CP, const double Time);
