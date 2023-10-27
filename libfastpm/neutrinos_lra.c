@@ -25,8 +25,8 @@
 #define FLOAT_ACC   1e-6
 /** Number of bins in integrations*/
 #define GSL_VAL 400
-/** Speed of light in cm/s: used to be called 'C'*/
-#define  LIGHTCGS           2.99792458e10
+
+#define LIGHT 9.715614e-15     // in units: [ h * (Mpc/h) * s^-1 ]
 #define  HUBBLE          3.2407789e-18	/* in h/sec */
 /** Ratio between the massless neutrino temperature and the CMB temperature.
  * Note there is a slight correction from 4/11
@@ -38,7 +38,7 @@
  */
 #define TNUCMB     (pow(4/11.,1/3.)*1.00328)
 /** The Boltzmann constant in units of eV/K*/
-#define BOLEVK 8.61734e-5
+#define BOLEVK 8.617333262145e-5
 
 /* Get total neutrino mass, wrapper*/
 double get_omega_nu(double Time, FastPMCosmology * cosmo)
@@ -468,7 +468,7 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
 
 /*Allocate memory for delta_tot_table. This is separate from delta_tot_init because we need to allocate memory
  * before we have the information needed to initialise it*/
-void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * cosmo, const double UnitTime_in_s, const double UnitLength_in_cm)
+void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double TimeMax, FastPMCosmology * cosmo)
 {
    _delta_tot_table *d_tot = &delta_tot_table;
    int count;
@@ -496,9 +496,9 @@ void init_neutrinos_lra(const int nk_in, const double TimeTransfer, const double
    for(count=1; count< nk_in; count++)
         d_tot->delta_tot[count] = d_tot->delta_tot[0] + count*d_tot->namax;
    /*Allocate space for the initial neutrino power spectrum*/
-   /*Set the prefactor for delta_nu, and the units system*/
-   d_tot->light = LIGHTCGS * UnitTime_in_s/UnitLength_in_cm;
-   d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE * pow(UnitTime_in_s,2)/d_tot->light;
+   /*Set the prefactor for delta_nu, and the units system, which is Mpc/s.*/
+   d_tot->light = LIGHT;
+   d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE /d_tot->light;
    /*Matter fraction excluding neutrinos*/
    d_tot->cosmo = cosmo;
    d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
