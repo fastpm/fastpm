@@ -8,6 +8,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <stdint.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_interp.h>
@@ -15,8 +16,7 @@
 #include <mpi.h>
 
 #include <fastpm/logging.h>
-
-#include "neutrinos_lra.h"
+#include <fastpm/neutrinos_lra.h>
 
 // #include "powerspectrum.h"
 // #include "physconst.h"
@@ -105,23 +105,27 @@ static inline double get_delta_tot(const double delta_nu_curr, const double delt
 
 /*Structure which holds the neutrino state*/
 _delta_tot_table delta_tot_table;
+FastPMFuncK t_init[1];
 
-/** Structure to store the initial transfer functions from CAMB.
- * We store transfer functions because we want to use the
- * CDM + Baryon total matter power spectrum from the
- * first timestep of Gadget, so that possible Rayleigh scattering
- * in the initial conditions is included in the neutrino and radiation components. */
-struct _transfer_init_table {
-    int NPowerTable;
-    double *logk;
+void load_transfer_data(const double TimeTransfer, FastPMFuncK *t_init_in)
+{
+    /** Structure to store the initial transfer functions from CAMB.
+    * We store transfer functions because we want to use the
+    * CDM + Baryon total matter power spectrum from the
+    * first timestep of fastpm, so that possible scattering
+    * in the initial conditions is included in the neutrino and radiation components. */
     /*This is T_nu / (T_not-nu), where T_not-nu is a weighted average of T_cdm and T_baryon*/
-    double *T_nu;
-    double TimeTransfer;
-};
-typedef struct _transfer_init_table _transfer_init_table;
-
-static _transfer_init_table t_init_data;
-static _transfer_init_table * t_init = &t_init_data;
+    t_init->size = t_init_in->size;
+    t_init->k = malloc(t_init_in->size * sizeof(double));
+    t_init->f = malloc(t_init_in->size * sizeof(double));
+    /* k should be in log10 for below*/
+    int ik;
+    for(ik=0; ik < t_init->size; ik++) {
+        t_init->k[ik] = log10(t_init_in->k[ik]);
+        t_init->f[ik] = t_init_in->f[ik];
+    }
+    delta_tot_table.TimeTransfer = TimeTransfer;
+}
 
 /* Constructor. transfer_init_tabulate must be called before this function.
  * Initialises delta_tot (including from a file) and delta_nu_init from the transfer functions.
@@ -131,7 +135,6 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
 {
     int ik;
     d_tot->nk=nk_in;
-    d_tot->TimeTransfer = t_init->TimeTransfer;
     /* Allocate memory: hard-coded upper limit of z=0*/
     init_neutrinos_lra(d_tot, nk_in, 1.0);
     /*Set the prefactor for delta_nu, and the units system, which is Mpc/s.*/
@@ -143,17 +146,17 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     const double OmegaNua3=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo)*pow(d_tot->TimeTransfer,3);
     gsl_interp_accel *acc = gsl_interp_accel_alloc();
     gsl_interp * spline;
-    if(t_init->NPowerTable > 2)
-        spline = gsl_interp_alloc(gsl_interp_cspline,t_init->NPowerTable);
+    if(t_init->size > 2)
+        spline = gsl_interp_alloc(gsl_interp_cspline,t_init->size);
     else
-        spline = gsl_interp_alloc(gsl_interp_linear,t_init->NPowerTable);
-    gsl_interp_init(spline,t_init->logk,t_init->T_nu,t_init->NPowerTable);
+        spline = gsl_interp_alloc(gsl_interp_linear,t_init->size);
+    gsl_interp_init(spline,t_init->k,t_init->f, t_init->size);
     /*Check we have a long enough power table: power tables are in log_10*/
-    if(log10(wavenum[d_tot->nk-1]) > t_init->logk[t_init->NPowerTable-1])
-        fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->logk[t_init->NPowerTable-1]));
+    if(log10(wavenum[d_tot->nk-1]) > t_init->k[t_init->size-1])
+        fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->k[t_init->size-1]));
     for(ik=0;ik<d_tot->nk;ik++) {
-            /* T_nu contains T_nu / T_cdm.*/
-            double T_nubyT_nonu = gsl_interp_eval(spline,t_init->logk,t_init->T_nu,log10(wavenum[ik]),acc);
+            /* f contains T_nu / T_cdm.*/
+            double T_nubyT_nonu = gsl_interp_eval(spline,t_init->k,t_init->f, log10(wavenum[ik]),acc);
             /*Initialise delta_nu_init to use the first timestep's delta_cdm_curr
              * so that it includes potential Rayleigh scattering. */
             d_tot->delta_nu_init[ik] = delta_cdm_curr[ik]*T_nubyT_nonu;
@@ -348,64 +351,6 @@ void petaio_save_neutrinos(BigFile * bf, int ThisTask)
     BigArray kvalue = {0};
     big_array_init(&kvalue, delta_tot_table.wavenum, "=f8", 2, dims, strides);
     petaio_save_block(bf, "Neutrino/kvalue", &kvalue, 1);
-    }
-}
-
-void petaio_read_icnutransfer(BigFile * bf, int ThisTask)
-{
-#pragma omp master
-    {
-    t_init->NPowerTable = 2;
-    BigBlock bn;
-    /* Read the size of the ICTransfer block.
-     * If we can't read it, just set it to zero*/
-    if(0 == big_file_mpi_open_block(bf, &bn, "ICTransfers", MPI_COMM_WORLD)) {
-        if(0 != big_block_get_attr(&bn, "Nentry", &t_init->NPowerTable, "u8", 1))
-            endrun(0, "Failed to read attr: %s\n", big_file_get_error_message());
-        if(0 != big_block_mpi_close(&bn, MPI_COMM_WORLD))
-            endrun(0, "Failed to close block %s\n",big_file_get_error_message());
-    }
-    message(0,"Found transfer function, using %d rows.\n", t_init->NPowerTable);
-    t_init->logk = (double *) malloc2("Transfer_functions", sizeof(double) * 2*t_init->NPowerTable);
-    t_init->T_nu=t_init->logk+t_init->NPowerTable;
-
-    /*Defaults: a very small value*/
-    t_init->logk[0] = -100;
-    t_init->logk[t_init->NPowerTable-1] = 100;
-
-    t_init->T_nu[0] = 1e-30;
-    t_init->T_nu[t_init->NPowerTable-1] = 1e-30;
-
-    /*Now read the arrays*/
-    BigArray Tnu = {0};
-    BigArray logk = {0};
-
-    size_t dims[2] = {0, 1};
-    ptrdiff_t strides[2] = {sizeof(double), sizeof(double)};
-    /*The neutrino state is shared between all processors,
-     *so only read on master task and broadcast*/
-    if(ThisTask == 0) {
-        dims[0] = t_init->NPowerTable;
-    }
-    big_array_init(&Tnu, t_init->T_nu, "=f8", 2, dims, strides);
-    big_array_init(&logk, t_init->logk, "=f8", 2, dims, strides);
-    /*This is delta_nu / delta_tot: note technically the most massive eigenstate only.
-     * But if there are significant differences the mass is so low this is basically zero.*/
-    petaio_read_block(bf, "ICTransfers/DELTA_NU", &Tnu, 0);
-    petaio_read_block(bf, "ICTransfers/logk", &logk, 0);
-    /*Also want d_{cdm+bar} / d_tot so we can get d_nu/(d_cdm+d_b)*/
-    double * T_cb = (double *) malloc("tmp1", t_init->NPowerTable* sizeof(double));
-    T_cb[0] = 1;
-    T_cb[t_init->NPowerTable-1] = 1;
-    BigArray Tcb = {0};
-    big_array_init(&Tcb, T_cb, "=f8", 2, dims, strides);
-    petaio_read_block(bf, "ICTransfers/DELTA_CB", &Tcb, 0);
-    int i;
-    for(i = 0; i < t_init->NPowerTable; i++)
-        t_init->T_nu[i] /= T_cb[i];
-    free(T_cb);
-    /*Broadcast the arrays.*/
-    MPI_Bcast(t_init->logk,2*t_init->NPowerTable,MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
 }
 

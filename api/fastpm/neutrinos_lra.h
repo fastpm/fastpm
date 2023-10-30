@@ -52,13 +52,14 @@ typedef struct nu_lra_power
 } nu_lra_power;
 
 /*Computes delta_nu from a CDM power spectrum.*/
-void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK * ps, FastPMCosmology * CP, const double Time);
+void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology * CP, const double Time);
+
+/* Load the neutrino transfer function*/
+void load_transfer_data(const double TimeTransfer, FastPMFuncK t_init_in[]);
 
 /*These functions save and load neutrino related data from the snapshots*/
 // void petaio_save_neutrinos(BigFile * bf, int ThisTask);
 // void petaio_read_neutrinos(BigFile * bf, int ThisTask);
-/*Loads from the ICs*/
-// void petaio_read_icnutransfer(BigFile * bf, int ThisTask);
 
 /*Save the neutrino power spectrum to a file*/
 // void powerspectrum_nu_save(struct _powerspectrum * PowerSpectrum, const char * OutputDir, const char * filename, const double Time);
