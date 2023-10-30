@@ -5,10 +5,10 @@
 #include <fastpm/prof.h>
 #include <fastpm/transfer.h>
 #include <fastpm/logging.h>
+#include <fastpm/neutrinos_lra.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
-#include "neutrinos_lra.h"
 
 static void
 apply_pot_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)

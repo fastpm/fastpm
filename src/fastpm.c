@@ -18,6 +18,7 @@
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
 #include <fastpm/rfof.h>
+#include <fastpm/neutrinos_lra.h>
 
 #include <chealpix/chealpix.h>
 
@@ -345,6 +346,14 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     ENTER(ncdmic);
     prepare_ncdm(fastpm, prr, time_step[0], comm);
     LEAVE(ncdmic);
+
+    /* Read the transfer function for the linear response neutrinos*/
+    if(CONF(prr->lua, ncdm_transfer_nu_file)) {
+        FastPMFuncK t_init[1];
+        read_funck(t_init, CONF(prr->lua, ncdm_transfer_nu_file), comm);
+        fastpm_info("Reading nu/(cdm + b) transfer function from file: %s\n", CONF(prr->lua, ncdm_transfer_nu_file));
+        load_transfer_data(CONF(prr->lua, ncdm_timetransfer), t_init);
+    }
 
     FastPMUSMesh * usmesh = NULL;
 
