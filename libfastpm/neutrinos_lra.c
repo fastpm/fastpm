@@ -14,6 +14,7 @@
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_sf_bessel.h>
 #include <mpi.h>
+#include <bigfile-mpi.h>
 
 #include <fastpm/logging.h>
 #include <fastpm/neutrinos_lra.h>
@@ -288,15 +289,44 @@ void powerspectrum_nu_save(FastPMPowerSpectrum * ps, char powerspectrum_file[], 
     fastpm_powerspectrum_write(ps, powerspectrum_file, 1.0);
 }
 
-#if 0
-void petaio_save_neutrinos(BigFile * bf, int ThisTask)
+/* save a block to disk */
+static void _save_block(BigFile * bf, const char * blockname, BigArray * array)
 {
-#pragma omp master
-    {
+    BigBlock bb;
+    BigBlockPtr ptr;
+    size_t size = array->dims[0];
+    int NumFiles = 1;
+
+    /*Do not write empty files*/
+    if(size == 0) {
+        NumFiles = 0;
+    }
+    /* create the block */
+    /* dims[1] is the number of members per item */
+    if(0 != big_file_mpi_create_block(bf, &bb, blockname, array->dtype, array->dims[1], NumFiles, size, MPI_COMM_WORLD)) {
+        fastpm_raise(-1, "Failed to create block at %s:%s\n", blockname,
+                    big_file_get_error_message());
+    }
+    if(0 != big_block_seek(&bb, &ptr, 0)) {
+        fastpm_raise(-1, "Failed to seek:%s\n", big_file_get_error_message());
+    }
+    if(0 != big_block_mpi_write(&bb, &ptr, array, NumFiles, MPI_COMM_WORLD)) {
+        fastpm_raise(-1, "Failed to write :%s\n", big_file_get_error_message());
+    }
+    if(0 != big_block_mpi_close(&bb, MPI_COMM_WORLD)) {
+        fastpm_raise(-1, "Failed to close block at %s:%s\n", blockname,
+                big_file_get_error_message());
+    }
+}
+
+void ncdm_lr_save_neutrinos(BigFile * bf, int ThisTask)
+{
+    if(!delta_tot_table.delta_tot_init_done)
+        return;
     double * scalefact = delta_tot_table.scalefact;
     size_t nk = delta_tot_table.nk, ia = delta_tot_table.ia;
     size_t ik, i;
-    double * delta_tot = (double *) malloc("tmp_delta",nk * ia * sizeof(double));
+    double * delta_tot = (double *) malloc(nk * ia * sizeof(double));
     /*Save a flat memory block*/
     for(ik=0;ik< nk;ik++)
         for(i=0;i< ia;i++)
@@ -304,17 +334,17 @@ void petaio_save_neutrinos(BigFile * bf, int ThisTask)
 
     BigBlock bn;
     if(0 != big_file_mpi_create_block(bf, &bn, "Neutrino", NULL, 0, 0, 0, MPI_COMM_WORLD)) {
-        endrun(0, "Failed to create block at %s:%s\n", "Neutrino",
+        fastpm_raise(-1, "Failed to create block at %s:%s\n", "Neutrino",
                 big_file_get_error_message());
     }
     if ( (0 != big_block_set_attr(&bn, "Nscale", &ia, "u8", 1)) ||
        (0 != big_block_set_attr(&bn, "scalefact", scalefact, "f8", ia)) ||
         (0 != big_block_set_attr(&bn, "Nkval", &nk, "u8", 1)) ) {
-        endrun(0, "Failed to write neutrino attributes %s\n",
+        fastpm_raise(-1, "Failed to write neutrino attributes %s\n",
                     big_file_get_error_message());
     }
     if(0 != big_block_mpi_close(&bn, MPI_COMM_WORLD)) {
-        endrun(0, "Failed to close block %s\n",
+        fastpm_raise(-1, "Failed to close block %s\n",
                     big_file_get_error_message());
     }
     BigArray deltas = {0};
@@ -326,44 +356,66 @@ void petaio_save_neutrinos(BigFile * bf, int ThisTask)
     }
     ptrdiff_t strides[2] = {(ptrdiff_t) (sizeof(double) * ia), (ptrdiff_t) sizeof(double)};
     big_array_init(&deltas, delta_tot, "=f8", 2, dims, strides);
-    petaio_save_block(bf, "Neutrino/Deltas", &deltas, 1);
+
+    _save_block(bf, "Neutrino/Deltas", &deltas);
     free(delta_tot);
     /*Now write the initial neutrino power*/
     BigArray delta_nu = {0};
     dims[1] = 1;
     strides[0] = sizeof(double);
     big_array_init(&delta_nu, delta_tot_table.delta_nu_init, "=f8", 2, dims, strides);
-    petaio_save_block(bf, "Neutrino/DeltaNuInit", &delta_nu, 1);
+    _save_block(bf, "Neutrino/DeltaNuInit", &delta_nu);
     /*Now write the k values*/
     BigArray kvalue = {0};
     big_array_init(&kvalue, delta_tot_table.wavenum, "=f8", 2, dims, strides);
-    petaio_save_block(bf, "Neutrino/kvalue", &kvalue, 1);
-    }
+    _save_block(bf, "Neutrino/kvalue", &kvalue);
 }
 
+/* read a block from disk, spread the values to memory with setters  */
+static int _read_block(BigFile * bf, const char * blockname, BigArray * array) {
+    BigBlock bb;
+    BigBlockPtr ptr;
+
+    /* open the block */
+    if(0 != big_file_mpi_open_block(bf, &bb, blockname, MPI_COMM_WORLD)) {
+            fastpm_raise(-1, "Failed to open block at %s:%s\n", blockname, big_file_get_error_message());
+    }
+    if(0 != big_block_seek(&bb, &ptr, 0)) {
+            fastpm_raise(-1, "Failed to seek block %s: %s\n", blockname, big_file_get_error_message());
+    }
+    if(0 != big_block_mpi_read(&bb, &ptr, array, 1, MPI_COMM_WORLD)) {
+        fastpm_raise(-1, "Failed to read from block %s: %s\n", blockname, big_file_get_error_message());
+    }
+    if(0 != big_block_mpi_close(&bb, MPI_COMM_WORLD)) {
+        fastpm_raise(-1, "Failed to close block at %s:%s\n", blockname,
+                    big_file_get_error_message());
+    }
+    return 0;
+}
+
+
 /*Read the neutrino data from the snapshot*/
-void petaio_read_neutrinos(BigFile * bf, int ThisTask)
+void ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
 {
-#pragma omp master
-    {
     size_t nk, ia, ik, i;
     BigBlock bn;
     if(0 != big_file_mpi_open_block(bf, &bn, "Neutrino", MPI_COMM_WORLD)) {
-        endrun(0, "Failed to open block at %s:%s\n", "Neutrino",
+        /* FIXME: This should fail gracefully if neutrinos are not enabled*/
+        fastpm_raise(-1, "Failed to open block at %s:%s\n", "Neutrino",
                     big_file_get_error_message());
     }
     if(
     (0 != big_block_get_attr(&bn, "Nscale", &ia, "u8", 1)) ||
     (0 != big_block_get_attr(&bn, "Nkval", &nk, "u8", 1))) {
-        endrun(0, "Failed to read attr: %s\n",
+        fastpm_raise(-1, "Failed to read attr: %s\n",
                     big_file_get_error_message());
     }
-    double *delta_tot = (double *) malloc("tmp_nusave",ia*nk*sizeof(double));
+    double *delta_tot = (double *) malloc(ia*nk*sizeof(double));
     /*Allocate list of scale factors, and space for delta_tot, in one operation.*/
     if(0 != big_block_get_attr(&bn, "scalefact", delta_tot_table.scalefact, "f8", ia))
-        endrun(0, "Failed to read attr: %s\n", big_file_get_error_message());
+        fastpm_raise(-1, "Failed to read attr: %s\n", big_file_get_error_message());
     if(0 != big_block_mpi_close(&bn, MPI_COMM_WORLD)) {
-        endrun(0, "Failed to close block %s\n",
+        fastpm_raise(-1, "Failed to close block %s\n",
                     big_file_get_error_message());
     }
     BigArray deltas = {0};
@@ -375,9 +427,9 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
         dims[0] = nk;
     }
     big_array_init(&deltas, delta_tot, "=f8", 2, dims, strides);
-    petaio_read_block(bf, "Neutrino/Deltas", &deltas, 1);
+    _read_block(bf, "Neutrino/Deltas", &deltas);
     if(nk > 1Lu*delta_tot_table.nk_allocated || ia > 1Lu*delta_tot_table.namax)
-        endrun(5, "Allocated nk %d na %d for neutrino power but need nk %d na %d\n", delta_tot_table.nk_allocated, delta_tot_table.namax, nk, ia);
+        fastpm_raise(-1, "Allocated nk %d na %d for neutrino power but need nk %d na %d\n", delta_tot_table.nk_allocated, delta_tot_table.namax, nk, ia);
     /*Save a flat memory block*/
     for(ik=0;ik<nk;ik++)
         for(i=0;i<ia;i++)
@@ -392,12 +444,12 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
     strides[0] = sizeof(double);
     memset(delta_tot_table.delta_nu_init, 0, delta_tot_table.nk);
     big_array_init(&delta_nu, delta_tot_table.delta_nu_init, "=f8", 2, dims, strides);
-    petaio_read_block(bf, "Neutrino/DeltaNuInit", &delta_nu, 0);
+    _read_block(bf, "Neutrino/DeltaNuInit", &delta_nu);
     /* Read the k values*/
     BigArray kvalue = {0};
     memset(delta_tot_table.wavenum, 0, delta_tot_table.nk);
     big_array_init(&kvalue, delta_tot_table.wavenum, "=f8", 2, dims, strides);
-    petaio_read_block(bf, "Neutrino/kvalue", &kvalue, 0);
+    _read_block(bf, "Neutrino/kvalue", &kvalue);
 
     /*Broadcast the arrays.*/
     MPI_Bcast(&(delta_tot_table.ia), 1,MPI_INT,0,MPI_COMM_WORLD);
@@ -410,10 +462,7 @@ void petaio_read_neutrinos(BigFile * bf, int ThisTask)
           Not all this memory will actually have been used, but it is easiest to bcast all of it.*/
         MPI_Bcast(delta_tot_table.scalefact,delta_tot_table.namax*(delta_tot_table.nk+1),MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
-    }
 }
-
-#endif
 
 /*Allocate memory for delta_tot_table. This is separate from delta_tot_init because we need to allocate memory
  * before we have the information needed to initialise it*/

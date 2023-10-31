@@ -2,6 +2,7 @@
 #define NEUTRINOS_LRA_H
 
 #include <fastpm/libfastpm.h>
+#include <bigfile.h>
 
 /** Now we want to define a static object to store all previous delta_tot.
  * This object needs a constructor, a few private data members, and a way to be read and written from disk.
@@ -58,8 +59,8 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
 void load_transfer_data(const double TimeTransfer, FastPMFuncK t_init_in[]);
 
 /*These functions save and load neutrino related data from the snapshots*/
-// void petaio_save_neutrinos(BigFile * bf, int ThisTask);
-// void petaio_read_neutrinos(BigFile * bf, int ThisTask);
+void ncdm_lr_save_neutrinos(BigFile * bf, int ThisTask);
+void ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask);
 
 /*Save the neutrino power spectrum to a file*/
 void powerspectrum_nu_save(FastPMPowerSpectrum * ps, char powerspectrum_file[], double MtotbyMcdm);
