@@ -503,10 +503,6 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         gsl_interp_init(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, nulra->size);
         /* Now apply the neutrino transfer function to the field stored in delta_k.*/
         fastpm_apply_any_transfer(pm, delta_k, canvas, (fastpm_fkfunc) lra_neutrinos, &nulra);
-        /* Need to change the power spectrum normalisation here for saving the output power spectrum.*/
-        const double MtotbyMcdm = cosmo->Omega_m/(cosmo->Omega_m - pow(Time,3)*Omega_ncdmTimesHubbleEaSq(Time, cosmo))/pow(HubbleEa(Time, cosmo),2);
-        /* FIXME: Needs enabling*/
-        // ps->Norm *= MtotbyMcdm*MtotbyMcdm;
         free(nulra->delta_nu_ratio);
         free(nulra->logknu);
     }
