@@ -14,6 +14,7 @@
 #include <fastpm/string.h>
 #include <fastpm/logging.h>
 #include <fastpm/histogram.h>
+#include <fastpm/neutrinos_lra.h>
 
 #include <fastpm/io.h>
 
@@ -272,7 +273,7 @@ write_snapshot_header(FastPMSolver * fastpm,
                 cdm->meta.M0,
                 ncdm?ncdm->meta.M0:0,
                 0,
-                0, 
+                0,
                 0};
 
     uint64_t TotNumPart[6] = {
@@ -586,12 +587,17 @@ fastpm_store_write(FastPMStore * p,
         free(blockname);
     }
 
+    if(mode == WRITE)
+        ncdm_lr_save_neutrinos(bf, ThisTask);
+    else if(mode == READ)
+        ncdm_lr_read_neutrinos(bf, ThisTask);
+
     big_file_mpi_close(bf, comm);
 
     return 0;
 }
 
-int 
+int
 fastpm_store_read(FastPMStore * p,
         const char * filebase,
         int Nreaders,
