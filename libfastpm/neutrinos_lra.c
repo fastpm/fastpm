@@ -275,33 +275,20 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
     free(delta_nu_ratio);
 }
 
-#if 0
 /*Save the neutrino power spectrum to a file*/
-void powerspectrum_nu_save(struct _powerspectrum * PowerSpectrum, const char * OutputDir, const char * filename, const double Time)
-{
-    int i;
-    int ThisTask;
-    MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-    if(ThisTask != 0)
-        return;
 
-    char * fname = fastpm_strdup_printf("%s/%s-%0.4f.txt", OutputDir, filename, Time);
-    /* Now save the neutrino power spectrum*/
-    FILE * fp = fopen(fname, "w");
-    fprintf(fp, "# in Mpc/h Units \n");
-    fprintf(fp, "# k P_nu(k) Nmodes\n");
-    fprintf(fp, "# a= %g\n", Time);
-    fprintf(fp, "# nk = %d\n", PowerSpectrum->nonzero);
-    for(i = 0; i < PowerSpectrum->nonzero; i++){
-        fprintf(fp, "%g %g %ld\n", PowerSpectrum->kk[i], pow(delta_tot_table.delta_nu_last[i],2), PowerSpectrum->Nmodes[i]);
-    }
-    fclose(fp);
-    free(fname);
-    /*Clean up the neutrino memory now we saved the power spectrum.*/
-    gsl_interp_free(PowerSpectrum->nu_spline);
-    gsl_interp_accel_free(PowerSpectrum->nu_acc);
+void powerspectrum_nu_save(FastPMPowerSpectrum * ps, char powerspectrum_file[], double MtotbyMcdm)
+{
+    /* substitute the last neutrino power spectrum */
+    int i;
+    /* The k bins are the same because this is constructed from the same power spectrum*/
+    for(i = 0; i < ps->base.size; i++)
+        ps->base.f[i] = pow(delta_tot_table.delta_nu_last[i]/MtotbyMcdm, 2);
+
+    fastpm_powerspectrum_write(ps, powerspectrum_file, 1.0);
 }
 
+#if 0
 void petaio_save_neutrinos(BigFile * bf, int ThisTask)
 {
 #pragma omp master
