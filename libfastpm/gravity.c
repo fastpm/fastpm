@@ -477,7 +477,7 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         nacc = 3;
     }
 
-    FastPMCosmology * cosmo = fastpm->config->cosmology;
+    FastPMCosmology * cosmo = fastpm->cosmology;
     /* Transfer delta_k to delta_m with adding delta_nu*/
     /*Computes delta_nu from a CDM power spectrum.*/
     if(cosmo->ncdm_linearresponse) {
