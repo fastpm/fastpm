@@ -110,6 +110,8 @@ FastPMFuncK t_init[1];
 
 void load_transfer_data(const double TimeTransfer, FastPMFuncK *t_init_in)
 {
+    delta_tot_table.TimeTransfer = TimeTransfer;
+
     /** Structure to store the initial transfer functions from CAMB.
     * We store transfer functions because we want to use the
     * CDM + Baryon total matter power spectrum from the
@@ -125,7 +127,6 @@ void load_transfer_data(const double TimeTransfer, FastPMFuncK *t_init_in)
         t_init->k[ik] = log10(t_init_in->k[ik]);
         t_init->f[ik] = t_init_in->f[ik];
     }
-    delta_tot_table.TimeTransfer = TimeTransfer;
 }
 
 /* Constructor. transfer_init_tabulate must be called before this function.
@@ -168,7 +169,9 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     }
     gsl_interp_accel_free(acc);
     gsl_interp_free(spline);
-
+    /* Free initial memory*/
+    free(t_init->f);
+    free(t_init->k);
     /*If we are not restarting, make sure we set the scale factor*/
     d_tot->scalefact[0]=log(Time);
     d_tot->ia=1;
