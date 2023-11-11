@@ -60,7 +60,7 @@ void load_transfer_data(const double TimeTransfer, FastPMFuncK t_init_in[]);
 
 /*These functions save and load neutrino related data from the snapshots*/
 void ncdm_lr_save_neutrinos(BigFile * bf, int ThisTask);
-void ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask);
+int ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask);
 
 /*Save the neutrino power spectrum to a file*/
 void powerspectrum_nu_save(FastPMPowerSpectrum * ps, char powerspectrum_file[], double MtotbyMcdm);
