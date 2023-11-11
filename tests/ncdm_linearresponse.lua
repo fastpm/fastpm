@@ -29,6 +29,7 @@ N_eff   = 3.046
 N_nu    = 3                 -- number of neutrinos species (including massless species)
 m_ncdm  = {0.12, 0.06, 0.02}
 ncdm_linearresponse = true
+ncdm_timetransfer = a_i
 n_shell = 0
 every_ncdm = 0              -- this defines the ratio of the cdm grid number to the ncdm grid number
 ncdm_freestreaming = false  -- choose whether to treat ncdm as free-streaming for the growth ODE and Poisson source terms
