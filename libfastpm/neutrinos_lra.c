@@ -147,18 +147,22 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
     const double OmegaNua3=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo)*pow(d_tot->TimeTransfer,3);
     gsl_interp_accel *acc = gsl_interp_accel_alloc();
-    gsl_interp * spline;
-    if(t_init->size > 2)
-        spline = gsl_interp_alloc(gsl_interp_cspline,t_init->size);
-    else
-        spline = gsl_interp_alloc(gsl_interp_linear,t_init->size);
-    gsl_interp_init(spline,t_init->k,t_init->f, t_init->size);
-    /*Check we have a long enough power table: power tables are in log_10*/
-    if(log10(wavenum[d_tot->nk-1]) > t_init->k[t_init->size-1])
-        fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->k[t_init->size-1]));
+    gsl_interp * spline = NULL;
+    if(t_init->size > 0) {
+        if(t_init->size > 2)
+            spline = gsl_interp_alloc(gsl_interp_cspline,t_init->size);
+        else
+            spline = gsl_interp_alloc(gsl_interp_linear,t_init->size);
+        gsl_interp_init(spline,t_init->k,t_init->f, t_init->size);
+        /*Check we have a long enough power table: power tables are in log_10*/
+        if(log10(wavenum[d_tot->nk-1]) > t_init->k[t_init->size-1])
+            fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->k[t_init->size-1]));
+    }
     for(ik=0;ik<d_tot->nk;ik++) {
             /* f contains T_nu / T_cdm.*/
-            double T_nubyT_nonu = gsl_interp_eval(spline,t_init->k,t_init->f, log10(wavenum[ik]),acc);
+            double T_nubyT_nonu = 0;
+            if(t_init->size > 0)
+                T_nubyT_nonu = gsl_interp_eval(spline,t_init->k,t_init->f, log10(wavenum[ik]),acc);
             /*Initialise delta_nu_init to use the first timestep's delta_cdm_curr
              * so that it includes potential Rayleigh scattering. */
             d_tot->delta_nu_init[ik] = delta_cdm_curr[ik]*T_nubyT_nonu;
