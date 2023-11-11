@@ -589,8 +589,11 @@ fastpm_store_write(FastPMStore * p,
 
     if(mode == WRITE)
         ncdm_lr_save_neutrinos(bf, ThisTask);
-    else if(mode == READ)
-        ncdm_lr_read_neutrinos(bf, ThisTask);
+    else if(mode == READ) {
+        int error = ncdm_lr_read_neutrinos(bf, ThisTask);
+        if(error)
+            fastpm_info("Did not read LRA neutrino data, disabled\n");
+    }
 
     big_file_mpi_close(bf, comm);
 

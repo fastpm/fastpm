@@ -395,14 +395,12 @@ static int _read_block(BigFile * bf, const char * blockname, BigArray * array) {
 
 
 /*Read the neutrino data from the snapshot*/
-void ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
+int ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
 {
     size_t nk, ia, ik, i;
     BigBlock bn;
     if(0 != big_file_mpi_open_block(bf, &bn, "Neutrino", MPI_COMM_WORLD)) {
-        /* FIXME: This should fail gracefully if neutrinos are not enabled*/
-        fastpm_raise(-1, "Failed to open block at %s:%s\n", "Neutrino",
-                    big_file_get_error_message());
+        return 1;
     }
     if(
     (0 != big_block_get_attr(&bn, "Nscale", &ia, "u8", 1)) ||
@@ -462,6 +460,7 @@ void ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
           Not all this memory will actually have been used, but it is easiest to bcast all of it.*/
         MPI_Bcast(delta_tot_table.scalefact,delta_tot_table.namax*(delta_tot_table.nk+1),MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
+    return 0;
 }
 
 /*Allocate memory for delta_tot_table. This is separate from delta_tot_init because we need to allocate memory
