@@ -354,7 +354,8 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
             read_funck(t_init, CONF(prr->lua, ncdm_transfer_nu_file), comm);
             fastpm_info("Reading nu/(cdm + b) transfer function from file: %s\n", CONF(prr->lua, ncdm_transfer_nu_file));
         }
-        load_transfer_data(CONF(prr->lua, ncdm_timetransfer), t_init);
+        double a_transfer = 1/(1+CONF(prr->lua, linear_density_redshift));
+        load_transfer_data(a_transfer, t_init);
     }
 
     FastPMUSMesh * usmesh = NULL;
