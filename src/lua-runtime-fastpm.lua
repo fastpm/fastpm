@@ -61,7 +61,7 @@ schema.ncdm_sphere_scheme.choices = {
 schema.declare{name='ncdm_matterlike', type='boolean', required=false, default=true, help="Approximate ncdm as matter-like in the background? If true, Omega_ncdm~1/a^3."}
 schema.declare{name='ncdm_freestreaming', type='boolean', required=false, default=true, help="Treat ncdm as free-streaming? If true, source terms ~Omega_c; if false, ~Omega_m."}
 schema.declare{name='ncdm_linearresponse', type='boolean', required=false, default=false, help="Enable the linear response module for the neutrino contribution. Adds neutrinos to the code without needing extra particles."}
-schema.declare{name='ncdm_timetransfer', type='number', required=false, default=0.01, help="Redshift of the neutrino transfer function."}
+schema.declare{name='ncdm_transfer_redshift', type='number', required=false, default=0.01, help="Redshift of the neutrino transfer function."}
 schema.declare{name='ncdm_transfer_nu_file', type='file', required=false, help="File to store initial transfer function for linear response neutrinos. Needs to contain T_nu / T_cdm + b."}
 
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
