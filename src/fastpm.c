@@ -48,7 +48,7 @@ init_stacktrace();
 static void
 _memory_peak_handler(FastPMMemory * mem, void * userdata);
 
-static int 
+static int
 take_a_snapshot(FastPMSolver * fastpm, RunData * prr);
 
 struct usmesh_ready_handler_data {
@@ -63,10 +63,10 @@ struct usmesh_ready_handler_data {
 static void
 usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh_ready_handler_data * userdata);
 
-int 
+int
 read_runpb_ic(FastPMSolver * fastpm, FastPMStore * p, const char * filename);
 
-void 
+void
 read_grafic_gaussian(PM * pm, FastPMFloat * g_x, const char * filename);
 
 int
@@ -126,7 +126,7 @@ int main(int argc, char ** argv) {
 
     libfastpm_init();
 
-    MPI_Comm comm = MPI_COMM_WORLD; 
+    MPI_Comm comm = MPI_COMM_WORLD;
 
     fastpm_set_msg_handler(fastpm_default_msg_handler, comm, NULL);
     fastpm_info("This is FastPM, with libfastpm version %s.\n", LIBFASTPM_VERSION);
@@ -228,28 +228,28 @@ int main(int argc, char ** argv) {
     return 0;
 }
 
-static int 
+static int
 check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData * prr);
 
-static int 
+static int
 check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMUSMesh * lc);
 
-static int 
+static int
 write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr);
 
-static int 
+static int
 report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr);
 
-static int 
+static int
 report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, RunData * prr);
 
-static double * 
+static double *
 prepare_time_step(RunData * prr, double a0, size_t * n_time_step);
 
-static void 
+static void
 prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm);
 
-static void 
+static void
 prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm);
 
 static void
@@ -259,7 +259,7 @@ static void
 prepare_lc(FastPMSolver * fastpm, RunData * prr,
         FastPMLightCone * lc, FastPMUSMesh ** usmesh);
 
-static int 
+static int
 print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, RunData * prr);
 
 int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
@@ -421,7 +421,7 @@ prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * 
     the output is at a=aout.
     allows input of the appropraite file for a given species.
     */
-    
+
     /* at this point generating the ic involves delta_k [first check if delta_k has been input]*/
     if(lineark_filename) {
         fastpm_info("Reading Fourier space linear overdensity from %s\n", lineark_filename);
@@ -446,7 +446,7 @@ prepare_deltak(FastPMSolver * fastpm, PM * pm, FastPMFloat * delta_k, RunData * 
 
     read_powerspectrum(&linear_powerspectrum, powerspectrum_filename, CONF(prr->lua, sigma8), pm_comm(pm));
 
-    
+
     if(CONF(prr->lua, read_grafic)) {
         fastpm_info("Reading grafic white noise file from '%s'.\n", CONF(prr->lua, read_grafic));
         fastpm_info("GrafIC noise is Fortran ordering. FastPMSolver is in C ordering.\n");
@@ -543,7 +543,7 @@ induce:
         fastpm_png_induce_correlation(&png, pm, delta_k);
     }
 
-    /* The linear density field is not redshift zero, then evolve it with the model cosmology to 
+    /* The linear density field is not redshift zero, then evolve it with the model cosmology to
      * redshift zero.
      * This matches the linear power at the given redshift, not necessarily redshift 0. */
     rescale_deltak(fastpm, pm, delta_k, prr, aout, linear_density_redshift);
@@ -589,8 +589,8 @@ induce:
     fastpm_powerspectrum_destroy(&linear_powerspectrum);
 }
 
-static double * 
-prepare_time_step(RunData * prr, double a0, size_t * n_time_step) 
+static double *
+prepare_time_step(RunData * prr, double a0, size_t * n_time_step)
 {
     double * time_step = (double*) malloc((CONF(prr->lua, n_time_step) + 1) * sizeof(double));
     double * all_time_step = CONF(prr->lua, time_step);
@@ -663,8 +663,8 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     FastPMFloat * delta_k = pm_alloc(fastpm->lptpm);
 
     prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0,
-                   CONF(prr->lua, linear_density_redshift), 
-                   CONF(prr->lua, read_lineark), 
+                   CONF(prr->lua, linear_density_redshift),
+                   CONF(prr->lua, read_lineark),
                    CONF(prr->lua, read_powerspectrum));
 
     /* Check if linear growth rate has been input for cdm */
@@ -705,8 +705,8 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     pm_free(fastpm->lptpm, delta_k);
 }
 
-static void 
-prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm) 
+static void
+prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 {
     /* don't prepare ncdm when there are no ncdm particles */
     if(CONF(prr->lua, n_m_ncdm) == 0
@@ -729,18 +729,18 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     if (CONF(prr->lua, nc) % every != 0) {
         fastpm_raise(-1, "TODO: check this in parameter file. ");
     }
-    
+
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             boxsize,
             fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk,
             CONF(prr->lua, ncdm_sphere_scheme));
-    
+
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;
     size_t total_np_ncdm = total_np_ncdm_sites * nid->n_split;
-    
+
     FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
-    
+
     // create ncdm store for after the split. need to make first for memory order
     FastPMStore * ncdm = malloc(sizeof(FastPMStore));
     fastpm_store_init_evenly(ncdm,
@@ -749,7 +749,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
           cdm->attributes | COLUMN_MASS,
           fastpm->config->alloc_factor,
           comm);
-    
+
     // create store for ncdm sites (i.e. before splitting)
     // (analogously to how cdm is created in solver_init)
     FastPMStore * ncdm_sites = malloc(sizeof(FastPMStore));
@@ -770,7 +770,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     double shift[3] = {shift0, shift0, shift0};
 
     // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
-    ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
+    ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm};
     fastpm_store_fill(ncdm_sites, fastpm->lptpm, shift, Nc_ncdm);
 
     // stagger the ncdm grid wrt the cdm grid. FIXME: Does this conflict with the shift stuff above?
@@ -803,21 +803,21 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     // compute delta_k for ncdm
     FastPMFloat * delta_k = pm_alloc(fastpm->lptpm);
-    
+
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
-        fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead."); 
+        fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead.");
         /*FIXME: would make more sense (better approximation) to use a flat power spectrum instead*/
-        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0, 
-                        CONF(prr->lua, linear_density_redshift), 
-                        CONF(prr->lua, read_lineark), 
+        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0,
+                        CONF(prr->lua, linear_density_redshift),
+                        CONF(prr->lua, read_lineark),
                         CONF(prr->lua, read_powerspectrum));
     } else {
-        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0, 
-                        CONF(prr->lua, linear_density_redshift_ncdm), 
-                        CONF(prr->lua, read_lineark_ncdm), 
+        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0,
+                        CONF(prr->lua, linear_density_redshift_ncdm),
+                        CONF(prr->lua, read_lineark_ncdm),
                         CONF(prr->lua, read_powerspectrum_ncdm));
     }
-    
+
     /* Check if linear growth rate has been input for ncdm */
     FastPMFuncK * growth_rate_func_k = NULL;
     if (CONF(prr->lua, read_linear_growth_rate_ncdm)) {
@@ -834,7 +834,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     if (growth_rate_func_k)
         fastpm_funck_destroy(growth_rate_func_k);
     pm_free(fastpm->lptpm, delta_k);
-    
+
     fastpm_store_destroy(ncdm_sites);
     fastpm_ncdm_init_free(nid);
 }
@@ -1142,7 +1142,7 @@ check_snapshots(FastPMSolver * fastpm, FastPMInterpolationEvent * event, RunData
         event->drift->ai, event->drift->af, event->drift->ac
     );
 
-    /* interpolate and write snapshots, assuming p 
+    /* interpolate and write snapshots, assuming p
      * is at time a_x and a_v. */
     int nout = CONF(prr->lua, n_aout);
     double * aout = malloc(sizeof(double) * nout);
@@ -1392,8 +1392,8 @@ run_usmesh_fof(FastPMSolver * fastpm,
     fastpm_memory_free(p->mem, keep_for_tail);
 }
 
-static int 
-take_a_snapshot(FastPMSolver * fastpm, RunData * prr) 
+static int
+take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
 {
     FastPMStore * cdm = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
 
@@ -1533,7 +1533,7 @@ take_a_snapshot(FastPMSolver * fastpm, RunData * prr)
         write_runpb_snapshot(fastpm, &subsample[FASTPM_SPECIES_CDM], filebase);
         LEAVE(io);
 
-        fastpm_info("runpb snapshot %s written z = %6.4f a = %6.4f\n", 
+        fastpm_info("runpb snapshot %s written z = %6.4f a = %6.4f\n",
                 filebase, z_out, aout);
 
     }
@@ -1565,7 +1565,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
     return 0;
 }
 
-static int 
+static int
 print_transition(FastPMSolver * fastpm, FastPMTransitionEvent * event, RunData * prr)
 {
     FastPMTransition * trans = event->transition;
@@ -1649,11 +1649,11 @@ report_lpt(FastPMSolver * fastpm, FastPMLPTEvent * event, RunData * prr)
     fastpm_store_summary(event->p, COLUMN_DX1, comm, "s", dx1_std);
     fastpm_store_summary(event->p, COLUMN_DX2, comm, "s", dx2_std);
 
-    fastpm_info("dx1  : %g %g %g %g\n", 
+    fastpm_info("dx1  : %g %g %g %g\n",
             dx1_std[0], dx1_std[1], dx1_std[2],
             (dx1_std[0] + dx1_std[1] + dx1_std[2]) / 3.0);
 
-    fastpm_info("dx2  : %g %g %g %g\n", 
+    fastpm_info("dx2  : %g %g %g %g\n",
             dx2_std[0], dx2_std[1], dx2_std[2],
             (dx2_std[0] + dx2_std[1] + dx2_std[2]) / 3.0);
 
@@ -1701,7 +1701,7 @@ report_domain(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr)
 }
 
 static int
-write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr) 
+write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * prr)
 {
 
     int K_LINEAR = CONF(prr->lua, enforce_broadband_kmax);
