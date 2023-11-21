@@ -160,8 +160,8 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     }
     for(ik=0;ik<d_tot->nk;ik++) {
             /* f contains T_nu / T_cdm.*/
-            double T_nubyT_nonu = 0;
-            if(t_init->size > 0)
+            double T_nubyT_nonu = 1;
+            if(t_init->size > 0 && wavenum[ik] > 0)
                 T_nubyT_nonu = gsl_interp_eval(spline,t_init->k,t_init->f, log10(wavenum[ik]),acc);
             /*Initialise delta_nu_init to use the first timestep's delta_cdm_curr
              * so that it includes potential Rayleigh scattering. */
