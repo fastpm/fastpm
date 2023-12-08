@@ -1,4 +1,4 @@
-t--_redshift Example zarameter file for a run with ncdm (massive neutrinos)
+---Example parameter file for a run with ncdm (massive neutrinos)
 ------ Size of the simulation --------
 nc = 64
 boxsize = 1000
@@ -35,6 +35,7 @@ every_ncdm = 0              -- this defines the ratio of the cdm grid number to 
 ncdm_freestreaming = false  -- choose whether to treat ncdm as free-streaming for the growth ODE and Poisson source terms
 ncdm_matterlike = false     -- choose whether to approximate ncdm as matter-like in the background
 
+ncdm_transfer_nu_file = "lra_trans.txt"
 -------- Perturbations --------
 -- Input powerspectrum and growth rate
 -- We advise using REPS: https://github.com/matteozennaro/reps
