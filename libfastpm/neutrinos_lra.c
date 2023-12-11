@@ -111,7 +111,6 @@ FastPMFuncK t_init[1];
 void load_transfer_data(const double TimeTransfer, FastPMFuncK *t_init_in)
 {
     delta_tot_table.TimeTransfer = TimeTransfer;
-
     /** Structure to store the initial transfer functions from CAMB.
     * We store transfer functions because we want to use the
     * CDM + Baryon total matter power spectrum from the
@@ -119,8 +118,8 @@ void load_transfer_data(const double TimeTransfer, FastPMFuncK *t_init_in)
     * in the initial conditions is included in the neutrino and radiation components. */
     /*This is T_nu / (T_not-nu), where T_not-nu is a weighted average of T_cdm and T_baryon*/
     t_init->size = t_init_in->size;
-    t_init->k = malloc(t_init_in->size * sizeof(double));
-    t_init->f = malloc(t_init_in->size * sizeof(double));
+    t_init->k = malloc(t_init_in->size * sizeof(t_init->k[0]));
+    t_init->f = malloc(t_init_in->size * sizeof(t_init->k[0]));
     /* k should be in log10 for below*/
     int ik;
     for(ik=0; ik < t_init->size; ik++) {
@@ -191,7 +190,6 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
             /* Compute delta_nu from the transfer functions if first entry.*/
             delta_tot_first_init(&delta_tot_table, ps->size, ps->k, ps->f, Time, CP);
         }
-
         /*Initialise the first delta_nu*/
         get_delta_nu_combined(CP, &delta_tot_table, exp(delta_tot_table.scalefact[delta_tot_table.ia-1]), delta_tot_table.delta_nu_last);
         delta_tot_table.delta_tot_init_done = 1;
@@ -281,6 +279,7 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
     gsl_interp_free(pkint);
     free(logwavenum);
     free(delta_nu_ratio);
+    // fastpm_info("Neutrino ratio: nk = %d, k = %g, delta_nu = %g,\n", ps->size, nupow->logknu[1], nupow->delta_nu_ratio[1]);
 }
 
 /*Save the neutrino power spectrum to a file*/
