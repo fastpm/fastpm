@@ -70,6 +70,13 @@ schema.growth_mode.choices = {
     ODE = 'FASTPM_GROWTH_MODE_ODE',
 }
 
+-- enforce a<0.00625 (hard coded) when using ODE growth mode
+function schema.time_step.action (time_step)
+    if time_step[1] < 0.00625 then
+        error("Cannot start the simulation at a<0.00625 when growth_mode=='ODE'.")
+    end
+end
+
 -- enforce Omega_m
 function schema.omega_m.action (value)
     if value ~= nil then
