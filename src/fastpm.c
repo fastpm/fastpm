@@ -673,7 +673,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     if(CONF(prr->lua, write_linearr)) {
         fastpm_info("Writing real space linear field to %s\n", CONF(prr->lua, write_linearr));
         pm_c2r(fastpm->lptpm, delta_k);
-        write_complex(fastpm->lptpm, delta_k, CONF(prr->lua, write_linearr), "LinearDensityR", prr->cli->Nwriters);
+        write_real(fastpm->lptpm, delta_k, CONF(prr->lua, write_linearr), "LinearDensityR", prr->cli->Nwriters);
         pm_r2c(fastpm->lptpm, delta_k, delta_k);
     }
 
