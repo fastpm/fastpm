@@ -78,32 +78,35 @@ function schema.omega_m.action (value)
 end
 
 -- check for bad input
-function schema.T_cmb.action (T_cmb)
-    if T_cmb ~= 0 then
+function schema.time_step.action (time_step)
+    function schema.T_cmb.action (T_cmb)
         function schema.growth_mode.action (growth_mode)
-            if growth_mode ~= 'ODE' then
+            if T_cmb ~= 0 and growth_mode ~= 'ODE' then
                 error("For a run with radiation (T_cmb > 0) use growth_mode='ODE' for accurate results.")
             end
-        end
-    end
-    
-    function schema.m_ncdm.action (m_ncdm)
-        if #m_ncdm ~= 0 then
-            for i=2, #m_ncdm do
-                if m_ncdm[i] > m_ncdm[1] then
-                    error("Please input the heaviest ncdm particle first.")
-                end
+            -- enforce a<0.00625 (hard coded) when using ODE growth mode
+            if time_step[1] < 0.00625 and growth_mode == 'ODE' then
+                error("Cannot start the simulation at a<0.00625 when growth_mode=='ODE'.")
             end
-            function schema.n_shell.action (n_shell)
-                function schema.ncdm_freestreaming.action (ncdm_freestreaming)
-                    if ncdm_freestreaming and n_shell ~= 0 then
-                         error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
+        end
+        function schema.m_ncdm.action (m_ncdm)
+            if #m_ncdm ~= 0 then
+                for i=2, #m_ncdm do
+                    if m_ncdm[i] > m_ncdm[1] then
+                        error("Please input the heaviest ncdm particle first.")
                     end
                 end
-            end
-            function schema.ncdm_matterlike.action (ncdm_matterlike)
-                if not ncdm_matterlike and T_cmb == 0 then
-                     error("For a run with exact Omega_ncdm, T_cmb > 0 is required.")
+                function schema.n_shell.action (n_shell)
+                    function schema.ncdm_freestreaming.action (ncdm_freestreaming)
+                        if ncdm_freestreaming and n_shell ~= 0 then
+                             error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
+                        end
+                    end
+                end
+                function schema.ncdm_matterlike.action (ncdm_matterlike)
+                    if not ncdm_matterlike and T_cmb == 0 then
+                         error("For a run with exact Omega_ncdm, T_cmb > 0 is required.")
+                    end
                 end
             end
         end

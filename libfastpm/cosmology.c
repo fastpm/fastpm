@@ -345,17 +345,28 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
     yini[3] = 2 * yini[2];
     
     int status = gsl_odeiv2_driver_apply(drive, &aini, a, yini);
-    if (status != GSL_SUCCESS) {
-        fastpm_raise(-1, "Growth ODE unsuccesful at a=%g.", a);
-    }
-    
     gsl_odeiv2_driver_free(drive);
     
     ode_soln soln;
-    soln.y0 = yini[0];
-    soln.y1 = yini[1];
-    soln.y2 = yini[2];
-    soln.y3 = yini[3];
+    if (status != GSL_SUCCESS) {
+        // if the ode solver failed and a >= aini, then there's a serious problem.
+        // if the ode solver failed and a < aini, this would either happen:
+        // 1) for the horizon interpolation table which is unused for a < aini anyway, so just return 0.
+        // 2) if the user input a < aini. In this case the results of the sim would be incorrect (FIXME).
+        if (a >= aini) {
+            fastpm_raise(-1, "Growth ODE unsuccesful at a=%g.", a);
+        } else {
+            soln.y0 = 0;
+            soln.y1 = 0;
+            soln.y2 = 0;
+            soln.y3 = 0;
+        }
+    } else {
+        soln.y0 = yini[0];
+        soln.y1 = yini[1];
+        soln.y2 = yini[2];
+        soln.y3 = yini[3];
+    }
     
     return soln;
 }
