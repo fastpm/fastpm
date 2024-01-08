@@ -356,7 +356,6 @@ static ode_soln growth_ode_solve(double a, FastPMCosmology * c)
         if (a >= aini) {
             fastpm_raise(-1, "Growth ODE unsuccesful at a=%g.", a);
         } else {
-            fastpm_info("WARNING: Growth ODE unsuccesful at a=%g. Returning growth of 0.", a);
             soln.y0 = 0;
             soln.y1 = 0;
             soln.y2 = 0;
