@@ -62,7 +62,7 @@ schema.declare{name='ncdm_freestreaming', type='boolean', required=false, defaul
 
 -- lra parameters
 schema.declare{name='ncdm_linearresponse', type='boolean', required=false, default=false, help="Enable the linear response module for the neutrino contribution. Adds neutrinos to the code without needing extra particles."}
-schema.declare{name='ncdm_transfer_redshift', type='number', required=false, help="Redshift of the neutrino transfer function for lra."}
+schema.declare{name='ncdm_transfer_redshift', type='number', required=false, help="Redshift of the neutrino transfer function for lra. This should be at the starting redshift of the simulation."}
 schema.declare{name='ncdm_transfer_nu_file', type='file', required=false, help="File to store initial transfer function for linear response neutrinos. Needs to contain T_nu / T_cdm + b."}
 
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
@@ -82,37 +82,44 @@ function schema.omega_m.action (value)
 end
 
 -- check for bad input
-function schema.T_cmb.action (T_cmb)
-    if T_cmb ~= 0 then
-        function schema.growth_mode.action (growth_mode)
-            if growth_mode ~= 'ODE' then
-                error("For a run with radiation (T_cmb > 0) use growth_mode='ODE' for accurate results.")
-            end
-        end
-    end
-
-    function schema.m_ncdm.action (m_ncdm)
-        if #m_ncdm ~= 0 then
-            for i=2, #m_ncdm do
-                if m_ncdm[i] > m_ncdm[1] then
-                    error("Please input the heaviest ncdm particle first.")
+function schema.time_step.action (time_step)
+    function schema.T_cmb.action (T_cmb)
+        if T_cmb ~= 0 then
+            function schema.growth_mode.action (growth_mode)
+                if growth_mode ~= 'ODE' then
+                    error("For a run with radiation (T_cmb > 0) use growth_mode='ODE' for accurate results.")
                 end
             end
-            function schema.n_shell.action (n_shell)
-                function schema.ncdm_freestreaming.action (ncdm_freestreaming)
-                    function schema.ncdm_linearresponse.action (ncdm_linearresponse)
-                        if ncdm_freestreaming and n_shell ~= 0 then
-                             error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
-                        end
-                        if ncdm_linearresponse and not ncdm_freestreaming then
-                            error("For linear-response neutrino approach must use free-streaming.")
+        end
+
+        function schema.m_ncdm.action (m_ncdm)
+            if #m_ncdm ~= 0 then
+                for i=2, #m_ncdm do
+                    if m_ncdm[i] > m_ncdm[1] then
+                        error("Please input the heaviest ncdm particle first.")
+                    end
+                end
+                function schema.n_shell.action (n_shell)
+                    function schema.ncdm_freestreaming.action (ncdm_freestreaming)
+                        function schema.ncdm_linearresponse.action (ncdm_linearresponse)
+                            function schema.ncdm_transfer_redshift.action (ncdm_transfer_redshift)
+                                if ncdm_freestreaming and n_shell ~= 0 then
+                                     error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
+                                end
+                                if ncdm_linearresponse and not ncdm_freestreaming then
+                                    error("For linear-response neutrino approach must use free-streaming.")
+                                end
+                                if ncdm_linearresponse and time_step[1] ~= 1./(1+ncdm_transfer_redshift) then
+                                     error("Redshift of the neutrino transfer function for lra should be at the starting redshift of the simulation.")
+                                end
+                            end
                         end
                     end
                 end
-            end
-            function schema.ncdm_matterlike.action (ncdm_matterlike)
-                if not ncdm_matterlike and T_cmb == 0 then
-                     error("For a run with exact Omega_ncdm, T_cmb > 0 is required.")
+                function schema.ncdm_matterlike.action (ncdm_matterlike)
+                    if not ncdm_matterlike and T_cmb == 0 then
+                         error("For a run with exact Omega_ncdm, T_cmb > 0 is required.")
+                    end
                 end
             end
         end
