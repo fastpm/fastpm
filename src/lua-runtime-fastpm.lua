@@ -63,7 +63,7 @@ schema.declare{name='ncdm_freestreaming', type='boolean', required=false, defaul
 
 -- lra parameters
 schema.declare{name='ncdm_linearresponse', type='boolean', required=false, default=false, help="Enable the linear response module for the neutrino contribution. Adds neutrinos to the code without needing extra particles."}
-schema.declare{name='ncdm_transfer_redshift', type='number', required=false, help="Redshift of the neutrino transfer function for lra."}
+schema.declare{name='ncdm_transfer_redshift', type='number', required=false, help="Redshift of the neutrino transfer function for lra. This should be at the starting redshift of the simulation."}
 schema.declare{name='ncdm_transfer_nu_file', type='file', required=false, help="File to store initial transfer function for linear response neutrinos. Needs to contain T_nu / T_cdm + b."}
 
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
