@@ -36,8 +36,9 @@
  * We use the CLASS default value, chosen so that omega_nu = m_nu / 93.14 h^2
  * At time of writing this is T_nu / T_gamma = 0.71611.
  * See https://github.com/lesgourg/class_public/blob/master/explanatory.ini
+ * !!! For FastPM we actually use the Gamma_nu function from cosmology.c !!!
  */
-#define TNUCMB     (pow(4/11.,1/3.)*1.00328)
+//#define TNUCMB     (pow(4/11.,1/3.)*1.00328)
 /** The Boltzmann constant in units of eV/K*/
 #define BOLEVK 8.617333262145e-5
 
@@ -639,6 +640,7 @@ void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, co
     int ik;
     /*Number of stored power spectra. This includes the initial guess for the next step*/
     const int Na = d_tot->ia;
+    double TNUCMB = Gamma_nu(CP);
     double kBtnu = BOLEVK * TNUCMB * d_tot->cosmo->T_cmb;
     const double mnubykT = mnu / kBtnu;
     /*Tolerated integration error*/
