@@ -25,7 +25,7 @@ struct FastPMCosmology {
     int N_ncdm;
     int ncdm_freestreaming;  // bool: treat ncdm as free-streaming?
     int ncdm_matterlike;     // bool: treat ncdm as matter-like?
-
+    int ncdm_linearresponse; // bool: Enable the linear response module for neutrinos.
     FastPMGrowthMode growth_mode;
     FastPMFDInterp * FDinterp;
 };

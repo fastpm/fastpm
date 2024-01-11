@@ -29,6 +29,7 @@ prepare_cosmology(FastPMCosmology * c, LUAParameters * lua) {
     c->N_ncdm = CONF(lua, n_m_ncdm);
     c->ncdm_matterlike = CONF(lua, ncdm_matterlike);
     c->ncdm_freestreaming = CONF(lua, ncdm_freestreaming);
+    c->ncdm_linearresponse = CONF(lua, ncdm_linearresponse);
     c->growth_mode = CONF(lua, growth_mode);
 
     int i;

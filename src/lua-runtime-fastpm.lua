@@ -60,6 +60,10 @@ schema.ncdm_sphere_scheme.choices = {
 schema.declare{name='ncdm_matterlike', type='boolean', required=false, default=true, help="Approximate ncdm as matter-like in the background? If true, Omega_ncdm~1/a^3."}
 schema.declare{name='ncdm_freestreaming', type='boolean', required=false, default=true, help="Treat ncdm as free-streaming? If true, source terms ~Omega_c; if false, ~Omega_m."}
 
+-- lra parameters
+schema.declare{name='ncdm_linearresponse', type='boolean', required=false, default=false, help="Enable the linear response module for the neutrino contribution. Adds neutrinos to the code without needing extra particles."}
+schema.declare{name='ncdm_transfer_redshift', type='number', required=false, help="Redshift of the neutrino transfer function for lra. This should be at the starting redshift of the simulation."}
+schema.declare{name='ncdm_transfer_nu_file', type='file', required=false, help="File to store initial transfer function for linear response neutrinos. Needs to contain T_nu / T_cdm + b."}
 
 schema.declare{name='growth_mode', type='enum', default='ODE', help="Evaluate growth factors using a Lambda+CDM-only approximation or with the full ODE. " ..
                                                                      "The full ODE is required for accurate results for runs with radiation or varying DE in the background, " ..
@@ -89,6 +93,7 @@ function schema.time_step.action (time_step)
                 error("Cannot start the simulation at a<0.00625 when growth_mode=='ODE'.")
             end
         end
+
         function schema.m_ncdm.action (m_ncdm)
             if #m_ncdm ~= 0 then
                 for i=2, #m_ncdm do
@@ -98,8 +103,18 @@ function schema.time_step.action (time_step)
                 end
                 function schema.n_shell.action (n_shell)
                     function schema.ncdm_freestreaming.action (ncdm_freestreaming)
-                        if ncdm_freestreaming and n_shell ~= 0 then
-                             error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
+                        function schema.ncdm_linearresponse.action (ncdm_linearresponse)
+                            function schema.ncdm_transfer_redshift.action (ncdm_transfer_redshift)
+                                if ncdm_freestreaming and n_shell ~= 0 then
+                                     error("For free-streaming ncdm use n_shell = 0 to turn off ncdm particles.")
+                                end
+                                if ncdm_linearresponse and not ncdm_freestreaming then
+                                    error("For linear-response neutrino approach must use free-streaming.")
+                                end
+                                if ncdm_linearresponse and time_step[1] ~= 1./(1+ncdm_transfer_redshift) then
+                                     error("Redshift of the neutrino transfer function for lra should be at the starting redshift of the simulation.")
+                                end
+                            end
                         end
                     end
                 end
@@ -162,7 +177,7 @@ schema.declare{name='read_linear_growth_rate', type ='file', help='file to read 
 schema.declare{name='linear_density_redshift', type='number', default=0, help='redshift of the input linear cdm density field. '}
 
 schema.declare{name='read_lineark_ncdm', type='string', help='file to read the lineark of ncdm.'}
-schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'} 
+schema.declare{name='read_powerspectrum_ncdm', type='file', help='file to read the linear power spectrum of ncdm.'}
 schema.declare{name='read_linear_growth_rate_ncdm', type ='file', help='file to read the linear growth rate (f_1) of ncdm. If left empty, will use internal f_1.'}
 schema.declare{name='linear_density_redshift_ncdm', type='number', default=0, help='redshift of the input linear ncdm density field.'}
 
