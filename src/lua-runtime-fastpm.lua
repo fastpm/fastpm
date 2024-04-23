@@ -11,7 +11,7 @@ local _NAME = ... or 'main'
 local fastpm = {}
 
 local schema = config.Schema()
-schema.declare{name='nc',                type='int', required=true, help="Number of CDM Particles Per side"}
+schema.declare{name='nc',                type='int', required=true, help="Number of Particles Per side"}
 schema.declare{name='boxsize',           type='number', required=true, help="Size of box in Mpc/h"}
 schema.declare{name='time_step',         type='array:number',  required=true, help="Scaling factor of steps, can be linspace(start, end, Nsteps)." }
 schema.declare{name='output_redshifts',  type='array:number',  required=false, help="Redshifts for outputs" }
@@ -51,7 +51,8 @@ schema.declare{name='compute_potential', type='boolean', required=false, default
 schema.declare{name='n_shell',           type='number', required=false, default=10, help="Number of shells of FD distribution for ncdm splitting."}
 schema.declare{name='lvk',               type='boolean', required=false, default=true, help="Use the low velocity kernel when splitting FD for ncdm."}
 schema.declare{name='n_side',            type='number', required=false, default=3, help="This is N_fib for fibonacci sphere splitting, or number of sides in HEALPix splitting."}
-schema.declare{name='nn',                type='number', required=false, default=128, help="Number of NCDM particles per side."}
+schema.declare{name='every_ncdm',        type='number', required=false, default=4, help="Subsample ncdm from cdm every..."}
+schema.declare{name='ncdm_quasirandom',  type='boolean', required=false, default=true, help="Use quasirandom sampling of FD integral for neutrino velocities? If false, all quasirandom params will be ignored, and pseudorandom will be used."}
 schema.declare{name='ncdm_sphere_scheme',type='enum', required=false, default="fibonacci", help="Split sphere with 'fibonacci' or 'healpix'?"}
 schema.ncdm_sphere_scheme.choices = {
     healpix = 'FASTPM_NCDM_SPHERE_HEALPIX',

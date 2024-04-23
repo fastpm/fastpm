@@ -10,9 +10,8 @@
 ///////////////////////////////////////////////
 
 /*
-Here I will write functions for the pseudorandom velcoity generaiton.
-This will just loop through particles and change velocities (actually I'll also not update them above).
-It will not change positions etc, so you'll probably want ot use n_shell=1, n_side=1, and probably every=1.
+Here I will write functions for the pseudorandom velcoity generation.
+It will not change positions. Will internally set n_shell=0 n_side=0 and n_split=1 so ensure there's one ncdm per site.
 */
 
 double
@@ -38,7 +37,7 @@ FD(double q)
     return q*q / (exp(q) + 1);
 }
 
-/* Could make general sampling function, but requires moroe structure, so will speicifclaly do FD */
+/* Could make general sampling function, but requires moroe structure, so will specifically do FD */
 
 void
 sample_velmag(double* velmag_table, size_t Naccept)
@@ -47,8 +46,9 @@ sample_velmag(double* velmag_table, size_t Naccept)
     double C = max * 1.1;
     double ymax = 50;
 
-    //int seed = 100;
-    // FIXME: Use seed?
+    // int seed = 100;
+    // srand(seed);
+    // FIXME: Use seed. For now pseudorandom is test code and will not include seed setting functionality
 
     double y, p;
     size_t Naccepted = 0;
@@ -375,24 +375,33 @@ fastpm_ncdm_init_create(
     nid->Omega_ncdm = Omega_ncdmTimesHubbleEaSq(1, c);
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
-    nid->n_shells = n_shells;
-    nid->n_side = n_side;
-    nid->lvk = lvk;
-    nid->ncdm_sphere_scheme = ncdm_sphere_scheme;
     
-    /* this is the total number of velocity vectors produced */
-    switch (ncdm_sphere_scheme){
-        case FASTPM_NCDM_SPHERE_HEALPIX:
-            nid->n_sphere = 12 * n_side * n_side;
-        break;
-        case FASTPM_NCDM_SPHERE_FIBONACCI:
-            nid->n_sphere = 2 * n_side + 1;
-        break;
-        default:
-            fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
+    if (nid->quasirandom){
+        nid->n_shells = n_shells;
+        nid->n_side = n_side;
+        nid->lvk = lvk;
+        nid->ncdm_sphere_scheme = ncdm_sphere_scheme;
+
+        /* this is the total number of velocity vectors produced */
+        switch (ncdm_sphere_scheme){
+            case FASTPM_NCDM_SPHERE_HEALPIX:
+                nid->n_sphere = 12 * n_side * n_side;
+            break;
+            case FASTPM_NCDM_SPHERE_FIBONACCI:
+                nid->n_sphere = 2 * n_side + 1;
+            break;
+            default:
+                fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
+    
+        nid->n_split = n_shells * nid->n_sphere;
+    } else {      // ignore all quasirandom parameters in this case.
+        nid->n_shells = 0;
+        nid->n_side = 0;
+        nid->lvk = lvk;
+        nid->ncdm_sphere_scheme = ncdm_sphere_scheme;
+        nid->n_sphere = 0;
+        nid->n_split = 1; // need 1 to get correct total_np_ncdm and also in split below.
     }
-    
-    nid->n_split = n_shells * nid->n_sphere;
     
     /* recall vel is a pointer to a 3 element array
     so lets make into multidim array of dim (n_split x 3) */
@@ -523,28 +532,28 @@ fastpm_split_ncdm(FastPMncdmInitData * nid,
             // give id, mass and add thm vel
             dest->id[r] = s * src->meta._q_size + src->id[i];
             dest->mass[r] = nid->mass[s] * M0;    // ensures sum over split gives M0
-            /*
-            for(d = 0; d < 3; d ++){
-                vthm = nid->vel[s][d];
-                dest->v[r][d] = vthm;
-                dest->x[r][d] += vthm * disp_factor;
-                if (dest->q) dest->q[r][d] += vthm * disp_factor;
-            }*/
+            if (nid->quasirandom) {
+                // for quasirandom sampling populate using the velocity table above
+                // for non quasirandom sampling, velocity is updated below
+                // fixme (clean) no need to define the velocity table for non quasirandom case
+                for(d = 0; d < 3; d ++){
+                    vthm = nid->vel[s][d];
+                    dest->v[r][d] = vthm;
+                    dest->x[r][d] += vthm * disp_factor;
+                    if (dest->q) dest->q[r][d] += vthm * disp_factor;
+                }
+            } else {
+                // need to copy params from earlier func. can def clean up later
+                double m0 = nid->m_ncdm[0];
+                double velocity_conversion_factor = 50.3 / m0 / HubbleConstant;
+
+                double vel_table[dest->np*3];
+                sample_vel(vel_table, dest->np*3);
+                for(d = 0; d < 3; d ++){
+                    dest->v[i][d] += vel_table[3*i+d] * velocity_conversion_factor; // can index with i=r because s is 0 for nonquasi
+                }
+            }
             r ++;
         }
     }
-
-
-    // need to copy this from earlier func. can def clean up later
-    double m0 = nid->m_ncdm[0];
-    double velocity_conversion_factor = 50.3 / m0 / HubbleConstant;
-
-    double vel_table[dest->np*3];
-    sample_vel(vel_table, dest->np*3);
-    for(i = 0; i < src->np; i ++) {
-        for(d = 0; d < 3; d ++){
-            dest->v[i][d] += vel_table[3*i+d] * velocity_conversion_factor;
-        }
-    }
 }
-
