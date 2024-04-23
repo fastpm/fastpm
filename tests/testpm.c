@@ -37,7 +37,7 @@ int main(int argc, char * argv[]) {
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, .9, 1.0};
     
     //ADD NCDM
-    FastPMncdmInitData* nid = fastpm_ncdm_init_create(config->boxsize, solver->cosmology, 9., 10, 2, 0, 1);
+    FastPMncdmInitData* nid = fastpm_ncdm_init_create(config->boxsize, solver->cosmology, 9., 1, 10, 2, 0, 1);
     
     FastPMStore * cdm = fastpm_solver_get_species(solver, FASTPM_SPECIES_CDM);
 

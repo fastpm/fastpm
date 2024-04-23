@@ -394,7 +394,7 @@ fastpm_ncdm_init_create(
             break;
             default:
                 fastpm_raise(-1, "Wrong ncdm sphere scheme.\n");
-    
+        }
         nid->n_split = n_shells * nid->n_sphere;
     } else {      // ignore all quasirandom parameters in this case.
         nid->n_shells = 0;
