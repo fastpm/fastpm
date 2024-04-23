@@ -356,6 +356,7 @@ fastpm_ncdm_init_create(
     double BoxSize,
     FastPMCosmology * c,
     double z,
+    int quasirandom,
     int n_shells,
     int n_side,
     int lvk,
@@ -375,7 +376,8 @@ fastpm_ncdm_init_create(
     nid->Omega_ncdm = Omega_ncdmTimesHubbleEaSq(1, c);
     nid->z = z;
     fastpm_info("ncdm reference redshift = %g\n", z);
-    
+
+    nid->quasirandom = quasirandom;
     if (nid->quasirandom){
         nid->n_shells = n_shells;
         nid->n_side = n_side;
