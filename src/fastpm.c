@@ -729,7 +729,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
     int every = CONF(prr->lua, every_ncdm);
-
+    
     size_t nc_cdm = CONF(prr->lua, nc);
     size_t nc_ncdm = nc_cdm / every;
 
@@ -740,7 +740,9 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
             boxsize,
-            fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1, n_shell, n_side, lvk,
+            fastpm->cosmology, 1 / CONF(prr->lua, time_step)[0] - 1,
+            CONF(prr->lua, ncdm_quasirandom),
+            n_shell, n_side, lvk,
             CONF(prr->lua, ncdm_sphere_scheme));
 
     size_t total_np_ncdm_sites = nc_ncdm * nc_ncdm * nc_ncdm;

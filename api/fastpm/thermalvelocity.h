@@ -11,6 +11,7 @@ typedef struct FastPMncdmInitData{
     double m_ncdm_sum; /* total eV mass of all ncdm */
     double z;          /* initialization redshift of ncdm species */
 
+    int quasirandom; /* whether velocity sampling is quasirandom or pseudorandom */
     int n_shells;    /* number of shells for splitting velocity magnitude distribution */
     FastPMncdmSphereScheme ncdm_sphere_scheme;
     int n_side;      /* n_side for healpix, also n_fib for fibonacci */
@@ -24,8 +25,8 @@ typedef struct FastPMncdmInitData{
 } FastPMncdmInitData;
 
 FastPMncdmInitData *
-fastpm_ncdm_init_create(double BoxSize, FastPMCosmology * c, double z, int n_shells, int n_side,
-                        int lvk, FastPMncdmSphereScheme ncdm_sphere_scheme);
+fastpm_ncdm_init_create(double BoxSize, FastPMCosmology * c, double z, int quasirandom, int n_shells,
+                        int n_side, int lvk, FastPMncdmSphereScheme ncdm_sphere_scheme);
 
 void
 fastpm_ncdm_init_free(FastPMncdmInitData* nid);
