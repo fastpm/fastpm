@@ -668,9 +668,14 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, MPI_Comm comm)
     int n_shell = CONF(prr->lua, n_shell);
     int n_side = CONF(prr->lua, n_side);
     int lvk = CONF(prr->lua, lvk);
+    int every = CONF(prr->lua, every_ncdm);
     
     size_t nc_cdm = CONF(prr->lua, nc);
-    size_t nc_ncdm = CONF(prr->lua, nn);
+    size_t nc_ncdm = nc_cdm / every;
+
+    if (CONF(prr->lua, nc) % every != 0) {
+        fastpm_raise(-1, "TODO: check this in parameter file. ");
+    }
     
     // init the nid
     FastPMncdmInitData* nid = fastpm_ncdm_init_create(
