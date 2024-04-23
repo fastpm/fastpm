@@ -11,7 +11,7 @@ local _NAME = ... or 'main'
 local fastpm = {}
 
 local schema = config.Schema()
-schema.declare{name='nc',                type='int', required=true, help="Number of CDM Particles Per side"}
+schema.declare{name='nc',                type='int', required=true, help="Number of Particles Per side"}
 schema.declare{name='boxsize',           type='number', required=true, help="Size of box in Mpc/h"}
 schema.declare{name='time_step',         type='array:number',  required=true, help="Scaling factor of steps, can be linspace(start, end, Nsteps)." }
 schema.declare{name='output_redshifts',  type='array:number',  required=false, help="Redshifts for outputs" }
