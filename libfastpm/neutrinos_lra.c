@@ -285,13 +285,13 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
 
 /*Save the neutrino power spectrum to a file*/
 
-void powerspectrum_nu_save(FastPMPowerSpectrum * ps, char powerspectrum_file[], double MtotbyMcdm)
+void powerspectrum_nu_save(FastPMPowerSpectrum * ps, char powerspectrum_file[])
 {
     /* substitute the last neutrino power spectrum */
     int i;
     /* The k bins are the same because this is constructed from the same power spectrum*/
     for(i = 0; i < ps->base.size; i++)
-        ps->base.f[i] = pow(delta_tot_table.delta_nu_last[i]/MtotbyMcdm, 2);
+        ps->base.f[i] = pow(delta_tot_table.delta_nu_last[i], 2);
 
     fastpm_powerspectrum_write(ps, powerspectrum_file, 1.0);
 }
