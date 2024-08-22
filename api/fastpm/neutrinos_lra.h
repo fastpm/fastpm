@@ -48,7 +48,7 @@ typedef struct nu_lra_power
     double * logknu;
     double * delta_nu_ratio;
     int size;
-    double nu_prefac;
+    double fc;
     gsl_interp *nu_spline;
 } nu_lra_power;
 

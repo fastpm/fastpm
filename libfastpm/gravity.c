@@ -428,12 +428,20 @@ lra_neutrinos(double k, nu_lra_power * nulra)
     else if( logk > nulra->logknu[nulra->size-1])
         logk = nulra->logknu[nulra->size-1];
     /* Note get_neutrino_powerspec returns delta_nu / P_cdm^1/2, which is dimensionless.
-     * nu_prefac is Omega_nu(a) / Omega_cdm(a) = f_nu(a)
+     * nu_prefac is Omega_nu(a) / Omega_cdm(a) = f_nu(a) / f_cdm(a)
+     * when computing the force in below function, nufac is applied to delta_c and we seek delta_m
+     * i.e. we want nufac = delta_m / delta_c 
+     *                    = (fc dc + fn dn) / dc
+     *                    = fc + fn dn / dc
+     *                    = fc ( 1 + fn / fc * dn /dc )
+     *                    = fc ( 1 + nu_prefac * delta_nu_ratio)
      * So below is: delta_cdm *(1-f_nu + f_nu (delta_nu / delta_cdm))
     *            = delta_cdm (1 - f_nu)  + f_nu delta_nu
     *            = delta_t */
-    double delta_nu = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
-    const double nufac =  1 - nulra->nu_prefac + nulra->nu_prefac * delta_nu;
+
+    double delta_nu_rat = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
+    double nu_prefac = (1 - nulra->fc) / nulra->fc;
+    const double nufac = nulra->fc * (1 + nu_prefac * delta_nu_rat);
     return nufac;
 }
 

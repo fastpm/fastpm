@@ -95,17 +95,10 @@ Arguments:
 double fslength(FastPMCosmology * CP, const double logai, const double logaf, const double light);
 
 /** Combine the CDM and neutrino power spectra together to get the total power.
- * OmegaNua3 = OmegaNu(a) * a^3
- * Omeganonu = Omega0 - OmegaNu(1)
- * Omeganu1 = OmegaNu(1) */
-// Adrian correction: all Omegas in this func should be a func of a.
-static inline double get_delta_tot(const double delta_nu_curr, const double delta_cdm_curr, const double OmegaNua3, const double Omeganonu)
-//static inline double get_delta_tot(const double delta_nu_curr, const double delta_cdm_curr, const double OmegaNu_a, const double Omeganonu_a)
+ * fc is Omega_c (a) / Omega_m (a) */
+static inline double get_delta_tot(const double delta_nu_curr, const double delta_cdm_curr, const double fc)
 {
-    const double fcdm = 1 - OmegaNua3/Omeganonu;
-    return fcdm * (delta_cdm_curr + delta_nu_curr * OmegaNua3/Omeganonu);
-    //const double fcdm = 1 - OmegaNu_a/(Omeganonu_a + OmegaNu_a);
-    //return fcdm * (delta_cdm_curr + delta_nu_curr * OmegaNu_a/Omeganonu_a);
+    return fc * delta_cdm_curr + (1 - fc) * delta_nu_curr;
 }
 
 
@@ -149,8 +142,8 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     /*Matter fraction excluding neutrinos*/
     d_tot->cosmo = cosmo;
     d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
-    const double OmegaNua3=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo)*pow(d_tot->TimeTransfer,3);
-    //const double OmegaNu=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo);
+    const double OmegaNu=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo);
+    const double fc = 1 - OmegaNu / (d_tot->Omeganonu / pow(d_tot->TimeTransfer,3) + OmegaNu);
     gsl_interp_accel *acc = gsl_interp_accel_alloc();
     gsl_interp * spline = NULL;
     if(t_init->size > 0) {
@@ -172,8 +165,7 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
              * so that it includes potential Rayleigh scattering. */
             d_tot->delta_nu_init[ik] = delta_cdm_curr[ik]*T_nubyT_nonu;
             /*Initialise the first delta_tot*/
-            d_tot->delta_tot[ik][0] = get_delta_tot(d_tot->delta_nu_init[ik], delta_cdm_curr[ik], OmegaNua3, d_tot->Omeganonu);
-            //d_tot->delta_tot[ik][0] = get_delta_tot(d_tot->delta_nu_init[ik], delta_cdm_curr[ik], OmegaNu, d_tot->Omeganonu/pow(d_tot->TimeTransfer,3));
+            d_tot->delta_tot[ik][0] = get_delta_tot(d_tot->delta_nu_init[ik], delta_cdm_curr[ik], fc);
             /*Set up the wavenumber array*/
             d_tot->wavenum[ik] = wavenum[ik];
     }
@@ -252,7 +244,8 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
         /*kspace_prefac = M_nu (analytic) / M_particles */
         const double OmegaNu = get_omega_nu(Time, delta_tot_table.cosmo);
         /* Omega0 - Omega in neutrinos = Omega in particles*/
-        nupow->nu_prefac = OmegaNu/(delta_tot_table.Omeganonu/pow(Time,3));
+        // nupow->nu_prefac = OmegaNu/(delta_tot_table.Omeganonu/pow(Time,3));
+        nupow->fc = 1 - OmegaNu/(OmegaNu + delta_tot_table.Omeganonu/pow(Time,3));   // makes more sens to save this
     }
     double * delta_nu_ratio = (double *) malloc(delta_tot_table.nk * sizeof(double));
     double * logwavenum = (double *) malloc(delta_tot_table.nk * sizeof(double));
@@ -549,8 +542,8 @@ void get_delta_nu_combined(FastPMCosmology * CP, const _delta_tot_table * const 
  If overwrite is true, overwrite the existing final entry.*/
 void update_delta_tot(_delta_tot_table * const d_tot, const double a, const double delta_cdm_curr[], const double delta_nu_curr[], const int overwrite)
 {
-  const double OmegaNua3 = get_omega_nu(a, d_tot->cosmo)*pow(a,3);
-  //const double OmegaNu = get_omega_nu(a, d_tot->cosmo);
+  const double OmegaNu = get_omega_nu(a, d_tot->cosmo);
+  const double fc = 1 - OmegaNu / (d_tot->Omeganonu/pow(a,3) + OmegaNu);
   int ik;
   if(!overwrite)
     d_tot->ia++;
@@ -558,8 +551,7 @@ void update_delta_tot(_delta_tot_table * const d_tot, const double a, const doub
   d_tot->scalefact[d_tot->ia-1] = log(a);
   /* Update delta_tot(a)*/
   for (ik = 0; ik < d_tot->nk; ik++){
-    d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_nu_curr[ik], delta_cdm_curr[ik], OmegaNua3, d_tot->Omeganonu);
-    //d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_nu_curr[ik], delta_cdm_curr[ik], OmegaNu, d_tot->Omeganonu/pow(a,3));
+    d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_nu_curr[ik], delta_cdm_curr[ik], fc);
   }
 }
 
