@@ -435,9 +435,7 @@ lra_neutrinos(double k, nu_lra_power * nulra)
      *                    = fc + fn dn / dc
      *                    = fc ( 1 + fn / fc * dn /dc )
      *                    = fc ( 1 + nu_prefac * delta_nu_ratio)
-     * So below is: delta_cdm *(1-f_nu + f_nu (delta_nu / delta_cdm))
-    *            = delta_cdm (1 - f_nu)  + f_nu delta_nu
-    *            = delta_t */
+     * So below is: delta_cdm *(1-f_nu + f_nu (delta_nu / delta_cdm)) */
 
     double delta_nu_rat = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
     double nu_prefac = (1 - nulra->fc) / nulra->fc;
