@@ -427,16 +427,13 @@ lra_neutrinos(double k, nu_lra_power * nulra)
         logk = nulra->logknu[0];
     else if( logk > nulra->logknu[nulra->size-1])
         logk = nulra->logknu[nulra->size-1];
-    /* Note get_neutrino_powerspec returns Omega_nu / (Omega0 -OmegaNu) * delta_nu / P_cdm^1/2, which is dimensionless.
-        * So below is: M_cdm * delta_cdm (1 + Omega_nu/(Omega0-OmegaNu) (delta_nu / delta_cdm))
-        *            = M_cdm * (delta_cdm (Omega0 - OmegaNu)/Omega0 + Omega_nu/Omega0 delta_nu) * Omega0 / (Omega0-OmegaNu)
-        *            = M_cdm * Omega0 / (Omega0-OmegaNu) * (delta_cdm (1 - f_nu)  + f_nu delta_nu) )
-        *            = M_cdm * Omega0 / (Omega0-OmegaNu) * delta_t
-        *            = (M_cdm + M_nu) * delta_t
-        * This is correct for the forces, and gives the right power spectrum,
-        * once we multiply PowerSpectrum.Norm by (Omega0 / (Omega0 - OmegaNu))**2 */
+    /* Note get_neutrino_powerspec returns delta_nu / P_cdm^1/2, which is dimensionless.
+     * nu_prefac is Omega_nu(a) / Omega_cdm(a) = f_nu(a)
+     * So below is: delta_cdm *(1-f_nu + f_nu (delta_nu / delta_cdm))
+    *            = delta_cdm (1 - f_nu)  + f_nu delta_nu
+    *            = delta_t */
     double delta_nu = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
-    const double nufac = 1 + nulra->nu_prefac * delta_nu;
+    const double nufac =  1 - nulra->nu_prefac + nulra->nu_prefac * delta_nu;
     return nufac;
 }
 
