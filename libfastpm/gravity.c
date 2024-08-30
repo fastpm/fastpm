@@ -498,7 +498,7 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         int i;
         for(i=0; i<dmps->base.size; i++)
             dmps->base.f[i] = sqrt(dmps->base.f[i]);
-        delta_nu_from_power(nulra, &dmps->base, cosmo, Time);
+        delta_nu_from_delta_c(nulra, &dmps->base, cosmo, Time);
         fastpm_powerspectrum_destroy(dmps);
         /*Initialize the interpolation for the neutrinos*/
         nulra->nu_spline = gsl_interp_alloc(gsl_interp_linear, nulra->size);

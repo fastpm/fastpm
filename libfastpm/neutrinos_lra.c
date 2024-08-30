@@ -6,6 +6,8 @@
  * from the non-linear CDM power.
  */
 
+// NOTES: Time just means a when used below.
+
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
@@ -96,7 +98,7 @@ double fslength(FastPMCosmology * CP, const double logai, const double logaf, co
 
 /** Combine the CDM and neutrino power spectra together to get the total power.
  * fc is Omega_c (a) / Omega_m (a) */
-static inline double get_delta_tot(const double delta_nu_curr, const double delta_cdm_curr, const double fc)
+static inline double get_delta_tot(const double delta_cdm_curr, const double delta_nu_curr, const double fc)
 {
     return fc * delta_cdm_curr + (1 - fc) * delta_nu_curr;
 }
@@ -138,11 +140,11 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     init_neutrinos_lra(d_tot, nk_in, 1.0);
     /*Set the prefactor for delta_nu, and the units system, which is Mpc/s.*/
     d_tot->light = LIGHT;
-    d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE /d_tot->light;
+    d_tot->delta_nu_prefac = 1.5 * cosmo->Omega_m * HUBBLE * HUBBLE / d_tot->light; // adrian light not in paper?
     /*Matter fraction excluding neutrinos*/
     d_tot->cosmo = cosmo;
     d_tot->Omeganonu = cosmo->Omega_m - get_omega_nu(1, d_tot->cosmo);
-    const double OmegaNu=get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo);
+    const double OmegaNu = get_omega_nu(d_tot->TimeTransfer, d_tot->cosmo);
     const double fc = 1 - OmegaNu / (d_tot->Omeganonu / pow(d_tot->TimeTransfer,3) + OmegaNu);
     gsl_interp_accel *acc = gsl_interp_accel_alloc();
     gsl_interp * spline = NULL;
@@ -152,20 +154,21 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
         else
             spline = gsl_interp_alloc(gsl_interp_linear,t_init->size);
         gsl_interp_init(spline,t_init->k,t_init->f, t_init->size);
-        /*Check we have a long enough power table: power tables are in log_10*/
+        /* Check we have a long enough power table: power tables are in log_10 for k
+        (FIXME maybe rename so clear what is k and what is log10. 'wavenum' is not in log units, but t_init->k is) */
         if(log10(wavenum[d_tot->nk-1]) > t_init->k[t_init->size-1])
-            fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n",wavenum[d_tot->nk-1], pow(10, t_init->k[t_init->size-1]));
+            fastpm_raise(2,"Want k = %g but maximum in CLASS table is %g\n", wavenum[d_tot->nk-1], pow(10, t_init->k[t_init->size-1]));
     }
     for(ik=0;ik<d_tot->nk;ik++) {
             /* f contains T_nu / T_cdm.*/
             double T_nubyT_nonu = 1;
             if(t_init->size > 0 && wavenum[ik] > 0)
-                T_nubyT_nonu = gsl_interp_eval(spline,t_init->k,t_init->f, log10(wavenum[ik]),acc);
+                T_nubyT_nonu = gsl_interp_eval(spline, t_init->k, t_init->f, log10(wavenum[ik]), acc);
             /*Initialise delta_nu_init to use the first timestep's delta_cdm_curr
              * so that it includes potential Rayleigh scattering. */
             d_tot->delta_nu_init[ik] = delta_cdm_curr[ik]*T_nubyT_nonu;
             /*Initialise the first delta_tot*/
-            d_tot->delta_tot[ik][0] = get_delta_tot(d_tot->delta_nu_init[ik], delta_cdm_curr[ik], fc);
+            d_tot->delta_tot[ik][0] = get_delta_tot(delta_cdm_curr[ik], d_tot->delta_nu_init[ik], fc);
             /*Set up the wavenumber array*/
             d_tot->wavenum[ik] = wavenum[ik];
     }
@@ -175,52 +178,53 @@ static void delta_tot_first_init(_delta_tot_table * const d_tot, const int nk_in
     free(t_init->f);
     free(t_init->k);
     /*If we are not restarting, make sure we set the scale factor*/
-    d_tot->scalefact[0]=log(Time);
+    d_tot->log_scalefact[0] = log(Time);
     d_tot->ia=1;
     return;
 }
 
-void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology * CP, const double Time)
+/* delta_c is the sqrt of P_c and is in FastPMFuncK format, (it's not like delta_cdm which is ->f specifically) so call it dc */
+void delta_nu_from_delta_c(nu_lra_power * nupow, FastPMFuncK* dc, FastPMCosmology * CP, const double Time)
 {
     int i;
     /*This is done on the first timestep: we need nk_nonzero for it to work.*/
     if(!delta_tot_table.delta_tot_init_done) {
         if(delta_tot_table.ia == 0) {
             /* Compute delta_nu from the transfer functions if first entry.*/
-            delta_tot_first_init(&delta_tot_table, ps->size, ps->k, ps->f, Time, CP);
+            delta_tot_first_init(&delta_tot_table, dc->size, dc->k, dc->f, Time, CP);
         }
         /*Initialise the first delta_nu*/
-        get_delta_nu_combined(CP, &delta_tot_table, exp(delta_tot_table.scalefact[delta_tot_table.ia-1]), delta_tot_table.delta_nu_last);
+        get_delta_nu_combined(CP, &delta_tot_table, exp(delta_tot_table.log_scalefact[delta_tot_table.ia-1]), delta_tot_table.delta_nu_last);
         delta_tot_table.delta_tot_init_done = 1;
     }
-    for(i = 0; i < ps->size; i++)
-        nupow->logknu[i] = log(ps->k[i]);
+    for(i = 0; i < dc->size; i++)
+        nupow->logknu[i] = log(dc->k[i]);
 
-    double * Power_in = ps->f;
-    /* Rebin the input power if necessary*/
-    if(delta_tot_table.nk != ps->size) {
-        Power_in = (double *) malloc(delta_tot_table.nk * sizeof(double));
-        double * logPower = (double *) malloc(ps->size * sizeof(double));
-        for(i = 0; i < ps->size; i++)
-            logPower[i] = log(ps->f[i]);
-        gsl_interp * pkint = gsl_interp_alloc(gsl_interp_linear, ps->size);
-        gsl_interp_init(pkint, nupow->logknu, logPower, ps->size);
+    double * delta_c = dc->f;
+    /* Rebin the input delta if necessary*/
+    if(delta_tot_table.nk != dc->size) {
+        delta_c = (double *) malloc(delta_tot_table.nk * sizeof(double));
+        double * logdelta = (double *) malloc(dc->size * sizeof(double));
+        for(i = 0; i < dc->size; i++)
+            logdelta[i] = log(dc->f[i]);
+        gsl_interp * pkint = gsl_interp_alloc(gsl_interp_linear, dc->size);
+        gsl_interp_init(pkint, nupow->logknu, logdelta, dc->size);
         gsl_interp_accel * pkacc = gsl_interp_accel_alloc();
         for(i = 0; i < delta_tot_table.nk; i++) {
             double logk = log(delta_tot_table.wavenum[i]);
             if(pkint->xmax < logk || pkint->xmin > logk)
-                Power_in[i] = delta_tot_table.delta_tot[i][delta_tot_table.ia-1];
+                delta_c[i] = delta_tot_table.delta_tot[i][delta_tot_table.ia-1];
             else
-                Power_in[i] = exp(gsl_interp_eval(pkint, nupow->logknu, logPower, logk, pkacc));
+                delta_c[i] = exp(gsl_interp_eval(pkint, nupow->logknu, logdelta, logk, pkacc));
         }
-        free(logPower);
+        free(logdelta);
         gsl_interp_accel_free(pkacc);
         gsl_interp_free(pkint);
     }
 
     /* If we get called twice with the same scale factor, do nothing: delta_nu
-     * already stores the neutrino power from the current timestep.*/
-    if(log(Time)-delta_tot_table.scalefact[delta_tot_table.ia-1] > FLOAT_ACC) {
+     * already stores the neutrino delta from the current timestep.*/
+    if(log(Time)-delta_tot_table.log_scalefact[delta_tot_table.ia-1] > FLOAT_ACC) {
         /*We need some estimate for delta_tot(current time) to obtain delta_nu(current time).
             Even though delta_tot(current time) is not directly used (the integrand vanishes at a = a(current)),
             it is indeed needed for interpolation */
@@ -228,24 +232,22 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
           error on delta_nu (and moreover for large k). Using the last timestep's delta_nu decreases error even more.
           So we only need one step. */
         /*This increments the number of stored spectra, although the last one is not yet final.*/
-        update_delta_tot(&delta_tot_table, Time, Power_in, delta_tot_table.delta_nu_last, 0);
+        update_delta_tot(&delta_tot_table, Time, delta_c, delta_tot_table.delta_nu_last, 0);
         /*Get the new delta_nu_curr*/
         get_delta_nu_combined(CP, &delta_tot_table, Time, delta_tot_table.delta_nu_last);
         /* Decide whether we save the current time or not */
-        if (Time > exp(delta_tot_table.scalefact[delta_tot_table.ia-2]) + 0.009) {
-            /* If so update delta_tot(a) correctly, overwriting current power spectrum */
-            update_delta_tot(&delta_tot_table, Time, Power_in, delta_tot_table.delta_nu_last, 1);
+        if (Time > exp(delta_tot_table.log_scalefact[delta_tot_table.ia-2]) + 0.009) {
+            /* If so update delta_tot(a) correctly, overwriting current delta */
+            update_delta_tot(&delta_tot_table, Time, delta_c, delta_tot_table.delta_nu_last, 1);
         }
-        /*Otherwise discard the last powerspectrum*/
+        /*Otherwise discard the last delta value*/
         else
             delta_tot_table.ia--;
 
-        fastpm_info("Done getting neutrino power: nk = %d, k = %g, delta_nu = %g, delta_cdm = %g,\n", delta_tot_table.nk, delta_tot_table.wavenum[1], delta_tot_table.delta_nu_last[1], Power_in[1]);
+        fastpm_info("Done getting neutrino delta: nk = %d, k = %g, delta_nu = %g, delta_cdm = %g,\n", delta_tot_table.nk, delta_tot_table.wavenum[1], delta_tot_table.delta_nu_last[1], delta_c[1]);
         /*kspace_prefac = M_nu (analytic) / M_particles */
         const double OmegaNu = get_omega_nu(Time, delta_tot_table.cosmo);
-        /* Omega0 - Omega in neutrinos = Omega in particles*/
-        // nupow->nu_prefac = OmegaNu/(delta_tot_table.Omeganonu/pow(Time,3));
-        nupow->fc = 1 - OmegaNu/(OmegaNu + delta_tot_table.Omeganonu/pow(Time,3));   // makes more sens to save this
+        nupow->fc = 1 - OmegaNu/(OmegaNu + delta_tot_table.Omeganonu/pow(Time,3));
     }
     double * delta_nu_ratio = (double *) malloc(delta_tot_table.nk * sizeof(double));
     double * logwavenum = (double *) malloc(delta_tot_table.nk * sizeof(double));
@@ -256,16 +258,16 @@ void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology 
         /*Enforce positivity for sanity reasons*/
         if(delta_tot_table.delta_nu_last[i] < 0)
             delta_tot_table.delta_nu_last[i] = 0;
-        delta_nu_ratio[i] = delta_tot_table.delta_nu_last[i]/ Power_in[i];
+        delta_nu_ratio[i] = delta_tot_table.delta_nu_last[i] / delta_c[i];
         logwavenum[i] = log(delta_tot_table.wavenum[i]);
     }
-    if(delta_tot_table.nk != ps->size)
-        free(Power_in);
+    if(delta_tot_table.nk != dc->size)
+        free(delta_c);
     gsl_interp_init(pkint, logwavenum, delta_nu_ratio, delta_tot_table.nk);
 
     /*We want to interpolate in log space*/
-    for(i=0; i < ps->size; i++) {
-        if(ps->size == delta_tot_table.nk)
+    for(i=0; i < dc->size; i++) {
+        if(dc->size == delta_tot_table.nk)
             nupow->delta_nu_ratio[i] = delta_nu_ratio[i];
         else {
             double logk = nupow->logknu[i];
@@ -329,33 +331,30 @@ void ncdm_lr_save_neutrinos(BigFile * bf, int ThisTask)
 {
     if(!delta_tot_table.delta_tot_init_done)
         return;
-    double * scalefact = delta_tot_table.scalefact;
+    double * log_scalefact = delta_tot_table.log_scalefact;
     size_t nk = delta_tot_table.nk, ia = delta_tot_table.ia;
     size_t ik, i;
     double * delta_tot = (double *) malloc(nk * ia * sizeof(double));
+    double * E2 = (double *) malloc(ia * sizeof(double));
+    double * OnE2 = (double *) malloc(ia * sizeof(double));
     /*Save a flat memory block*/
-    for(ik=0;ik< nk;ik++)
-        for(i=0;i< ia;i++)
+    for(i=0; i<ia; i++){
+        for(ik=0; ik<nk; ik++)
             delta_tot[ik*ia+i] = delta_tot_table.delta_tot[ik][i];
-
+        E2[i] = HubbleEa(exp(log_scalefact[i]), delta_tot_table.cosmo);
+        OnE2[i] = Omega_ncdmTimesHubbleEaSq(exp(log_scalefact[i]), delta_tot_table.cosmo);
+    }
     BigBlock bn;
-    if(0 != big_file_mpi_create_block(bf, &bn, "Neutrino", NULL, 0, 0, 0, MPI_COMM_WORLD)) {
-        fastpm_raise(-1, "Failed to create block at %s:%s\n", "Neutrino",
+    if(0 != big_file_mpi_create_block(bf, &bn, "LRA", NULL, 0, 0, 0, MPI_COMM_WORLD)) {
+        fastpm_raise(-1, "Failed to create block at %s:%s\n", "LRA",
                 big_file_get_error_message());
     }
 
     // save some extra quantities for debugging. after debugging, only save fc or fnu or Onu
     // can merge this loop with above loop!
-    double * E2 = (double *) malloc(ia * sizeof(double));
-    double * OnE2 = (double *) malloc(ia * sizeof(double));
-    for(i=0; i<ia; i++){
-        E2[i] = HubbleEa(exp(scalefact[i]), delta_tot_table.cosmo);
-        OnE2[i] = Omega_ncdmTimesHubbleEaSq(exp(scalefact[i]), delta_tot_table.cosmo);
-    }
-
     if ((0 != big_block_set_attr(&bn, "Nkval", &nk, "u8", 1)) ||
         (0 != big_block_set_attr(&bn, "Nscale", &ia, "u8", 1)) ||
-        (0 != big_block_set_attr(&bn, "scalefact", scalefact, "f8", ia)) ||
+        (0 != big_block_set_attr(&bn, "log_scalefact", log_scalefact, "f8", ia)) ||
         (0 != big_block_set_attr(&bn, "E2", E2, "f8", ia)) ||
         (0 != big_block_set_attr(&bn, "OnE2", OnE2, "f8", ia)) ) {
         fastpm_raise(-1, "Failed to write neutrino attributes %s\n",
@@ -375,18 +374,18 @@ void ncdm_lr_save_neutrinos(BigFile * bf, int ThisTask)
     ptrdiff_t strides[2] = {(ptrdiff_t) (sizeof(double) * ia), (ptrdiff_t) sizeof(double)};
     big_array_init(&deltas, delta_tot, "=f8", 2, dims, strides);
 
-    _save_block(bf, "Neutrino/Deltas", &deltas);
+    _save_block(bf, "LRA/Deltas", &deltas);
     free(delta_tot);
     /*Now write the initial neutrino power*/
     BigArray delta_nu = {0};
     dims[1] = 1;
     strides[0] = sizeof(double);
     big_array_init(&delta_nu, delta_tot_table.delta_nu_init, "=f8", 2, dims, strides);
-    _save_block(bf, "Neutrino/DeltaNuInit", &delta_nu);
+    _save_block(bf, "LRA/DeltaNuInit", &delta_nu);
     /*Now write the k values*/
     BigArray kvalue = {0};
     big_array_init(&kvalue, delta_tot_table.wavenum, "=f8", 2, dims, strides);
-    _save_block(bf, "Neutrino/kvalue", &kvalue);
+    _save_block(bf, "LRA/kvalue", &kvalue);
 }
 
 /* read a block from disk, spread the values to memory with setters  */
@@ -417,18 +416,18 @@ int ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
 {
     size_t nk, ia, ik, i;
     BigBlock bn;
-    if(0 != big_file_mpi_open_block(bf, &bn, "Neutrino", MPI_COMM_WORLD)) {
+    if(0 != big_file_mpi_open_block(bf, &bn, "LRA", MPI_COMM_WORLD)) {
         return 1;
     }
     if(
     (0 != big_block_get_attr(&bn, "Nscale", &ia, "u8", 1)) ||
-    (0 != big_block_get_attr(&bn, "Nkval", &nk, "u8", 1))) {
+    (0 != big_block_get_attr(&bn, "Nkval", &nk, "u8", 1)) ) {
         fastpm_raise(-1, "Failed to read attr: %s\n",
                     big_file_get_error_message());
     }
     double *delta_tot = (double *) malloc(ia*nk*sizeof(double));
     /*Allocate list of scale factors, and space for delta_tot, in one operation.*/
-    if(0 != big_block_get_attr(&bn, "scalefact", delta_tot_table.scalefact, "f8", ia))
+    if(0 != big_block_get_attr(&bn, "log_scalefact", delta_tot_table.log_scalefact, "f8", ia))
         fastpm_raise(-1, "Failed to read attr: %s\n", big_file_get_error_message());
     if(0 != big_block_mpi_close(&bn, MPI_COMM_WORLD)) {
         fastpm_raise(-1, "Failed to close block %s\n",
@@ -443,7 +442,7 @@ int ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
         dims[0] = nk;
     }
     big_array_init(&deltas, delta_tot, "=f8", 2, dims, strides);
-    _read_block(bf, "Neutrino/Deltas", &deltas);
+    _read_block(bf, "LRA/Deltas", &deltas);
     if(nk > 1Lu*delta_tot_table.nk_allocated || ia > 1Lu*delta_tot_table.namax)
         fastpm_raise(-1, "Allocated nk %d na %d for neutrino power but need nk %d na %d\n", delta_tot_table.nk_allocated, delta_tot_table.namax, nk, ia);
     /*Save a flat memory block*/
@@ -460,12 +459,12 @@ int ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
     strides[0] = sizeof(double);
     memset(delta_tot_table.delta_nu_init, 0, delta_tot_table.nk);
     big_array_init(&delta_nu, delta_tot_table.delta_nu_init, "=f8", 2, dims, strides);
-    _read_block(bf, "Neutrino/DeltaNuInit", &delta_nu);
+    _read_block(bf, "LRA/DeltaNuInit", &delta_nu);
     /* Read the k values*/
     BigArray kvalue = {0};
     memset(delta_tot_table.wavenum, 0, delta_tot_table.nk);
     big_array_init(&kvalue, delta_tot_table.wavenum, "=f8", 2, dims, strides);
-    _read_block(bf, "Neutrino/kvalue", &kvalue);
+    _read_block(bf, "LRA/kvalue", &kvalue);
 
     /*Broadcast the arrays.*/
     MPI_Bcast(&(delta_tot_table.ia), 1,MPI_INT,0,MPI_COMM_WORLD);
@@ -476,7 +475,7 @@ int ncdm_lr_read_neutrinos(BigFile * bf, int ThisTask)
     if(delta_tot_table.ia > 0) {
         /*Broadcast data for scalefact and delta_tot, Delta_tot is allocated as the same block of memory as scalefact.
           Not all this memory will actually have been used, but it is easiest to bcast all of it.*/
-        MPI_Bcast(delta_tot_table.scalefact,delta_tot_table.namax*(delta_tot_table.nk+1),MPI_DOUBLE,0,MPI_COMM_WORLD);
+        MPI_Bcast(delta_tot_table.log_scalefact,delta_tot_table.namax*(delta_tot_table.nk+1),MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
     return 0;
 }
@@ -496,7 +495,7 @@ void init_neutrinos_lra(_delta_tot_table *d_tot, const int nk_in, const double T
    d_tot->ia=0;
    d_tot->delta_tot =(double **) malloc(nk_in*sizeof(double *));
    /*Allocate list of scale factors, and space for delta_tot, in one operation.*/
-   d_tot->scalefact = (double *) malloc(d_tot->namax*(nk_in+1)*sizeof(double));
+   d_tot->log_scalefact = (double *) malloc(d_tot->namax*(nk_in+1)*sizeof(double));
    /*Allocate space for delta_nu and wavenumbers*/
    d_tot->delta_nu_last = (double *) malloc(sizeof(double) * 3 * nk_in);
    d_tot->delta_nu_init = d_tot->delta_nu_last + nk_in;
@@ -504,7 +503,7 @@ void init_neutrinos_lra(_delta_tot_table *d_tot, const int nk_in, const double T
    /*Allocate actual data. Note that this means data can be accessed either as:
     * delta_tot[k][a] OR as
     * delta_tot[0][a+k*namax] */
-   d_tot->delta_tot[0] = d_tot->scalefact+d_tot->namax;
+   d_tot->delta_tot[0] = d_tot->log_scalefact+d_tot->namax;
    for(count=1; count< nk_in; count++)
         d_tot->delta_tot[count] = d_tot->delta_tot[0] + count*d_tot->namax;
    /*Allocate space for the initial neutrino power spectrum*/
@@ -548,10 +547,10 @@ void update_delta_tot(_delta_tot_table * const d_tot, const double a, const doub
   if(!overwrite)
     d_tot->ia++;
   /*Update the scale factor*/
-  d_tot->scalefact[d_tot->ia-1] = log(a);
+  d_tot->log_scalefact[d_tot->ia-1] = log(a);
   /* Update delta_tot(a)*/
   for (ik = 0; ik < d_tot->nk; ik++){
-    d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_nu_curr[ik], delta_cdm_curr[ik], fc);
+    d_tot->delta_tot[ik][d_tot->ia-1] = get_delta_tot(delta_cdm_curr[ik], delta_nu_curr[ik], fc);
   }
 }
 
@@ -561,7 +560,7 @@ double fslength_int(const double loga, void *params)
     FastPMCosmology * CP = (FastPMCosmology *) params;
     /*This should be M_nu / k_B T_nu (which is dimensionless)*/
     const double a = exp(loga);
-    return 1./a/(a*HubbleEa(a, CP));
+    return 1./a/(a*HubbleEa(a, CP)*HUBBLE);
 }
 
 /******************************************************************************************************
@@ -638,7 +637,7 @@ double get_delta_nu_int(double logai, void * params)
     double delta_tot_at_a = gsl_interp_eval(p->spline,p->scale,p->delta_tot,logai,p->acc);
     double specJ = specialJ(p->k*fsl_aia/p->mnubykT);
     double ai = exp(logai);
-    return fsl_aia/(ai*HubbleEa(ai, p->CP)) * specJ * delta_tot_at_a;
+    return fsl_aia/(ai*HubbleEa(ai, p->CP)*HUBBLE) * specJ * delta_tot_at_a;
 }
 
 /*
@@ -646,7 +645,7 @@ Main function: given tables of wavenumbers, total delta at Na earlier times (<= 
 and initial conditions for neutrinos, computes the current delta_nu.
 Na is the number of currently stored time steps.
 */
-void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[],const double mnu)
+void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, const double a, double delta_nu_curr[], const double mnu)
 {
     double fsl_A0a,deriv_prefac;
     int ik;
@@ -659,9 +658,9 @@ void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, co
     double relerr = 1e-6;
     //       message(0,"Start get_delta_nu: a=%g Na =%d wavenum[0]=%g delta_tot[0]=%g m_nu=%g\n",a,Na,wavenum[0],d_tot->delta_tot[0][Na-1],mnu);
 
-    fsl_A0a = fslength(CP, log(d_tot->TimeTransfer), log(a),d_tot->light);
+    fsl_A0a = fslength(CP, log(d_tot->TimeTransfer), log(a), d_tot->light);
     /*Precompute factor used to get delta_nu_init. This assumes that delta ~ a, so delta-dot is roughly 1.*/
-    deriv_prefac = d_tot->TimeTransfer*(HubbleEa(d_tot->TimeTransfer, CP)/d_tot->light)* d_tot->TimeTransfer;
+    deriv_prefac = d_tot->TimeTransfer*(HubbleEa(d_tot->TimeTransfer, CP)*HUBBLE/d_tot->light)* d_tot->TimeTransfer;
     for (ik = 0; ik < d_tot->nk; ik++) {
       /* Initial condition piece, assuming linear evolution of delta with a up to startup redshift */
       /* This assumes that delta ~ a, so delta-dot is roughly 1. */
@@ -670,6 +669,8 @@ void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, co
        * if two species are massless.
        * Also, since at early times the clustering is tiny, it is very unlikely to matter.*/
       /*For zero mass neutrinos just use the initial conditions piece, modulating to zero inside the horizon*/
+      /* argument of special J is k * fsl * kT / mnu, where delta_fsl = delta_s / a in the paper language and paper has kT=1.
+         specialJ is I in the paper. See Appendix C.*/
       const double specJ = specialJ(d_tot->wavenum[ik]*fsl_A0a/(mnubykT > 0 ? mnubykT : 1));
       delta_nu_curr[ik] = specJ*d_tot->delta_nu_init[ik] *(1.+ deriv_prefac*fsl_A0a);
     }
@@ -690,7 +691,7 @@ void get_delta_nu(FastPMCosmology * CP, const _delta_tot_table * const d_tot, co
         else {
                 params.spline=gsl_interp_alloc(gsl_interp_linear,Na);
         }
-        params.scale=d_tot->scalefact;
+        params.scale=d_tot->log_scalefact;
         params.mnubykT=mnubykT;
         /* Massively over-sample the free-streaming lengths.
          * Interpolation is least accurate where the free-streaming length -> 0,

@@ -25,7 +25,7 @@ typedef struct _delta_tot_table {
     /** Pointer to nk arrays of length namax containing the total power spectrum.*/
     double **delta_tot;
     /** Array of length namax containing scale factors at which the power spectrum is stored*/
-    double * scalefact;
+    double * log_scalefact;
     /** Pointer to array of length nk storing initial neutrino power spectrum*/
     double * delta_nu_init;
     /** Last-seen neutrino power spectrum*/
@@ -53,7 +53,7 @@ typedef struct nu_lra_power
 } nu_lra_power;
 
 /*Computes delta_nu from a CDM power spectrum.*/
-void delta_nu_from_power(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology * CP, const double Time);
+void delta_nu_from_delta_c(nu_lra_power * nupow, FastPMFuncK* ps, FastPMCosmology * CP, const double Time);
 
 /* Load the neutrino transfer function*/
 void load_transfer_data(const double TimeTransfer, FastPMFuncK t_init_in[]);
