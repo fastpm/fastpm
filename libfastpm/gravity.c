@@ -427,16 +427,19 @@ lra_neutrinos(double k, nu_lra_power * nulra)
         logk = nulra->logknu[0];
     else if( logk > nulra->logknu[nulra->size-1])
         logk = nulra->logknu[nulra->size-1];
-    /* Note get_neutrino_powerspec returns Omega_nu / (Omega0 -OmegaNu) * delta_nu / P_cdm^1/2, which is dimensionless.
-        * So below is: M_cdm * delta_cdm (1 + Omega_nu/(Omega0-OmegaNu) (delta_nu / delta_cdm))
-        *            = M_cdm * (delta_cdm (Omega0 - OmegaNu)/Omega0 + Omega_nu/Omega0 delta_nu) * Omega0 / (Omega0-OmegaNu)
-        *            = M_cdm * Omega0 / (Omega0-OmegaNu) * (delta_cdm (1 - f_nu)  + f_nu delta_nu) )
-        *            = M_cdm * Omega0 / (Omega0-OmegaNu) * delta_t
-        *            = (M_cdm + M_nu) * delta_t
-        * This is correct for the forces, and gives the right power spectrum,
-        * once we multiply PowerSpectrum.Norm by (Omega0 / (Omega0 - OmegaNu))**2 */
-    double delta_nu = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
-    const double nufac = 1 + nulra->nu_prefac * delta_nu;
+    /* Note get_neutrino_powerspec returns delta_nu / P_cdm^1/2, which is dimensionless.
+     * nu_prefac is Omega_nu(a) / Omega_cdm(a) = f_nu(a) / f_cdm(a)
+     * when computing the force in below function, nufac is applied to delta_c and we seek delta_m
+     * i.e. we want nufac = delta_m / delta_c 
+     *                    = (fc dc + fn dn) / dc
+     *                    = fc + fn dn / dc
+     *                    = fc ( 1 + fn / fc * dn /dc )
+     *                    = fc ( 1 + nu_prefac * delta_nu_ratio)
+     * So below is: delta_cdm *(1-f_nu + f_nu (delta_nu / delta_cdm)) */
+
+    double delta_nu_rat = gsl_interp_eval(nulra->nu_spline, nulra->logknu, nulra->delta_nu_ratio, logk, NULL);
+    double nu_prefac = (1 - nulra->fc) / nulra->fc;
+    const double nufac = nulra->fc * (1 + nu_prefac * delta_nu_rat);
     return nufac;
 }
 
@@ -495,7 +498,7 @@ fastpm_solver_compute_force(FastPMSolver * fastpm,
         int i;
         for(i=0; i<dmps->base.size; i++)
             dmps->base.f[i] = sqrt(dmps->base.f[i]);
-        delta_nu_from_power(nulra, &dmps->base, cosmo, Time);
+        delta_nu_from_delta_c(nulra, &dmps->base, cosmo, Time);
         fastpm_powerspectrum_destroy(dmps);
         /*Initialize the interpolation for the neutrinos*/
         nulra->nu_spline = gsl_interp_alloc(gsl_interp_linear, nulra->size);
