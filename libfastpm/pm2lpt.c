@@ -88,9 +88,9 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
 
     /* 2LPT */
     for(d = 0; d< 3; d++) {
-        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
-        fastpm_apply_diff_transfer(pm, workspace, workspace, d, difforder);
-        fastpm_apply_diff_transfer(pm, workspace, workspace, d, difforder);
+        fastpm_apply_laplace_transfer(pm, delta_k, field[d], potorder);
+        fastpm_apply_diff_transfer(pm, field[d], field[d], d, difforder);
+        fastpm_apply_diff_transfer(pm, field[d], field[d], d, difforder);
         
         pm_c2r(pm, field[d]);
     }

@@ -275,7 +275,7 @@ schema.declare{name='za',                      type='boolean', default=false, he
 schema.declare{name='kernel_type',             type='enum', default="1_4", help='Force kernel; affects low mass halos 3_4 gives more low mass halos; 1_4 is consistent with fastpm-python.'}
 schema.kernel_type.choices = {
     ['1_4'] = 'FASTPM_KERNEL_1_4',  -- consistent with fastpm-python
-    ['1_4_DIFF0'] = 'FASTPM_KERNEL_1_4_DIFF0',  -- consistent with fastpm-python -- DIFF0 shown to work better important for fNL.
+    ['1_4_DIFF0'] = 'FASTPM_KERNEL_1_4_DIFF0',  -- consistent with fastpm-python -- DIFF0 shown to work better important for fNL. DIFF is only used for ICs (and PGD).
     ['3_4'] = 'FASTPM_KERNEL_3_4',  -- legacy fastpm
     ['gadget'] = 'FASTPM_KERNEL_GADGET', -- GADGET long range without exp smoothing.
     ['5_4'] = 'FASTPM_KERNEL_5_4',  -- very bad do not use
