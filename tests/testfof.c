@@ -37,9 +37,9 @@ int main(int argc, char * argv[]) {
     FastPMSolver solver[1];
     fastpm_solver_init(solver, config, comm);
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->lptpm);
-    FastPMFloat * rho_final_ktruth = pm_alloc(solver->lptpm);
-    FastPMFloat * rho_final_xtruth = pm_alloc(solver->lptpm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_xtruth = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -48,8 +48,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->lptpm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->lptpm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
     double time_step[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
@@ -106,9 +106,9 @@ int main(int argc, char * argv[]) {
     fastpm_store_destroy(halos);
     fastpm_fof_destroy(&fof);
 
-    pm_free(solver->lptpm, rho_final_xtruth);
-    pm_free(solver->lptpm, rho_final_ktruth);
-    pm_free(solver->lptpm, rho_init_ktruth);
+    pm_free(solver->pm, rho_final_xtruth);
+    pm_free(solver->pm, rho_final_ktruth);
+    pm_free(solver->pm, rho_init_ktruth);
 
     fastpm_solver_destroy(solver);
     libfastpm_cleanup();

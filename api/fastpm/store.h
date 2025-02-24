@@ -52,10 +52,9 @@ typedef enum FastPMColumnTags {
     COLUMN_RDISP =  1L << 17,
     COLUMN_VDISP =  1L << 18,
     COLUMN_RVDISP =  1L << 19,
-
+    
     COLUMN_MASS = 1L << 20,
     COLUMN_RAND = 1L << 21,
-    COLUMN_RMOM = 1L << 22,  /* Radial momentum m * rhat dot (a dx/dt), used in lightcone map*/
 
 } FastPMColumnTags;
 
@@ -127,9 +126,8 @@ struct FastPMStore {
             /* multiple species support */
             float (* mass);   /* extra mass in addition to meta.M0; see fastpm_store_get_mass */
 
-            /* other fields */
+	    /* other fields */
             float (* rand);   /* a random number between 0 and 1 */
-            float (* rmom);   /* radial momentum, m rhat dot (a dx/dt) */
         };
     };
 };
@@ -215,7 +213,7 @@ fastpm_store_summary(FastPMStore * p,
 void
 fastpm_store_wrap(FastPMStore * p, double BoxSize[3]);
 
-typedef int (*fastpm_store_target_func)(FastPMStore * p, ptrdiff_t index, void * data);
+typedef int (*fastpm_store_target_func)(void * pdata, ptrdiff_t index, void * data);
 
 int
 fastpm_store_decompose(FastPMStore * p, fastpm_store_target_func target_func, void * data, MPI_Comm comm);
@@ -252,6 +250,13 @@ fastpm_store_fill_subsample_mask_from_array(FastPMStore * p,
 
 size_t
 fastpm_store_subsample(FastPMStore * in, FastPMParticleMaskType * mask, FastPMStore * out);
+
+void
+fastpm_store_histogram_aemit_sorted(FastPMStore * store,
+        int64_t * hist,
+        double * edges,
+        size_t nbins,
+        MPI_Comm comm);
 
 void
 fastpm_store_copy(FastPMStore * in, FastPMStore * out);

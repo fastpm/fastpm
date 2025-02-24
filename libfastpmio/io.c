@@ -7,13 +7,11 @@
 #include <bigfile.h>
 #include <bigfile-mpi.h>
 #include <mpsort.h>
-#include <chealpix/chealpix.h>
 
 #include <fastpm/libfastpm.h>
 #include <fastpm/prof.h>
 #include <fastpm/string.h>
 #include <fastpm/logging.h>
-#include <fastpm/histogram.h>
 
 #include <fastpm/io.h>
 
@@ -418,7 +416,6 @@ fastpm_store_write(FastPMStore * p,
         DEFINE_COLUMN_IO("Vdisp",           "f4", vdisp),
         DEFINE_COLUMN_IO("RVdisp",          "f4", rvdisp),
         DEFINE_COLUMN_IO("Mass",            "f4", mass),
-        DEFINE_COLUMN_IO("Rmom",            "f4", rmom),
         {NULL, },
     };
     int64_t size = fastpm_store_get_np_total(p, comm);
@@ -990,7 +987,9 @@ write_snapshot_attr(const char * filebase,
 
 void
 write_aemit_hist(const char * filebase, const char * dataset,
-            FastPMHistogram * hist,
+            int64_t * hist,
+            double * aedges,
+            size_t nedges,
             MPI_Comm comm)
 {
     /* write an index to the dataset (usually Header block) */
@@ -1008,22 +1007,22 @@ write_aemit_hist(const char * filebase, const char * dataset,
 
     /* starting edges of the bins */
     big_block_remove_attr(&bb, "aemitIndex.edges");
-    big_block_set_attr(&bb, "aemitIndex.edges", hist->edges, "f8", hist->Nedges);
+    big_block_set_attr(&bb, "aemitIndex.edges", aedges, "f8", nedges);
 
     /* number in each layer bin 0 is the first layer, since it is the only layer outside of the edges */
     big_block_remove_attr(&bb, "aemitIndex.size");
-    big_block_set_attr(&bb, "aemitIndex.size", hist->counts, "i8", hist->Nedges + 1);
+    big_block_set_attr(&bb, "aemitIndex.size", hist, "i8", nedges + 1);
 
-    int64_t * offset = malloc(sizeof(int64_t) * (hist->Nedges + 2));
+    int64_t * offset = malloc(sizeof(int64_t) * (nedges + 2));
 
     /* the starting particles offset for each layer */
     offset[0] = 0;
     int i;
-    for(i = 1; i < hist->Nedges + 2; i ++) {
-        offset[i] = offset[i - 1] + hist->counts[i - 1];
+    for(i = 1; i < nedges + 2; i ++) {
+        offset[i] = offset[i - 1] + hist[i - 1];
     }
     big_block_remove_attr(&bb, "aemitIndex.offset");
-    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", hist->Nedges + 2);
+    big_block_set_attr(&bb, "aemitIndex.offset", offset, "i8", nedges + 2);
 
     big_block_mpi_close(&bb, comm);
     big_file_mpi_close(&bf, comm);
@@ -1059,239 +1058,4 @@ read_funck(FastPMFuncK * fk, const char filename[], MPI_Comm comm)
     //fastpm_info("Found %d pairs of values \n", ps->size);
 
     return 0;
-}
-
-static void combine_pixels(FastPMStore * map) {
-    /* reduce duplicated pixels, after sorting */
-
-    ptrdiff_t j = 0;
-    ptrdiff_t i = j + 1;
-    while(i < map->np) {
-        if (map->id[i] != map->id[j]) {
-            j ++;
-            if(j != i) {
-                map->id[j] = map->id[i];
-                map->aemit[j] = map->aemit[i];
-                map->mass[j] = map->mass[i];
-                map->rmom[j] = map->rmom[i];
-            }
-        } else {
-            map->mass[j] += map->mass[i];
-            map->rmom[j] += map->rmom[i];
-        }
-        i++;
-    }
-    map->np = j + 1;
-}
-
-/* Creates a healpix map particle store in map.
- *
- * ID: [0, nslices * npix), for aemit = 0 ~ 1. if aemit < 0, out of bound errors.
- *    if aemit > 1, create additional slices. Pixels are in NEST scheme
- * aemit: quantized aemit of pixels.
- * paintfunc: paint with the function instead of mass and radial momentum;
- * map: Allocates map and caller destroys it.
- * */
-void
-fastpm_snapshot_paint_hpmap(FastPMStore * p,
-        int64_t nside,
-        int64_t nslice,
-        fastpm_store_hp_paintfunc paintfunc,
-        void * userdata,
-        FastPMStore * map,
-        MPI_Comm comm
-) {
-    ptrdiff_t i;
-
-    fastpm_store_init(map, "HEALPIX", p->np, COLUMN_ID | COLUMN_AEMIT | COLUMN_MASS | COLUMN_RMOM, FASTPM_MEMORY_FLOATING);
-
-    map->np = p->np;
-
-    /* nothing is written */
-    if(!MPIU_Any(comm, map->np > 0)) {
-        return;
-    }
-    int64_t npix = nside2npix64(nside);
-    for (i = 0; i < p->np; i ++) {
-        double x[3];
-        int64_t ipix;
-        /* round pixel aemit to the nearest 1/ nslice for slice_id */
-        int slice_id = p->aemit[i] * nslice;
-        fastpm_store_get_position(p, i, x);
-        vec2pix_nest64(nside, x, &ipix);
-        /* id is 0 to nslice * npix */
-        map->id[i] = slice_id * npix + ipix;
-        if (paintfunc) {
-            paintfunc(p, i, map, userdata);
-        } else {
-            double r = sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
-            double mass = fastpm_store_get_mass(p, i);
-            map->mass[i] = mass;
-            map->rmom[i] = mass * (p->v[i][0] * x[0]
-                                 + p->v[i][1] * x[1]
-                                 + p->v[i][2] * x[2]) / r;
-        }
-        /* quantize aemit for easier consistency checks */
-        map->aemit[i] = (slice_id + 0.5) / nslice;
-    }
-
-    fastpm_store_sort(map, FastPMLocalSortByID);
-    combine_pixels(map);
-
-    fastpm_info("Locally combined, np = %d", map->np);
-    fastpm_sort_snapshot(map, comm, FastPMSnapshotSortByID, /* redistribute = */0);
-    combine_pixels(map);
-    fastpm_info("Globally combined, np = %d", map->np);
-
-    /* at this point, all ID (ipix) of pixels are unique on a rank, the following
-     * algorithm requires this uniqueness. */
-
-    struct {
-        uint64_t ipix;
-        double mass;
-        double rmom;
-    } last, first, prev, next;
-
-    MPI_Datatype dt;
-    MPI_Type_contiguous(sizeof(last), MPI_BYTE, &dt);
-    MPI_Type_commit(&dt);
-
-    /* split the comm to 'with-data', and 'no-data', and form a ring on the 'with-data' ranksj*/
-    int ThisTask;
-    MPI_Comm_rank(comm, &ThisTask);
-
-    MPI_Comm newcomm;
-    MPI_Comm_split(comm, map->np == 0, ThisTask, &newcomm);
-    int rank;
-    MPI_Comm_rank(newcomm, &rank);
-    int size;
-    MPI_Comm_size(newcomm, &size);
-
-    if (map->np == 0) {
-        /* no data, bail. */
-        MPI_Comm_free(&newcomm);
-        return;
-    }
-
-    /* form a ring on the newcomm, and exchange */
-    last.ipix = map->id[map->np - 1];
-    last.mass = map->mass[map->np - 1];
-    last.rmom = map->rmom[map->np - 1];
-    first.ipix = map->id[0];
-    first.mass = map->mass[0];
-    first.rmom = map->rmom[0];
-
-    //fastpm_ilog(INFO, "ThisTask = %d rank = %d next = %d, prev = %d.", ThisTask, rank,
-    //    (rank + 1) % size, (rank - 1 + size) % size );
-    /* 99 and 100 are just random non-conflicting tag numbers. */
-    MPI_Sendrecv(
-        &last, 1, dt, (rank + 1) % size, 99,
-        &prev, 1, dt, (rank - 1 + size) % size, 99,
-        newcomm, MPI_STATUS_IGNORE);
-
-    //fastpm_ilog(INFO, "last / prev done rank = %d.", ThisTask, rank);
-    MPI_Sendrecv(
-        &first, 1, dt, (rank - 1 + size) % size, 100,
-        &next, 1, dt, (rank + 1) % size, 100,
-        newcomm, MPI_STATUS_IGNORE);
-    //fastpm_ilog(INFO, "first / next done rank = %d.", ThisTask, rank);
-
-    MPI_Type_free(&dt);
-
-    /* merge the last pix to the next rank on the ring, if they are the same */
-    if(rank > 0) {
-        /* Take prev if it is the same ipix as my first */
-        if(prev.ipix == first.ipix) {
-            map->mass[0] += prev.mass;
-            map->rmom[0] += prev.rmom;
-        }
-    }
-    if(rank < size) {
-        /* Give up last if it is the same ipix as my next */
-        if(last.ipix == next.ipix) {
-            map->np --;
-        }
-    }
-}
-
-#if 0
-static ptrdiff_t
-binary_search(double foo, double a[], size_t n) {
-    ptrdiff_t left = 0, right = n;
-    ptrdiff_t mid;
-    /* find the right side, because hist would count the number < edge, not <= edge */
-    if(a[left] > foo) {
-        return 0;
-    }
-    if(a[right - 1] <= foo) {
-        return n;
-    }
-    while(right - left > 1) {
-        mid = left + ((right - left - 1) >> 1);
-        double pivot = a[mid];
-        if(pivot > foo) {
-            right = mid + 1;
-            /* a[right - 1] > foo; */
-        } else {
-            left = mid + 1;
-            /* a[left] <= foo; */
-        }
-    }
-    return left;
-}
-#endif
-/* this is cumulative */
-void
-fastpm_store_histogram_aemit_sorted(FastPMStore * store,
-        FastPMHistogram * hist,
-        MPI_Comm comm)
-{
-    ptrdiff_t i;
-
-    int nedges = hist->Nedges;
-    double * aedges = hist->edges;
-
-    int64_t * count1 = malloc(sizeof(count1[0]) * (nedges + 1));
-
-    memset(count1, 0, sizeof(count1[0]) * (nedges + 1));
-
-#pragma omp parallel
-    {
-        /* FIXME: use standard reduction with OpenMP 4.7 */
-
-        int64_t * count2 = malloc(sizeof(count2[0]) * (nedges + 1));
-        memset(count2, 0, sizeof(count2[0]) * (nedges + 1));
-
-        int iedge = 0;
-
-        /* this works because openmp will send each thread at most 1
-         * chunk with the static scheduling; thus a thread never sees
-         * out of order aemit */
-        #pragma omp for schedule(static)
-        for(i = 0; i < store->np; i ++) {
-            while(iedge < nedges && store->aemit[i] >= aedges[iedge]) iedge ++;
-
-//           int ibin = binary_search(store->aemit[i], aedges, nedges);
-//           if(ibin != iedge) abort();
-
-            count2[iedge] ++;
-        }
-
-        #pragma omp critical
-        {
-            for(i = 0; i < nedges + 1; i ++) {
-                count1[i] += count2[i];
-            }
-        }
-
-        free(count2);
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, count1, nedges + 1, MPI_LONG, MPI_SUM, comm);
-
-    for(i = 0; i < nedges + 1; i ++) {
-        hist->counts[i] += count1[i];
-    }
-
-    free(count1);
 }

@@ -7,8 +7,8 @@
 #include <fastpm/logging.h>
 #include <fastpm/string.h>
 #include <fastpm/transfer.h>
+#include "chealpix.h"
 #include <mpsort.h>
-#include <chealpix/chealpix.h>
 
 #include "pmpfft.h"
 #include "pmghosts.h"
@@ -300,7 +300,6 @@ MPIU_All(MPI_Comm comm, int value)
  *  > : maximum  (double)
  *  . : rank of maximum (int)
  *  - : mean  (double)
- *  + : sum (double)
  *  s : std (biased standard derivation)
  *  v : variance (biased variance)
  *  S : unbiased std
@@ -359,9 +358,6 @@ MPIU_stats(MPI_Comm comm,
         switch(fmt[i]) {
             case '-':
                 *dr = avg;
-                break;
-            case '+':
-                *dr = sum;
                 break;
             case '<':
                 *dr = min.value;

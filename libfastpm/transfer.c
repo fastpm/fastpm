@@ -111,7 +111,16 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to)
         }
     }
 }
-
+/*
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ * */
 void
 fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
 {
@@ -123,7 +132,7 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
             !pm_kiter_stop(&kiter);
             pm_kiter_next(&kiter)) {
             double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
-            /* i k[d] */
+	    /* i k[d] */
             if(
                 kiter.iabs[0] == (Nmesh[0] - kiter.iabs[0]) % Nmesh[0] &&
                 kiter.iabs[1] == (Nmesh[1] - kiter.iabs[1]) % Nmesh[1] &&
@@ -144,6 +153,53 @@ fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int di
     }
 }
 
+
+void
+fastpm_apply_diff_transfer_mod(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir)
+{
+    ptrdiff_t * Nmesh = pm_nmesh(pm);
+#pragma omp parallel
+    {
+        PMKIter kiter;
+        for(pm_kiter_init(pm, &kiter);
+            !pm_kiter_stop(&kiter);
+            pm_kiter_next(&kiter)) {
+            //double k_finite = kiter.k_finite[dir][kiter.iabs[dir]];
+	    double myk = kiter.k[dir][kiter.iabs[dir]];
+	    /* i k[d] */
+            if(
+                kiter.iabs[0] == (Nmesh[0] - kiter.iabs[0]) % Nmesh[0] &&
+                kiter.iabs[1] == (Nmesh[1] - kiter.iabs[1]) % Nmesh[1] &&
+                kiter.iabs[2] == (Nmesh[2] - kiter.iabs[2]) % Nmesh[2]
+            ) {
+                /* We are at the nyquist and the diff operator shall be zero;
+                 * otherwise the force is not real! */
+                to[kiter.ind + 0] = 0;
+                to[kiter.ind + 1] = 0;
+            } {
+                FastPMFloat tmp[2];
+                //tmp[0] = - from[kiter.ind + 1] * (k_finite);
+                tmp[0] = - from[kiter.ind + 1] * (myk);
+                //tmp[1] =   from[kiter.ind + 0] * (k_finite);
+                tmp[1] =   from[kiter.ind + 0] * (myk);
+                to[kiter.ind + 0] = tmp[0];
+                to[kiter.ind + 1] = tmp[1];
+            }
+        }
+    }
+}
+/*
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ * */
 void
 fastpm_apply_laplace_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int order)
 {

@@ -108,9 +108,6 @@ _create_kdtree (KDTree * tree, int thresh,
         }
     } else {
         /* otherwise, allocate a big buffer and make a copy */
-
-        /* Note that we do not compact the array because we want to ensure
-         * the index used by kd_fof's head agrees with FastPM's. */
         tree->input.buffer = _kdtree_buffered_malloc(pbuffer,
                     tree->input.dims[0] * sizeof(stores[0]->x[0]));
         memcpy(tree->input.buffer, &stores[0]->x[0][0], stores[0]->np * sizeof(stores[0]->x[0]));
@@ -159,9 +156,8 @@ _create_kdtree (KDTree * tree, int thresh,
 
     tree->boxsize = boxsize;
 
-    fastpm_info("Creating KDTree for %td particles\n", tree->ind_size);
     KDNode * root = kd_build(tree);
-    fastpm_info("Created KDTree with %td nodes for %td particles\n", tree->size, tree->ind_size);
+    fastpm_info("Creating KDTree with %td nodes for %td particles\n", tree->size, tree->ind_size);
     return root;
 }
 

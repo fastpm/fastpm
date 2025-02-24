@@ -19,7 +19,6 @@ LIBSOURCES = libfastpm.c \
     transfer.c \
     memory.c \
     utils.c \
-    histogram.c \
     initialcondition.c \
     pngaussian.c \
     pgdcorrection.c \
@@ -45,6 +44,7 @@ LIBSOURCES = libfastpm.c \
     fof.c \
     rfof.c \
     version.c \
+    chealpix.c \
     thermalvelocity.c
 
 PFFTLIBS0 = libpfft_omp.a libpfftf_omp.a

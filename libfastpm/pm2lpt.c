@@ -23,7 +23,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
      *   */
     ptrdiff_t i;
     int d;
-
+    int potorder_zero=0;
     /* It is important to (de-)shift the particles before creating ghosts 
      * Because we will read out from the (de-)shifted positions.
      * Otherwise the IC will have artifacts along the edges of domains. */
@@ -63,8 +63,10 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
     /* 1LPT */
     for(d = 0; d < 3; d++) {
         /* dx1 */
-        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
-        fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+        //fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
+        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder_zero);
+        //fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+        fastpm_apply_diff_transfer_mod(pm, workspace, workspace, d);
 
         pm_c2r(pm, workspace);
 
@@ -73,8 +75,10 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
 
         /* dv1 */
         if (p->dv1) {
-            fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
-            fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+            //fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
+            fastpm_apply_laplace_transfer(pm, delta_k, workspace,potorder_zero);
+            //fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+            fastpm_apply_diff_transfer_mod(pm, workspace, workspace, d);
 
             fastpm_apply_any_transfer(pm, workspace, workspace, (fastpm_fkfunc) fastpm_funck_eval2, growth_rate_func_k);
 
@@ -87,9 +91,12 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
 
     /* 2LPT */
     for(d = 0; d< 3; d++) {
-        fastpm_apply_laplace_transfer(pm, delta_k, field[d], potorder);
-        fastpm_apply_diff_transfer(pm, field[d], field[d], d);
-        fastpm_apply_diff_transfer(pm, field[d], field[d], d);
+        //fastpm_apply_laplace_transfer(pm, delta_k, field[d], potorder);
+        fastpm_apply_laplace_transfer(pm, delta_k, field[d], potorder_zero);
+        //fastpm_apply_diff_transfer(pm, field[d], field[d], d);
+        fastpm_apply_diff_transfer_mod(pm, field[d], field[d], d);
+        //fastpm_apply_diff_transfer(pm, field[d], field[d], d);
+        fastpm_apply_diff_transfer_mod(pm, field[d], field[d], d);
 
         pm_c2r(pm, field[d]);
     }
@@ -107,9 +114,12 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
         int d1 = D1[d];
         int d2 = D2[d];
 
-        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
-        fastpm_apply_diff_transfer(pm, workspace, workspace, d1);
-        fastpm_apply_diff_transfer(pm, workspace, workspace, d2);
+        //fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
+        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder_zero);
+        //fastpm_apply_diff_transfer(pm, workspace, workspace, d1);
+        fastpm_apply_diff_transfer_mod(pm, workspace, workspace, d1);
+        //fastpm_apply_diff_transfer(pm, workspace, workspace, d2);
+        fastpm_apply_diff_transfer_mod(pm, workspace, workspace, d2);
 
         pm_c2r(pm, workspace);
 #pragma omp parallel for
@@ -125,8 +135,10 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
          * We absorb some the negative factor in za transfer to below;
          *
          * */
-        fastpm_apply_laplace_transfer(pm, source, workspace, potorder);
-        fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+        //fastpm_apply_laplace_transfer(pm, source, workspace, potorder);
+        fastpm_apply_laplace_transfer(pm, source, workspace, potorder_zero);
+        //fastpm_apply_diff_transfer(pm, workspace, workspace, d);
+        fastpm_apply_diff_transfer_mod(pm, workspace, workspace, d);
 
         pm_c2r(pm, workspace);
 

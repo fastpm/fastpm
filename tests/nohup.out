@@ -1,0 +1,439 @@
+[ 0000000.0000 ]: This is FastPM, with libfastpm version 1.0.6ffdf35d96.
+[ 0000000.0024 ]: Configuration {
+[ 0000000.0024 ]: 	N_eff = 3.045999999999999819,
+[ 0000000.0024 ]: 	N_nu = 0,
+[ 0000000.0024 ]: 	Omega_k = 0,
+[ 0000000.0024 ]: 	Omega_m = 0.30749399999999999,
+[ 0000000.0024 ]: 	T_cmb = 0,
+[ 0000000.0024 ]: 	boxsize = 384.0,
+[ 0000000.0024 ]: 	compute_potential = false,
+[ 0000000.0024 ]: 	dh_factor = 1.0,
+[ 0000000.0024 ]: 	enforce_broadband_kmax = 4,
+[ 0000000.0024 ]: 	every_ncdm = 4,
+[ 0000000.0024 ]: 	f_nl_type = "none",
+[ 0000000.0024 ]: 	fof_kdtree_thresh = 8,
+[ 0000000.0024 ]: 	fof_linkinglength = 0.200000000000000011,
+[ 0000000.0024 ]: 	fof_nmin = 20,
+[ 0000000.0024 ]: 	force_mode = "fastpm",
+[ 0000000.0024 ]: 	force_softening_type = "none",
+[ 0000000.0024 ]: 	growth_mode = "LCDM",
+[ 0000000.0024 ]: 	h = 0.677400000000000002,
+[ 0000000.0024 ]: 	inverted_ic = false,
+[ 0000000.0024 ]: 	kernel_type = "1_4",
+[ 0000000.0024 ]: 	kmax_primordial_over_knyquist = 0.25,
+[ 0000000.0024 ]: 	lc_fov = 0.0,
+[ 0000000.0024 ]: 	lc_usmesh_alloc_factor = 1.0,
+[ 0000000.0024 ]: 	lc_usmesh_ell_limit = 0,
+[ 0000000.0024 ]: 	lc_usmesh_fof_padding = 10.0,
+[ 0000000.0024 ]: 	linear_density_redshift = 0.0,
+[ 0000000.0024 ]: 	linear_density_redshift_ncdm = 0,
+[ 0000000.0024 ]: 	lpt_nc_factor = 1,
+[ 0000000.0024 ]: 	lvk = true,
+[ 0000000.0024 ]: 	n_shell = 10,
+[ 0000000.0024 ]: 	n_side = 3,
+[ 0000000.0024 ]: 	nc = 128,
+[ 0000000.0024 ]: 	ncdm_freestreaming = true,
+[ 0000000.0024 ]: 	ncdm_matterlike = true,
+[ 0000000.0024 ]: 	ncdm_sphere_scheme = "fibonacci",
+[ 0000000.0024 ]: 	np_alloc_factor = 4.0,
+[ 0000000.0024 ]: 	painter_support = 2,
+[ 0000000.0024 ]: 	painter_type = "cic",
+[ 0000000.0024 ]: 	particle_fraction = 1.0,
+[ 0000000.0024 ]: 	pgdc = false,
+[ 0000000.0024 ]: 	pgdc_A = 4.0,
+[ 0000000.0024 ]: 	pgdc_B = 8.0,
+[ 0000000.0024 ]: 	pgdc_alpha0 = 0.800000000000000044,
+[ 0000000.0024 ]: 	pgdc_kl = 2.0,
+[ 0000000.0024 ]: 	pgdc_ks = 10.0,
+[ 0000000.0024 ]: 	pm_nc_factor = 2,
+[ 0000000.0024 ]: 	random_seed = 100,
+[ 0000000.0024 ]: 	read_powerspectrum = "powerspec.txt",
+[ 0000000.0024 ]: 	remove_cosmic_variance = false,
+[ 0000000.0024 ]: 	rfof_a1 = 0.012,
+[ 0000000.0024 ]: 	rfof_a2 = 0.059999999999999998,
+[ 0000000.0024 ]: 	rfof_b1 = 7.019999999999999574,
+[ 0000000.0024 ]: 	rfof_b2 = 6.025000000000000355,
+[ 0000000.0024 ]: 	rfof_kdtree_thresh = 1,
+[ 0000000.0024 ]: 	rfof_l1 = 0.25,
+[ 0000000.0024 ]: 	rfof_l6 = 0.239999999999999991,
+[ 0000000.0024 ]: 	rfof_linkinglength = 0.200000000000000011,
+[ 0000000.0024 ]: 	rfof_nmin = 8,
+[ 0000000.0024 ]: 	set_mode_method = "override",
+[ 0000000.0024 ]: 	shift = false,
+[ 0000000.0024 ]: 	sigma8 = 0,
+[ 0000000.0024 ]: 	sort_snapshot = true,
+[ 0000000.0024 ]: 	w0 = -1,
+[ 0000000.0024 ]: 	wa = 0,
+[ 0000000.0024 ]: 	write_fof = "nbodykit/fastpm",
+[ 0000000.0024 ]: 	write_powerspectrum = "nbodykit/powerspec",
+[ 0000000.0024 ]: 	write_runpb_snapshot = "nbodykit/tpm",
+[ 0000000.0024 ]: 	write_snapshot = "nbodykit/fastpm",
+[ 0000000.0024 ]: 	za = false,
+[ 0000000.0024 ]: 	m_ncdm = { },
+[ 0000000.0024 ]: 	aout = {
+[ 0000000.0024 ]: 		1.0,
+[ 0000000.0024 ]: 		0.66666666666666663,
+[ 0000000.0024 ]: 	},
+[ 0000000.0024 ]: 	lc_glmatrix = {
+[ 0000000.0024 ]: 		{
+[ 0000000.0024 ]: 			1,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 		},
+[ 0000000.0024 ]: 		{
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			1,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 		},
+[ 0000000.0024 ]: 		{
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			1,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 		},
+[ 0000000.0024 ]: 		{
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			1,
+[ 0000000.0024 ]: 		},
+[ 0000000.0024 ]: 	},
+[ 0000000.0024 ]: 	lc_octants = {
+[ 0000000.0024 ]: 		0,
+[ 0000000.0024 ]: 		1,
+[ 0000000.0024 ]: 		2,
+[ 0000000.0024 ]: 		3,
+[ 0000000.0024 ]: 		4,
+[ 0000000.0024 ]: 		5,
+[ 0000000.0024 ]: 		6,
+[ 0000000.0024 ]: 		7,
+[ 0000000.0024 ]: 	},
+[ 0000000.0024 ]: 	lc_usmesh_tiles = {
+[ 0000000.0024 ]: 		{
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 			0,
+[ 0000000.0024 ]: 		},
+[ 0000000.0024 ]: 	},
+[ 0000000.0024 ]: 	output_redshifts = {
+[ 0000000.0024 ]: 		0.0,
+[ 0000000.0024 ]: 		0.5,
+[ 0000000.0024 ]: 	},
+[ 0000000.0024 ]: 	time_step = {
+[ 0000000.0024 ]: 		0.100000000000000006,
+[ 0000000.0024 ]: 		0.550000000000000044,
+[ 0000000.0024 ]: 		1,
+[ 0000000.0024 ]: 	},
+[ 0000000.0024 ]: }
+[ 0000000.0024 ]: np_alloc_factor = 4
+[ 0000000.9014 ]: BaseProcMesh : 1 x 1
+[ 0000000.9015 ]: 8 Threads
+[ 0000000.9021 ]: Powerspecectrum file: powerspec.txt
+[ 0000000.9042 ]: Found 1769 pairs of values in input spectrum table
+[ 0000000.9044 ]: Input power spectrum sigma8 0.815897
+[ 0000001.3060 ]: Variance of input white noise is 0.99921342, expectation is 0.99999952
+[ 0000001.3060 ]: Inducing correlation to the white noise.
+[ 0000001.3308 ]: Reference linear density is calibrated at redshift 0; multiply by 1 to extract to redshift 0.
+[ 0000001.3323 ]: No cdm linear growth rate file input.
+[ 0000001.3746 ]: writing linear power spectrum to nbodykit/powerspec_linear.txt
+[ 0000001.3749 ]: mass of a CDM particle is 230.353 1e10 Msun/h
+[ 0000001.4841 ]: Sending ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000001.4841 ]: Receiving ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000001.5898 ]: Using sparse Alltoallv
+[ 0000002.2489 ]: Using sparse Alltoallv
+[ 0000002.2490 ]: Using sparse Alltoallv
+[ 0000002.2698 ]: 2LPT ICs set at z=9: E=17.5552 D1=0.127589, D2=0.0161456, f1=0.998751, f2=1.99755
+[ 0000002.2886 ]: dx1  : 5.04403 5.44115 6.1141 5.53309
+[ 0000002.2886 ]: dx2  : 0.733256 0.719428 0.725769 0.726151
+[ 0000002.2932 ]: ==== -> 001 [000 000 000] a_i = 0.1000 a_f = 0.1000 a_r = 0.1000 Action = FORCE(0) ====
+[ 0000002.2932 ]: Task 0 Peak memory usage max: 728.816 MB min : 728.816 MB
+[ 0000002.2932 ]: S 0x0000557c75bbe4b0 : 0008523776 :              PMAlloc:             pm2lpt.c:54
+[ 0000002.2932 ]: S 0x0000557c7539d4a0 : 0008523776 :              PMAlloc:             pm2lpt.c:54
+[ 0000002.2932 ]: S 0x0000557c74b7c490 : 0008523776 :              PMAlloc:             pm2lpt.c:54
+[ 0000002.2932 ]: S 0x0000557c7435b480 : 0008523776 :              PMAlloc:             pm2lpt.c:47
+[ 0000002.2932 ]: S 0x0000557c73b3a470 : 0008523776 :              PMAlloc:             pm2lpt.c:46
+[ 0000002.2932 ]: S 0x0000557c732bf260 : 0000012288 :          FastPMStore:           pmghosts.c:183
+[ 0000002.2932 ]: S 0x0000557c73b0d590 : 0000004096 :            Ghost2Par:           pmghosts.c:180
+[ 0000002.2932 ]: S 0x0000557c72a9e250 : 0008523776 :              PMAlloc:             fastpm.c:650
+[ 0000002.2932 ]: S 0x00007fce7bdc3010 : 0511713280 :          FastPMStore:             solver.c:96
+[ 0000002.2932 ]: H 0x0000557c732c3280 : 0000004096 :              SendBuf:           pmghosts.c:267
+[ 0000002.2932 ]: H 0x0000557c732c2270 : 0000004096 :              RecvBuf:           pmghosts.c:266
+[ 0000002.2932 ]: H 0x00007fce37ffc010 : 0100667392 :                  DX2:             solver.c:185
+[ 0000002.2932 ]: H 0x00007fce3dffe010 : 0100667392 :                  DX1:             solver.c:181
+[ 0000002.5184 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000002.5185 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000002.5185 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000002.5185 ]: Using sparse Alltoallv
+[ 0000002.5185 ]: Force Calculation Nmesh = 256 ====
+[ 0000002.5185 ]: Load imbalance: min = 1 max = 1 std = 0
+[ 0000002.5310 ]: Position range (a = 0.1000): min = 1.63116e-05 5.83395e-06 5.30088e-05 max = 384 384 384 
+[ 0000002.5311 ]: Velocity dispersion (a = 0.1000): std = 0.112771 0.121693 0.136695
+[ 0000002.6528 ]: Sending ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000002.6528 ]: Receiving ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000002.7615 ]: Using sparse Alltoallv
+[ 0000002.8718 ]: Using sparse Alltoallv
+[ 0000004.6172 ]: p1    acc[0]: -3.05024 0.645094 -1.27922e-10 3.21261
+[ 0000004.6173 ]: p1    acc[1]: -3.68543 0.695938 1.2714e-12 3.18822
+[ 0000004.6173 ]: p1    acc[2]: -3.40778 0.781121 -4.40975e-10 3.54735
+[ 0000004.6173 ]: ghost acc[0]: 1e+20 -nan -nan -1e+20
+[ 0000004.6173 ]: ghost acc[1]: 1e+20 -nan -nan -1e+20
+[ 0000004.6173 ]: ghost acc[2]: 1e+20 -nan -nan -1e+20
+[ 0000004.6242 ]: p1+g  acc[0]: -3.05024 0.645094 -1.27922e-10 3.21261
+[ 0000004.6242 ]: p1+g  acc[1]: -3.68543 0.695938 1.2714e-12 3.18822
+[ 0000004.6242 ]: p1+g  acc[2]: -3.40778 0.781121 -4.40975e-10 3.54735
+[ 0000004.6243 ]: Using sparse Alltoallv
+[ 0000004.6429 ]: Force dispersion: std = 0.645094 0.695938 0.781121
+[ 0000004.9355 ]: D^2(0.1, 1.0) P(k<0.0654167) = 14071.4 Sigma8 = 6.47834
+[ 0000004.9357 ]: writing power spectrum to nbodykit/powerspec_0.1000.txt
+[ 0000004.9438 ]: Growth/FastPM factors at a = 0.1000: D1=0.127589, D2=0.0161456, f1=0.998751, f2=1.99755, G_p=0.127589, G_f=0.0223712, g_p=1.27433, g_f=0.335224
+[ 0000004.9447 ]: Checking Snapshots (0.1000 0.1000) with K(0.1000->0.1000|0.1000) D(0.1000->0.1000|0.1000)
+[ 0000004.9450 ]: ==== -> 002 [000 001 000] a_i = 0.1000 a_f = 0.2345 a_r = 0.1000 Action = KICK(1) ====
+[ 0000004.9466 ]: Growth/FastPM factors at a = 0.1000: D1=0.127589, D2=0.0161456, f1=0.998751, f2=1.99755, G_p=0.127589, G_f=0.0223712, g_p=1.27433, g_f=0.335224
+[ 0000004.9568 ]: ==== -> 003 [001 001 000] a_i = 0.1000 a_f = 0.2345 a_r = 0.2345 Action = DRIFT(2) ====
+[ 0000004.9592 ]: Growth/FastPM factors at a = 0.2345: D1=0.297786, D2=0.087966, f1=0.984218, f2=1.969, G_p=0.297786, G_f=0.079863, g_p=1.25008, g_f=0.504203
+[ 0000004.9592 ]: Checking Snapshots (0.1000 0.2345) with K(0.2345->0.1000|0.1000) D(0.1000->0.2345|0.2345)
+[ 0000004.9629 ]: ==== -> 004 [002 001 000] a_i = 0.2345 a_f = 0.5500 a_r = 0.2345 Action = DRIFT(2) ====
+[ 0000004.9660 ]: ==== -> 005 [002 001 002] a_i = 0.1000 a_f = 0.5500 a_r = 0.5500 Action = FORCE(0) ====
+[ 0000005.2249 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000005.2250 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000005.2250 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000005.2250 ]: Using sparse Alltoallv
+[ 0000005.2250 ]: Force Calculation Nmesh = 256 ====
+[ 0000005.2250 ]: Load imbalance: min = 1 max = 1 std = 0
+[ 0000005.2378 ]: Position range (a = 0.5500): min = 0.000152787 0.000294006 0.000109175 max = 384 384 383.999 
+[ 0000005.2378 ]: Velocity dispersion (a = 0.2345): std = 0.403254 0.435103 0.488507
+[ 0000005.3652 ]: Sending ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000005.3653 ]: Receiving ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000005.4700 ]: Using sparse Alltoallv
+[ 0000005.5752 ]: Using sparse Alltoallv
+[ 0000007.4196 ]: p1    acc[0]: -37.6995 3.73062 8.1928e-10 42.6321
+[ 0000007.4197 ]: p1    acc[1]: -32.7339 3.97586 -7.75295e-10 36.1673
+[ 0000007.4197 ]: p1    acc[2]: -33.6473 4.36883 1.02404e-08 35.0536
+[ 0000007.4197 ]: ghost acc[0]: 1e+20 -nan -nan -1e+20
+[ 0000007.4197 ]: ghost acc[1]: 1e+20 -nan -nan -1e+20
+[ 0000007.4197 ]: ghost acc[2]: 1e+20 -nan -nan -1e+20
+[ 0000007.4260 ]: p1+g  acc[0]: -37.6995 3.73062 8.1928e-10 42.6321
+[ 0000007.4260 ]: p1+g  acc[1]: -32.7339 3.97586 -7.75295e-10 36.1673
+[ 0000007.4260 ]: p1+g  acc[2]: -33.6473 4.36883 1.02404e-08 35.0536
+[ 0000007.4260 ]: Using sparse Alltoallv
+[ 0000007.4441 ]: Force dispersion: std = 3.73062 3.97586 4.36883
+[ 0000007.7259 ]: D^2(0.55, 1.0) P(k<0.0654167) = 13878.3 Sigma8 = 1.26341
+[ 0000007.7259 ]: writing power spectrum to nbodykit/powerspec_0.5500.txt
+[ 0000007.7315 ]: ==== -> 006 [002 002 002] a_i = 0.2345 a_f = 0.5500 a_r = 0.5500 Action = KICK(1) ====
+[ 0000007.7332 ]: Growth/FastPM factors at a = 0.2345: D1=0.297786, D2=0.087966, f1=0.984218, f2=1.969, G_p=0.297786, G_f=0.079863, g_p=1.25008, g_f=0.504203
+[ 0000007.7340 ]: Checking Snapshots (0.2345 0.5500) with K(0.2345->0.5500|0.5500) D(0.5500->0.2345|0.2345)
+[ 0000007.7374 ]: ==== -> 007 [002 003 002] a_i = 0.5500 a_f = 0.7416 a_r = 0.5500 Action = KICK(1) ====
+[ 0000007.7390 ]: Growth/FastPM factors at a = 0.5500: D1=0.661102, D2=0.434432, f1=0.837952, f2=1.6813, G_p=0.661102, G_f=0.267769, g_p=1.00971, g_f=0.632403
+[ 0000007.7414 ]: ==== -> 008 [003 003 002] a_i = 0.5500 a_f = 0.7416 a_r = 0.7416 Action = DRIFT(2) ====
+[ 0000007.7438 ]: Growth/FastPM factors at a = 0.7416: D1=0.833164, D2=0.691606, f1=0.696282, f2=1.40176, G_p=0.833164, G_f=0.385024, g_p=0.784882, g_f=0.580973
+[ 0000007.7438 ]: Checking Snapshots (0.5500 0.7416) with K(0.7416->0.5500|0.5500) D(0.5500->0.7416|0.7416)
+[ 0000007.8416 ]: Snapshot a_x = 0.6667, a_v = 0.6667 
+[ 0000007.8416 ]: Growth factor of snapshot 0.7710 (a=0.6667)
+[ 0000007.8416 ]: Growth rate of snapshot 0.7528 (a=0.6667)
+[ 0000007.9263 ]: load balance before fof decompose : min = 2.09715e+06 max = 2.09715e+06 mean = 2.09715e+06 std = 0
+[ 0000008.0435 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000008.0436 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000008.0436 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000008.0436 ]: Using sparse Alltoallv
+[ 0000008.0436 ]: load balance after fof decompose : min = 2.09715e+06 max = 2.09715e+06 mean = 2.09715e+06 std = 0
+[ 0000008.1771 ]: Sending ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000008.1772 ]: Receiving ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000008.3105 ]: Using sparse Alltoallv
+[ 0000008.4496 ]: Using sparse Alltoallv
+[ 0000008.8276 ]: Creating KDTree with 826933 nodes for 2097152 particles
+[ 0000010.0411 ]: Using sparse Alltoallv
+[ 0000010.0544 ]: Using sparse Alltoallv
+[ 0000010.0545 ]: FOF reduction iteration 0 : merged 0 crosslinks
+[ 0000010.0858 ]: Found 1894 halos segments >= 20 particles; or cross linked. 
+[ 0000010.0859 ]: Allocating 3790 halos per rank for final catalog.
+[ 0000010.1149 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1150 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1150 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000010.1150 ]: Using sparse Alltoallv
+[ 0000010.1154 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1154 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1154 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000010.1154 ]: Using sparse Alltoallv
+[ 0000010.1178 ]: After length cut we have 1894 halos (1894 including ghost halos).
+[ 0000010.1341 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1341 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1341 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000010.1341 ]: Using sparse Alltoallv
+[ 0000010.1345 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1345 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000010.1345 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000010.1345 ]: Using sparse Alltoallv
+[ 0000011.2321 ]: number of particles after sorting: min = 2.09715e+06 max = 2.09715e+06 mean = 2.09715e+06 std = 0
+[ 0000011.2322 ]: Writing a snapshot header to nbodykit/fastpm_0.6667
+[ 0000011.2325 ]: RSD factor 1.140331e-02
+[ 0000011.2332 ]: Writing a catalog to nbodykit/fastpm_0.6667 [1]
+[ 0000011.2335 ]: Writing 2097152 objects.
+[ 0000011.2367 ]: Writing block Position of (f8, 3) from 1 files with 1 writers
+[ 0000011.3086 ]: Writing block Velocity of (f4, 3) from 1 files with 1 writers
+[ 0000011.3527 ]: Writing block ID of (i8, 1) from 1 files with 1 writers
+[ 0000011.3787 ]: snapshot nbodykit/fastpm_0.6667 [1] written at z = 0.5000 a = 0.6667 
+[ 0000011.3804 ]: number of particles after sorting: min = 1894 max = 1894 mean = 1894 std = 0
+[ 0000011.3804 ]: Writing a snapshot header to nbodykit/fastpm_0.6667
+[ 0000011.3805 ]: RSD factor 1.140331e-02
+[ 0000011.3810 ]: Writing a catalog to nbodykit/fastpm_0.6667 [LL-0.200]
+[ 0000011.3813 ]: Writing 1894 objects.
+[ 0000011.3815 ]: Writing block Position of (f8, 3) from 1 files with 1 writers
+[ 0000011.3820 ]: Writing block InitialPosition of (f4, 3) from 1 files with 1 writers
+[ 0000011.3826 ]: Writing block Velocity of (f4, 3) from 1 files with 1 writers
+[ 0000011.3832 ]: Writing block ID of (i8, 1) from 1 files with 1 writers
+[ 0000011.3837 ]: Writing block Length of (i4, 1) from 1 files with 1 writers
+[ 0000011.3842 ]: Writing block MinID of (i8, 1) from 1 files with 1 writers
+[ 0000011.3846 ]: Writing block Task of (i4, 1) from 1 files with 1 writers
+[ 0000011.3851 ]: Writing block Rdisp of (f4, 6) from 1 files with 1 writers
+[ 0000011.3857 ]: Writing block Vdisp of (f4, 6) from 1 files with 1 writers
+[ 0000011.3862 ]: Writing block RVdisp of (f4, 9) from 1 files with 1 writers
+[ 0000011.3865 ]: fof nbodykit/fastpm_0.6667 [LL-0.200] written at z = 0.5000 a = 0.6667 
+[ 0000011.3865 ]: Writing to 2097152 paritlces to  1 files
+[ 0000011.4356 ]: runpb snapshot nbodykit/tpm_0.6667.bin written z = 0.5000 a = 0.6667
+[ 0000011.5360 ]: ==== -> 009 [004 003 002] a_i = 0.7416 a_f = 1.0000 a_r = 0.7416 Action = DRIFT(2) ====
+[ 0000011.5390 ]: ==== -> 010 [004 003 004] a_i = 0.5500 a_f = 1.0000 a_r = 1.0000 Action = FORCE(0) ====
+[ 0000011.7516 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000011.7516 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000011.7516 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000011.7516 ]: Using sparse Alltoallv
+[ 0000011.7516 ]: Force Calculation Nmesh = 256 ====
+[ 0000011.7516 ]: Load imbalance: min = 1 max = 1 std = 0
+[ 0000011.7641 ]: Position range (a = 1.0000): min = 0.000238688 0.00037524 0.000266673 max = 384 384 384 
+[ 0000011.7642 ]: Velocity dispersion (a = 0.7416): std = 2.07793 2.22713 2.4657
+[ 0000011.8868 ]: Sending ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000011.8868 ]: Receiving ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000011.9930 ]: Using sparse Alltoallv
+[ 0000012.0991 ]: Using sparse Alltoallv
+[ 0000014.0175 ]: p1    acc[0]: -57.9422 7.07469 -8.3266e-09 57.9157
+[ 0000014.0176 ]: p1    acc[1]: -61.8509 7.36325 -3.59384e-10 60.3677
+[ 0000014.0176 ]: p1    acc[2]: -52.2344 7.8373 9.31058e-09 62.5742
+[ 0000014.0176 ]: ghost acc[0]: 1e+20 -nan -nan -1e+20
+[ 0000014.0176 ]: ghost acc[1]: 1e+20 -nan -nan -1e+20
+[ 0000014.0176 ]: ghost acc[2]: 1e+20 -nan -nan -1e+20
+[ 0000014.0268 ]: p1+g  acc[0]: -57.9422 7.07469 -8.3266e-09 57.9157
+[ 0000014.0268 ]: p1+g  acc[1]: -61.8509 7.36325 -3.59384e-10 60.3677
+[ 0000014.0268 ]: p1+g  acc[2]: -52.2344 7.8373 9.31058e-09 62.5742
+[ 0000014.0269 ]: Using sparse Alltoallv
+[ 0000014.0465 ]: Force dispersion: std = 7.07469 7.36325 7.8373
+[ 0000014.3660 ]: D^2(1, 1.0) P(k<0.0654167) = 13743 Sigma8 = 0.904112
+[ 0000014.3661 ]: writing power spectrum to nbodykit/powerspec_1.0000.txt
+[ 0000014.3720 ]: ==== -> 011 [004 004 004] a_i = 0.7416 a_f = 1.0000 a_r = 1.0000 Action = KICK(1) ====
+[ 0000014.3736 ]: Growth/FastPM factors at a = 0.7416: D1=0.833164, D2=0.691606, f1=0.696282, f2=1.40176, G_p=0.833164, G_f=0.385024, g_p=0.784882, g_f=0.580973
+[ 0000014.3744 ]: Checking Snapshots (0.7416 1.0000) with K(0.7416->1.0000|1.0000) D(1.0000->0.7416|0.7416)
+[ 0000014.4676 ]: Snapshot a_x = 1.0000, a_v = 1.0000 
+[ 0000014.4676 ]: Growth factor of snapshot 1.0000 (a=1.0000)
+[ 0000014.4676 ]: Growth rate of snapshot 0.5194 (a=1.0000)
+[ 0000014.5522 ]: load balance before fof decompose : min = 2.09715e+06 max = 2.09715e+06 mean = 2.09715e+06 std = 0
+[ 0000014.6703 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000014.6703 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000014.6703 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000014.6704 ]: Using sparse Alltoallv
+[ 0000014.6704 ]: load balance after fof decompose : min = 2.09715e+06 max = 2.09715e+06 mean = 2.09715e+06 std = 0
+[ 0000014.8044 ]: Sending ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000014.8044 ]: Receiving ghosts: min = 0 max = 0 mean = 0 std = 0
+[ 0000014.9380 ]: Using sparse Alltoallv
+[ 0000015.0720 ]: Using sparse Alltoallv
+[ 0000015.4553 ]: Creating KDTree with 850489 nodes for 2097152 particles
+[ 0000016.7852 ]: Using sparse Alltoallv
+[ 0000016.7985 ]: Using sparse Alltoallv
+[ 0000016.7985 ]: FOF reduction iteration 0 : merged 0 crosslinks
+[ 0000016.8314 ]: Found 1668 halos segments >= 20 particles; or cross linked. 
+[ 0000016.8314 ]: Allocating 3338 halos per rank for final catalog.
+[ 0000016.8519 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8519 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8520 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000016.8520 ]: Using sparse Alltoallv
+[ 0000016.8523 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8523 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8523 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000016.8523 ]: Using sparse Alltoallv
+[ 0000016.8544 ]: After length cut we have 1668 halos (1668 including ghost halos).
+[ 0000016.8672 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8672 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8672 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000016.8672 ]: Using sparse Alltoallv
+[ 0000016.8676 ]: Send buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8676 ]: Recv buffer size : min=0 max=0 mean=0, std=0 bytes
+[ 0000016.8676 ]: Decomposition iter 0,  exchange of 0 particles; need 0
+[ 0000016.8676 ]: Using sparse Alltoallv
+[ 0000017.9815 ]: number of particles after sorting: min = 2.09715e+06 max = 2.09715e+06 mean = 2.09715e+06 std = 0
+[ 0000017.9816 ]: Writing a snapshot header to nbodykit/fastpm_1.0000
+[ 0000017.9819 ]: RSD factor 1.000000e-02
+[ 0000018.0162 ]: Writing a catalog to nbodykit/fastpm_1.0000 [1]
+[ 0000018.0165 ]: Writing 2097152 objects.
+[ 0000018.0167 ]: Writing block Position of (f8, 3) from 1 files with 1 writers
+[ 0000018.0982 ]: Writing block Velocity of (f4, 3) from 1 files with 1 writers
+[ 0000018.1476 ]: Writing block ID of (i8, 1) from 1 files with 1 writers
+[ 0000018.1812 ]: snapshot nbodykit/fastpm_1.0000 [1] written at z = 0.0000 a = 1.0000 
+[ 0000018.1841 ]: number of particles after sorting: min = 1668 max = 1668 mean = 1668 std = 0
+[ 0000018.1841 ]: Writing a snapshot header to nbodykit/fastpm_1.0000
+[ 0000018.1846 ]: RSD factor 1.000000e-02
+[ 0000018.1852 ]: Writing a catalog to nbodykit/fastpm_1.0000 [LL-0.200]
+[ 0000018.1855 ]: Writing 1668 objects.
+[ 0000018.1857 ]: Writing block Position of (f8, 3) from 1 files with 1 writers
+[ 0000018.1863 ]: Writing block InitialPosition of (f4, 3) from 1 files with 1 writers
+[ 0000018.1870 ]: Writing block Velocity of (f4, 3) from 1 files with 1 writers
+[ 0000018.1876 ]: Writing block ID of (i8, 1) from 1 files with 1 writers
+[ 0000018.1883 ]: Writing block Length of (i4, 1) from 1 files with 1 writers
+[ 0000018.1889 ]: Writing block MinID of (i8, 1) from 1 files with 1 writers
+[ 0000018.1894 ]: Writing block Task of (i4, 1) from 1 files with 1 writers
+[ 0000018.1900 ]: Writing block Rdisp of (f4, 6) from 1 files with 1 writers
+[ 0000018.1907 ]: Writing block Vdisp of (f4, 6) from 1 files with 1 writers
+[ 0000018.1913 ]: Writing block RVdisp of (f4, 9) from 1 files with 1 writers
+[ 0000018.1918 ]: fof nbodykit/fastpm_1.0000 [LL-0.200] written at z = 0.0000 a = 1.0000 
+[ 0000018.1918 ]: Writing to 2097152 paritlces to  1 files
+[ 0000018.2326 ]: runpb snapshot nbodykit/tpm_1.0000.bin written z = 0.0000 a = 1.0000
+[ 0000018.3404 ]: Growth/FastPM factors at a = 1.0000: D1=1, D2=1, f1=0.519356, f2=1.05116, G_p=1, G_f=0.519985, g_p=0.519985, g_f=0.461241
+[ 0000018.3413 ]: Checking Snapshots (1.0000 1.0000) with K(1.0000->1.0000|1.0000) D(1.0000->1.0000|1.0000)
+[ 0000018.3792 ]:      min      max     mean 
+[ 0000018.3793 ]: --------------------------------------------------------------------------
+[ 0000018.3793 ]:     1.39     1.39     1.39         cdmic : run_fastpm : fastpm.c 
+[ 0000018.3793 ]:    16.05    16.05    16.05        evolve : run_fastpm : fastpm.c 
+[ 0000018.3793 ]:     0.00     0.00     0.00      indexing : run_fastpm : fastpm.c 
+[ 0000018.3793 ]:     0.90     0.90     0.90          init : run_fastpm : fastpm.c 
+[ 0000018.3793 ]:     0.00     0.00     0.00            io : run_fastpm : fastpm.c 
+[ 0000018.3793 ]:     0.00     0.00     0.00        ncdmic : run_fastpm : fastpm.c 
+[ 0000018.3793 ]:     0.00     0.00     0.00          sort : run_fastpm : fastpm.c 
+[ 0000018.3793 ]: --------------------------------------------------------------------------
+[ 0000018.3793 ]:     4.73     4.73     4.73           fof : run_fof : fastpm.c 
+[ 0000018.3793 ]: --------------------------------------------------------------------------
+[ 0000018.3793 ]:     0.45     0.45     0.45            io : take_a_snapshot : fastpm.c 
+[ 0000018.3793 ]:     2.18     2.18     2.18          sort : take_a_snapshot : fastpm.c 
+[ 0000018.3793 ]: --------------------------------------------------------------------------
+[ 0000018.3793 ]:     0.89     0.89     0.89       compute : write_powerspectrum : fastpm.c 
+[ 0000018.3793 ]:     0.00     0.00     0.00            io : write_powerspectrum : fastpm.c 
+[ 0000018.3793 ]: --------------------------------------------------------------------------
+[ 0000018.3793 ]:     0.11     0.11     0.11         paint : _fastpm_solver_compute_delta_k : gravity.c 
+[ 0000018.3793 ]:     1.15     1.15     1.15           r2c : _fastpm_solver_compute_delta_k : gravity.c 
+[ 0000018.3794 ]:     0.01     0.01     0.01      transfer : _fastpm_solver_compute_delta_k : gravity.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     3.64     3.64     3.64           c2r : _fastpm_solver_compute_force : gravity.c 
+[ 0000018.3794 ]:     0.18     0.18     0.18       readout : _fastpm_solver_compute_force : gravity.c 
+[ 0000018.3794 ]:     0.00     0.00     0.00        reduce : _fastpm_solver_compute_force : gravity.c 
+[ 0000018.3794 ]:     0.31     0.31     0.31      transfer : _fastpm_solver_compute_force : gravity.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.96     0.96     0.96        ghosts : _fastpm_solver_create_ghosts : gravity.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.07     0.07     0.07       dealias : fastpm_solver_compute_force : gravity.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.00     0.00     0.00          meta : fastpm_store_write : io.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.00     0.00     0.00          meta : write_runpb_snapshot : runpb.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.01     0.01     0.01         drift : fastpm_do_drift : solver.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.63     0.63     0.63     decompose : fastpm_do_force : solver.c 
+[ 0000018.3794 ]:     0.94     0.94     0.94         event : fastpm_do_force : solver.c 
+[ 0000018.3794 ]:     6.56     6.56     6.56         force : fastpm_do_force : solver.c 
+[ 0000018.3794 ]:     0.00     0.00     0.00          pgdc : fastpm_do_force : solver.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     7.75     7.75     7.75  interpolation : fastpm_do_interpolation : solver.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.02     0.02     0.02          kick : fastpm_do_kick : solver.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.00     0.00     0.00        warmup : fastpm_do_warmup : solver.c 
+[ 0000018.3794 ]: --------------------------------------------------------------------------
+[ 0000018.3794 ]:     0.00     0.00     0.00  aftertransit : fastpm_solver_evolve : solver.c 
+[ 0000018.3794 ]:     0.00     0.00     0.00  beforetransit : fastpm_solver_evolve : solver.c 

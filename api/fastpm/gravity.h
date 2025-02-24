@@ -10,7 +10,6 @@ fastpm_kernel_type_get_orders(FastPMKernelType type,
 
 void
 fastpm_solver_compute_force(FastPMSolver * fastpm,
-    PM * pm,
     FastPMPainter * painter,
     FastPMSofteningType dealias,
     FastPMKernelType kernel,

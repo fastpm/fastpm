@@ -12,6 +12,16 @@ fastpm_apply_decic_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to);
 void
 fastpm_apply_diff_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir) ;
 
+
+
+
+
+void
+fastpm_apply_diff_transfer_mod(PM * pm, FastPMFloat * from, FastPMFloat * to, int dir);
+	
+
+
+
 void
 fastpm_apply_multiply_transfer(PM * pm, FastPMFloat * from, FastPMFloat * to, double value);
 

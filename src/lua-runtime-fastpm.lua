@@ -199,8 +199,7 @@ function schema.read_whitenoisek.action (read_whitenoisek)
     end
 end
 
-schema.declare{name='write_linearr',         type='string', help='Write linear field ICs in real space'}
-schema.declare{name='write_lineark',         type='string', help='Write linear field ICs in Fourier space'}
+schema.declare{name='write_lineark',         type='string'}
 schema.declare{name='write_whitenoisek',         type='string'}
 schema.declare{name='write_runpbic',       type='string'}
 schema.declare{name='write_powerspectrum', type='string'}
@@ -216,7 +215,7 @@ schema.declare{name='fof_nmin',      type='number', default=20, help='threshold 
 schema.declare{name='fof_kdtree_thresh',      type='number', default=8, help='threshold for spliting a kdtree node. KDTree is used in fof. smaller uses more memory but fof runs faster.'}
 
 schema.declare{name='write_rfof',      type='string', help='path to save the RFOF dataset; parameter defualts are fitted for Illustris sep=0.3 Mpc/h, 40 steps.'}
-schema.declare{name='rfof_kdtree_thresh',      type='number', default=8, help='threshold for splitting a kdtree node.'}
+schema.declare{name='rfof_kdtree_thresh',      type='number', default=1, help='threshold for splitting a kdtree node. (Currently must be 1 due to a kdtree bug.)'}
 schema.declare{name='rfof_linkinglength',      type='number', default=0.2, help='base linking length (0.2 in eq 2.4)'}
 schema.declare{name='rfof_nmin',      type='number', default=8, help='threshold for making into the R-FOF catalog.'}
 schema.declare{name='rfof_l1',      type='number', default=0.25, help=''}
@@ -232,18 +231,15 @@ schema.declare{name='lc_amax',
             type='number', help='max scale factor for truncation of lightcone.'}
 
 schema.declare{name='lc_write_usmesh',         type='string', help='file name base for writing the particle lightcone'}
-schema.declare{name='lc_usmesh_nslices',   type='number', default=256, help='Number of slices in AemitIndex attribute of lightcone data sets. also controls number of slices in healpix maps.'}
 
 schema.declare{name='lc_usmesh_alloc_factor',     type='number', default=1.0,
-                    help='allocation factor for the unstructured mesh, relative to alloc_factor. Use smaller number to ease OOM errors in lightcone.'}
+                    help='allocation factor for the unstructured mesh, relative to alloc_factor.'}
 
 schema.declare{name='lc_usmesh_fof_padding',     type='number', default=10.0,
                     help='padding in the line of sight direction for light cone fof. roughly the size of a halo.'}
 
 schema.declare{name='lc_usmesh_ell_limit',    type='number', default=0,
                help='Subsample particle fraction depending on redshift, to match the ell. 0 to use particle_fraction for all redshifts'}
-
-schema.declare{name='lc_usmesh_healpix_nside',     type='number', default=0, help='nside for healpix map. particle ID is slice_id * npix + ipix.'}
 
 schema.declare{name='lc_usmesh_tiles',     type='array:number',
         default={

@@ -70,6 +70,8 @@ def make_gadget_header(header):
     gadget['OmegaLambda'] = attrs['OmegaLambda']
     gadget['Massarr'] = attrs['MassTable']
 
+#    gadget['Nall'][2] = gadget['NallHW'][1]
+
     return gadget
 
 def pad256(gadget):
@@ -118,13 +120,20 @@ def convert(basename, baseheader, ds, precision):
         data = ds[start:end]
         pos = data['Position']
         pos = numpy.array(pos, dtype=precision)
+        
+        print('Pos shape : ',pos.shape) 
 
         # convert to gadget 1 units from pecuiliar velocity
         # FIXME: check if this is right.
         vel = data['Velocity'] * a ** -0.5
         vel = numpy.array(vel, dtype=precision)
+        
+        print('Vel shape : ',vel.shape) 
+        
         id = data['ID']
-
+        
+        print('Id shape : ',id.shape) 
+        
         filename = '%s.%d' % (basename, i)
 
         header = baseheader.copy()

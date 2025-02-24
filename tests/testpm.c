@@ -59,9 +59,9 @@ int main(int argc, char * argv[]) {
 
     //END OF ADD NCDM
 
-    FastPMFloat * rho_init_ktruth = pm_alloc(solver->lptpm);
-    FastPMFloat * rho_final_ktruth = pm_alloc(solver->lptpm);
-    FastPMFloat * rho_final_xtruth = pm_alloc(solver->lptpm);
+    FastPMFloat * rho_init_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_ktruth = pm_alloc(solver->pm);
+    FastPMFloat * rho_final_xtruth = pm_alloc(solver->pm);
 
     /* First establish the truth by 2lpt -- this will be replaced with PM. */
     struct fastpm_powerspec_eh_params eh = {
@@ -70,8 +70,8 @@ int main(int argc, char * argv[]) {
         .omegam = 0.260,
         .omegab = 0.044,
     };
-    fastpm_ic_fill_gaussiank(solver->lptpm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
-    fastpm_ic_induce_correlation(solver->lptpm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
+    fastpm_ic_fill_gaussiank(solver->pm, rho_init_ktruth, 2004, FASTPM_DELTAK_GADGET);
+    fastpm_ic_induce_correlation(solver->pm, rho_init_ktruth, (fastpm_fkfunc)fastpm_utils_powerspec_eh, &eh);
 
 
     fastpm_solver_setup_lpt(solver, FASTPM_SPECIES_CDM, rho_init_ktruth, NULL, 0.1);
@@ -85,11 +85,11 @@ int main(int argc, char * argv[]) {
     fastpm_solver_evolve(solver, time_step, sizeof(time_step) / sizeof(time_step[0]));
 
     FastPMPainter painter[1];
-    fastpm_painter_init(painter, solver->lptpm, config->PAINTER_TYPE, config->painter_support);
+    fastpm_painter_init(painter, solver->pm, config->PAINTER_TYPE, config->painter_support);
 
-    pm_clear(solver->lptpm, rho_final_xtruth);
+    pm_clear(solver->pm, rho_final_xtruth);
     fastpm_paint(painter, rho_final_xtruth, cdm, FASTPM_FIELD_DESCR_NONE);
-    //fastpm_utils_dump(solver->lptpm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
+    //fastpm_utils_dump(solver->pm, "fastpm_rho_final_xtruth.raw", rho_final_xtruth);
 
     fastpm_store_write(cdm, "cdm", "w", 1, solver->comm);
 
@@ -100,9 +100,9 @@ int main(int argc, char * argv[]) {
     fastpm_info("a_v = %g", cdm2->meta.a_v);
     fastpm_store_destroy(cdm2);
 
-    pm_free(solver->lptpm, rho_final_xtruth);
-    pm_free(solver->lptpm, rho_final_ktruth);
-    pm_free(solver->lptpm, rho_init_ktruth);
+    pm_free(solver->pm, rho_final_xtruth);
+    pm_free(solver->pm, rho_final_ktruth);
+    pm_free(solver->pm, rho_init_ktruth);
 
     fastpm_store_destroy(ncdm);
     fastpm_solver_destroy(solver);

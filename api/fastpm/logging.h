@@ -33,6 +33,14 @@ typedef void
     void * userdata);
 
 void 
+fastpm_ilog(const enum FastPMLogLevel level, 
+            const char * fmt, ...);
+
+void 
+fastpm_log(const enum FastPMLogLevel level, 
+           const char * fmt, ...);
+
+void 
 fastpm_set_msg_handler(fastpm_msg_handler handler, MPI_Comm comm, void * userdata);
 
 void 
@@ -59,25 +67,8 @@ fastpm_void_msg_handler(
         MPI_Comm comm,
         void * userdata);
 
-#define fastpm_info(...) fastpm_info_(__FILE__, __LINE__, ## __VA_ARGS__)
-#define fastpm_raise(...) fastpm_raise_(__FILE__, __LINE__, ## __VA_ARGS__)
-void fastpm_info_(const char * file, int line, const char * fmt, ...);
-void fastpm_raise_(const char * file, int line, const int code, const char * fmt, ...);
-
-#define fastpm_ilog(...) fastpm_ilog_(__FILE__, __LINE__, ## __VA_ARGS__)
-#define fastpm_log(...) fastpm_log_(__FILE__, __LINE__, ## __VA_ARGS__)
-void 
-fastpm_ilog_(const char * file,
-             int line,
-             const enum FastPMLogLevel level,
-             const char * fmt, ...);
-
-void 
-fastpm_log_(const char * file,
-            int line,
-            const enum FastPMLogLevel level,
-            const char * fmt, ...);
-
+void fastpm_info(const char * fmt, ...);
+void fastpm_raise(const int code, const char * fmt, ...);
 
 FASTPM_END_DECLS
 

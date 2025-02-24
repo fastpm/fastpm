@@ -207,7 +207,6 @@ fastpm_store_init_details(FastPMStore * p,
     DEFINE_COLUMN(rvdisp, COLUMN_RVDISP, "f4", 9);
     DEFINE_COLUMN(mass, COLUMN_MASS, "f4", 1);
     DEFINE_COLUMN(rand, COLUMN_RAND, "f4", 1);
-    DEFINE_COLUMN(rmom, COLUMN_RMOM, "f4", 1);
 
     COLUMN_INFO(x).to_double = to_double_f8;
     COLUMN_INFO(v).to_double = to_double_f4;
@@ -217,7 +216,6 @@ fastpm_store_init_details(FastPMStore * p,
     COLUMN_INFO(dv1).to_double = to_double_f4;
     COLUMN_INFO(acc).to_double = to_double_f4;
     COLUMN_INFO(mass).to_double = to_double_f4;
-    COLUMN_INFO(rmom).to_double = to_double_f4;
 
     COLUMN_INFO(rho).from_double = from_double_f4;
     COLUMN_INFO(acc).from_double = from_double_f4;
@@ -459,7 +457,7 @@ fastpm_store_wrap(FastPMStore * p, double BoxSize[3])
             p->x[i][d] = x1;
 
             if(n > 10000) {
-                double q[3] = {0, 0, 0};
+                double q[3];
                 if(fastpm_store_has_q(p)) {
                     fastpm_store_get_q_from_id(p, p->id[i], q);
                 }
@@ -712,7 +710,7 @@ _fastpm_store_fill_rand(FastPMStore * p, MPI_Comm comm)
     ptrdiff_t i;
     for(i=0; i < p->np_upper; i++) {
         double rand_i = gsl_rng_uniform(random_generator);
-        p->rand[i] = rand_i;
+	p->rand[i] = rand_i;
     }
 
     gsl_rng_free(random_generator);
@@ -779,7 +777,6 @@ fastpm_store_fill(FastPMStore * p, PM * pm, double * shift, ptrdiff_t * Nc)
             /* FIXME: fill rand with a hash of the id instead of using
              * _fastpm_store_fill_rand. */
             if(p->rand) p->rand[ptr] = 0.;
-            if(p->rmom) p->rmom[ptr] = 0.;
 
             fastpm_store_get_q_from_id(p, id, &p->x[ptr][0]);
 
@@ -1034,3 +1031,83 @@ fastpm_store_subsample(FastPMStore * p, FastPMParticleMaskType * mask, FastPMSto
 }
 
 
+#if 0
+static ptrdiff_t
+binary_search(double foo, double a[], size_t n) {
+    ptrdiff_t left = 0, right = n;
+    ptrdiff_t mid;
+    /* find the right side, because hist would count the number < edge, not <= edge */
+    if(a[left] > foo) {
+        return 0;
+    }
+    if(a[right - 1] <= foo) {
+        return n;
+    }
+    while(right - left > 1) {
+        mid = left + ((right - left - 1) >> 1);
+        double pivot = a[mid];
+        if(pivot > foo) {
+            right = mid + 1;
+            /* a[right - 1] > foo; */
+        } else {
+            left = mid + 1;
+            /* a[left] <= foo; */
+        }
+    }
+    return left;
+}
+#endif
+/* this is cumulative */
+void
+fastpm_store_histogram_aemit_sorted(FastPMStore * store,
+        int64_t * hist,
+        double * aedges,
+        size_t nedges,
+        MPI_Comm comm)
+{
+    ptrdiff_t i;
+
+    int64_t * hist1 = malloc(sizeof(hist1[0]) * (nedges + 1));
+
+    memset(hist1, 0, sizeof(hist1[0]) * (nedges + 1));
+
+#pragma omp parallel
+    {
+        /* FIXME: use standard reduction with OpenMP 4.7 */
+
+        int64_t * hist2 = malloc(sizeof(hist2[0]) * (nedges + 1));
+        memset(hist2, 0, sizeof(hist2[0]) * (nedges + 1));
+
+        int iedge = 0;
+
+        /* this works because openmp will send each thread at most 1
+         * chunk with the static scheduling; thus a thread never sees
+         * out of order aemit */
+        #pragma omp for schedule(static)
+        for(i = 0; i < store->np; i ++) {
+            while(iedge < nedges && store->aemit[i] >= aedges[iedge]) iedge ++;
+
+//           int ibin = binary_search(store->aemit[i], aedges, nedges);
+//           if(ibin != iedge) abort();
+
+            hist2[iedge] ++;
+        }
+
+        #pragma omp critical
+        {
+            for(i = 0; i < nedges + 1; i ++) {
+                hist1[i] += hist2[i];
+            }
+        }
+
+        free(hist2);
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, hist1, nedges + 1, MPI_LONG, MPI_SUM, comm);
+
+    for(i = 0; i < nedges + 1; i ++) {
+        hist[i] += hist1[i];
+    }
+
+    free(hist1);
+}

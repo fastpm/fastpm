@@ -18,9 +18,6 @@
 #include <fastpm/io.h>
 #include <fastpm/fof.h>
 #include <fastpm/rfof.h>
-
-#include <chealpix/chealpix.h>
-
 #include <bigfile-mpi.h>
 #ifdef _OPENMP
 #include <omp.h>
@@ -54,9 +51,10 @@ struct usmesh_ready_handler_data {
     FastPMSolver * fastpm;
     RunData * prr;
     FastPMStore tail[1];
-    FastPMHistogram cdm_hist[1];
-    FastPMHistogram fof_hist[1];
-    FastPMHistogram map_hist[1];
+    int64_t * hist;
+    int64_t * hist_fof;
+    double * aedges;
+    int Nedges;
 };
 
 static void
@@ -649,9 +647,9 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
         return;
     }
 
-    FastPMFloat * delta_k = pm_alloc(fastpm->lptpm);
+    FastPMFloat * delta_k = pm_alloc(fastpm->pm);
 
-    prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0,
+    prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0,
                    CONF(prr->lua, linear_density_redshift), 
                    CONF(prr->lua, read_lineark), 
                    CONF(prr->lua, read_powerspectrum));
@@ -668,19 +666,13 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     if(CONF(prr->lua, write_lineark)) {
         fastpm_info("Writing fourier space linear field to %s\n", CONF(prr->lua, write_lineark));
-        write_complex(fastpm->lptpm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
-    }
-    if(CONF(prr->lua, write_linearr)) {
-        fastpm_info("Writing real space linear field to %s\n", CONF(prr->lua, write_linearr));
-        pm_c2r(fastpm->lptpm, delta_k);
-        write_complex(fastpm->lptpm, delta_k, CONF(prr->lua, write_linearr), "LinearDensityR", prr->cli->Nwriters);
-        pm_r2c(fastpm->lptpm, delta_k, delta_k);
+        write_complex(fastpm->pm, delta_k, CONF(prr->lua, write_lineark), "LinearDensityK", prr->cli->Nwriters);
     }
 
     if(CONF(prr->lua, write_powerspectrum)) {
         FastPMPowerSpectrum ps;
         /* calculate the power spectrum */
-        fastpm_powerspectrum_init_from_delta(&ps, fastpm->lptpm, delta_k, delta_k);
+        fastpm_powerspectrum_init_from_delta(&ps, fastpm->pm, delta_k, delta_k);
 
         char buf[1024];
         sprintf(buf, "%s_linear.txt", CONF(prr->lua, write_powerspectrum));
@@ -697,7 +689,7 @@ prepare_cdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     if (growth_rate_func_k)
         fastpm_funck_destroy(growth_rate_func_k);
-    pm_free(fastpm->lptpm, delta_k);
+    pm_free(fastpm->basepm, delta_k);
 }
 
 static void 
@@ -766,7 +758,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
 
     // fill the ncdm store to make a grid with nc_ncdm grid points in each dim
     ptrdiff_t Nc_ncdm[3] = {nc_ncdm, nc_ncdm, nc_ncdm}; 
-    fastpm_store_fill(ncdm_sites, fastpm->lptpm, shift, Nc_ncdm);
+    fastpm_store_fill(ncdm_sites, fastpm->pm, shift, Nc_ncdm);
 
     // stagger the ncdm grid wrt the cdm grid. FIXME: Does this conflict with the shift stuff above?
     int i, d;
@@ -793,21 +785,21 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     fastpm_store_wrap(ncdm, BoxSize);
     fastpm_store_decompose(ncdm,
                            (fastpm_store_target_func) FastPMTargetPM,
-                           fastpm->lptpm,
+                           fastpm->pm,
                            fastpm->comm);
 
     // compute delta_k for ncdm
-    FastPMFloat * delta_k = pm_alloc(fastpm->lptpm);
+    FastPMFloat * delta_k = pm_alloc(fastpm->pm);
     
     if(!CONF(prr->lua, read_lineark_ncdm) && !CONF(prr->lua, read_powerspectrum_ncdm)){
         fastpm_info("WARNING: No ncdm powerspectrum input; using cdm's instead."); 
         /*FIXME: would make more sense (better approximation) to use a flat power spectrum instead*/
-        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0, 
+        prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift), 
                         CONF(prr->lua, read_lineark), 
                         CONF(prr->lua, read_powerspectrum));
     } else {
-        prepare_deltak(fastpm, fastpm->lptpm, delta_k, prr, 1.0, 
+        prepare_deltak(fastpm, fastpm->pm, delta_k, prr, 1.0, 
                         CONF(prr->lua, linear_density_redshift_ncdm), 
                         CONF(prr->lua, read_lineark_ncdm), 
                         CONF(prr->lua, read_powerspectrum_ncdm));
@@ -828,7 +820,7 @@ prepare_ncdm(FastPMSolver * fastpm, RunData * prr, double a0, MPI_Comm comm)
     // FIXME: could add writing of Pncdm functionality (as in prepare_cdm for m).
     if (growth_rate_func_k)
         fastpm_funck_destroy(growth_rate_func_k);
-    pm_free(fastpm->lptpm, delta_k);
+    pm_free(fastpm->pm, delta_k);
     
     fastpm_store_destroy(ncdm_sites);
     fastpm_ncdm_init_free(nid);
@@ -838,11 +830,12 @@ static void
 _usmesh_ready_handler_free(void * userdata) {
     struct usmesh_ready_handler_data * data = userdata;
     fastpm_store_destroy(data->tail);
-    fastpm_histogram_destroy(data->cdm_hist);
-    fastpm_histogram_destroy(data->fof_hist);
-    fastpm_histogram_destroy(data->map_hist);
+    free(data->aedges);
+    free(data->hist);
+    free(data->hist_fof);
     free(data);
 }
+
 
 static void
 prepare_lc(FastPMSolver * fastpm, RunData * prr,
@@ -916,12 +909,14 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
 
         for (i = 0; i < ntiles; i ++) {
             for (j = 0; j < 3; j ++) {
-                tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
+                tiles[i][j] = (*c) * pm_boxsize(fastpm->pm)[j];
                 c ++;
             }
+            fastpm_info("Lightcone tiles[%d] : %g %g %g\n", i,
+                tiles[i][0], tiles[i][1], tiles[i][2]);
         }
         fastpm_usmesh_init(*usmesh, lc,
-                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->basepm),
+                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->pm),
                 p,
                 CONF(prr->lua, lc_usmesh_alloc_factor) *
                 p->np_upper,
@@ -939,13 +934,23 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
         data->fastpm = fastpm;
         data->prr = prr;
 
-        int nslices = CONF(prr->lua, lc_usmesh_nslices);
+        double amin = CONF(prr->lua, lc_amin);
+        double amax = CONF(prr->lua, lc_amax);
+        fastpm_info("No structured mesh requested, generating an AemitIndex with 1024 layers for usmesh. \n");
 
-        fastpm_info("Generating an AemitIndex with %d layers for usmesh.", nslices);
+        int nedges = 1024;
+        double * edges = malloc(sizeof(double) * (nedges));
 
-        fastpm_histogram_init(data->cdm_hist, 0.0, 1.0, nslices + 1);
-        fastpm_histogram_init(data->fof_hist, 0.0, 1.0, nslices + 1);
-        fastpm_histogram_init(data->map_hist, 0.0, 1.0, nslices + 1);
+        for(i = 0; i < nedges - 1; i ++) {
+            edges[i] = (amax - amin) * i / (nedges - 1) + amin;
+        }
+
+        edges[nedges - 1] = amax;
+        data->aedges = edges;
+        data->Nedges = nedges;
+
+        data->hist = calloc(data->Nedges + 1, sizeof(int64_t));
+        data->hist_fof = calloc(data->Nedges + 1, sizeof(int64_t));
 
         fastpm_store_init(data->tail, p->name, 0, 0, FASTPM_MEMORY_FLOATING);
         data->tail->meta = p->meta;
@@ -977,7 +982,6 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     RunData * prr = data->prr;
     FastPMStore * tail = data->tail;
 
-    FastPMStore map[1];
     FastPMStore halos[1];
     FastPMStore rhalos[1];
 
@@ -992,13 +996,6 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
              lcevent->ai, lcevent->af, np, max_np, max_rank);
 
     char * filebase = fastpm_strdup_printf(CONF(prr->lua, lc_write_usmesh));
-
-    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
-        // Make as many healpix map slices as nslice parameter.
-        int nslices = CONF(prr->lua, lc_usmesh_nslices);
-        int nside = CONF(prr->lua, lc_usmesh_healpix_nside);
-        fastpm_snapshot_paint_hpmap(lcevent->p, nside, nslices, NULL, NULL, map, fastpm->comm);
-    }
 
     if(CONF(prr->lua, write_fof)) {
         run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc, run_fof);
@@ -1026,7 +1023,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_store_fill_subsample_mask_from_array(lcevent->p, fraction, mask);
         fastpm_memory_free(lcevent->p->mem, fraction);
     } else {
-        double particle_fraction = CONF(prr->lua, particle_fraction);
+         double particle_fraction = CONF(prr->lua, particle_fraction);
         fastpm_store_fill_subsample_mask(lcevent->p, particle_fraction, mask);
     }
     fastpm_store_subsample(lcevent->p, mask, lcevent->p);
@@ -1037,24 +1034,15 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     if(CONF(prr->lua, write_fof)) {
         fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
-    if(CONF(prr->lua, write_rfof)) {
-        fastpm_sort_snapshot(rhalos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
-    }
-    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
-        fastpm_sort_snapshot(map, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
-    }
     LEAVE(sort);
 
     ENTER(indexing);
-    fastpm_store_histogram_aemit_sorted(lcevent->p, data->cdm_hist, fastpm->comm);
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->hist, data->aedges, data->Nedges, fastpm->comm);
     if(CONF(prr->lua, write_fof)) {
-        fastpm_store_histogram_aemit_sorted(halos, data->fof_hist, fastpm->comm);
+        fastpm_store_histogram_aemit_sorted(halos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
     }
     if(CONF(prr->lua, write_rfof)) {
-        fastpm_store_histogram_aemit_sorted(rhalos, data->fof_hist, fastpm->comm);
-    }
-    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
-        fastpm_store_histogram_aemit_sorted(map, data->map_hist, fastpm->comm);
+        fastpm_store_histogram_aemit_sorted(rhalos, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
     }
     LEAVE(indexing);
 
@@ -1068,9 +1056,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_info("Appending usmesh catalog to %s\n", filebase);
         fastpm_store_write(lcevent->p, filebase, "a", prr->cli->Nwriters, fastpm->comm);
     }
-    write_aemit_hist(filebase, "1/.", data->cdm_hist, fastpm->comm);
+    write_aemit_hist(filebase, "1/.", data->hist, data->aedges, data->Nedges, fastpm->comm);
+    LEAVE(io);
 
     /* halos */
+    ENTER(io);
+
     if(CONF(prr->lua, write_fof)) {
         if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
@@ -1078,8 +1069,9 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         } else {
             fastpm_store_write(halos, filebase, "a", prr->cli->Nwriters, fastpm->comm);
         }
+
         char * dataset_attrs = fastpm_strdup_printf("%s/.", halos->name);
-        write_aemit_hist(filebase, dataset_attrs, data->fof_hist, fastpm->comm);
+        write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
         free(dataset_attrs);
         fastpm_store_destroy(halos);
     }
@@ -1092,34 +1084,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         }
 
         char * dataset_attrs = fastpm_strdup_printf("%s/.", rhalos->name);
-        write_aemit_hist(filebase, dataset_attrs, data->fof_hist, fastpm->comm);
+        write_aemit_hist(filebase, dataset_attrs, data->hist_fof, data->aedges, data->Nedges, fastpm->comm);
         free(dataset_attrs);
         fastpm_store_destroy(rhalos);
     }
-    if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
-        if(lcevent->whence == TIMESTEP_START) {
-            fastpm_store_write(map, filebase, "w", prr->cli->Nwriters, fastpm->comm);
-            int64_t nside = CONF(prr->lua, lc_usmesh_healpix_nside);
-            int64_t nslices = CONF(prr->lua, lc_usmesh_nslices);
-            int64_t npix = nside2npix(nside);
-            char * scheme = "RING";
-            write_snapshot_attr(filebase, map->name, "healpix.nside", &nside, "i8", 1, fastpm->comm);
-            write_snapshot_attr(filebase, map->name, "healpix.npix", &npix, "i8", 1, fastpm->comm);
-            write_snapshot_attr(filebase, map->name, "healpix.nslices", &nslices, "i8", 1, fastpm->comm);
-            write_snapshot_attr(filebase, map->name, "healpix.scheme", scheme, "S1", strlen(scheme) + 1, fastpm->comm);
-        } else {
-            fastpm_store_write(map, filebase, "a", prr->cli->Nwriters, fastpm->comm);
-        }
-        char * dataset_attrs = fastpm_strdup_printf("%s/.", map->name);
-        write_aemit_hist(filebase, dataset_attrs, data->map_hist, fastpm->comm);
-        free(dataset_attrs);
-        fastpm_store_destroy(map);
-    }
     LEAVE(io);
     free(filebase);
-
-    /* Purge the lightcone as it has already been written. */
-    lcevent->p->np = 0;
 }
 
 static int cmp_double(const void * p1, const void * p2)
@@ -1266,7 +1236,7 @@ run_fof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, RunD
     };
     /* convert from fraction of mean separation to simulation distance units. */
     double linkinglength = CONF(prr->lua, fof_linkinglength) * CONF(prr->lua, boxsize) / CONF(prr->lua, nc);
-    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->basepm);
+    fastpm_fof_init(&fof, linkinglength, snapshot, fastpm->pm);
     ptrdiff_t * ihalo = fastpm_fof_execute(&fof, linkinglength, halos, NULL);
 
     if (userdata) {
@@ -1303,10 +1273,10 @@ run_rfof(FastPMSolver * fastpm, FastPMStore * snapshot, FastPMStore * halos, Run
         .B1 = CONF(prr->lua, rfof_b1),
         .B2 = CONF(prr->lua, rfof_b2),
     };
-    fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->basepm);
+    fastpm_rfof_init(&rfof, fastpm->cosmology, snapshot, fastpm->pm);
     /* Use the average redshift -- this is bad if the slices are large! */
     double z = 1. / snapshot->meta.a_x - 1;
-    fastpm_info("RFOF: assuming z = %g\n", z);
+    fastpm_info("z = %g\n", z);
     ptrdiff_t * ihalo = fastpm_rfof_execute(&rfof, halos, z);
 
     if (userdata) {
@@ -1344,8 +1314,10 @@ run_usmesh_fof(FastPMSolver * fastpm,
     for(i = 0; i < tail->np; i ++) {
         tail->mask[i] = 0;
     }
+    fastpm_info("1 Running usmesh fof/rfof near a = %5.3f", lcevent->p->meta.a_x);
     fastpm_store_extend(lcevent->p, tail);
     fastpm_store_destroy(tail);
+    fastpm_info("2 Running usmesh fof/rfof near a = %5.3f", lcevent->p->meta.a_x);
 
     /* FIXME: register event to mask out particles*/
     FastPMParticleMaskType * keep_for_tail = fastpm_memory_alloc(p->mem, "keep",
@@ -1554,9 +1526,9 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
 
     fastpm_usmesh_intersect(usmesh, event->drift, event->kick, a1, a2, event->whence, fastpm->comm);
 
-    int64_t np_lc = usmesh->np_before;
+    int64_t np_lc = usmesh->np_before + usmesh->p->np;
     MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
-    fastpm_info("Total number of particles in the lightcone: %ld\n", np_lc);
+    fastpm_info("Total number of particles wrote into lightcone: %ld\n", np_lc);
     return 0;
 }
 
