@@ -139,7 +139,7 @@ schema.f_nl_type.choices = {
     ['none']  = 'FASTPM_FNL_NONE',
 }
 schema.declare{name='f_nl', type='number'}
-schema.declare{name='kmax_primordial_over_knyquist', type='number', default=0.25}
+schema.declare{name='kmax_primordial_over_knyquist', type='number', default=1.0}
 schema.declare{name='scalar_amp', type='number'}
 schema.declare{name='scalar_pivot', type='number'}
 schema.declare{name='scalar_spectral_index', type='number'}
