@@ -173,12 +173,6 @@ schema.declare{name='shift',             type='boolean', default=false}
 schema.declare{name='inverted_ic',             type='boolean', default=false}
 schema.declare{name='remove_cosmic_variance',  type='boolean', default=false}
 
-schema.declare{name='ic_kernel_type',       type='enum', default='green', help='Type of kernel used during initial condition generation. The standard ones gives a suppression of the power spectrum at small scales. The green function agrees with linear theory up to knyquist.'}
-schema.ic_kernel_type.choices = {
-        green = 'FASTPM_IC_KERNEL_GREEN_FUNCTION',
-        standard = 'FASTPM_IC_KERNEL_STANDARD',
-    }
-
 function schema.read_grafic.action (read_grafic)
     if read_grafic ~= nil then
         schema.random_seed.required = false
@@ -281,6 +275,7 @@ schema.declare{name='za',                      type='boolean', default=false, he
 schema.declare{name='kernel_type',             type='enum', default="1_4", help='Force kernel; affects low mass halos 3_4 gives more low mass halos; 1_4 is consistent with fastpm-python.'}
 schema.kernel_type.choices = {
     ['1_4'] = 'FASTPM_KERNEL_1_4',  -- consistent with fastpm-python
+    ['1_4_DIFF0'] = 'FASTPM_KERNEL_1_4_DIFF0',  -- consistent with fastpm-python -- DIFF0 shown to work better important for fNL.
     ['3_4'] = 'FASTPM_KERNEL_3_4',  -- legacy fastpm
     ['gadget'] = 'FASTPM_KERNEL_GADGET', -- GADGET long range without exp smoothing.
     ['5_4'] = 'FASTPM_KERNEL_5_4',  -- very bad do not use

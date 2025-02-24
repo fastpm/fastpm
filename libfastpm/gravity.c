@@ -110,12 +110,14 @@ void
 fastpm_kernel_type_get_orders(FastPMKernelType type,
     int *potorder,
     int *gradorder,
+    int *difforder,
     int *deconvolveorder)
 {
     switch(type) {
         case FASTPM_KERNEL_EASTWOOD:
             *potorder = 0;
             *gradorder = 0;
+            *difforder = 1;
             /* now sharpen for mass assignment */
             /* L1 and L2*/
             *deconvolveorder = 2;
@@ -123,31 +125,43 @@ fastpm_kernel_type_get_orders(FastPMKernelType type,
         case FASTPM_KERNEL_NAIVE:
             *potorder = 0;
             *gradorder = 0;
+            *difforder = 1;
             *deconvolveorder = 0;
         break;
         case FASTPM_KERNEL_GADGET:
             *potorder = 0;
             *gradorder = 1;
+            *difforder = 1;
             *deconvolveorder = 2;
+        break;
+        case FASTPM_KERNEL_1_4_DIFF0:
+            *potorder = 0;
+            *gradorder = 1;
+            *difforder = 0;
+            *deconvolveorder = 0;
         break;
         case FASTPM_KERNEL_1_4:
             *potorder = 0;
             *gradorder = 1;
+            *difforder = 1;
             *deconvolveorder = 0;
         break;
         case FASTPM_KERNEL_3_4:
             *potorder = 1;
             *gradorder = 1;
+            *difforder = 1;
             *deconvolveorder = 0;
         break;
         case FASTPM_KERNEL_5_4:
             *potorder = 2;
             *gradorder = 1;
+            *difforder = 1;
             *deconvolveorder = 0;
         break;
         case FASTPM_KERNEL_3_2:
             *potorder = 1;
             *gradorder = 0;
+            *difforder = 1;
             *deconvolveorder = 0;
         break;
         default:
@@ -161,8 +175,8 @@ gravity_apply_kernel_transfer(FastPMKernelType type,
         FastPMFloat * delta_k,
         FastPMFloat * canvas, FastPMFieldDescr field)
 {
-    int potorder, gradorder, deconvolveorder;
-    fastpm_kernel_type_get_orders(type, &potorder, &gradorder, &deconvolveorder);
+    int potorder, gradorder, difforder, deconvolveorder;
+    fastpm_kernel_type_get_orders(type, &potorder, &gradorder, &difforder, &deconvolveorder);
 
     while(deconvolveorder > 0) {
         fastpm_apply_decic_transfer(pm, canvas, canvas);

@@ -100,7 +100,7 @@ fastpm_pgdc_calculate(FastPMPGDCorrection * pgdc,
         ENTER(transfer);
         /* apply the transfers */
         apply_pgdpot_transfer(pm, delta_k, canvas, alpha, kl, ks);
-        fastpm_apply_diff_transfer(pm, canvas, canvas, C[d].memb);
+        fastpm_apply_diff_transfer(pm, canvas, canvas, C[d].memb, 1);  // PGD was calibrated using difforder=1. FIXME might want to recalibrate
         /* result saved to canvas. */
         LEAVE(transfer);
 

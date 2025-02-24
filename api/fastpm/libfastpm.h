@@ -44,7 +44,7 @@ typedef enum { FASTPM_FORCE_FASTPM = 0,
 } FastPMForceType;
 
 typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
-               FASTPM_KERNEL_1_4,
+               FASTPM_KERNEL_1_4, FASTPM_KERNEL_1_4_DIFF0,
                FASTPM_KERNEL_GADGET,
                FASTPM_KERNEL_EASTWOOD,
                FASTPM_KERNEL_NAIVE,
@@ -52,7 +52,6 @@ typedef enum { FASTPM_KERNEL_3_4, FASTPM_KERNEL_3_2, FASTPM_KERNEL_5_4,
 typedef enum { FASTPM_SOFTENING_NONE,
                FASTPM_SOFTENING_GAUSSIAN, FASTPM_SOFTENING_GADGET_LONG_RANGE,
                FASTPM_SOFTENING_TWO_THIRD, FASTPM_SOFTENING_GAUSSIAN36 } FastPMSofteningType;
-typedef enum { FASTPM_IC_KERNEL_GREEN_FUNCTION, FASTPM_IC_KERNEL_STANDARD } FastPMICKernelType;
 
 void libfastpm_init();
 void libfastpm_cleanup();
