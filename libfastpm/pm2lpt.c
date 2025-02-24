@@ -126,7 +126,7 @@ pm_2lpt_solve(PM * pm, FastPMFloat * delta_k, FastPMFuncK * growth_rate_func_k, 
          *
          * */
 
-        fastpm_apply_laplace_transfer(pm, delta_k, workspace, potorder);
+        fastpm_apply_laplace_transfer(pm, source, workspace, potorder);
         fastpm_apply_diff_transfer(pm, workspace, workspace, d, difforder);
 
         pm_c2r(pm, workspace);
