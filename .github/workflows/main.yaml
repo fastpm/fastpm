@@ -20,13 +20,13 @@ jobs:
 
     steps:
     - name: Checkout source code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install deps
       uses: ./.github/actions/install-deps-ubuntu
 
     - name: Cache depends/
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         key: ${{ runner.os }}-build-${{ hashFiles('depends/Makefile*') }}
         path: |
@@ -40,7 +40,7 @@ jobs:
         make
 
     - name: Upload binaries
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: binaries
         path: |
@@ -64,14 +64,14 @@ jobs:
 
     steps:
     - name: Checkout source code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install deps
       uses: ./.github/actions/install-deps-ubuntu
 
 
     - name: Download binaries
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: binaries
 
@@ -97,13 +97,13 @@ jobs:
 
     steps:
     - name: Checkout source code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install deps
       uses: ./.github/actions/install-deps-ubuntu
 
     - name: Download binaries
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: binaries
 
@@ -135,13 +135,13 @@ jobs:
 
     steps:
     - name: Checkout source code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install deps
       uses: ./.github/actions/install-deps-ubuntu
 
     - name: Download binaries
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: binaries
 
@@ -170,13 +170,13 @@ jobs:
     steps:
 
     - name: Checkout source code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install deps
       uses: ./.github/actions/install-deps-ubuntu
 
     - name: Download binaries
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: binaries
 
