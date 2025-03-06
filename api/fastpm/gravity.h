@@ -6,6 +6,7 @@ void
 fastpm_kernel_type_get_orders(FastPMKernelType type,
     int *potorder,
     int *gradorder,
+    int *difforder,
     int *deconvolveorder);
 
 void
