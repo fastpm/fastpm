@@ -1112,7 +1112,9 @@ fastpm_snapshot_paint_hpmap(FastPMStore * p,
 ) {
     ptrdiff_t i;
 
-    fastpm_store_init(map, "HEALPIX", p->np, COLUMN_ID | COLUMN_AEMIT | COLUMN_MASS | COLUMN_RMOM, FASTPM_MEMORY_FLOATING);
+    char * store_name = fastpm_strdup_printf("HEALPIX/%s", p->name);
+    fastpm_store_init(map, store_name, p->np, COLUMN_ID | COLUMN_AEMIT | COLUMN_MASS | COLUMN_RMOM, FASTPM_MEMORY_FLOATING);
+    free(store_name);
 
     map->np = p->np;
 
