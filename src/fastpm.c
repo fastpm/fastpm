@@ -55,7 +55,7 @@ struct usmesh_ready_handler_data {
     FastPMSolver * fastpm;
     RunData * prr;
     FastPMStore tail[1];
-    FastPMHistogram cdm_hist[1];
+    FastPMHistogram par_hist[1];
     FastPMHistogram fof_hist[1];
     FastPMHistogram map_hist[1];
 };
@@ -358,10 +358,10 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
         load_transfer_data(a_transfer, t_init);
     }
 
-    FastPMUSMesh * usmesh = NULL;
+    FastPMUSMesh *usmesh[FASTPM_SOLVER_NSPECIES] = {NULL};
 
     if(CONF(prr->lua, lc_write_usmesh)) {
-        prepare_lc(fastpm, prr, lc, &usmesh);
+        prepare_lc(fastpm, prr, lc, usmesh);
     }
 
     MPI_Barrier(comm);
@@ -370,10 +370,12 @@ int run_fastpm(FastPMConfig * config, RunData * prr, MPI_Comm comm) {
     LEAVE(evolve);
 
     free(time_step);
-    if(usmesh)
-        fastpm_usmesh_destroy(usmesh);
-
-    free(usmesh);
+    for(int si = FASTPM_SOLVER_NSPECIES - 1; si >= 0; si--) {
+        if(usmesh[si]){
+            fastpm_usmesh_destroy(usmesh[si]);
+            free(usmesh[si]);
+        }
+    }
 
     if(CONF(prr->lua, lc_write_usmesh)) {
         fastpm_lc_destroy(lc);
@@ -850,7 +852,7 @@ static void
 _usmesh_ready_handler_free(void * userdata) {
     struct usmesh_ready_handler_data * data = userdata;
     fastpm_store_destroy(data->tail);
-    fastpm_histogram_destroy(data->cdm_hist);
+    fastpm_histogram_destroy(data->par_hist);
     fastpm_histogram_destroy(data->fof_hist);
     fastpm_histogram_destroy(data->map_hist);
     free(data);
@@ -897,77 +899,72 @@ prepare_lc(FastPMSolver * fastpm, RunData * prr,
 
     fastpm_lc_init(lc);
 
-
     double lc_amin = HAS(prr->lua, lc_amin)?CONF(prr->lua, lc_amin):CONF(prr->lua, time_step)[0];
-
     double lc_amax = HAS(prr->lua, lc_amax)?CONF(prr->lua, lc_amax):CONF(prr->lua, time_step)[CONF(prr->lua, n_time_step) - 1];
-
     fastpm_info("Unstructured Lightcone amin= %g amax=%g\n", lc_amin, lc_amax);
 
-    *usmesh = NULL;
     if(CONF(prr->lua, lc_write_usmesh)) {
-        /* FIXME: 1 USMesh per species -- refactor this to a function ;
-          */
-        FastPMStore * p = fastpm_solver_get_species(fastpm, FASTPM_SPECIES_CDM);
+        for(int si = 0; si < FASTPM_SOLVER_NSPECIES; si++) {
+            FastPMStore * p = fastpm_solver_get_species(fastpm, si);
+            if(!p) continue;
 
-        *usmesh = malloc(sizeof(FastPMUSMesh));
+            usmesh[si] = malloc(sizeof(FastPMUSMesh));
 
-        double (*tiles)[3];
-        int ntiles;
+            double (*tiles)[3];
+            int ntiles;
 
-        if(CONF(prr->lua, ndim_lc_usmesh_tiles) != 2 ||
-           CONF(prr->lua, shape_lc_usmesh_tiles)[1] != 3
-        ) {
-            fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
-        }
+            if(CONF(prr->lua, ndim_lc_usmesh_tiles) != 2 ||
+                CONF(prr->lua, shape_lc_usmesh_tiles)[1] != 3
+                ) {
+                    fastpm_raise(-1, "tiles must be a nx3 matrix, one row per tile.\n");
+                }
 
-        ntiles = CONF(prr->lua, shape_lc_usmesh_tiles)[0];
-        tiles = malloc(sizeof(tiles[0]) * ntiles);
-        int i, j;
-        double * c = CONF(prr->lua, lc_usmesh_tiles);
+            ntiles = CONF(prr->lua, shape_lc_usmesh_tiles)[0];
+            tiles = malloc(sizeof(tiles[0]) * ntiles);
+            int i, j;
+            double * c = CONF(prr->lua, lc_usmesh_tiles);
 
-        for (i = 0; i < ntiles; i ++) {
-            for (j = 0; j < 3; j ++) {
-                tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
-                c ++;
+            for (i = 0; i < ntiles; i ++) {
+                for (j = 0; j < 3; j ++) {
+                    tiles[i][j] = (*c) * pm_boxsize(fastpm->basepm)[j];
+                    c ++;
+                }
             }
+            fastpm_usmesh_init(usmesh[si], lc,
+                    CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->basepm),
+                    p,
+                    CONF(prr->lua, lc_usmesh_alloc_factor) * p->np_upper,
+                    tiles, ntiles, lc_amin, lc_amax);
+
+            fastpm_add_event_handler(&fastpm->event_handlers,
+                FASTPM_EVENT_INTERPOLATION,
+                FASTPM_EVENT_STAGE_BEFORE,
+                (FastPMEventHandlerFunction) check_lightcone,
+                usmesh[si]);
+
+            free(tiles);
+
+            struct usmesh_ready_handler_data * data = malloc(sizeof(data[0]));
+            data->fastpm = fastpm;
+            data->prr = prr;
+
+            int nslices = CONF(prr->lua, lc_usmesh_nslices);
+
+            fastpm_info("Generating an AemitIndex with %d layers for usmesh.", nslices);
+
+            fastpm_histogram_init(data->par_hist, 0.0, 1.0, nslices + 1);
+            fastpm_histogram_init(data->fof_hist, 0.0, 1.0, nslices + 1);
+            fastpm_histogram_init(data->map_hist, 0.0, 1.0, nslices + 1);
+
+            fastpm_store_init(data->tail, p->name, 0, 0, FASTPM_MEMORY_FLOATING);
+            data->tail->meta = p->meta;
+
+            fastpm_add_event_handler_free(&(usmesh[si])->event_handlers,
+                    FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
+                    (FastPMEventHandlerFunction) usmesh_ready_handler,
+                    data, _usmesh_ready_handler_free);
         }
-        fastpm_usmesh_init(*usmesh, lc,
-                CONF(prr->lua, lc_usmesh_alloc_factor) * pm_volume(fastpm->basepm),
-                p,
-                CONF(prr->lua, lc_usmesh_alloc_factor) *
-                p->np_upper,
-                tiles, ntiles, lc_amin, lc_amax);
-
-        fastpm_add_event_handler(&fastpm->event_handlers,
-            FASTPM_EVENT_INTERPOLATION,
-            FASTPM_EVENT_STAGE_BEFORE,
-            (FastPMEventHandlerFunction) check_lightcone,
-            *usmesh);
-
-        free(tiles);
-
-        struct usmesh_ready_handler_data * data = malloc(sizeof(data[0]));
-        data->fastpm = fastpm;
-        data->prr = prr;
-
-        int nslices = CONF(prr->lua, lc_usmesh_nslices);
-
-        fastpm_info("Generating an AemitIndex with %d layers for usmesh.", nslices);
-
-        fastpm_histogram_init(data->cdm_hist, 0.0, 1.0, nslices + 1);
-        fastpm_histogram_init(data->fof_hist, 0.0, 1.0, nslices + 1);
-        fastpm_histogram_init(data->map_hist, 0.0, 1.0, nslices + 1);
-
-        fastpm_store_init(data->tail, p->name, 0, 0, FASTPM_MEMORY_FLOATING);
-        data->tail->meta = p->meta;
-
-        fastpm_add_event_handler_free(&(*usmesh)->event_handlers,
-                FASTPM_EVENT_LC_READY, FASTPM_EVENT_STAGE_AFTER,
-                (FastPMEventHandlerFunction) usmesh_ready_handler,
-                data, _usmesh_ready_handler_free);
     }
-
 }
 
 static double
@@ -1012,10 +1009,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_snapshot_paint_hpmap(lcevent->p, nside, nslices, NULL, NULL, map, fastpm->comm);
     }
 
-    if(CONF(prr->lua, write_fof)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc, run_fof);
     }
-    if(CONF(prr->lua, write_rfof)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         run_usmesh_fof(fastpm, lcevent, rhalos, prr, tail, mesh->lc, run_rfof);
     }
 
@@ -1046,10 +1043,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 
     ENTER(sort);
     fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
-    if(CONF(prr->lua, write_fof)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
-    if(CONF(prr->lua, write_rfof)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_sort_snapshot(rhalos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
     if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
@@ -1058,11 +1055,11 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     LEAVE(sort);
 
     ENTER(indexing);
-    fastpm_store_histogram_aemit_sorted(lcevent->p, data->cdm_hist, fastpm->comm);
-    if(CONF(prr->lua, write_fof)) {
+    fastpm_store_histogram_aemit_sorted(lcevent->p, data->par_hist, fastpm->comm);
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_store_histogram_aemit_sorted(halos, data->fof_hist, fastpm->comm);
     }
-    if(CONF(prr->lua, write_rfof)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_store_histogram_aemit_sorted(rhalos, data->fof_hist, fastpm->comm);
     }
     if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
@@ -1080,10 +1077,12 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_info("Appending usmesh catalog to %s\n", filebase);
         fastpm_store_write(lcevent->p, filebase, "a", prr->cli->Nwriters, fastpm->comm);
     }
-    write_aemit_hist(filebase, "1/.", data->cdm_hist, fastpm->comm);
+    char * dataset_attrs = fastpm_strdup_printf("%s/.", data->tail->name);
+    write_aemit_hist(filebase, dataset_attrs, data->par_hist, fastpm->comm);
+    free(dataset_attrs);
 
     /* halos */
-    if(CONF(prr->lua, write_fof)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
             fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
@@ -1095,19 +1094,20 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         free(dataset_attrs);
         fastpm_store_destroy(halos);
     }
-    if(CONF(prr->lua, write_rfof)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
             fastpm_store_write(rhalos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
         } else {
             fastpm_store_write(rhalos, filebase, "a", prr->cli->Nwriters, fastpm->comm);
         }
-
         char * dataset_attrs = fastpm_strdup_printf("%s/.", rhalos->name);
         write_aemit_hist(filebase, dataset_attrs, data->fof_hist, fastpm->comm);
         free(dataset_attrs);
         fastpm_store_destroy(rhalos);
     }
+
+    /* healpix */
     if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
         if(lcevent->whence == TIMESTEP_START) {
             fastpm_store_write(map, filebase, "w", prr->cli->Nwriters, fastpm->comm);

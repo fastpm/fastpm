@@ -81,13 +81,13 @@ fastpm_usmesh_init(FastPMUSMesh * mesh, FastPMLightCone * lc,
     mesh->event_handlers = NULL;
     mesh->p = malloc(sizeof(FastPMStore));
     /* for saving the density with particles */
-    fastpm_store_init(mesh->p, source->name, np_upper,
-                  COLUMN_ID | COLUMN_POS | COLUMN_VEL | COLUMN_MASK |
-                  COLUMN_RAND | COLUMN_AEMIT,
-                FASTPM_MEMORY_HEAP
-    );
+    FastPMColumnTags usmesh_attrs;
+    usmesh_attrs = COLUMN_ID | COLUMN_POS | COLUMN_VEL | COLUMN_MASK | COLUMN_RAND | COLUMN_AEMIT;
+    if (*source->name == *fastpm_species_get_name(FASTPM_SPECIES_NCDM))
+        usmesh_attrs = usmesh_attrs | COLUMN_MASS;
+    fastpm_store_init(mesh->p, source->name, np_upper, usmesh_attrs, FASTPM_MEMORY_HEAP);
 
-    mesh->p->meta.M0 = source->meta.M0;       // FIXME: change this for ncdm mass defn?
+    mesh->p->meta.M0 = source->meta.M0;
 }
 
 void fastpm_usmesh_destroy(FastPMUSMesh * mesh)
@@ -460,6 +460,8 @@ fastpm_usmesh_intersect_tile(FastPMUSMesh * mesh, double * tileshift,
                 pout->rand[next] = p->rand[i];
             if(pout->mask)
                 pout->mask[next] = p->mask[i];
+            if(pout->mass)
+                pout->mass[next] = p->mass[i];
 
             double potfactor = 1.5 * lc->cosmology->Omega_cdm / (HubbleDistance * HubbleDistance);
             /* convert to dimensionless potential */
