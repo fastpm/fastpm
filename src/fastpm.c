@@ -1009,10 +1009,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         fastpm_snapshot_paint_hpmap(lcevent->p, nside, nslices, NULL, NULL, map, fastpm->comm);
     }
 
-    if(CONF(prr->lua, write_fof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         run_usmesh_fof(fastpm, lcevent, halos, prr, tail, mesh->lc, run_fof);
     }
-    if(CONF(prr->lua, write_rfof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         run_usmesh_fof(fastpm, lcevent, rhalos, prr, tail, mesh->lc, run_rfof);
     }
 
@@ -1043,10 +1043,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 
     ENTER(sort);
     fastpm_sort_snapshot(lcevent->p, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
-    if(CONF(prr->lua, write_fof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_sort_snapshot(halos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
-    if(CONF(prr->lua, write_rfof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_sort_snapshot(rhalos, fastpm->comm, FastPMSnapshotSortByAEmit, 0);
     }
     if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
@@ -1056,10 +1056,10 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
 
     ENTER(indexing);
     fastpm_store_histogram_aemit_sorted(lcevent->p, data->par_hist, fastpm->comm);
-    if(CONF(prr->lua, write_fof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_store_histogram_aemit_sorted(halos, data->fof_hist, fastpm->comm);
     }
-    if(CONF(prr->lua, write_rfof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         fastpm_store_histogram_aemit_sorted(rhalos, data->fof_hist, fastpm->comm);
     }
     if(CONF(prr->lua, lc_usmesh_healpix_nside)) {
@@ -1082,7 +1082,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
     free(dataset_attrs);
 
     /* halos */
-    if(CONF(prr->lua, write_fof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_fof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
             fastpm_store_write(halos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
@@ -1094,7 +1094,7 @@ usmesh_ready_handler(FastPMUSMesh * mesh, FastPMLCEvent * lcevent, struct usmesh
         free(dataset_attrs);
         fastpm_store_destroy(halos);
     }
-    if(CONF(prr->lua, write_rfof) && data->tail->name==fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
+    if(CONF(prr->lua, write_rfof) && *data->tail->name == *fastpm_species_get_name(FASTPM_SPECIES_CDM)) {
         if(lcevent->whence == TIMESTEP_START) {
             /* usmesh fof is always written after the subsample snapshot; no need to create a header */
             fastpm_store_write(rhalos, filebase, "w", prr->cli->Nwriters, fastpm->comm);
