@@ -13,7 +13,7 @@ CHECK: Writing a catalog to lightcone/usmesh [1]
 CHECK: Writing 0 objects.
 CHECK: Writing a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-CHECK: Writing a catalog to lightcone/usmesh [HEALPIX]
+CHECK: Writing a catalog to lightcone/usmesh [HEALPIX/1]
 CHECK: Writing 0 objects.
 CHECK: Total number of particles in the lightcone: 0
 CHECK: ==== -> 002 [000 001 000]
@@ -24,7 +24,7 @@ CHECK: Appending a catalog to lightcone/usmesh [1]
 CHECK: Writing 422564 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-CHECK: Appending a catalog to lightcone/usmesh [HEALPIX]
+CHECK: Appending a catalog to lightcone/usmesh [HEALPIX/1]
 CHECK: Writing 20903 objects.
 CHECK: Total number of particles in the lightcone: 692556
 CHECK: ==== -> 004 [002 001 000]
@@ -37,7 +37,7 @@ CHECK: Appending a catalog to lightcone/usmesh [1]
 CHECK: Writing 569931 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-CHECK: Appending a catalog to lightcone/usmesh [HEALPIX]
+CHECK: Appending a catalog to lightcone/usmesh [HEALPIX/1]
 CHECK: Writing 24576 objects.
 CHECK: Total number of particles in the lightcone: 1312311
 CHECK: ==== -> 007 [002 003 002]
@@ -56,7 +56,7 @@ CHECK: Appending a catalog to lightcone/usmesh [1]
 CHECK: Writing 622458 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 0 objects.
-CHECK: Appending a catalog to lightcone/usmesh [HEALPIX]
+CHECK: Appending a catalog to lightcone/usmesh [HEALPIX/1]
 CHECK: Writing 61170 objects.
 CHECK: Total number of particles in the lightcone: 1934769
 CHECK: ==== -> 014 [006 005 004]
@@ -113,6 +113,6 @@ CHECK: Appending a catalog to lightcone/usmesh [1]
 CHECK: Writing 200849 objects.
 CHECK: Appending a catalog to lightcone/usmesh [LL-0.200]
 CHECK: Writing 1 objects.
-CHECK: Appending a catalog to lightcone/usmesh [HEALPIX]
+CHECK: Appending a catalog to lightcone/usmesh [HEALPIX/1]
 CHECK: Writing 74426 objects.
 CHECK: Total number of particles in the lightcone: 2135618
