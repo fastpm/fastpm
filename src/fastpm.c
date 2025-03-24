@@ -1564,7 +1564,7 @@ check_lightcone(FastPMSolver * fastpm, FastPMInterpolationEvent * event, FastPMU
     double a1 = event->drift->ai > event->drift->af ? event->drift->af: event->drift->ai;
     double a2 = event->drift->ai > event->drift->af ? event->drift->ai: event->drift->af;
 
-    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, a1, a2, event->whence, fastpm->comm);   // FIXME this is the only usmesh func outside of the usmesh file. It does not take store as input. So maybe in this func loop over all species. having redfined the internals of a usmesh to have multiple species? I.e. replace p in usmesh with species.
+    fastpm_usmesh_intersect(usmesh, event->drift, event->kick, a1, a2, event->whence, fastpm->comm);
 
     int64_t np_lc = usmesh->np_before;
     MPI_Allreduce(MPI_IN_PLACE, &np_lc, 1, MPI_LONG, MPI_SUM, fastpm->comm);
