@@ -1761,10 +1761,8 @@ write_powerspectrum(FastPMSolver * fastpm, FastPMForceEvent * event, RunData * p
         if(CONF(prr->lua, ncdm_linearresponse)) {
             sprintf(buf, "%s_nu_%0.04f.txt", CONF(prr->lua, write_powerspectrum), event->a_f);
             fastpm_info("writing neutrino power spectrum to %s\n", buf);
-            /* Need to change the power spectrum normalisation here for saving the output power spectrum.*/
-            const double MtotbyMcdm = fastpm->cosmology->Omega_m/(fastpm->cosmology->Omega_m - pow(event->a_f,3)*Omega_ncdmTimesHubbleEaSq(event->a_f, fastpm->cosmology))/pow(HubbleEa(event->a_f, fastpm->cosmology),2);
             if(fastpm->ThisTask == 0) {
-                powerspectrum_nu_save(&ps, buf, MtotbyMcdm);
+                powerspectrum_nu_save(&ps, buf);
             }
         }
     }
