@@ -60,6 +60,9 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
 int
 read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
 
+int
+write_real(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters);
+
 size_t
 read_angular_grid(FastPMStore * store,
         const char * filename,

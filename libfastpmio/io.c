@@ -615,26 +615,26 @@ read_snapshot(FastPMSolver * fastpm, FastPMStore * p, const char * filebase)
     return 0;
 }
 
-struct BufType {
-    uint64_t ind;
-    uint64_t ind2;
+struct ComplexBufType {
+    uint64_t mem_ind;
+    uint64_t disk_ind;
     float value[2];
 };
 
 static void
-_radix(const void * ptr, void * radix, void * arg)
+_radix_complex_mem_ind(const void * ptr, void * radix, void * arg)
 {
-    const struct BufType * buf = ptr;
+    const struct ComplexBufType * buf = ptr;
     uint64_t * key = radix;
-    *key = buf->ind;
+    *key = buf->mem_ind;
 }
 
 static void
-_radix2(const void * ptr, void * radix, void * arg)
+_radix_complex_disk_ind(const void * ptr, void * radix, void * arg)
 {
-    const struct BufType * buf = ptr;
+    const struct ComplexBufType * buf = ptr;
     uint64_t * key = radix;
-    *key = buf->ind2;
+    *key = buf->disk_ind;
 }
 
 int
@@ -662,7 +662,7 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
     MPI_Barrier(comm);
     LEAVE(meta);
 
-    struct BufType * buf = malloc(sizeof(struct BufType) * pm_allocsize(pm) / 2);
+    struct ComplexBufType * buf = malloc(sizeof(struct ComplexBufType) * pm_allocsize(pm) / 2);
 
     int Nmesh = pm_nmesh(pm)[0];
     double BoxSize = pm_boxsize(pm)[0];
@@ -676,13 +676,13 @@ write_complex(PM * pm, FastPMFloat * data, const char * filename, const char * b
         uint64_t iabs = kiter.iabs[0] * strides[0] + kiter.iabs[1] * strides[1] + kiter.iabs[2] * strides[2];
         buf[localsize].value[0] = data[kiter.ind];
         buf[localsize].value[1] = data[kiter.ind + 1];
-        buf[localsize].ind2 = iabs;
-        buf[localsize].ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
+        buf[localsize].disk_ind = iabs;
+        buf[localsize].mem_ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
         localsize ++;
     }
 
     /* sort by k */
-    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix2, 8, NULL, comm);
+    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix_complex_disk_ind, 8, NULL, comm);
 
     size_t size = localsize;
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
@@ -728,7 +728,7 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
         MPI_Comm_size(comm, &Nwriters);
     }
 
-    struct BufType * buf = malloc(sizeof(struct BufType) * pm_allocsize(pm) / 2);
+    struct ComplexBufType * buf = malloc(sizeof(struct ComplexBufType) * pm_allocsize(pm) / 2);
 
     int Nmesh = pm_nmesh(pm)[0];
     ptrdiff_t strides[3] = {Nmesh * (Nmesh / 2 + 1), Nmesh / 2 + 1, 1};
@@ -747,12 +747,12 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
         uint64_t iabs = kiter.iabs[0] * strides[0] + kiter.iabs[1] * strides[1] + kiter.iabs[2] * strides[2];
         buf[localsize].value[0] = 0;
         buf[localsize].value[1] = 0;
-        buf[localsize].ind2 = iabs;
-        buf[localsize].ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
+        buf[localsize].disk_ind = iabs;
+        buf[localsize].mem_ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
         localsize ++;
     }
-    /* sort by ind2, such that ind is the original linear location in 2d decomposition */
-    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix2, 8, NULL, comm);
+    /* sort by disk_ind, mem_ind is the original linear location in 2d decomposition */
+    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix_complex_disk_ind, 8, NULL, comm);
 
     int Nfile = NTask / 8;
     if (Nfile == 0) Nfile = 1;
@@ -790,7 +790,7 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
     big_file_mpi_close(&bf, comm);
 
     /* return the values to the correct location */
-    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix, 8, NULL, comm);
+    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix_complex_mem_ind, 8, NULL, comm);
 
     /* read out the values */
     localsize = 0;
@@ -805,6 +805,110 @@ read_complex(PM * pm, FastPMFloat * data, const char * filename, const char * bl
     free(buf);
     return 0;
 }
+
+struct RealBufType {
+    uint64_t mem_ind;
+    uint64_t disk_ind;
+    float value;
+};
+
+static void
+_radix_real_mem_ind(const void * ptr, void * radix, void * arg)
+{
+    const struct RealBufType * buf = ptr;
+    uint64_t * key = radix;
+    *key = buf->mem_ind;
+}
+
+static void
+_radix_real_disk_ind(const void * ptr, void * radix, void * arg)
+{
+    const struct RealBufType * buf = ptr;
+    uint64_t * key = radix;
+    *key = buf->disk_ind;
+}
+
+int
+write_real(PM * pm, FastPMFloat * data, const char * filename, const char * blockname, int Nwriters)
+{
+    CLOCK(meta);
+
+    MPI_Comm comm = pm_comm(pm);
+    BigFile bf;
+    PMXIter xiter;
+    if(Nwriters == 0) {
+        MPI_Comm_size(comm, &Nwriters);
+    }
+    int ThisTask;
+    int NTask;
+
+    MPI_Comm_rank(comm, &ThisTask);
+    MPI_Comm_size(comm, &NTask);
+
+    ENTER(meta);
+
+    if (ThisTask == 0)
+        fastpm_path_ensure_dirname(filename);
+
+    MPI_Barrier(comm);
+    LEAVE(meta);
+
+    struct RealBufType * buf = malloc(sizeof(struct RealBufType) * pm_allocsize(pm));
+
+    int Nmesh = pm_nmesh(pm)[0];
+    double BoxSize = pm_boxsize(pm)[0];
+    int64_t strides[3] = {Nmesh * Nmesh, Nmesh, 1};
+    int64_t shape[3] = {Nmesh, Nmesh, Nmesh};
+
+    size_t localsize = 0;
+    for(pm_xiter_init(pm, &xiter);
+       !pm_xiter_stop(&xiter);
+        pm_xiter_next(&xiter)) {
+        uint64_t iabs = xiter.iabs[0] * strides[0] + xiter.iabs[1] * strides[1] + xiter.iabs[2] * strides[2];
+        buf[localsize].value = data[xiter.ind];
+        buf[localsize].disk_ind = iabs;
+        buf[localsize].mem_ind = ThisTask * ((size_t) Nmesh) * Nmesh * Nmesh + localsize;
+        localsize ++;
+    }
+
+    /* sort by k */
+    mpsort_mpi(buf, localsize, sizeof(buf[0]), _radix_real_disk_ind, 8, NULL, comm);
+
+    size_t size = localsize;
+    MPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG, MPI_SUM, comm);
+
+    int Nfile = NTask / 8;
+    if (Nfile == 0) Nfile = 1;
+
+    if(0 != big_file_mpi_create(&bf, filename, comm)) {
+        fastpm_raise(-1, "Failed to create the file: %s\n", big_file_get_error_message());
+    }
+    {
+        BigBlock bb;
+        BigArray array;
+        BigBlockPtr ptr;
+        if(0 != big_file_mpi_create_block(&bf, &bb, blockname, "f4", 1, Nfile, size, comm)) {
+            fastpm_raise(-1, "Failed to create the block : %s\n", big_file_get_error_message());
+        }
+        big_array_init(&array, &buf[0].value, "f4", 1, (size_t[]) {localsize, 1},
+                (ptrdiff_t[]) { sizeof(buf[0]), sizeof(buf[0])});
+        big_block_seek(&bb, &ptr, 0);
+        big_block_mpi_write(&bb, &ptr, &array, Nwriters, comm);
+
+        big_block_set_attr(&bb, "ndarray.ndim", (int[]){3,}, "i4", 1);
+        big_block_set_attr(&bb, "ndarray.strides", strides, "i8", 3);
+        big_block_set_attr(&bb, "ndarray.shape", shape, "i8", 3);
+        big_block_set_attr(&bb, "Nmesh", &Nmesh, "i4", 1);
+        big_block_set_attr(&bb, "BoxSize", &BoxSize, "f8", 1);
+        big_block_mpi_close(&bb, comm);
+    }
+
+    free(buf);
+    big_file_mpi_close(&bf, comm);
+    return 0;
+}
+
+
 
 /**
  *
